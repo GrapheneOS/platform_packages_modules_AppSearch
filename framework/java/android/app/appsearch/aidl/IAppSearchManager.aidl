@@ -24,16 +24,20 @@ import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchObserverProxy;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.aidl.DocumentsParcel;
-import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
+import android.app.appsearch.aidl.GetNextPageAidlRequest;
+import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.GetStorageInfoAidlRequest;
+import android.app.appsearch.aidl.GlobalSearchAidlRequest;
 import android.app.appsearch.aidl.InitializeAidlRequest;
 import android.app.appsearch.aidl.InvalidateNextPageTokenAidlRequest;
 import android.app.appsearch.aidl.PersistToDiskAidlRequest;
 import android.app.appsearch.aidl.PutDocumentsAidlRequest;
+import android.app.appsearch.aidl.PutDocumentsFromFileAidlRequest;
 import android.app.appsearch.aidl.RegisterObserverCallbackAidlRequest;
-import android.app.appsearch.aidl.RemoveByQueryAidlRequest;
 import android.app.appsearch.aidl.RemoveByDocumentIdAidlRequest;
+import android.app.appsearch.aidl.RemoveByQueryAidlRequest;
+import android.app.appsearch.aidl.SearchAidlRequest;
 import android.app.appsearch.aidl.SearchSuggestionAidlRequest;
 import android.app.appsearch.aidl.SetSchemaAidlRequest;
 import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
@@ -149,70 +153,39 @@ interface IAppSearchManager {
     /**
      * Searches a document based on a given specifications.
      *
-     * @param callerAttributionSource The permission identity of the package to query over.
-     * @param databaseName The databaseName this query for.
-     * @param queryExpression String to search for
-     * @param searchSpec SearchSpec
-     * @param userHandle Handle of the calling user
-     * @param binderCallStartTimeMillis start timestamp of binder call in Millis
+     * @param request {@link QueryAidlRequest} that contains the input parameters for the search
+     *     operation
      * @param callback {@link AppSearchResult}&lt;{@link SearchResultPage}&gt; of performing this
-     *         operation.
+     *     operation.
      */
-    void query(
-        in AppSearchAttributionSource callerAttributionSource,
-        in String databaseName,
-        in String queryExpression,
-        in SearchSpec searchSpec,
-        in UserHandle userHandle,
-        in long binderCallStartTimeMillis,
+    void search(
+        in SearchAidlRequest request,
         in IAppSearchResultCallback callback) = 6;
 
     /**
-     * Executes a global query, i.e. over all permitted databases, against the AppSearch index and
+     * Executes a global search, i.e. over all permitted databases, against the AppSearch index and
      * returns results.
      *
-     * @param callerAttributionSource The permission identity of the package making the query.
-     * @param queryExpression String to search for
-     * @param searchSpec SearchSpec
-     * @param userHandle Handle of the calling user
-     * @param binderCallStartTimeMillis start timestamp of binder call in Millis
-     * @param isForEnterprise Whether to query the user's enterprise profile AppSearch instance
+     * @param request {@link GlobalSearchAidlRequest} that contains the input parameters for the
+     *     global search operation.
      * @param callback {@link AppSearchResult}&lt;{@link SearchResultPage}&gt; of performing this
-     *         operation.
+     *     operation.
      */
-    void globalQuery(
-        in AppSearchAttributionSource callerAttributionSource,
-        in String queryExpression,
-        in SearchSpec searchSpec,
-        in UserHandle userHandle,
-        in long binderCallStartTimeMillis,
-        in boolean isForEnterprise,
+    void globalSearch(
+        in GlobalSearchAidlRequest request,
         in IAppSearchResultCallback callback) = 7;
 
     /**
-     * Fetches the next page of results of a previously executed query. Results can be empty if
+     * Fetches the next page of results of a previously executed search. Results can be empty if
      * next-page token is invalid or all pages have been returned.
      *
-     * @param callerAttributionSource The permission identity of the package to persist to disk
-     *     for.
-     * @param databaseName The nullable databaseName this query for. The databaseName will be null
-                           if the query is a global search.
-     * @param nextPageToken The token of pre-loaded results of previously executed query.
-     * @param joinType the type of join performed. 0 if no join is performed
-     * @param userHandle Handle of the calling user
-     * @param binderCallStartTimeMillis start timestamp of binder call in Millis
-     * @param isForEnterprise Whether to query the user's enterprise profile AppSearch instance
+     * @param request {@link GetNextPageAidlRequest} that contains the input parameters for the
+     *     get next page operation.
      * @param callback {@link AppSearchResult}&lt;{@link SearchResultPage}&gt; of performing this
      *                  operation.
      */
     void getNextPage(
-        in AppSearchAttributionSource callerAttributionSource,
-        in String databaseName,
-        in long nextPageToken,
-        in int joinType,
-        in UserHandle userHandle,
-        in long binderCallStartTimeMillis,
-        in boolean isForEnterprise,
+        in GetNextPageAidlRequest request,
         in IAppSearchResultCallback callback) = 8;
 
     /**
@@ -239,33 +212,20 @@ interface IAppSearchManager {
         in IAppSearchResultCallback callback) = 10;
 
     /**
-    * Inserts documents from the given file into the index.
-    *
-    * <p>This method does not dispatch change notifications for the individual documents being
-    * inserted, so it is only appropriate to use for batch upload situations where a broader change
-    * notification will indicate what has changed, like schema migration.
-    *
-    * @param callerAttributionSource The permission identity of the package that owns this
-    *     document.
-    * @param databaseName  The name of the database where this document lives.
-    * @param fileDescriptor The ParcelFileDescriptor where documents should be read from.
-    * @param userHandle Handle of the calling user.
-    * @param schemaMigrationStats the Parcelable contains SchemaMigrationStats information.
-    * @param totalLatencyStartTimeMillis start timestamp to calculate total migration latency in
-    *     Millis
-    * @param binderCallStartTimeMillis start timestamp of binder call in Millis
-    * @param callback {@link IAppSearchResultCallback#onResult} will be called with an
-    *     {@link AppSearchResult}&lt;{@link List}&lt;{@link Bundle}&gt;&gt;, where the value are
-    *     MigrationFailure bundles.
-    */
+     * Inserts documents from the given file into the index.
+     *
+     * <p>This method does not dispatch change notifications for the individual documents being
+     * inserted, so it is only appropriate to use for batch upload situations where a broader change
+     * notification will indicate what has changed, like schema migration.
+     *
+     * @param request {@link PutDocumentsFromFileAidlRequest} that contains the input parameters to
+     *     put documents from a file.
+     * @param callback {@link IAppSearchResultCallback#onResult} will be called with an
+     *     {@link AppSearchResult}&lt;{@link List}&lt;{@link Bundle}&gt;&gt;, where the value are
+     *     MigrationFailure bundles.
+     */
     void putDocumentsFromFile(
-        in AppSearchAttributionSource callerAttributionSource,
-        in String databaseName,
-        in ParcelFileDescriptor fileDescriptor,
-        in UserHandle userHandle,
-        in SchemaMigrationStats schemaMigrationStats,
-        in long totalLatencyStartTimeMillis,
-        in long binderCallStartTimeMillis,
+        in PutDocumentsFromFileAidlRequest request,
         in IAppSearchResultCallback callback) = 11;
 
     /**

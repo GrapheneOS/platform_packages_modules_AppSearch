@@ -28,6 +28,7 @@ import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
+import android.app.appsearch.aidl.PutDocumentsFromFileAidlRequest;
 import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
@@ -189,11 +190,13 @@ public class AppSearchMigrationHelper implements Closeable {
             CountDownLatch latch = new CountDownLatch(1);
             AtomicReference<AppSearchResult<List<MigrationFailure>>> resultReference =
                     new AtomicReference<>();
-            mService.putDocumentsFromFile(mCallerAttributionSource, mDatabaseName, fileDescriptor,
-                    mUserHandle,
-                    schemaMigrationStatsBuilder.build(),
-                    totalLatencyStartTimeMillis,
-                    /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
+            mService.putDocumentsFromFile(
+                    new PutDocumentsFromFileAidlRequest(mCallerAttributionSource, mDatabaseName,
+                            fileDescriptor,
+                            mUserHandle,
+                            schemaMigrationStatsBuilder.build(),
+                            totalLatencyStartTimeMillis,
+                            /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
                         public void onResult(AppSearchResultParcel resultParcel) {
