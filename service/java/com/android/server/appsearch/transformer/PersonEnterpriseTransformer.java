@@ -46,9 +46,14 @@ import java.util.Set;
 final class PersonEnterpriseTransformer {
     private static final String TAG = "AppSearchPersonEnterpri";
 
-    // Contacts#CORP_CONTENT_URI is hidden
+    // These constants are hidden in ContactsContract.Contacts
     private static final Uri CORP_CONTENT_URI = Uri.withAppendedPath(AUTHORITY_URI,
             "contacts_corp");
+    private static final long ENTERPRISE_CONTACT_ID_BASE = 1000000000;
+    private static final String ENTERPRISE_CONTACT_LOOKUP_PREFIX = "c-";
+
+    // Person externalUri should begin with "content://com.android.contacts/contacts/lookup"
+    private static final String CONTACTS_LOOKUP_URI_PREFIX = Contacts.CONTENT_LOOKUP_URI.toString();
 
     private static final List<String> PERSON_ACCESSIBLE_PROPERTIES = List.of(
             Person.PERSON_PROPERTY_NAME,
@@ -84,34 +89,43 @@ final class PersonEnterpriseTransformer {
     }
 
     /**
-     * Transforms the imageUri property of a Person document to its corresponding enterprise
-     * version.
+     * Transforms the imageUri and externalUri properties of a Person document to their enterprise
+     * versions which are the corp thumbnail uri and corp lookup uri respectively.
      * <p>
      * When contacts are accessed through CP2's enterprise uri, CP2 replaces the contact id with an
-     * enterprise contact id and the thumbnail uri with a corp thumbnail uri. The enterprise contact
-     * id is the original contact id added to an enterprise base id
-     * {@link ContactsContract.Contacts#ENTERPRISE_CONTACT_ID_BASE}. The generated corp thumbnail
-     * uri includes the original contact id and not the enterprise contact id.
+     * enterprise contact id (the original contact id plus a base enterprise id
+     * {@link ContactsContract.Contacts#ENTERPRISE_CONTACT_ID_BASE}). The corp thumbnail uri keeps
+     * the original contact id, but the corp lookup uri uses the enterprise contact id.
      * <p>
-     * In this method, we only transform the imageUri property to the corp thumbnail uri but leave
-     * the document id untouched, since changing the document id would interfere with retrieving
+     * In this method, we only transform the imageUri and externalUri properties, and we leave the
+     * document id untouched, since changing the document id would interfere with retrieving
      * documents by id.
      */
     @NonNull
     static GenericDocument transformDocument(@NonNull GenericDocument originalDocument) {
         Objects.requireNonNull(originalDocument);
-        // Don't set the imageUri property of the document if it's not already set
-        if (originalDocument.getPropertyString(Person.PERSON_PROPERTY_IMAGE_URI) == null) {
+        String imageUri = originalDocument.getPropertyString(Person.PERSON_PROPERTY_IMAGE_URI);
+        String externalUri = originalDocument.getPropertyString(
+                Person.PERSON_PROPERTY_EXTERNAL_URI);
+        // Only transform the properties if they're present in the document. If neither property is
+        // present, just return the original document
+        if (imageUri == null && externalUri == null) {
             return originalDocument;
         }
         GenericDocument.Builder<GenericDocument.Builder<?>> transformedDocumentBuilder =
                 new GenericDocument.Builder<>(originalDocument);
-        try {
-            long originalId = Long.parseLong(originalDocument.getId());
-            transformedDocumentBuilder.setPropertyString(Person.PERSON_PROPERTY_IMAGE_URI,
-                    getCorpImageUri(originalId));
-        } catch (NumberFormatException e) {
-            Log.w(TAG, "Failed to set imageUri property", e);
+        if (imageUri != null) {
+            try {
+                long contactId = Long.parseLong(originalDocument.getId());
+                transformedDocumentBuilder.setPropertyString(Person.PERSON_PROPERTY_IMAGE_URI,
+                        getCorpImageUri(contactId));
+            } catch (NumberFormatException e) {
+                Log.w(TAG, "Failed to set imageUri property", e);
+            }
+        }
+        if (externalUri != null) {
+            transformedDocumentBuilder.setPropertyString(Person.PERSON_PROPERTY_EXTERNAL_URI,
+                    getCorpLookupUri(externalUri));
         }
         return transformedDocumentBuilder.build();
     }
@@ -126,7 +140,53 @@ final class PersonEnterpriseTransformer {
     static String getCorpImageUri(long contactId) {
         // https://cs.android.com/android/platform/superproject/main/+/main:packages/providers/ContactsProvider/src/com/android/providers/contacts/enterprise/EnterpriseContactsCursorWrapper.java;l=178;drc=a9d2c06a03a653954629ff10070ebbe4ea87d526
         return ContentUris.appendId(CORP_CONTENT_URI.buildUpon(), contactId).appendPath(
-                Contacts.Photo.CONTENT_DIRECTORY).build().toString();
+                Contacts.Photo.CONTENT_DIRECTORY).toString();
+    }
+
+    /**
+     * Transforms the given lookup uri to a corp lookup uri. This prepends an enterprise-specific
+     * prefix to the lookup key segment and transforms the contact id segment (if present) to an
+     * enterprise contact id, e.g. "content://com.android.contacts/contacts/lookup/key/123" would
+     * become "content://com.android.contacts/contacts/lookup/c-key/1000000123".
+     *
+     * <p>Note, if the given lookup uri does not match a CP2 lookup uri, this just returns the
+     * original string.
+     */
+    @VisibleForTesting
+    @NonNull
+    static String getCorpLookupUri(@NonNull String lookupUri) {
+        // https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/provider/ContactsContract.java;l=2269;drc=9b279fbc71a1908311c32c24b4c65e967598b288
+        if (!lookupUri.startsWith(CONTACTS_LOOKUP_URI_PREFIX)) {
+            return lookupUri;
+        }
+        // The indexed uri has four segments: "contacts", "lookup", the lookup key, and the contact
+        // id (contact id is optional)
+        List<String> pathSegments = Uri.parse(lookupUri).getPathSegments();
+        if (pathSegments.size() < 3) {
+            return lookupUri;
+        }
+        if (pathSegments.size() > 3) {
+            try {
+                long contactId = Long.parseLong(pathSegments.get(3));
+                return getCorpLookupUriFromLookupKey(pathSegments.get(2), contactId);
+            } catch (NumberFormatException e) {
+                Log.w(TAG, "Failed to get contact id from lookup uri", e);
+            }
+        }
+        return getCorpLookupUriFromLookupKey(pathSegments.get(2));
+    }
+
+    @NonNull
+    private static String getCorpLookupUriFromLookupKey(@NonNull String lookupKey, long contactId) {
+        return ContentUris.withAppendedId(Uri.withAppendedPath(Contacts.CONTENT_LOOKUP_URI,
+                        ENTERPRISE_CONTACT_LOOKUP_PREFIX + lookupKey),
+                ENTERPRISE_CONTACT_ID_BASE + contactId).toString();
+    }
+
+    @NonNull
+    private static String getCorpLookupUriFromLookupKey(@NonNull String lookupKey) {
+        return Uri.withAppendedPath(Contacts.CONTENT_LOOKUP_URI,
+                ENTERPRISE_CONTACT_LOOKUP_PREFIX + lookupKey).toString();
     }
 
     /**

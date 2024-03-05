@@ -52,4 +52,45 @@ public class PersonEnterpriseTransformerTest {
         assertThat(PersonEnterpriseTransformer.getCorpImageUri(123)).isEqualTo(
                 "content://com.android.contacts/contacts_corp/123/photo");
     }
+
+    @Test
+    public void testTransform_setsExternalUriIfItExists() {
+        String lookupUri = "content://com.android.contacts/contacts/lookup/key/1234";
+        Person person = new Person.Builder("namespace", "1234", "Test Person").setExternalUri(
+                Uri.parse(lookupUri)).build();
+
+        Person transformedPerson = new Person(
+                PersonEnterpriseTransformer.transformDocument(person));
+
+        String expectedLookupUri = PersonEnterpriseTransformer.getCorpLookupUri(lookupUri);
+        assertThat(transformedPerson.getExternalUri().toString()).isEqualTo(expectedLookupUri);
+    }
+
+    @Test
+    public void testTransform_doesNotSetExternalUriIfItDoesNotExist() {
+        Person person = new Person.Builder("namespace", "1234", "Test Person").build();
+        Person transformedPerson = new Person(
+                PersonEnterpriseTransformer.transformDocument(person));
+        assertThat(transformedPerson.getExternalUri()).isNull();
+    }
+
+    @Test
+    public void testGetCorpLookupUri_withId() {
+        String lookupUri = "content://com.android.contacts/contacts/lookup/key/3";
+        assertThat(PersonEnterpriseTransformer.getCorpLookupUri(lookupUri)).isEqualTo(
+                "content://com.android.contacts/contacts/lookup/c-key/1000000003");
+    }
+
+    @Test
+    public void testGetCorpLookupUri_withoutId() {
+        String lookupUri = "content://com.android.contacts/contacts/lookup/key";
+        assertThat(PersonEnterpriseTransformer.getCorpLookupUri(lookupUri)).isEqualTo(
+                "content://com.android.contacts/contacts/lookup/c-key");
+    }
+
+    @Test
+    public void testGetCorpLookupUri_invalidFormat() {
+        assertThat(PersonEnterpriseTransformer.getCorpLookupUri("externalUri")).isEqualTo(
+                "externalUri");
+    }
 }

@@ -32,6 +32,9 @@ java_library {
     name: "statslog-appsearch-lib",
     srcs: [":statslog-appsearch-java-gen"],
     libs: [
+        // needed for restricted atoms.
+        "androidx.annotation_annotation",
+        // add StatsLog as a dependency of the generated file.
         "framework-statsd.stubs.module_lib",
     ],
     sdk_version: "system_server_current",
@@ -60,7 +63,7 @@ java_defaults {
         "framework-statsd.stubs.module_lib",
     ],
     optimize: {
-      proguard_flags_files: ["proguard.flags"],
+        proguard_flags_files: ["proguard.flags"],
     },
     defaults: [
         "framework-system-server-module-defaults",
