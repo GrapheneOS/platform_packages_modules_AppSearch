@@ -51,6 +51,16 @@ public class PutDocumentsAidlRequest extends AbstractSafeParcelable {
     @Field(id = 5, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 
+    /**
+     * Inserts documents into the index.
+     *
+     * @param callerAttributionSource The permission identity of the package that
+     *     owns this document.
+     * @param databaseName The name of the database where this document lives.
+     * @param documentsParcel The Parcelable object contains a list of GenericDocument.
+     * @param userHandle The Handle of the calling user.
+     * @param binderCallStartTimeMillis The start timestamp of binder call in Millis.
+     */
     @Constructor
     public PutDocumentsAidlRequest(
             @Param(id = 1) @NonNull AppSearchAttributionSource callerAttributionSource,
