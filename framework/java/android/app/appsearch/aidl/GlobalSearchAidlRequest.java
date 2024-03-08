@@ -22,6 +22,7 @@ import android.app.appsearch.SearchSpec;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -34,7 +35,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "GlobalSearchAidlRequestCreator")
 public class GlobalSearchAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final GlobalSearchAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<GlobalSearchAidlRequest> CREATOR =
             new GlobalSearchAidlRequestCreator();
 
     @NonNull

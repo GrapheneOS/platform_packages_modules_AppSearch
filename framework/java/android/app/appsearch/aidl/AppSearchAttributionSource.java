@@ -49,7 +49,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "AppSearchAttributionSourceCreator")
 public final class AppSearchAttributionSource extends AbstractSafeParcelable {
     @NonNull
-    public static final AppSearchAttributionSourceCreator CREATOR =
+    public static final Parcelable.Creator<AppSearchAttributionSource> CREATOR =
         new AppSearchAttributionSourceCreator();
 
     @NonNull

@@ -39,7 +39,8 @@ import java.util.Objects;
  */
 @SafeParcelable.Class(creator = "DocumentsParcelCreator", creatorIsFinal = false)
 public final class DocumentsParcel extends AbstractSafeParcelable {
-    public static final DocumentsParcelCreator CREATOR = new DocumentsParcelCreator() {
+    public static final Parcelable.Creator<DocumentsParcel> CREATOR =
+            new DocumentsParcelCreator() {
         @Override
         public DocumentsParcel createFromParcel(Parcel in) {
             byte[] dataBlob = ParcelableUtil.readBlob(in);

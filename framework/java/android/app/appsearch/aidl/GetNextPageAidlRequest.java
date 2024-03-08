@@ -23,6 +23,7 @@ import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -35,7 +36,8 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "GetNextPageAidlRequestCreator")
 public class GetNextPageAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final GetNextPageAidlRequestCreator CREATOR = new GetNextPageAidlRequestCreator();
+    public static final Parcelable.Creator<GetNextPageAidlRequest> CREATOR =
+            new GetNextPageAidlRequestCreator();
 
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")

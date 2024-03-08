@@ -297,7 +297,7 @@ public class AppSearchMigrationHelper implements Closeable {
             parcel.unmarshall(serializedMessage, 0, serializedMessage.length);
             parcel.setDataPosition(0);
             GenericDocumentParcel genericDocumentParcel =
-                    parcel.readParcelable(GenericDocumentParcel.class.getClassLoader());
+                    GenericDocumentParcel.CREATOR.createFromParcel(parcel);
             return new GenericDocument(genericDocumentParcel);
         } finally {
             parcel.recycle();
@@ -313,7 +313,7 @@ public class AppSearchMigrationHelper implements Closeable {
         GenericDocumentParcel documentParcel = document.getDocumentParcel();
         Parcel parcel = Parcel.obtain();
         try {
-            parcel.writeParcelable(documentParcel, /*parcelableFlags=*/ 0);
+            documentParcel.writeToParcel(parcel, /* flags= */ 0);
             byte[] serializedMessage = parcel.marshall();
             outputStream.writeInt(serializedMessage.length);
             outputStream.write(serializedMessage);

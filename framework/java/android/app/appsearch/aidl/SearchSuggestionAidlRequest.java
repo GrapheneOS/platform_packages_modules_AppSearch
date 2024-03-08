@@ -22,6 +22,7 @@ import android.app.appsearch.SearchSuggestionSpec;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -33,7 +34,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "SearchSuggestionAidlRequestCreator")
 public class SearchSuggestionAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final SearchSuggestionAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<SearchSuggestionAidlRequest> CREATOR =
             new SearchSuggestionAidlRequestCreator();
 
     @NonNull

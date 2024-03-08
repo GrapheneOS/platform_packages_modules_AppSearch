@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -32,7 +33,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "GetStorageInfoAidlRequestCreator")
 public class GetStorageInfoAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final GetStorageInfoAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<GetStorageInfoAidlRequest> CREATOR =
             new GetStorageInfoAidlRequestCreator();
 
     @NonNull

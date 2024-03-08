@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -31,7 +32,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "GetNamespacesAidlRequestCreator")
 public class GetNamespacesAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final GetNamespacesAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<GetNamespacesAidlRequest> CREATOR =
             new GetNamespacesAidlRequestCreator();
 
     @NonNull

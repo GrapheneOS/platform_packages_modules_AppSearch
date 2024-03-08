@@ -22,6 +22,7 @@ import android.app.appsearch.observer.ObserverCallback;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -33,7 +34,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "UnregisterObserverCallbackAidlRequestCreator")
 public class UnregisterObserverCallbackAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final UnregisterObserverCallbackAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<UnregisterObserverCallbackAidlRequest> CREATOR =
             new UnregisterObserverCallbackAidlRequestCreator();
 
     @NonNull

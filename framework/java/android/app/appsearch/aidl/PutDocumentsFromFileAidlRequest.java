@@ -23,6 +23,7 @@ import android.app.appsearch.safeparcel.SafeParcelable;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -35,7 +36,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "PutDocumentsFromFileAidlRequestCreator")
 public class PutDocumentsFromFileAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final PutDocumentsFromFileAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<PutDocumentsFromFileAidlRequest> CREATOR =
             new PutDocumentsFromFileAidlRequestCreator();
 
     @NonNull

@@ -24,6 +24,7 @@ import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.List;
@@ -37,7 +38,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "SetSchemaAidlRequestCreator")
 public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final SetSchemaAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<SetSchemaAidlRequest> CREATOR =
             new SetSchemaAidlRequestCreator();
 
     @NonNull

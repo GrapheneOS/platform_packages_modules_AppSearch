@@ -21,6 +21,7 @@ import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -32,7 +33,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "PersistToDiskAidlRequestCreator")
 public class PersistToDiskAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final PersistToDiskAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<PersistToDiskAidlRequest> CREATOR =
             new PersistToDiskAidlRequestCreator();
 
     @NonNull

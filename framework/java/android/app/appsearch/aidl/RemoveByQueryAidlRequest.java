@@ -22,6 +22,7 @@ import android.app.appsearch.SearchSpec;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.List;
@@ -34,7 +35,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "RemoveByQueryAidlRequestCreator")
 public class RemoveByQueryAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final RemoveByQueryAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<RemoveByQueryAidlRequest> CREATOR =
             new RemoveByQueryAidlRequestCreator();
 
     @NonNull

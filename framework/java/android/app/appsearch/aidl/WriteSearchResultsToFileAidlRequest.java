@@ -23,6 +23,7 @@ import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
+import android.os.Parcelable;
 import android.os.UserHandle;
 
 import java.util.Objects;
@@ -35,7 +36,7 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "WriteSearchResultsToFileAidlRequestCreator")
 public class WriteSearchResultsToFileAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final WriteSearchResultsToFileAidlRequestCreator CREATOR =
+    public static final Parcelable.Creator<WriteSearchResultsToFileAidlRequest> CREATOR =
             new WriteSearchResultsToFileAidlRequestCreator();
 
     @NonNull
