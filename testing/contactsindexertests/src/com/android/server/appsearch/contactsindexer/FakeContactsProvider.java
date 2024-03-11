@@ -137,6 +137,9 @@ public class FakeContactsProvider extends ContentProvider {
     // Data Query delay in millis added for testing
     private long mDataQueryDelayMs = 0;
 
+    // Contact updated timestamp offset in millis added for testing inconsistent timestamps
+    private long mContactUpdatedTimestampOffsetMs = 0;
+
     // Only odd contactIds should have additional data.
     private static boolean shouldhaveAdditionalData(long contactId) {
         return (contactId & 1) > 0;
@@ -285,6 +288,10 @@ public class FakeContactsProvider extends ContentProvider {
 
     public void setDataQueryDelayMs(long dataQueryDelayMs) {
         mDataQueryDelayMs = dataQueryDelayMs;
+    }
+
+    public void setContactUpdatedTimestampOffsetMs(long contactUpdatedTimestampOffsetMs) {
+        mContactUpdatedTimestampOffsetMs = contactUpdatedTimestampOffsetMs;
     }
 
     FakeContactsProvider(Resources resources) {
@@ -488,7 +495,8 @@ public class FakeContactsProvider extends ContentProvider {
             throw new IllegalArgumentException("delete: unknown URI " + uri);
         }
         // Insert tombstone into deleted_contacts table
-        mMostRecentDeletedContactTimestampMillis = System.currentTimeMillis();
+        mMostRecentDeletedContactTimestampMillis =
+                System.currentTimeMillis() + mContactUpdatedTimestampOffsetMs;
         long contactId = ContentUris.parseId(uri);
         ContentValues values = new ContentValues();
         values.put(DeletedContacts.CONTACT_ID, contactId);
@@ -509,7 +517,8 @@ public class FakeContactsProvider extends ContentProvider {
             throw new IllegalArgumentException("insert: unknown URI " + uri);
         }
 
-        mMostRecentContactLastUpdatedTimestampMillis = System.currentTimeMillis();
+        mMostRecentContactLastUpdatedTimestampMillis =
+                System.currentTimeMillis() + mContactUpdatedTimestampOffsetMs;
         values.put(Contacts._ID, mNumContacts++);
         values.put(Contacts.CONTACT_LAST_UPDATED_TIMESTAMP,
                 mMostRecentContactLastUpdatedTimestampMillis);

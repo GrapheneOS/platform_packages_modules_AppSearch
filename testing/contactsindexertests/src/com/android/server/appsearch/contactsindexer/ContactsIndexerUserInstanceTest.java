@@ -16,8 +16,6 @@
 
 package com.android.server.appsearch.contactsindexer;
 
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +36,7 @@ import android.app.appsearch.observer.ObserverCallback;
 import android.app.appsearch.observer.ObserverSpec;
 import android.app.appsearch.observer.SchemaChangeInfo;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.GlobalSearchSessionShimImpl;
 import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.app.job.JobInfo;
@@ -47,22 +46,25 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.os.CancellationSignal;
 import android.os.PersistableBundle;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.ContactsContract;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.android.appsearch.flags.Flags;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -90,6 +92,9 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
     public ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder()
             .addStaticMockFixtures(TestMockFixture::new)
             .build();
+
+    @Rule
+    public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private File mContactsDir;
@@ -741,18 +746,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY));
     }
 
+    // This test tests whether a full update job will be run to prune the person corpus when
+    // AppSearch reaches its max document limit. Since there are issues with obtaining the
+    // permissions to change the device config for max document limit, and we don't want to
+    // index 10000+ documents in this test, we simulate the out of space error by manually
+    // adding it to update stats beforehand.
     @Test
     public void testDeltaUpdate_outOfSpaceError_fullUpdateScheduled() throws Exception {
-        // This tests whether a full update job will be run to prune the person corpus when
-        // AppSearch reaches its max document limit. Since there are issues with obtaining the
-        // permissions to change the device config for max document limit, and we don't want to
-        // index 10000+ documents in this test, we simulate the out of space error by manually
-        // adding it to update stats beforehand.
-
-        // Cancel any existing jobs.
-        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
-                mContext, mContext.getUser(), CONTACTS_INDEXER);
-
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
 
@@ -881,6 +881,155 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         } finally {
             mInstance.shutdown();
         }
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CHECK_CONTACTS_INDEXER_DELTA_TIMESTAMPS)
+    @Test
+    public void testDeltaUpdate_inconsistentTimestamps_withDeltaTimestampCheck() throws Exception {
+        // Insert and delete future contacts
+        mFakeContactsProvider.setContactUpdatedTimestampOffsetMs(TimeUnit.DAYS.toMillis(1));
+        ContentResolver resolver = mContext.getContentResolver();
+        ContentValues dummyValues = new ContentValues();
+        for (int i = 0; i < 10; i++) {
+            resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
+        }
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /*extras=*/ null);
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /*extras=*/ null);
+
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
+                        mUpdateStats),
+                mSingleThreadedExecutor);
+
+        // Verify future contacts were indexed
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
+        List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
+        assertThat(contactIds.size()).isEqualTo(8);
+
+        // Verify saved delta timestamps were not updated since the contacts were in the future
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastContactUpdateTimestampMillis()).isEqualTo(0);
+        assertThat(settings.getLastContactDeleteTimestampMillis()).isEqualTo(0);
+
+        // Spoof the delta timestamps to be in the future
+        settings.setLastContactUpdateTimestampMillis(
+                System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1));
+        settings.setLastContactDeleteTimestampMillis(
+                System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1));
+
+        // Insert and delete contacts in the present
+        mFakeContactsProvider.setContactUpdatedTimestampOffsetMs(0);
+        for (int i = 0; i < 10; i++) {
+            resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
+        }
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /*extras=*/ null);
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /*extras=*/ null);
+        long presentUpdateTimestamp =
+                mFakeContactsProvider.getMostRecentContactUpdateTimestampMillis();
+        long presentDeleteTimestamp =
+                mFakeContactsProvider.getMostRecentDeletedContactTimestampMillis();
+        // Verify timestamps are not in the future
+        assertThat(presentUpdateTimestamp).isAtMost(System.currentTimeMillis());
+        assertThat(presentDeleteTimestamp).isAtMost(System.currentTimeMillis());
+
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+
+        mUpdateStats.clear();
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
+                        mUpdateStats),
+                mSingleThreadedExecutor);
+
+        // Verify contacts were indexed
+        contactIds = searchHelper.getAllContactIdsAsync().get();
+        assertThat(contactIds.size()).isEqualTo(16);
+
+        // Verify the deltas timestamps were updated to the present timestamps
+        assertThat(settings.getLastContactUpdateTimestampMillis()).isEqualTo(
+                presentUpdateTimestamp);
+        assertThat(settings.getLastContactDeleteTimestampMillis()).isEqualTo(
+                presentDeleteTimestamp);
+
+        // Verify the full update job was scheduled due to inconsistent timestamps
+        verify(mockJobScheduler).schedule(any());
+    }
+
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_CHECK_CONTACTS_INDEXER_DELTA_TIMESTAMPS)
+    @Test
+    public void testDeltaUpdate_inconsistentTimestamps_withoutDeltaTimestampCheck()
+            throws Exception {
+        long startTimeMillis = System.currentTimeMillis();
+
+        // Insert and delete future contacts
+        mFakeContactsProvider.setContactUpdatedTimestampOffsetMs(TimeUnit.DAYS.toMillis(1));
+        ContentResolver resolver = mContext.getContentResolver();
+        ContentValues dummyValues = new ContentValues();
+        for (int i = 0; i < 10; i++) {
+            resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
+        }
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /*extras=*/ null);
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /*extras=*/ null);
+        long futureUpdateTimestamp =
+                mFakeContactsProvider.getMostRecentContactUpdateTimestampMillis();
+        long futureDeleteTimestamp =
+                mFakeContactsProvider.getMostRecentDeletedContactTimestampMillis();
+        // Verify timestamps are in the future
+        assertThat(futureUpdateTimestamp).isAtLeast(startTimeMillis + TimeUnit.DAYS.toMillis(1));
+        assertThat(futureDeleteTimestamp).isAtLeast(startTimeMillis + TimeUnit.DAYS.toMillis(1));
+
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
+                        mUpdateStats),
+                mSingleThreadedExecutor);
+
+        // Verify future contacts were indexed
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
+        List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
+        assertThat(contactIds.size()).isEqualTo(8);
+
+        // Verify saved delta timestamps match those of the future contacts
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastContactUpdateTimestampMillis()).isEqualTo(futureUpdateTimestamp);
+        assertThat(settings.getLastContactDeleteTimestampMillis()).isEqualTo(futureDeleteTimestamp);
+
+        // Insert and delete contacts in the present
+        mFakeContactsProvider.setContactUpdatedTimestampOffsetMs(0);
+        for (int i = 0; i < 10; i++) {
+            resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
+        }
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /*extras=*/ null);
+        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /*extras=*/ null);
+
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+
+        mUpdateStats.clear();
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
+                        mUpdateStats),
+                mSingleThreadedExecutor);
+
+        // Verify contacts were not indexed
+        contactIds = searchHelper.getAllContactIdsAsync().get();
+        assertThat(contactIds.size()).isEqualTo(8);
+
+        // Verify the delta timestamps did not change
+        assertThat(settings.getLastContactUpdateTimestampMillis()).isEqualTo(futureUpdateTimestamp);
+        assertThat(settings.getLastContactDeleteTimestampMillis()).isEqualTo(futureDeleteTimestamp);
+
+        // Verify no full update job was scheduled
+        verifyZeroInteractions(mockJobScheduler);
     }
 
     @Test
