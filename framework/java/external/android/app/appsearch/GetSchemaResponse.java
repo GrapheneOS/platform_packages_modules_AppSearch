@@ -39,6 +39,7 @@ import java.util.Set;
 
 /** The response class of {@link AppSearchSession#getSchema} */
 @SafeParcelable.Class(creator = "GetSchemaResponseCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class GetSchemaResponse extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)

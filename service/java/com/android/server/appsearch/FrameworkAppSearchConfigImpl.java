@@ -108,7 +108,8 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
         "use_new_qualified_id_join_index";
     public static final String KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS =
         "build_property_existence_metadata_hits";
-
+    public static final String KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS =
+            "app_function_call_timeout_millis";
     /**
      * This config does not need to be cached in FrameworkAppSearchConfigImpl as it is only accessed
      * statically. AppSearch retrieves this directly from DeviceConfig when needed.
@@ -153,6 +154,7 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
             KEY_SHOULD_RETRIEVE_PARENT_INFO,
             KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX,
             KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
+            KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS
     };
 
     // Lock needed for all the operations in this class.
@@ -525,6 +527,16 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
     }
 
     @Override
+    public long getAppFunctionCallTimeoutMillis() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
+                    DEFAULT_APP_FUNCTION_CALL_TIMEOUT_MILLIS);
+        }
+    }
+
+    @Override
     public int getIntegerIndexBucketSplitThreshold() {
         synchronized (mLock) {
             throwIfClosedLocked();
@@ -799,6 +811,13 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
                 synchronized (mLock) {
                     mBundleLocked.putBoolean(key, properties.getBoolean(key,
                             DEFAULT_USE_NEW_QUALIFIED_ID_JOIN_INDEX));
+                }
+                break;
+            case KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key,
+                            properties.getLong(key, DEFAULT_APP_FUNCTION_CALL_TIMEOUT_MILLIS));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:

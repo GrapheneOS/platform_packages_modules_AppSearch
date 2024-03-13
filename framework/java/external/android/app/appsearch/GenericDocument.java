@@ -60,6 +60,13 @@ public class GenericDocument {
     public static final String PARENT_TYPES_SYNTHETIC_PROPERTY = "$$__AppSearch__parentTypes";
 
     /**
+     * An immutable empty {@link GenericDocument}.
+     *
+     * @hide
+     */
+    public static final GenericDocument EMPTY = new GenericDocument.Builder<>("", "", "").build();
+
+    /**
      * The maximum number of indexed properties a document can have.
      *
      * <p>Indexed properties are properties which are strings where the {@link

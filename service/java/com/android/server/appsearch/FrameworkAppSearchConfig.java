@@ -16,7 +16,12 @@
 
 package com.android.server.appsearch;
 
+import android.app.appsearch.functions.ExecuteAppFunctionRequest;
+
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
+
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /**
  * An interface which exposes config flags to AppSearch.
@@ -73,7 +78,7 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
 
     boolean DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH = true;
     boolean DEFAULT_USE_FIXED_EXECUTOR_SERVICE = false;
-
+    long DEFAULT_APP_FUNCTION_CALL_TIMEOUT_MILLIS = 30_000;
 
     /**
      * This flag value is true by default because the flag is intended as a kill-switch.
@@ -184,6 +189,13 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
      * Returns the cached {@link AppSearchRateLimitConfig}.
      */
     AppSearchRateLimitConfig getCachedRateLimitConfig();
+
+    /**
+     * Returns the maximum allowed duration for an app function call in milliseconds.
+     *
+     * @see android.app.appsearch.functions.AppFunctionManager#executeAppFunction
+     */
+    long getAppFunctionCallTimeoutMillis();
 
     /**
      * Closes this {@link AppSearchConfig}.

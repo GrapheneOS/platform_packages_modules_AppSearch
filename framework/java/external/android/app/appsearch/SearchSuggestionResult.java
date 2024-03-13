@@ -32,6 +32,7 @@ import java.util.Objects;
 
 /** The result class of the {@link AppSearchSession#searchSuggestion}. */
 @SafeParcelable.Class(creator = "SearchSuggestionResultCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class SearchSuggestionResult extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)

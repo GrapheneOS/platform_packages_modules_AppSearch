@@ -20,6 +20,7 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_enterprise_global_search_session") public void createEnterpriseGlobalSearchSession(@NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.EnterpriseGlobalSearchSession>>);
     method public void createGlobalSearchSession(@NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.GlobalSearchSession>>);
     method public void createSearchSession(@NonNull android.app.appsearch.AppSearchManager.SearchContext, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.AppSearchSession>>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.functions.AppFunctionManager getAppFunctionManager();
   }
 
   public static final class AppSearchManager.SearchContext {
@@ -46,6 +47,7 @@ package android.app.appsearch {
     field public static final int RESULT_OK = 0; // 0x0
     field public static final int RESULT_OUT_OF_SPACE = 5; // 0x5
     field public static final int RESULT_SECURITY_ERROR = 8; // 0x8
+    field @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public static final int RESULT_TIMED_OUT = 11; // 0xb
     field public static final int RESULT_UNKNOWN_ERROR = 1; // 0x1
   }
 
@@ -219,11 +221,14 @@ package android.app.appsearch {
     method @NonNull public BuilderType setTtlMillis(long);
   }
 
-  public final class GetByDocumentIdRequest {
+  public final class GetByDocumentIdRequest implements android.os.Parcelable {
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @NonNull public java.util.Set<java.lang.String> getIds();
     method @NonNull public String getNamespace();
     method @NonNull public java.util.Map<java.lang.String,java.util.List<android.app.appsearch.PropertyPath>> getProjectionPaths();
     method @NonNull public java.util.Map<java.lang.String,java.util.List<java.lang.String>> getProjections();
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.GetByDocumentIdRequest> CREATOR;
     field public static final String PROJECTION_SCHEMA_TYPE_WILDCARD = "*";
   }
 
@@ -339,9 +344,12 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.PutDocumentsRequest build();
   }
 
-  public final class RemoveByDocumentIdRequest {
+  public final class RemoveByDocumentIdRequest implements android.os.Parcelable {
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @NonNull public java.util.Set<java.lang.String> getIds();
     method @NonNull public String getNamespace();
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.RemoveByDocumentIdRequest> CREATOR;
   }
 
   public static final class RemoveByDocumentIdRequest.Builder {
@@ -365,10 +373,13 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.ReportSystemUsageRequest.Builder setUsageTimestampMillis(long);
   }
 
-  public final class ReportUsageRequest {
+  public final class ReportUsageRequest implements android.os.Parcelable {
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @NonNull public String getDocumentId();
     method @NonNull public String getNamespace();
     method public long getUsageTimestampMillis();
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.ReportUsageRequest> CREATOR;
   }
 
   public static final class ReportUsageRequest.Builder {
@@ -671,6 +682,54 @@ package android.app.appsearch.exceptions {
     ctor public AppSearchException(int, @Nullable String, @Nullable Throwable);
     method public int getResultCode();
     method @NonNull public <T> android.app.appsearch.AppSearchResult<T> toAppSearchResult();
+  }
+
+}
+
+package android.app.appsearch.functions {
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public class AppFunctionManager {
+    method public void executeAppFunction(@NonNull android.app.appsearch.functions.ExecuteAppFunctionRequest, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.functions.ExecuteAppFunctionResponse>>);
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public abstract class AppFunctionService extends android.app.Service {
+    ctor public AppFunctionService();
+    method @NonNull public android.os.IBinder onBind(@Nullable android.content.Intent);
+    method @MainThread public abstract void onExecuteFunction(@NonNull android.app.appsearch.functions.ExecuteAppFunctionRequest, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.functions.ExecuteAppFunctionResponse>>);
+    field @NonNull public static final String SERVICE_INTERFACE = "android.app.appsearch.functions.AppFunctionService";
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public final class ExecuteAppFunctionRequest implements android.os.Parcelable {
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @NonNull public android.os.Bundle getExtras();
+    method @NonNull public String getFunctionIdentifier();
+    method @NonNull public android.app.appsearch.GenericDocument getParameters();
+    method @NonNull public String getTargetPackageName();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.functions.ExecuteAppFunctionRequest> CREATOR;
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public static final class ExecuteAppFunctionRequest.Builder {
+    ctor public ExecuteAppFunctionRequest.Builder(@NonNull String, @NonNull String);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest build();
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setExtras(@Nullable android.os.Bundle);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setParameters(@Nullable android.app.appsearch.GenericDocument);
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public final class ExecuteAppFunctionResponse implements android.os.Parcelable {
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @NonNull public android.os.Bundle getExtras();
+    method @NonNull public android.app.appsearch.GenericDocument getResult();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.functions.ExecuteAppFunctionResponse> CREATOR;
+    field public static final String KEY_RESULT = "result";
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public static final class ExecuteAppFunctionResponse.Builder {
+    ctor public ExecuteAppFunctionResponse.Builder();
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse build();
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse.Builder setExtras(@Nullable android.os.Bundle);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse.Builder setResult(@Nullable android.app.appsearch.GenericDocument);
   }
 
 }

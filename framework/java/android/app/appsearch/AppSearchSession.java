@@ -395,7 +395,7 @@ public final class AppSearchSession implements Closeable {
                     mDatabaseName,
                     request.getNamespace(),
                     new ArrayList<>(request.getIds()),
-                    request.getProjectionsInternal(),
+                    request.getProjections(),
                     mUserHandle,
                     /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
                     /*isForEnterprise=*/ false,

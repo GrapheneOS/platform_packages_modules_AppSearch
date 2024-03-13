@@ -50,6 +50,7 @@ import java.util.Objects;
  * @see SearchResults
  */
 @SafeParcelable.Class(creator = "SearchResultCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class SearchResult extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
@@ -405,6 +406,7 @@ public final class SearchResult extends AbstractSafeParcelable {
      * </ul>
      */
     @SafeParcelable.Class(creator = "MatchInfoCreator")
+    @SuppressWarnings("HiddenSuperclass")
     public static final class MatchInfo extends AbstractSafeParcelable {
 
         @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)

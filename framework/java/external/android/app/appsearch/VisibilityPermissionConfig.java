@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.ArraySet;
 
 import java.util.Arrays;
@@ -36,7 +37,7 @@ import java.util.Set;
 @SafeParcelable.Class(creator = "VisibilityPermissionConfigCreator")
 public final class VisibilityPermissionConfig extends AbstractSafeParcelable {
     @NonNull
-    public static final VisibilityPermissionConfigCreator CREATOR =
+    public static final Parcelable.Creator<VisibilityPermissionConfig> CREATOR =
             new VisibilityPermissionConfigCreator();
 
     /**

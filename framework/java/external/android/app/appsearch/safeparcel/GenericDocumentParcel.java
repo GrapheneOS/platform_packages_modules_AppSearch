@@ -44,7 +44,8 @@ import java.util.Set;
 @SuppressLint("BanParcelableUsage")
 public final class GenericDocumentParcel extends AbstractSafeParcelable implements Parcelable {
     @NonNull
-    public static final GenericDocumentParcelCreator CREATOR = new GenericDocumentParcelCreator();
+    public static final Parcelable.Creator<GenericDocumentParcel> CREATOR =
+            new GenericDocumentParcelCreator();
 
     /** The default score of document. */
     private static final int DEFAULT_SCORE = 0;

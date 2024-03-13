@@ -24,6 +24,7 @@ import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.Parcelable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -37,7 +38,8 @@ import java.util.Objects;
 @SafeParcelable.Class(creator = "SchemaMigrationStatsCreator")
 public final class SchemaMigrationStats extends AbstractSafeParcelable {
     @NonNull
-    public static final SchemaMigrationStatsCreator CREATOR = new SchemaMigrationStatsCreator();
+    public static final Parcelable.Creator<SchemaMigrationStats> CREATOR =
+            new SchemaMigrationStatsCreator();
 
     // Indicate the how a SetSchema call relative to SchemaMigration case.
     @IntDef(

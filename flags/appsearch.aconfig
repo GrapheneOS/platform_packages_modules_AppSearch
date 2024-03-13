@@ -92,3 +92,11 @@ flag {
     bug: "300162279"
     is_fixed_read_only: true
 }
+
+flag {
+    name: "enable_app_functions"
+    namespace: "appsearch"
+    description: "Guards everything related to AppFunction."
+    bug: "327134039"
+    is_fixed_read_only: true
+}

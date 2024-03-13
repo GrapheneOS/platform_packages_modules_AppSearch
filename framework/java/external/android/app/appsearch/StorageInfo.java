@@ -27,6 +27,7 @@ import android.os.Parcelable;
 
 /** The response class of {@code AppSearchSession#getStorageInfo}. */
 @SafeParcelable.Class(creator = "StorageInfoCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class StorageInfo extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)

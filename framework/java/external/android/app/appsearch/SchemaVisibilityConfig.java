@@ -42,6 +42,7 @@ import java.util.Set;
  */
 @FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS)
 @SafeParcelable.Class(creator = "VisibilityConfigCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
     @NonNull
     public static final Parcelable.Creator<SchemaVisibilityConfig> CREATOR =

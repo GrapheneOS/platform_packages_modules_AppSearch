@@ -38,6 +38,7 @@ import java.util.Set;
 
 /** The response class of {@link AppSearchSession#setSchema} */
 @SafeParcelable.Class(creator = "SetSchemaResponseCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class SetSchemaResponse extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
@@ -316,6 +317,7 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
      * {@link AppSearchSession#setSchema}.
      */
     @SafeParcelable.Class(creator = "MigrationFailureCreator")
+    @SuppressWarnings("HiddenSuperclass")
     public static class MigrationFailure extends AbstractSafeParcelable {
 
         @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)

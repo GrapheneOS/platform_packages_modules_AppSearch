@@ -60,6 +60,7 @@ import java.util.Set;
  * @see AppSearchSession#setSchema
  */
 @SafeParcelable.Class(creator = "AppSearchSchemaCreator")
+@SuppressWarnings("HiddenSuperclass")
 public final class AppSearchSchema extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)

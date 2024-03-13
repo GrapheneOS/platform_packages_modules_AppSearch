@@ -140,7 +140,7 @@ public abstract class ReadOnlyGlobalSearchSession {
                     databaseName,
                     request.getNamespace(),
                     new ArrayList<>(request.getIds()),
-                    request.getProjectionsInternal(),
+                    request.getProjections(),
                     mUserHandle,
                     /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
                     mIsForEnterprise,
