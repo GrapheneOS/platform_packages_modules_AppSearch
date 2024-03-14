@@ -41,11 +41,11 @@ import java.util.function.Consumer;
 @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
 public final class ExecuteAppFunctionResponse extends AbstractSafeParcelable {
     /**
-     * The key used to store the result within the result {@link GenericDocument}.
+     * The name of the property that stores the result within the result {@link GenericDocument}.
      *
      * @see #getResult().
      */
-    public static final String KEY_RESULT = "result";
+    public static final String PROPERTY_RESULT = "result";
 
     @NonNull
     public static final Parcelable.Creator<ExecuteAppFunctionResponse> CREATOR =
@@ -86,7 +86,7 @@ public final class ExecuteAppFunctionResponse extends AbstractSafeParcelable {
         return mResultCached;
     }
 
-    /** Returns the additional data relevant to the result of a function execution. */
+    /** Returns the additional metadata data relevant to this function execution response. */
     @NonNull
     public Bundle getExtras() {
         return mExtras;
@@ -100,36 +100,39 @@ public final class ExecuteAppFunctionResponse extends AbstractSafeParcelable {
     /** The builder for creating {@link ExecuteAppFunctionResponse} instances. */
     @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
     public static final class Builder {
-        @Nullable
-        private GenericDocument mResult;
-        @Nullable
-        private Bundle mExtras;
+        @NonNull
+        private GenericDocument mResult = GenericDocument.EMPTY;
+        @NonNull
+        private Bundle mExtras = Bundle.EMPTY;
 
         /**
-         * Sets the result of the app function execution. A {@code null} value indicates that the
-         * function does not produce a return value.
+         * Sets the result of the app function execution. The result is stored within a
+         * {@link GenericDocument} under the property name {@link #PROPERTY_RESULT}.
+         * An empty {@link GenericDocument} indicates that the function does not produce a return
+         * value. Defaults to an empty {@link GenericDocument} if not set.
          */
         @NonNull
-        public Builder setResult(@Nullable GenericDocument result) {
+        public Builder setResult(@NonNull GenericDocument result) {
             mResult = result;
             return this;
         }
 
-        /** Sets the additional data relevant to the result of a function execution. */
+        /**
+         * Sets the additional metadata relevant to this function execution response. Defaults to
+         * {@link Bundle#EMPTY} if not set.
+         */
         @NonNull
-        public Builder setExtras(@Nullable Bundle extras) {
+        public Builder setExtras(@NonNull Bundle extras) {
             mExtras = extras;
             return this;
         }
 
         /**
-         * Constructs a new {@link ExecuteAppFunctionResponse from the contents of this builder.
+         * Constructs a new {@link ExecuteAppFunctionResponse} from the contents of this builder.
          */
         @NonNull
         public ExecuteAppFunctionResponse build() {
-            return new ExecuteAppFunctionResponse(
-                    mResult == null ? GenericDocument.EMPTY : mResult,
-                    mExtras == null ? Bundle.EMPTY : mExtras);
+            return new ExecuteAppFunctionResponse(mResult, mExtras);
         }
     }
 }

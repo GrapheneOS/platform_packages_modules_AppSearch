@@ -57,7 +57,7 @@ public abstract class AppFunctionService extends Service {
 
     /**
      * The {@link Intent} that must be declared as handled by the service. To be supported, the
-     * service must also require the {@link android.Manifest.permission#BIND_APP_FUNCTION_SERVICE}
+     * service must also require the {@link AppFunctionManager#PERMISSION_BIND_APP_FUNCTION_SERVICE}
      * permission so that other applications can not abuse it.
      */
     @NonNull
@@ -94,7 +94,7 @@ public abstract class AppFunctionService extends Service {
 
     @NonNull
     @Override
-    public IBinder onBind(@Nullable Intent intent) {
+    public final IBinder onBind(@Nullable Intent intent) {
         return mBinder;
     }
 
@@ -103,6 +103,12 @@ public abstract class AppFunctionService extends Service {
      *
      * <p>This method is triggered when the system requests your AppFunctionService to handle a
      * particular function you have registered and made available.
+     *
+     * <p>To ensure proper routing of function requests, assign a unique identifier to each
+     * function. This identifier doesn't need to be globally unique, but it must be unique
+     * within your app. For example, a function to order food could be identified as
+     * "orderFood". You can determine the specific function to invoke by calling
+     * {@link ExecuteAppFunctionRequest#getFunctionIdentifier()}.
      *
      * <p>This method is always triggered in the main thread. You should run heavy tasks on a worker
      * thread and dispatch the result with the given callback. You should always report back the

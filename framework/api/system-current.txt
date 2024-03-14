@@ -7,3 +7,11 @@ package android.app.appsearch {
 
 }
 
+package android.app.appsearch.functions {
+
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public final class AppFunctionManager {
+    field public static final String PERMISSION_EXECUTE_APP_FUNCTION = "android.permission.EXECUTE_APP_FUNCTION";
+  }
+
+}
+

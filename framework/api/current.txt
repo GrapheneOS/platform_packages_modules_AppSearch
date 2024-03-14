@@ -688,13 +688,14 @@ package android.app.appsearch.exceptions {
 
 package android.app.appsearch.functions {
 
-  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public class AppFunctionManager {
+  @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public final class AppFunctionManager {
     method public void executeAppFunction(@NonNull android.app.appsearch.functions.ExecuteAppFunctionRequest, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.functions.ExecuteAppFunctionResponse>>);
+    field public static final String PERMISSION_BIND_APP_FUNCTION_SERVICE = "android.permission.BIND_APP_FUNCTION_SERVICE";
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public abstract class AppFunctionService extends android.app.Service {
     ctor public AppFunctionService();
-    method @NonNull public android.os.IBinder onBind(@Nullable android.content.Intent);
+    method @NonNull public final android.os.IBinder onBind(@Nullable android.content.Intent);
     method @MainThread public abstract void onExecuteFunction(@NonNull android.app.appsearch.functions.ExecuteAppFunctionRequest, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.functions.ExecuteAppFunctionResponse>>);
     field @NonNull public static final String SERVICE_INTERFACE = "android.app.appsearch.functions.AppFunctionService";
   }
@@ -712,8 +713,8 @@ package android.app.appsearch.functions {
   @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public static final class ExecuteAppFunctionRequest.Builder {
     ctor public ExecuteAppFunctionRequest.Builder(@NonNull String, @NonNull String);
     method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest build();
-    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setExtras(@Nullable android.os.Bundle);
-    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setParameters(@Nullable android.app.appsearch.GenericDocument);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setExtras(@NonNull android.os.Bundle);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setParameters(@NonNull android.app.appsearch.GenericDocument);
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public final class ExecuteAppFunctionResponse implements android.os.Parcelable {
@@ -722,14 +723,14 @@ package android.app.appsearch.functions {
     method @NonNull public android.app.appsearch.GenericDocument getResult();
     method public void writeToParcel(@NonNull android.os.Parcel, int);
     field @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.functions.ExecuteAppFunctionResponse> CREATOR;
-    field public static final String KEY_RESULT = "result";
+    field public static final String PROPERTY_RESULT = "result";
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public static final class ExecuteAppFunctionResponse.Builder {
     ctor public ExecuteAppFunctionResponse.Builder();
     method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse build();
-    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse.Builder setExtras(@Nullable android.os.Bundle);
-    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse.Builder setResult(@Nullable android.app.appsearch.GenericDocument);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse.Builder setExtras(@NonNull android.os.Bundle);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionResponse.Builder setResult(@NonNull android.app.appsearch.GenericDocument);
   }
 
 }

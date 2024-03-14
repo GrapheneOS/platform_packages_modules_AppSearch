@@ -19,7 +19,9 @@ package android.app.appsearch.functions;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.SystemApi;
 import android.annotation.UserHandleAware;
+import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.SearchSessionUtil;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
@@ -41,9 +43,32 @@ import java.util.function.Consumer;
  *
  * <p>App function is a specific piece of functionality that an app offers to the system. These
  * functionalities can be integrated into various system features.
+ *
+ * <p>You can obtain an instance using {@link AppSearchManager#getAppFunctionManager()}.
  */
 @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
-public class AppFunctionManager {
+public final class AppFunctionManager {
+    /**
+     * Allows system applications to execute app functions provided by apps through AppSearch.
+     *
+     * <p>Protection level: internal|role.
+     *
+     * @hide
+     */
+    @SystemApi
+    public static final String PERMISSION_EXECUTE_APP_FUNCTION =
+            "android.permission.EXECUTE_APP_FUNCTION";
+
+    /**
+     * Must be required by a {@link android.app.appsearch.functions.AppFunctionService},
+     * to ensure that only the system can bind to it.
+     *
+     * <p>Protection level: signature.
+     */
+    public static final String PERMISSION_BIND_APP_FUNCTION_SERVICE =
+            "android.permission.BIND_APP_FUNCTION_SERVICE";
+
+
     private final IAppSearchManager mService;
     private final Context mContext;
 

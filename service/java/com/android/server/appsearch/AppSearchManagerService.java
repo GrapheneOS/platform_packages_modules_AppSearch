@@ -24,6 +24,7 @@ import static android.app.appsearch.AppSearchResult.RESULT_RATE_LIMITED;
 import static android.app.appsearch.AppSearchResult.RESULT_SECURITY_ERROR;
 import static android.app.appsearch.AppSearchResult.RESULT_TIMED_OUT;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
+import static android.app.appsearch.functions.AppFunctionManager.PERMISSION_BIND_APP_FUNCTION_SERVICE;
 import static android.os.Process.INVALID_UID;
 
 import static com.android.server.appsearch.external.localstorage.stats.SearchStats.VISIBILITY_SCOPE_GLOBAL;
@@ -45,6 +46,7 @@ import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
+import android.app.appsearch.functions.AppFunctionManager;
 import android.app.appsearch.functions.SafeOneTimeAppSearchResultCallback;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.SearchSpec;
@@ -86,6 +88,7 @@ import android.app.appsearch.stats.SchemaMigrationStats;
 import android.app.appsearch.util.LogUtil;
 import android.app.role.RoleManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -93,6 +96,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageStats;
 import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Process;
@@ -2305,11 +2309,22 @@ public class AppSearchManagerService extends SystemService {
             Intent serviceIntent = new Intent(AppFunctionService.SERVICE_INTERFACE);
             serviceIntent.setPackage(request.getTargetPackageName());
             ResolveInfo resolveInfo = mPackageManager.resolveService(serviceIntent, 0);
-            if (resolveInfo == null) {
+            if (resolveInfo == null || resolveInfo.serviceInfo == null) {
                 safeCallback.onResult(AppSearchResult.newFailedResult(
                         RESULT_NOT_FOUND, "Cannot find the target service."));
                 return;
             }
+            ServiceInfo serviceInfo = resolveInfo.serviceInfo;
+            if (!PERMISSION_BIND_APP_FUNCTION_SERVICE.equals(serviceInfo.permission)) {
+                safeCallback.onResult(AppSearchResult.newFailedResult(
+                        RESULT_NOT_FOUND,
+                        "Failed to find a valid target service. The resolved service is missing "
+                                + "the BIND_APP_FUNCTION_SERVICE permission."));
+                return;
+            }
+            serviceIntent.setComponent(
+                    new ComponentName(serviceInfo.packageName, serviceInfo.name));
+            // TODO(b/327134039): Verify the certificate if given.
             boolean bindServiceResult = mAppFunctionServiceServiceCallHelper.runServiceCall(
                     serviceIntent,
                     Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS | Context.BIND_AUTO_CREATE,
