@@ -39,6 +39,7 @@ package android.app.appsearch {
     method public boolean isSuccess();
     method @NonNull public static <ValueType> android.app.appsearch.AppSearchResult<ValueType> newFailedResult(int, @Nullable String);
     method @NonNull public static <ValueType> android.app.appsearch.AppSearchResult<ValueType> newSuccessfulResult(@Nullable ValueType);
+    field @FlaggedApi("com.android.appsearch.flags.enable_result_denied_and_result_rate_limited") public static final int RESULT_DENIED = 9; // 0x9
     field public static final int RESULT_INTERNAL_ERROR = 2; // 0x2
     field public static final int RESULT_INVALID_ARGUMENT = 3; // 0x3
     field public static final int RESULT_INVALID_SCHEMA = 7; // 0x7
@@ -46,6 +47,7 @@ package android.app.appsearch {
     field public static final int RESULT_NOT_FOUND = 6; // 0x6
     field public static final int RESULT_OK = 0; // 0x0
     field public static final int RESULT_OUT_OF_SPACE = 5; // 0x5
+    field @FlaggedApi("com.android.appsearch.flags.enable_result_denied_and_result_rate_limited") public static final int RESULT_RATE_LIMITED = 10; // 0xa
     field public static final int RESULT_SECURITY_ERROR = 8; // 0x8
     field @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public static final int RESULT_TIMED_OUT = 11; // 0xb
     field public static final int RESULT_UNKNOWN_ERROR = 1; // 0x1

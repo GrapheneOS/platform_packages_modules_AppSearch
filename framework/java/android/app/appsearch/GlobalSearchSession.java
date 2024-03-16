@@ -27,6 +27,7 @@ import android.app.appsearch.aidl.IAppSearchObserverProxy;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.aidl.PersistToDiskAidlRequest;
 import android.app.appsearch.aidl.RegisterObserverCallbackAidlRequest;
+import android.app.appsearch.aidl.ReportUsageAidlRequest;
 import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.observer.DocumentChangeInfo;
@@ -208,15 +209,17 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
         Preconditions.checkState(!mIsClosed, "GlobalSearchSession has already been closed");
         try {
             mService.reportUsage(
-                    mCallerAttributionSource,
-                    request.getPackageName(),
-                    request.getDatabaseName(),
-                    request.getNamespace(),
-                    request.getDocumentId(),
-                    request.getUsageTimestampMillis(),
+                    new ReportUsageAidlRequest(
+                            mCallerAttributionSource,
+                            request.getPackageName(),
+                            request.getDatabaseName(),
+                            new ReportUsageRequest(
+                                    request.getNamespace(),
+                                    request.getDocumentId(),
+                                    request.getUsageTimestampMillis()),
                     /*systemUsage=*/ true,
                     mUserHandle,
-                    /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
+                    /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
                         public void onResult(AppSearchResultParcel resultParcel) {

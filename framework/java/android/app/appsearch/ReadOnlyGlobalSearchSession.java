@@ -22,6 +22,7 @@ import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchResultParcel;
+import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
@@ -135,15 +136,14 @@ public abstract class ReadOnlyGlobalSearchSession {
 
         try {
             mService.getDocuments(
-                    mCallerAttributionSource,
-                    /*targetPackageName=*/packageName,
-                    databaseName,
-                    request.getNamespace(),
-                    new ArrayList<>(request.getIds()),
-                    request.getProjections(),
-                    mUserHandle,
-                    /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
-                    mIsForEnterprise,
+                    new GetDocumentsAidlRequest(
+                            mCallerAttributionSource,
+                            /*targetPackageName=*/packageName,
+                            databaseName,
+                            request,
+                            mUserHandle,
+                            /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
+                            mIsForEnterprise),
                     SearchSessionUtil.createGetDocumentCallback(executor, callback));
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();

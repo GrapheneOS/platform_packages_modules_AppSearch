@@ -93,6 +93,14 @@ public final class Flags {
      */
     public static final String FLAG_ENABLE_APP_FUNCTIONS = FLAG_PREFIX + "enable_app_functions";
 
+    /**
+     * Enable {@link android.app.appsearch.AppSearchResult#RESULT_DENIED} and
+     * {@link android.app.appsearch.AppSearchResult#RESULT_RATE_LIMITED} which were previously
+     * hidden.
+     */
+    public static final String FLAG_ENABLE_RESULT_DENIED_AND_RESULT_RATE_LIMITED =
+            FLAG_PREFIX + "enable_result_denied_and_result_rate_limited";
+
     // Whether the features should be enabled.
     //
     // In Jetpack, those should always return true.
@@ -163,6 +171,14 @@ public final class Flags {
 
     /** Whether {@link android.app.appsearch.EnterpriseGlobalSearchSession} should be enabled. */
     public static boolean enableEnterpriseGlobalSearchSession() {
+        return true;
+    }
+
+    /**
+     * Whether {@link android.app.appsearch.AppSearchResult#RESULT_DENIED} and
+     * {@link android.app.appsearch.AppSearchResult#RESULT_RATE_LIMITED} should be enabled.
+     */
+    public static boolean enableResultDeniedAndResultRateLimited() {
         return true;
     }
 }

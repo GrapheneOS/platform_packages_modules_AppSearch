@@ -50,8 +50,11 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.GenericDocument;
+import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
+import android.app.appsearch.RemoveByDocumentIdRequest;
+import android.app.appsearch.ReportUsageRequest;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SearchSuggestionSpec;
@@ -59,6 +62,7 @@ import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchBatchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.DocumentsParcel;
+import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetNextPageAidlRequest;
 import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
@@ -76,6 +80,7 @@ import android.app.appsearch.aidl.PutDocumentsFromFileAidlRequest;
 import android.app.appsearch.aidl.RegisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.RemoveByDocumentIdAidlRequest;
 import android.app.appsearch.aidl.RemoveByQueryAidlRequest;
+import android.app.appsearch.aidl.ReportUsageAidlRequest;
 import android.app.appsearch.aidl.SearchAidlRequest;
 import android.app.appsearch.aidl.SearchSuggestionAidlRequest;
 import android.app.appsearch.aidl.SetSchemaAidlRequest;
@@ -344,10 +349,14 @@ public class AppSearchManagerServiceTest {
     public void testLocalGetDocumentsStatsLogging() throws Exception {
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                mContext.getPackageName(), DATABASE_NAME, NAMESPACE,
-                /* ids= */ Collections.emptyList(), /* typePropertyPaths= */ Collections.emptyMap(),
-                mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false, callback);
+                new GetDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                        mContext.getPackageName(), DATABASE_NAME,
+                        new GetByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.emptyList())
+                                .build(),
+                mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
+                callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
         verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
                 CallStats.CALL_TYPE_GET_DOCUMENTS);
@@ -358,10 +367,14 @@ public class AppSearchManagerServiceTest {
         String otherPackageName = mContext.getPackageName() + "foo";
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                otherPackageName, DATABASE_NAME, NAMESPACE, /* ids= */ Collections.emptyList(),
-                /* typePropertyPaths= */ Collections.emptyMap(), mUserHandle,
-                BINDER_CALL_START_TIME, /* isForEnterprise= */ false, callback);
+                new GetDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                        otherPackageName, DATABASE_NAME,
+                        new GetByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.emptyList())
+                                .build(),
+                       mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
+                callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
         verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
                 CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID);
@@ -503,10 +516,14 @@ public class AppSearchManagerServiceTest {
         setUpTestDocument(mContext.getPackageName(), DATABASE_NAME, NAMESPACE, ID);
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.reportUsage(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                mContext.getPackageName(), DATABASE_NAME, NAMESPACE, ID,
-                /* usageTimestampMillis= */ 0, /* systemUsage= */ false, mUserHandle,
-                BINDER_CALL_START_TIME, callback);
+                new ReportUsageAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                        mContext.getPackageName(), DATABASE_NAME,
+                        new ReportUsageRequest.Builder(NAMESPACE, ID)
+                                .setUsageTimestampMillis(/* usageTimestampMillis= */ 0)
+                                .build(),
+                        /* systemUsage= */ false, mUserHandle, BINDER_CALL_START_TIME),
+                callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
         verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_REPORT_USAGE);
         removeTestSchema(mContext.getPackageName(), DATABASE_NAME);
@@ -522,9 +539,14 @@ public class AppSearchManagerServiceTest {
             setUpTestDocument(otherPackageName, DATABASE_NAME, NAMESPACE, ID);
             TestResultCallback callback = new TestResultCallback();
             mAppSearchManagerServiceStub.reportUsage(
-                    AppSearchAttributionSource.createAttributionSource(mContext),
-                    otherPackageName, DATABASE_NAME, NAMESPACE, ID, /* usageTimestampMillis= */ 0,
-                    /* systemUsage= */ true, mUserHandle, BINDER_CALL_START_TIME, callback);
+                    new ReportUsageAidlRequest(
+                            AppSearchAttributionSource.createAttributionSource(mContext),
+                            otherPackageName, DATABASE_NAME,
+                            new ReportUsageRequest.Builder(NAMESPACE, ID)
+                                    .setUsageTimestampMillis(/* usageTimestampMillis= */ 0)
+                                    .build(),
+                            /* systemUsage= */ true, mUserHandle, BINDER_CALL_START_TIME),
+                    callback);
             assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
             verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
                     CallStats.CALL_TYPE_REPORT_SYSTEM_USAGE);
@@ -540,7 +562,11 @@ public class AppSearchManagerServiceTest {
         mAppSearchManagerServiceStub.removeByDocumentId(
                 new RemoveByDocumentIdAidlRequest(
                         AppSearchAttributionSource.createAttributionSource(mContext),
-                        DATABASE_NAME, NAMESPACE, /* ids= */ Collections.emptyList(), mUserHandle,
+                        DATABASE_NAME,
+                        new RemoveByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.emptyList())
+                                .build(),
+                        mUserHandle,
                         BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
@@ -1136,10 +1162,14 @@ public class AppSearchManagerServiceTest {
         // unlocked the enterprise user for our local instance of AppSearchManagerService
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                mContext.getPackageName(), DATABASE_NAME, NAMESPACE,
-                /* ids= */ Collections.emptyList(), /* typePropertyPaths= */ Collections.emptyMap(),
-                mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ true, callback);
+                new GetDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                mContext.getPackageName(), DATABASE_NAME, new GetByDocumentIdRequest.Builder(
+                        NAMESPACE)
+                        .addIds(/* ids= */ Collections.emptyList())
+                        .build(),
+                mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ true),
+                callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
         assertThat(callback.getBatchResult().getAll()).isEmpty();
         // No CallStats logged since we returned early
@@ -1288,10 +1318,14 @@ public class AppSearchManagerServiceTest {
     private void verifyLocalGetDocumentsResult(int resultCode) throws Exception {
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                mContext.getPackageName(), DATABASE_NAME, NAMESPACE,
-                /* ids= */ Collections.emptyList(), /* typePropertyPaths= */ Collections.emptyMap(),
-                mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false, callback);
+                new GetDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                        mContext.getPackageName(), DATABASE_NAME,
+                        new GetByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.emptyList())
+                                .build(),
+                        mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
+                callback);
         verifyCallResult(resultCode, CallStats.CALL_TYPE_GET_DOCUMENTS, callback.get());
     }
 
@@ -1299,10 +1333,14 @@ public class AppSearchManagerServiceTest {
         String otherPackageName = mContext.getPackageName() + "foo";
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                otherPackageName, DATABASE_NAME, NAMESPACE, /* ids= */ Collections.emptyList(),
-                /* typePropertyPaths= */ Collections.emptyMap(), mUserHandle,
-                BINDER_CALL_START_TIME, /* isForEnterprise= */ false, callback);
+                new GetDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                        otherPackageName, DATABASE_NAME,
+                        new GetByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.emptyList())
+                                .build(),
+                        mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
+                callback);
         verifyCallResult(resultCode, CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID, callback.get());
     }
 
@@ -1396,10 +1434,14 @@ public class AppSearchManagerServiceTest {
         setUpTestDocument(mContext.getPackageName(), DATABASE_NAME, NAMESPACE, ID);
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.reportUsage(
-                AppSearchAttributionSource.createAttributionSource(mContext),
-                mContext.getPackageName(), DATABASE_NAME, NAMESPACE, ID,
-                /* usageTimestampMillis= */ 0, /* systemUsage= */ false, mUserHandle,
-                BINDER_CALL_START_TIME, callback);
+                new ReportUsageAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                mContext.getPackageName(), DATABASE_NAME,
+                        new ReportUsageRequest.Builder(NAMESPACE, ID)
+                                .setUsageTimestampMillis(/* usageTimestampMillis= */ 0)
+                                .build(),
+                        /* systemUsage= */ false, mUserHandle, BINDER_CALL_START_TIME),
+                callback);
         verifyCallResult(resultCode, CallStats.CALL_TYPE_REPORT_USAGE, callback.get());
         removeTestSchema(mContext.getPackageName(), DATABASE_NAME);
     }
@@ -1413,9 +1455,14 @@ public class AppSearchManagerServiceTest {
             setUpTestDocument(otherPackageName, DATABASE_NAME, NAMESPACE, ID);
             TestResultCallback callback = new TestResultCallback();
             mAppSearchManagerServiceStub.reportUsage(
-                    AppSearchAttributionSource.createAttributionSource(mContext),
-                    otherPackageName, DATABASE_NAME, NAMESPACE, ID, /* usageTimestampMillis= */ 0,
-                    /* systemUsage= */ true, mUserHandle, BINDER_CALL_START_TIME, callback);
+                    new ReportUsageAidlRequest(
+                            AppSearchAttributionSource.createAttributionSource(mContext),
+                            otherPackageName, DATABASE_NAME,
+                            new ReportUsageRequest.Builder(NAMESPACE, ID)
+                                    .setUsageTimestampMillis(/* usageTimestampMillis= */ 0)
+                                    .build(),
+                    /* systemUsage= */ true, mUserHandle, BINDER_CALL_START_TIME),
+                    callback);
             verifyCallResult(resultCode, CallStats.CALL_TYPE_REPORT_SYSTEM_USAGE, callback.get());
             removeTestSchema(otherPackageName, DATABASE_NAME);
         } finally {
@@ -1428,7 +1475,11 @@ public class AppSearchManagerServiceTest {
         mAppSearchManagerServiceStub.removeByDocumentId(
                 new RemoveByDocumentIdAidlRequest(
                         AppSearchAttributionSource.createAttributionSource(mContext),
-                        DATABASE_NAME, NAMESPACE, /* ids= */ Collections.emptyList(), mUserHandle,
+                        DATABASE_NAME,
+                        new RemoveByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.emptyList())
+                                .build(),
+                        mUserHandle,
                         BINDER_CALL_START_TIME),
                 callback);
         verifyCallResult(resultCode, CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, callback.get());

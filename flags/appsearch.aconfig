@@ -100,3 +100,11 @@ flag {
     bug: "327134039"
     is_fixed_read_only: true
 }
+
+flag {
+    name: "enable_result_denied_and_result_rate_limited"
+    namespace: "appsearch"
+    description: "Enable previously hidden constants in AppSearchResult."
+    bug: "279047435"
+    is_fixed_read_only: true
+}

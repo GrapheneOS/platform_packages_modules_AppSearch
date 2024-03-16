@@ -25,6 +25,7 @@ import android.app.appsearch.aidl.IAppSearchObserverProxy;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
 import android.app.appsearch.aidl.DocumentsParcel;
+import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
 import android.app.appsearch.aidl.GetNextPageAidlRequest;
 import android.app.appsearch.aidl.GetSchemaAidlRequest;
@@ -38,6 +39,7 @@ import android.app.appsearch.aidl.PutDocumentsFromFileAidlRequest;
 import android.app.appsearch.aidl.RegisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.RemoveByDocumentIdAidlRequest;
 import android.app.appsearch.aidl.RemoveByQueryAidlRequest;
+import android.app.appsearch.aidl.ReportUsageAidlRequest;
 import android.app.appsearch.aidl.SearchAidlRequest;
 import android.app.appsearch.aidl.SearchSuggestionAidlRequest;
 import android.app.appsearch.aidl.SetSchemaAidlRequest;
@@ -121,17 +123,8 @@ interface IAppSearchManager {
     /**
      * Retrieves documents from the index.
      *
-     * @param callerAttributionSource The permission identity of the package that is getting this
-     *     document.
-     * @param targetPackageName The name of the package that owns this document.
-     * @param databaseName  The databaseName this document resides in.
-     * @param namespace    The namespace this document resides in.
-     * @param ids The IDs of the documents to retrieve.
-     * @param typePropertyPaths A map of schema type to a list of property paths to return in the
-     *     result.
-     * @param userHandle Handle of the calling user.
-     * @param binderCallStartTimeMillis start timestamp of binder call in Millis.
-     * @param isForEnterprise Whether to query the user's enterprise profile AppSearch instance
+     * @param request {@link GetDocumentsAidlRequest} that contains the input parameters for the
+     *     get documents operation.
      * @param callback
      *     If the call fails to start, {@link IAppSearchBatchResultCallback#onSystemError}
      *     will be called with the cause throwable. Otherwise,
@@ -140,15 +133,7 @@ interface IAppSearchManager {
      *     where the keys are document IDs, and the values are Document bundles.
      */
     void getDocuments(
-        in AppSearchAttributionSource callerAttributionSource,
-        in String targetPackageName,
-        in String databaseName,
-        in String namespace,
-        in List<String> ids,
-        in Map<String, List<String>> typePropertyPaths,
-        in UserHandle userHandle,
-        in long binderCallStartTimeMillis,
-        in boolean isForEnterprise,
+        in GetDocumentsAidlRequest request,
         in IAppSearchBatchResultCallback callback) = 5;
 
     /**
@@ -253,29 +238,13 @@ interface IAppSearchManager {
      *
      * <p>Reporting usage of a document is optional.
      *
-     * @param callerAttributionSource The permission identity of the package that owns this
-     *     document.
-     * @param targetPackageName The name of the package that owns this document.
-     * @param databaseName  The name of the database to report usage against.
-     * @param namespace Namespace the document being used belongs to.
-     * @param id ID of the document being used.
-     * @param usageTimestampMillis The timestamp at which the document was used.
-     * @param systemUsage Whether the usage was reported by a system app against another app's doc.
-     * @param userHandle Handle of the calling user
-     * @param binderCallStartTimeMillis start timestamp of binder call in Millis
+     * @param request {@link ReportUsageAidlRequest} contains the input parameters for report
+     *     usage operation.
      * @param callback {@link IAppSearchResultCallback#onResult} will be called with an
      *     {@link AppSearchResult}&lt;{@link Void}&gt;.
      */
     void reportUsage(
-        in AppSearchAttributionSource callerAttributionSource,
-        in String targetPackageName,
-        in String databaseName,
-        in String namespace,
-        in String id,
-        in long usageTimestampMillis,
-        in boolean systemUsage,
-        in UserHandle userHandle,
-        in long binderCallStartTimeMillis,
+        in ReportUsageAidlRequest request,
         in IAppSearchResultCallback callback) = 13;
 
     /**

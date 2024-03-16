@@ -17,6 +17,7 @@
 package android.app.appsearch;
 
 import android.app.appsearch.aidl.AppSearchAttributionSource;
+import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
@@ -90,17 +91,18 @@ public class GlobalSearchSessionUnitTest {
 
         String invalidPackageName = "not_this_package";
 
+
         service.getDocuments(
-                new AppSearchAttributionSource(invalidPackageName,
-                        android.os.Process.myUid()),
+                new GetDocumentsAidlRequest(
+                        new AppSearchAttributionSource(invalidPackageName,
+                                android.os.Process.myUid()),
                 /*targetPackageName=*/ mContext.getPackageName(),
                 /*databaseName*/ "testDb",
-                /*namespace=*/ "namespace",
-                /*ids=*/ ImmutableList.of("uri1"),
-                /*typePropertyPaths=*/ ImmutableMap.of(),
+                new GetByDocumentIdRequest.Builder("namespace")
+                        .addIds(/*ids=*/ ImmutableList.of("uri1")).build(),
                 android.os.Process.myUserHandle(),
                 SystemClock.elapsedRealtime(),
-                /*isForEnterprise=*/ false,
+                /*isForEnterprise=*/ false),
                 SearchSessionUtil.createGetDocumentCallback(mExecutor,
                         new BatchResultCallback<String, GenericDocument>() {
                             @Override

@@ -16,64 +16,74 @@
 
 package android.app.appsearch.aidl;
 
+import android.annotation.CurrentTimeMillisLong;
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
-import android.app.appsearch.RemoveByDocumentIdRequest;
+import android.app.appsearch.ReportUsageRequest;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.UserHandle;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
- * Encapsulates a request to make a binder call to remove documents by id.
+ * Encapsulates a request to make a binder call to reports usage of a particular document.
  * @hide
  */
-@SafeParcelable.Class(creator = "RemoveByDocumentIdAidlRequestCreator")
-public class RemoveByDocumentIdAidlRequest extends AbstractSafeParcelable {
+@SafeParcelable.Class(creator = "ReportUsageAidlRequestCreator")
+public class ReportUsageAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final Parcelable.Creator<RemoveByDocumentIdAidlRequest> CREATOR =
-            new RemoveByDocumentIdAidlRequestCreator();
+    public static final Parcelable.Creator<ReportUsageAidlRequest> CREATOR =
+            new ReportUsageAidlRequestCreator();
 
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
     @NonNull
-    @Field(id = 2, getter = "getDatabaseName")
+    @Field(id = 2, getter = "getTargetPackageName")
+    private final String mTargetPackageName;
+    @NonNull
+    @Field(id = 3, getter = "getDatabaseName")
     private final String mDatabaseName;
     @NonNull
-    @Field(id = 3, getter = "getRemoveByDocumentIdRequest")
-    final RemoveByDocumentIdRequest mRemoveByDocumentIdRequest;
+    @Field(id = 4, getter = "getReportUsageRequest")
+    private final ReportUsageRequest mReportUsageRequest;
+    @Field(id = 5, getter = "isSystemUsage")
+    private final boolean mSystemUsage;
     @NonNull
-    @Field(id = 4, getter = "getUserHandle")
+    @Field(id = 6, getter = "getUserHandle")
     private final UserHandle mUserHandle;
-    @Field(id = 5, getter = "getBinderCallStartTimeMillis")
+    @Field(id = 7, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 
     /**
-     * Removes documents by ID.
+     * Reports usage of a particular document by namespace and id.
      *
-     * @param callerAttributionSource The permission identity of the package the document is in.
-     * @param databaseName The databaseName the document is in.
-     * @param removeByDocumentIdRequest The {@link RemoveByDocumentIdRequest} to remove document.
+     * @param callerAttributionSource The permission identity of the package that owns this
+     *     document.
+     * @param targetPackageName The name of the package that owns this document.
+     * @param databaseName  The name of the database to report usage against.
+     * @param reportUsageRequest  The {@link ReportUsageRequest} to report usage for document.
+     * @param systemUsage Whether the usage was reported by a system app against another app's doc.
      * @param userHandle Handle of the calling user
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis
      */
     @Constructor
-    public RemoveByDocumentIdAidlRequest(
+    public ReportUsageAidlRequest(
             @Param(id = 1) @NonNull AppSearchAttributionSource callerAttributionSource,
-            @Param(id = 2) @NonNull String databaseName,
-            @Param(id = 3) @NonNull RemoveByDocumentIdRequest removeByDocumentIdRequest,
-            @Param(id = 4) @NonNull UserHandle userHandle,
-            @Param(id = 5) @ElapsedRealtimeLong long binderCallStartTimeMillis) {
+            @Param(id = 2) @NonNull String targetPackageName,
+            @Param(id = 3) @NonNull String databaseName,
+            @Param(id = 4) @NonNull ReportUsageRequest reportUsageRequest,
+            @Param(id = 5) boolean systemUsage,
+            @Param(id = 6) @NonNull UserHandle userHandle,
+            @Param(id = 7) @ElapsedRealtimeLong long binderCallStartTimeMillis) {
         mCallerAttributionSource = Objects.requireNonNull(callerAttributionSource);
+        mTargetPackageName = Objects.requireNonNull(targetPackageName);
         mDatabaseName = Objects.requireNonNull(databaseName);
-        mRemoveByDocumentIdRequest = Objects.requireNonNull(removeByDocumentIdRequest);
+        mReportUsageRequest = Objects.requireNonNull(reportUsageRequest);
+        mSystemUsage = systemUsage;
         mUserHandle = Objects.requireNonNull(userHandle);
         mBinderCallStartTimeMillis = binderCallStartTimeMillis;
     }
@@ -84,13 +94,22 @@ public class RemoveByDocumentIdAidlRequest extends AbstractSafeParcelable {
     }
 
     @NonNull
+    public String getTargetPackageName() {
+        return mTargetPackageName;
+    }
+
+    @NonNull
     public String getDatabaseName() {
         return mDatabaseName;
     }
 
     @NonNull
-    public RemoveByDocumentIdRequest getRemoveByDocumentIdRequest() {
-        return mRemoveByDocumentIdRequest;
+    public ReportUsageRequest getReportUsageRequest() {
+        return mReportUsageRequest;
+    }
+
+    public boolean isSystemUsage() {
+        return mSystemUsage;
     }
 
     @NonNull
@@ -105,6 +124,6 @@ public class RemoveByDocumentIdAidlRequest extends AbstractSafeParcelable {
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        RemoveByDocumentIdAidlRequestCreator.writeToParcel(this, dest, flags);
+        ReportUsageAidlRequestCreator.writeToParcel(this, dest, flags);
     }
 }
