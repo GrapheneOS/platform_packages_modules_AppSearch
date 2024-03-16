@@ -172,10 +172,12 @@ public class EnterpriseContactsTest {
 
     @After
     public void tearDown() throws Exception {
-        // Wipe the data in AppSearchHelper.DATABASE_NAME.
-        SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
-                .setForceOverride(true).build();
-        mDb.setSchemaAsync(setSchemaRequest).get();
+        if (mDb != null) {
+            // Wipe the data in AppSearchHelper.DATABASE_NAME.
+            SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
+                    .setForceOverride(true).build();
+            mDb.setSchemaAsync(setSchemaRequest).get();
+        }
     }
 
     private Person.Builder createPersonBuilder(String namespace, String id, String name) {

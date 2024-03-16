@@ -2203,7 +2203,9 @@ public class AppSearchImplTest {
                 mAppSearchImpl.getSchemaProtoLocked().getTypesList();
 
         List<AppSearchSchema> schemas =
-                Collections.singletonList(new AppSearchSchema.Builder("Email").build());
+                Collections.singletonList(
+                    new AppSearchSchema.Builder("Email")
+                        .build());
         // Set schema Email to AppSearch database1
         InternalSetSchemaResponse internalSetSchemaResponse =
                 mAppSearchImpl.setSchema(
@@ -2222,6 +2224,7 @@ public class AppSearchImplTest {
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .build();
 
@@ -2290,8 +2293,10 @@ public class AppSearchImplTest {
 
         List<AppSearchSchema> schemas =
                 ImmutableList.of(
-                        new AppSearchSchema.Builder("Email").build(),
-                        new AppSearchSchema.Builder("Document").build());
+                    new AppSearchSchema.Builder("Email")
+                        .build(),
+                    new AppSearchSchema.Builder("Document")
+                        .build());
         // Set schema Email and Document to AppSearch database1
         InternalSetSchemaResponse internalSetSchemaResponse =
                 mAppSearchImpl.setSchema(
@@ -2310,10 +2315,12 @@ public class AppSearchImplTest {
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Document")
+                                        .setDescription("")
                                         .setVersion(0))
                         .build();
 
@@ -2359,6 +2366,7 @@ public class AppSearchImplTest {
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .build();
 
@@ -2377,8 +2385,10 @@ public class AppSearchImplTest {
         // Create schemas
         List<AppSearchSchema> schemas =
                 ImmutableList.of(
-                        new AppSearchSchema.Builder("Email").build(),
-                        new AppSearchSchema.Builder("Document").build());
+                    new AppSearchSchema.Builder("Email")
+                        .build(),
+                    new AppSearchSchema.Builder("Document")
+                        .build());
 
         // Set schema Email and Document to AppSearch database1 and 2
         InternalSetSchemaResponse internalSetSchemaResponse =
@@ -2408,18 +2418,22 @@ public class AppSearchImplTest {
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Document")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database2/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database2/Document")
+                                        .setDescription("")
                                         .setVersion(0))
                         .build();
 
@@ -2450,14 +2464,17 @@ public class AppSearchImplTest {
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database1/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database2/Email")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("package$database2/Document")
+                                        .setDescription("")
                                         .setVersion(0))
                         .build();
 
@@ -2552,7 +2569,9 @@ public class AppSearchImplTest {
 
         // Insert schema for package A and B.
         List<AppSearchSchema> schema =
-                ImmutableList.of(new AppSearchSchema.Builder("schema").build());
+                ImmutableList.of(
+                    new AppSearchSchema.Builder("schema")
+                        .build());
         InternalSetSchemaResponse internalSetSchemaResponse =
                 mAppSearchImpl.setSchema(
                         "packageA",
@@ -2580,10 +2599,12 @@ public class AppSearchImplTest {
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("packageA$database/schema")
+                                        .setDescription("")
                                         .setVersion(0))
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
                                         .setSchemaType("packageB$database/schema")
+                                        .setDescription("")
                                         .setVersion(0))
                         .build();
         List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();

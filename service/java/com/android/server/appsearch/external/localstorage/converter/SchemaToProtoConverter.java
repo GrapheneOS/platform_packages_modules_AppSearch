@@ -54,6 +54,7 @@ public final class SchemaToProtoConverter {
         SchemaTypeConfigProto.Builder protoBuilder =
                 SchemaTypeConfigProto.newBuilder()
                         .setSchemaType(schema.getSchemaType())
+                        .setDescription(schema.getDescription())
                         .setVersion(version);
         List<AppSearchSchema.PropertyConfig> properties = schema.getProperties();
         for (int i = 0; i < properties.size(); i++) {
@@ -69,7 +70,9 @@ public final class SchemaToProtoConverter {
             @NonNull AppSearchSchema.PropertyConfig property) {
         Objects.requireNonNull(property);
         PropertyConfigProto.Builder builder =
-                PropertyConfigProto.newBuilder().setPropertyName(property.getName());
+                PropertyConfigProto.newBuilder()
+                        .setPropertyName(property.getName())
+                        .setDescription(property.getDescription());
 
         // Set dataType
         @AppSearchSchema.PropertyConfig.DataType int dataType = property.getDataType();
@@ -151,6 +154,7 @@ public final class SchemaToProtoConverter {
     public static AppSearchSchema toAppSearchSchema(@NonNull SchemaTypeConfigProtoOrBuilder proto) {
         Objects.requireNonNull(proto);
         AppSearchSchema.Builder builder = new AppSearchSchema.Builder(proto.getSchemaType());
+        builder.setDescription(proto.getDescription());
         List<PropertyConfigProto> properties = proto.getPropertiesList();
         for (int i = 0; i < properties.size(); i++) {
             AppSearchSchema.PropertyConfig propertyConfig = toPropertyConfig(properties.get(i));
@@ -196,6 +200,7 @@ public final class SchemaToProtoConverter {
             @NonNull PropertyConfigProto proto) {
         AppSearchSchema.StringPropertyConfig.Builder builder =
                 new AppSearchSchema.StringPropertyConfig.Builder(proto.getPropertyName())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber())
                         .setJoinableValueType(
                                 convertJoinableValueTypeFromProto(
@@ -217,6 +222,7 @@ public final class SchemaToProtoConverter {
         AppSearchSchema.DocumentPropertyConfig.Builder builder =
                 new AppSearchSchema.DocumentPropertyConfig.Builder(
                                 proto.getPropertyName(), proto.getSchemaType())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber())
                         .setShouldIndexNestedProperties(
                                 proto.getDocumentIndexingConfig().getIndexNestedProperties());
@@ -230,6 +236,7 @@ public final class SchemaToProtoConverter {
             @NonNull PropertyConfigProto proto) {
         AppSearchSchema.LongPropertyConfig.Builder builder =
                 new AppSearchSchema.LongPropertyConfig.Builder(proto.getPropertyName())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber());
 
         // Set indexingType

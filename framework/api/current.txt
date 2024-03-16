@@ -55,6 +55,7 @@ package android.app.appsearch {
 
   public final class AppSearchSchema implements android.os.Parcelable {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public String getDescription();
     method @NonNull public java.util.List<android.app.appsearch.AppSearchSchema.PropertyConfig> getProperties();
     method @NonNull public String getSchemaType();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
@@ -68,6 +69,7 @@ package android.app.appsearch {
     ctor public AppSearchSchema.BooleanPropertyConfig.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.BooleanPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.BooleanPropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.BooleanPropertyConfig.Builder setDescription(@NonNull String);
   }
 
   public static final class AppSearchSchema.Builder {
@@ -75,6 +77,7 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.AppSearchSchema.Builder addParentType(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.Builder addProperty(@NonNull android.app.appsearch.AppSearchSchema.PropertyConfig);
     method @NonNull public android.app.appsearch.AppSearchSchema build();
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.Builder setDescription(@NonNull String);
   }
 
   public static final class AppSearchSchema.BytesPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
@@ -84,6 +87,7 @@ package android.app.appsearch {
     ctor public AppSearchSchema.BytesPropertyConfig.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.BytesPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.BytesPropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.BytesPropertyConfig.Builder setDescription(@NonNull String);
   }
 
   public static final class AppSearchSchema.DocumentPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
@@ -96,6 +100,7 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder addIndexableNestedProperties(@NonNull java.util.Collection<java.lang.String>);
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder setDescription(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder setShouldIndexNestedProperties(boolean);
   }
 
@@ -106,6 +111,7 @@ package android.app.appsearch {
     ctor public AppSearchSchema.DoublePropertyConfig.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.DoublePropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.DoublePropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.DoublePropertyConfig.Builder setDescription(@NonNull String);
   }
 
   public static final class AppSearchSchema.LongPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
@@ -118,11 +124,13 @@ package android.app.appsearch {
     ctor public AppSearchSchema.LongPropertyConfig.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.LongPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.LongPropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.LongPropertyConfig.Builder setDescription(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.LongPropertyConfig.Builder setIndexingType(int);
   }
 
   public abstract static class AppSearchSchema.PropertyConfig {
     method public int getCardinality();
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public String getDescription();
     method @NonNull public String getName();
     field public static final int CARDINALITY_OPTIONAL = 2; // 0x2
     field public static final int CARDINALITY_REPEATED = 1; // 0x1
@@ -148,6 +156,7 @@ package android.app.appsearch {
     ctor public AppSearchSchema.StringPropertyConfig.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setDescription(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setIndexingType(int);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setJoinableValueType(int);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setTokenizerType(int);

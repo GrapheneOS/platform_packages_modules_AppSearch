@@ -33,6 +33,78 @@ import java.util.Arrays;
 
 public class SchemaToProtoConverterTest {
     @Test
+    public void testGetProto_DescriptionSet() {
+        AppSearchSchema emailSchema =
+                new AppSearchSchema.Builder("Email")
+                        .setDescription("A type of electronic message.")
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder("subject")
+                                        .setDescription("The most important part.")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                        .setDescription("The rest of the email.")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .build();
+
+        SchemaTypeConfigProto expectedEmailProto =
+                SchemaTypeConfigProto.newBuilder()
+                        .setSchemaType("Email")
+                        .setDescription("A type of electronic message.")
+                        .setVersion(12345)
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("subject")
+                                        .setDescription("The most important part.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.STRING)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setStringIndexingConfig(
+                                                StringIndexingConfig.newBuilder()
+                                                        .setTokenizerType(
+                                                                StringIndexingConfig.TokenizerType
+                                                                        .Code.PLAIN)
+                                                        .setTermMatchType(
+                                                                TermMatchType.Code.PREFIX)))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("body")
+                                        .setDescription("The rest of the email.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.STRING)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setStringIndexingConfig(
+                                                StringIndexingConfig.newBuilder()
+                                                        .setTokenizerType(
+                                                                StringIndexingConfig.TokenizerType
+                                                                        .Code.PLAIN)
+                                                        .setTermMatchType(
+                                                                TermMatchType.Code.PREFIX)))
+                        .build();
+
+        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(emailSchema, /*version=*/ 12345))
+                .isEqualTo(expectedEmailProto);
+        assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedEmailProto))
+                .isEqualTo(emailSchema);
+    }
+
+    @Test
     public void testGetProto_Email() {
         AppSearchSchema emailSchema =
                 new AppSearchSchema.Builder("Email")
@@ -63,10 +135,12 @@ public class SchemaToProtoConverterTest {
         SchemaTypeConfigProto expectedEmailProto =
                 SchemaTypeConfigProto.newBuilder()
                         .setSchemaType("Email")
+                        .setDescription("")
                         .setVersion(12345)
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("subject")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.STRING)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.OPTIONAL)
@@ -80,6 +154,7 @@ public class SchemaToProtoConverterTest {
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("body")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.STRING)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.OPTIONAL)
@@ -123,10 +198,12 @@ public class SchemaToProtoConverterTest {
         SchemaTypeConfigProto expectedMusicRecordingProto =
                 SchemaTypeConfigProto.newBuilder()
                         .setSchemaType("MusicRecording")
+                        .setDescription("")
                         .setVersion(0)
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("artist")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.STRING)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.REPEATED)
@@ -140,6 +217,7 @@ public class SchemaToProtoConverterTest {
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("pubDate")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.INT64)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.OPTIONAL))
@@ -179,10 +257,12 @@ public class SchemaToProtoConverterTest {
         SchemaTypeConfigProto expectedAlbumProto =
                 SchemaTypeConfigProto.newBuilder()
                         .setSchemaType("Album")
+                        .setDescription("")
                         .setVersion(0)
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("artist")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.STRING)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.OPTIONAL)
@@ -213,6 +293,7 @@ public class SchemaToProtoConverterTest {
         SchemaTypeConfigProto expectedSchemaProto =
                 SchemaTypeConfigProto.newBuilder()
                         .setSchemaType("EmailMessage")
+                        .setDescription("")
                         .setVersion(12345)
                         .addParentTypes("Email")
                         .addParentTypes("Message")
@@ -259,10 +340,12 @@ public class SchemaToProtoConverterTest {
         SchemaTypeConfigProto expectedPersonProto =
                 SchemaTypeConfigProto.newBuilder()
                         .setSchemaType("Person")
+                        .setDescription("")
                         .setVersion(0)
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("name")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.STRING)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.REQUIRED)
@@ -275,6 +358,7 @@ public class SchemaToProtoConverterTest {
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("worksFor")
+                                        .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.DOCUMENT)
                                         .setSchemaType("Organization")
                                         .setCardinality(
