@@ -170,9 +170,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
 
     /**
      * Returns the list of parent types of this schema for polymorphism.
-     *
-     * @hide TODO(b/291122592): Unhide in Mainline when API updates via Mainline are possible.
      */
+    @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
     @NonNull
     public List<String> getParentTypes() {
         return Collections.unmodifiableList(mParentTypes);
@@ -1264,9 +1263,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
 
         /**
          * Returns the list of indexable nested properties for the nested document.
-         *
-         * @hide TODO(b/291122592): Unhide in Mainline when API updates via Mainline are possible.
          */
+        @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
         @NonNull
         public List<String> getIndexableNestedProperties() {
             List<String> indexableNestedPropertiesList =
@@ -1351,9 +1349,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * Adds one or more properties for indexing from the nested document property.
              *
              * @see #addIndexableNestedProperties(Collection)
-             * @hide TODO(b/291122592): Unhide in Mainline when API updates via Mainline are
-             *     possible.
              */
+            @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
             @CanIgnoreReturnValue
             @NonNull
             public DocumentPropertyConfig.Builder addIndexableNestedProperties(
@@ -1366,9 +1363,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * Adds one or more property paths for indexing from the nested document property.
              *
              * @see #addIndexableNestedProperties(Collection)
-             * @hide TODO(b/291122592): Unhide in Mainline when API updates via Mainline are
-             *     possible.
              */
+            @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
             @CanIgnoreReturnValue
             @SuppressLint("MissingGetterMatchingBuilder")
             @NonNull
@@ -1421,9 +1417,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * Adds one or more property paths for indexing from the nested document property.
              *
              * @see #addIndexableNestedProperties(Collection)
-             * @hide TODO(b/291122592): Unhide in Mainline when API updates via Mainline are
-             *     possible.
              */
+            @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
             @CanIgnoreReturnValue
             @SuppressLint("MissingGetterMatchingBuilder")
             @NonNull

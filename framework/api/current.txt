@@ -56,6 +56,7 @@ package android.app.appsearch {
   public final class AppSearchSchema implements android.os.Parcelable {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public String getDescription();
+    method @FlaggedApi("com.android.appsearch.flags.enable_get_parent_types_and_indexable_nested_properties") @NonNull public java.util.List<java.lang.String> getParentTypes();
     method @NonNull public java.util.List<android.app.appsearch.AppSearchSchema.PropertyConfig> getProperties();
     method @NonNull public String getSchemaType();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
@@ -91,13 +92,17 @@ package android.app.appsearch {
   }
 
   public static final class AppSearchSchema.DocumentPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
+    method @FlaggedApi("com.android.appsearch.flags.enable_get_parent_types_and_indexable_nested_properties") @NonNull public java.util.List<java.lang.String> getIndexableNestedProperties();
     method @NonNull public String getSchemaType();
     method public boolean shouldIndexNestedProperties();
   }
 
   public static final class AppSearchSchema.DocumentPropertyConfig.Builder {
     ctor public AppSearchSchema.DocumentPropertyConfig.Builder(@NonNull String, @NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_get_parent_types_and_indexable_nested_properties") @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder addIndexableNestedProperties(@NonNull java.lang.String...);
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder addIndexableNestedProperties(@NonNull java.util.Collection<java.lang.String>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_get_parent_types_and_indexable_nested_properties") @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder addIndexableNestedPropertyPaths(@NonNull android.app.appsearch.PropertyPath...);
+    method @FlaggedApi("com.android.appsearch.flags.enable_get_parent_types_and_indexable_nested_properties") @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder addIndexableNestedPropertyPaths(@NonNull java.util.Collection<android.app.appsearch.PropertyPath>);
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder setCardinality(int);
     method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder setDescription(@NonNull String);

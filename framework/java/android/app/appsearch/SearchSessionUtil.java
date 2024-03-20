@@ -33,8 +33,8 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
- * @hide
  * Contains util methods used in both {@link GlobalSearchSession} and {@link AppSearchSession}.
+ * @hide
  */
 public class SearchSessionUtil {
     private static final String TAG = "AppSearchSessionUtil";
