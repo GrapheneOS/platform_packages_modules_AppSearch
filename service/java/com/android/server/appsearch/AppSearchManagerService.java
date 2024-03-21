@@ -33,7 +33,6 @@ import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallback
 import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnResult;
 
 import android.annotation.BinderThread;
-import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
@@ -46,7 +45,6 @@ import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
-import android.app.appsearch.functions.AppFunctionManager;
 import android.app.appsearch.functions.SafeOneTimeAppSearchResultCallback;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.SearchSpec;
@@ -54,7 +52,6 @@ import android.app.appsearch.SearchSuggestionResult;
 import android.app.appsearch.SetSchemaResponse;
 import android.app.appsearch.SetSchemaResponse.MigrationFailure;
 import android.app.appsearch.StorageInfo;
-import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.GetDocumentsAidlRequest;
@@ -85,6 +82,7 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.functions.AppFunctionService;
 import android.app.appsearch.functions.ExecuteAppFunctionRequest;
 import android.app.appsearch.functions.ServiceCallHelper.ServiceUsageCompleteListener;
+import android.app.appsearch.functions.ServiceCallHelperImpl;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.app.appsearch.util.LogUtil;
@@ -101,7 +99,6 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -109,6 +106,7 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
@@ -143,7 +141,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -157,8 +154,8 @@ import java.util.concurrent.Executor;
  */
 public class AppSearchManagerService extends SystemService {
     private static final String TAG = "AppSearchManagerService";
-    private static final String SYSTEM_UI_INTELLIGENCE =
-            "android.app.role.SYSTEM_UI_INTELLIGENCE";
+    @VisibleForTesting
+    static final String SYSTEM_UI_INTELLIGENCE = "android.app.role.SYSTEM_UI_INTELLIGENCE";
 
     /**
      * An executor for system activity not tied to any particular user.
@@ -182,17 +179,25 @@ public class AppSearchManagerService extends SystemService {
     // Keep a reference for the lifecycle instance, so we can access other services like
     // ContactsIndexer for dumpsys purpose.
     private final AppSearchModule.Lifecycle mLifecycle;
-    private final ServiceCallHelper<IAppFunctionService> mAppFunctionServiceServiceCallHelper;
+    private final ServiceCallHelper<IAppFunctionService> mAppFunctionServiceCallHelper;
 
     public AppSearchManagerService(Context context, AppSearchModule.Lifecycle lifecycle) {
+        this(context, lifecycle, new ServiceCallHelperImpl<>(
+                context, IAppFunctionService.Stub::asInterface, SHARED_EXECUTOR));
+    }
+
+    @VisibleForTesting
+    public AppSearchManagerService(
+            Context context,
+            AppSearchModule.Lifecycle lifecycle,
+            ServiceCallHelper<IAppFunctionService> appFunctionServiceCallHelper) {
         super(context);
-        mContext = context;
-        mLifecycle = lifecycle;
+        mContext = Objects.requireNonNull(context);
+        mLifecycle = Objects.requireNonNull(lifecycle);
         mAppSearchEnvironment = AppSearchEnvironmentFactory.getEnvironmentInstance();
         mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR);
         mExecutorManager = new ExecutorManager(mAppSearchConfig);
-        mAppFunctionServiceServiceCallHelper = new ServiceCallHelper<>(
-                context, IAppFunctionService.Stub::asInterface, SHARED_EXECUTOR);
+        mAppFunctionServiceCallHelper = Objects.requireNonNull(appFunctionServiceCallHelper);
     }
 
     @Override
@@ -2240,8 +2245,6 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(callback);
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
-            final SafeOneTimeAppSearchResultCallback safeCallback =
-                    new SafeOneTimeAppSearchResultCallback(callback);
 
             String callingPackageName =
                     Objects.requireNonNull(request.getCallerAttributionSource().getPackageName());
@@ -2257,6 +2260,26 @@ public class AppSearchManagerService extends SystemService {
                     /* numOperations= */ 1)) {
                 return;
             }
+
+            // Log the stats as well whenever we invoke the AppSearchResultCallback.
+            final SafeOneTimeAppSearchResultCallback safeCallback =
+                    new SafeOneTimeAppSearchResultCallback(callback, result -> {
+                        AppSearchUserInstance instance =
+                                mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                        int totalLatencyMillis =
+                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                        int estimatedBinderLatencyMillis =
+                                2 * (int) (totalLatencyStartTimeMillis
+                                        - request.getBinderCallStartTimeMillis());
+                        instance.getLogger().logStats(new CallStats.Builder()
+                                .setPackageName(callingPackageName)
+                                .setStatusCode(result.getResultCode())
+                                .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallType(CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION)
+                                .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
+                                .build());
+                    });
+
             String targetPackageName = request.getClientRequest().getTargetPackageName();
             if (TextUtils.isEmpty(targetPackageName)) {
                 safeCallback.onResult(AppSearchResult.newFailedResult(
@@ -2300,7 +2323,10 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull SafeOneTimeAppSearchResultCallback safeCallback) {
             Intent serviceIntent = new Intent(AppFunctionService.SERVICE_INTERFACE);
             serviceIntent.setPackage(request.getTargetPackageName());
-            ResolveInfo resolveInfo = mPackageManager.resolveService(serviceIntent, 0);
+
+            Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
+            ResolveInfo resolveInfo = userContext.getPackageManager()
+                    .resolveService(serviceIntent, 0);
             if (resolveInfo == null || resolveInfo.serviceInfo == null) {
                 safeCallback.onResult(AppSearchResult.newFailedResult(
                         RESULT_NOT_FOUND, "Cannot find the target service."));
@@ -2317,7 +2343,7 @@ public class AppSearchManagerService extends SystemService {
             serviceIntent.setComponent(
                     new ComponentName(serviceInfo.packageName, serviceInfo.name));
             // TODO(b/327134039): Verify the certificate if given.
-            boolean bindServiceResult = mAppFunctionServiceServiceCallHelper.runServiceCall(
+            boolean bindServiceResult = mAppFunctionServiceCallHelper.runServiceCall(
                     serviceIntent,
                     Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS | Context.BIND_AUTO_CREATE,
                     mAppSearchConfig.getAppFunctionCallTimeoutMillis(),

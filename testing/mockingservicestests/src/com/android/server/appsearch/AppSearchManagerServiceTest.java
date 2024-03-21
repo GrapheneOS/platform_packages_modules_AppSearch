@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -62,12 +63,14 @@ import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchBatchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.DocumentsParcel;
+import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
 import android.app.appsearch.aidl.GetDocumentsAidlRequest;
+import android.app.appsearch.aidl.GetNamespacesAidlRequest;
 import android.app.appsearch.aidl.GetNextPageAidlRequest;
 import android.app.appsearch.aidl.GetSchemaAidlRequest;
-import android.app.appsearch.aidl.GetNamespacesAidlRequest;
 import android.app.appsearch.aidl.GetStorageInfoAidlRequest;
 import android.app.appsearch.aidl.GlobalSearchAidlRequest;
+import android.app.appsearch.aidl.IAppFunctionService;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchObserverProxy;
@@ -86,15 +89,23 @@ import android.app.appsearch.aidl.SearchSuggestionAidlRequest;
 import android.app.appsearch.aidl.SetSchemaAidlRequest;
 import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
+import android.app.appsearch.functions.AppFunctionManager;
+import android.app.appsearch.functions.ExecuteAppFunctionRequest;
+import android.app.appsearch.functions.ExecuteAppFunctionResponse;
+import android.app.appsearch.functions.ServiceCallHelper;
 import android.app.appsearch.observer.ObserverSpec;
 import android.app.appsearch.stats.SchemaMigrationStats;
+import android.app.role.RoleManager;
 import android.content.AttributionSource;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
@@ -130,9 +141,12 @@ import org.mockito.ArgumentCaptor;
 
 import java.io.File;
 import java.io.FileDescriptor;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 public class AppSearchManagerServiceTest {
     private static final String DATABASE_NAME = "databaseName";
@@ -150,6 +164,7 @@ public class AppSearchManagerServiceTest {
     private static final String FOO_PACKAGE_NAME = "foo";
 
     private final MockServiceManager mMockServiceManager = new MockServiceManager();
+    private final RoleManager mRoleManager = mock(RoleManager.class);
 
     @Rule
     public ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder()
@@ -166,6 +181,7 @@ public class AppSearchManagerServiceTest {
     private IAppSearchManager.Stub mAppSearchManagerServiceStub;
     private AppSearchUserInstance mUserInstance;
     private InternalAppSearchLogger mLogger;
+    private TestableServiceCallHelper mServiceCallHelper;
 
     @Before
     public void setUp() throws Exception {
@@ -198,6 +214,15 @@ public class AppSearchManagerServiceTest {
             public PackageManager getPackageManager() {
                 return mPackageManager;
             }
+
+            @Nullable
+            @Override
+            public Object getSystemService(String name) {
+                if (Context.ROLE_SERVICE.equals(name)) {
+                    return mRoleManager;
+                }
+                return super.getSystemService(name);
+            }
         };
 
         // Set a test environment that provides a temporary folder for AppSearch
@@ -210,6 +235,9 @@ public class AppSearchManagerServiceTest {
                         return mAppSearchDir;
                     }
                 });
+
+        setUpEnvironmentForAppFunction();
+        mServiceCallHelper = new TestableServiceCallHelper();
 
         // In AppSearchManagerService, FrameworkAppSearchConfig is a singleton. During tearDown for
         // TestableDeviceConfig, the propertyChangedListeners are removed. Therefore we have to set
@@ -229,7 +257,7 @@ public class AppSearchManagerServiceTest {
 
         // Start the service
         mAppSearchManagerService = new AppSearchManagerService(mContext,
-                new AppSearchModule.Lifecycle(mContext));
+                new AppSearchModule.Lifecycle(mContext), mServiceCallHelper);
         mAppSearchManagerService.onStart();
         mAppSearchManagerServiceStub = mMockServiceManager.mStubCaptor.getValue();
         assertThat(mAppSearchManagerServiceStub).isNotNull();
@@ -699,7 +727,7 @@ public class AppSearchManagerServiceTest {
                         + "localSearchSuggestion,globalReportUsage,localReportUsage,"
                         + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
                         + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize";
+                        + "initialize,executeAppFunction";
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_DENYLIST, denylistString, false);
         // We expect all local calls (pkg+db) and global calls (pkg only) to be denied since the
@@ -718,7 +746,7 @@ public class AppSearchManagerServiceTest {
                         + "localSearchSuggestion,globalReportUsage,localReportUsage,"
                         + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
                         + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize";
+                        + "initialize,executeAppFunction";
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_DENYLIST, denylistString, false);
         // We expect none of the local calls (pkg+db) and global calls (pkg only) to be denied since
@@ -738,7 +766,7 @@ public class AppSearchManagerServiceTest {
                         + "localSearchSuggestion,globalReportUsage,localReportUsage,"
                         + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
                         + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize";
+                        + "initialize,executeAppFunction";
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_DENYLIST, denylistString, false);
         // We expect only the local calls (pkg+db) to be denied since the denylist specifies a
@@ -768,7 +796,7 @@ public class AppSearchManagerServiceTest {
                         + "localSearchSuggestion,globalReportUsage,localReportUsage,"
                         + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
                         + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize";
+                        + "initialize,executeAppFunction";
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_DENYLIST, denylistString, false);
         verifyLocalCallsResults(AppSearchResult.RESULT_OK);
@@ -785,7 +813,7 @@ public class AppSearchManagerServiceTest {
                         + "localPutDocumentsFromFile,localSearchSuggestion,globalReportUsage,"
                         + "localReportUsage,localRemoveByDocumentId,localRemoveBySearch,"
                         + "localGetStorageInfo,flush,globalRegisterObserverCallback,"
-                        + "globalUnregisterObserverCallback,initialize";
+                        + "globalUnregisterObserverCallback,initialize,executeAppFunction";
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_DENYLIST, denylistString, false);
 
@@ -835,7 +863,7 @@ public class AppSearchManagerServiceTest {
                         + "localSearchSuggestion,globalReportUsage,localReportUsage,"
                         + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
                         + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize";
+                        + "initialize,executeAppFunction";
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_DENYLIST, denylistString, false);
         verifyLocalCallsResults(AppSearchResult.RESULT_OK);
@@ -875,6 +903,46 @@ public class AppSearchManagerServiceTest {
         verifyRegisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyUnregisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyInitializeResult(AppSearchResult.RESULT_OK);
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_OK);
+    }
+
+    @Test
+    public void testAppSearchRateLimit_rateLimitOn_allApis() throws Exception {
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_RATE_LIMIT_ENABLED, Boolean.toString(true), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY, Integer.toString(1), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE,
+                Float.toString(0.8f),
+                false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_RATE_LIMIT_API_COSTS,
+                "localSetSchema:5;globalGetSchema:5;localGetSchema:5;localGetNamespaces:5;"
+                        + "localPutDocuments:5;globalGetDocuments:5;localGetDocuments:5;"
+                        + "localSearch:5;globalSearch:5;globalGetNextPage:5;localGetNextPage:5;"
+                        + "invalidateNextPageToken:5;localWriteSearchResultsToFile:5;"
+                        + "localPutDocumentsFromFile:5;localSearchSuggestion:5;"
+                        + "globalReportUsage:5;localReportUsage:5;localRemoveByDocumentId:5;"
+                        + "localRemoveBySearch:5;localGetStorageInfo:5;flush:5;"
+                        + "executeAppFunction:5",
+                false);
+
+        verifySetSchemaResult(RESULT_RATE_LIMITED);
+        verifyLocalGetSchemaResult(RESULT_RATE_LIMITED);
+        verifySearchResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyPutDocumentsResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyLocalGetDocumentsResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyLocalGetNextPageResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyGlobalGetDocumentsResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyGlobalSearchResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyGlobalGetNextPageResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyInvalidateNextPageTokenResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyGlobalReportUsageResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyPersistToDiskResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_RATE_LIMITED);
+
+        // initialize, registerObserver and unregisterObserver do not have rate liimt.
     }
 
     @Test
@@ -932,6 +1000,7 @@ public class AppSearchManagerServiceTest {
         verifyRegisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyUnregisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyInitializeResult(AppSearchResult.RESULT_OK);
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_OK);
     }
 
     @Test
@@ -982,6 +1051,7 @@ public class AppSearchManagerServiceTest {
         verifyRegisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyUnregisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyInitializeResult(AppSearchResult.RESULT_OK);
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_OK);
 
         // All calls should be fine after switching rate limiting to off
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
@@ -1025,6 +1095,7 @@ public class AppSearchManagerServiceTest {
         verifyRegisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyUnregisterObserverCallbackResult(AppSearchResult.RESULT_OK);
         verifyInitializeResult(AppSearchResult.RESULT_OK);
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_OK);
     }
 
     @Test
@@ -1223,6 +1294,76 @@ public class AppSearchManagerServiceTest {
         verify(mLogger, timeout(1000).times(0)).logStats(any(CallStats.class));
     }
 
+    @Test
+    public void executeAppFunction_success() throws Exception {
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_OK);
+    }
+
+    @Test
+    public void executeAppFunction_callerNoPermission() throws Exception {
+        doReturn(List.of())
+                .when(mRoleManager).getRoleHoldersAsUser(
+                        AppSearchManagerService.SYSTEM_UI_INTELLIGENCE, mUserHandle);
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_SECURITY_ERROR);
+    }
+
+    @Test
+    public void executeAppFunction_cannotResolveService() throws Exception {
+        PackageManager spyPackageManager = mContext.getPackageManager();
+        doReturn(null).when(spyPackageManager).resolveService(any(Intent.class), eq(0));
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_NOT_FOUND);
+    }
+
+    @Test
+    public void executeAppFunction_serviceNotPermissionProtected() throws Exception {
+        ServiceInfo serviceInfo = new ServiceInfo();
+        serviceInfo.packageName = FOO_PACKAGE_NAME;
+        serviceInfo.name = ".MyAppFunctionService";
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.serviceInfo = serviceInfo;
+        PackageManager spyPackageManager = mContext.getPackageManager();
+        doReturn(resolveInfo).when(spyPackageManager).resolveService(any(Intent.class), eq(0));
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_NOT_FOUND);
+    }
+
+    @Test
+    public void executeAppFunction_bindServiceReturnsFalse() throws Exception {
+        mServiceCallHelper.setBindServiceResult(false);
+        mServiceCallHelper.setOnRunServiceCallListener((callback) -> {});
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_INTERNAL_ERROR);
+    }
+
+    @Test
+    public void executeAppFunction_failedToConnectService() throws Exception {
+        mServiceCallHelper.setOnRunServiceCallListener(
+                ServiceCallHelper.RunServiceCallCallback::onFailedToConnect);
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_INTERNAL_ERROR);
+    }
+
+    @Test
+    public void executeAppFunction_serviceConnectionTimeout() throws Exception {
+        mServiceCallHelper.setOnRunServiceCallListener(
+                ServiceCallHelper.RunServiceCallCallback::onTimedOut);
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_TIMED_OUT);
+    }
+
+    @Test
+    public void executeAppFunction_executeAppFunctionReturnsFailure() throws Exception {
+        mServiceCallHelper.setOnRunServiceCallListener(
+                (callback) -> callback.onServiceConnected(new TestableAppFunctionService(
+                        AppSearchResult.newFailedResult(AppSearchResult.RESULT_INVALID_ARGUMENT,
+                                "errorMessage")), () -> {
+                }));
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_INVALID_ARGUMENT);
+    }
+
     private void verifyLocalCallsResults(int resultCode) throws Exception {
         // These APIs are local calls since they specify a database. If the API specifies a target
         // package, then the target package matches the calling package
@@ -1256,6 +1397,7 @@ public class AppSearchManagerServiceTest {
         verifyRegisterObserverCallbackResult(resultCode);
         verifyUnregisterObserverCallbackResult(resultCode);
         verifyInitializeResult(resultCode);
+        verifyExecuteAppFunctionCallbackResult(resultCode);
     }
 
     private void verifySetSchemaResult(int resultCode) throws Exception {
@@ -1540,6 +1682,23 @@ public class AppSearchManagerServiceTest {
                 resultParcel.getResult());
     }
 
+    private void verifyExecuteAppFunctionCallbackResult(int resultCode) throws Exception {
+        TestResultCallback callback = new TestResultCallback();
+        mAppSearchManagerServiceStub.executeAppFunction(
+                new ExecuteAppFunctionAidlRequest(
+                        new ExecuteAppFunctionRequest.Builder(
+                                FOO_PACKAGE_NAME, "function"
+                        ).build(),
+                        AppSearchAttributionSource.createAttributionSource(mContext),
+                        mUserHandle,
+                        BINDER_CALL_START_TIME
+                ),
+                callback
+        );
+
+        verifyCallResult(resultCode, CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION, callback.get());
+    }
+
     private void verifyUnregisterObserverCallbackResult(int resultCode) throws Exception {
         AppSearchResultParcel<Void> resultParcel =
                 mAppSearchManagerServiceStub.unregisterObserverCallback(
@@ -1624,6 +1783,22 @@ public class AppSearchManagerServiceTest {
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
     }
 
+    private void setUpEnvironmentForAppFunction() {
+        doReturn(Arrays.asList(mContext.getPackageName()))
+                .when(mRoleManager).getRoleHoldersAsUser(
+                        AppSearchManagerService.SYSTEM_UI_INTELLIGENCE, mUserHandle);
+
+        // FOO_PACKAGE implemented an AppFunctionService.
+        ServiceInfo serviceInfo = new ServiceInfo();
+        serviceInfo.packageName = FOO_PACKAGE_NAME;
+        serviceInfo.name = ".MyAppFunctionService";
+        serviceInfo.permission = AppFunctionManager.PERMISSION_BIND_APP_FUNCTION_SERVICE;
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.serviceInfo = serviceInfo;
+        PackageManager spyPackageManager = mContext.getPackageManager();
+        doReturn(resolveInfo).when(spyPackageManager).resolveService(any(Intent.class), eq(0));
+    }
+
     private static class MockServiceManager implements StaticMockFixture {
         ArgumentCaptor<IAppSearchManager.Stub> mStubCaptor = ArgumentCaptor.forClass(
                 IAppSearchManager.Stub.class);
@@ -1688,6 +1863,67 @@ public class AppSearchManagerServiceTest {
         public AppSearchBatchResult<?, ?> getBatchResult()
                 throws InterruptedException, ExecutionException {
             return batchFuture.get();
+        }
+    }
+
+    /**
+     * Testable helper for {@link ServiceCallHelper}, defaults to the happy case, i.e. successful
+     * service connection and
+     * {@link android.app.appsearch.functions.AppFunctionService#onExecuteFunction} always
+     * returns a successful result. Includes methods to customize connection behavior.
+     */
+    private static class TestableServiceCallHelper implements
+            ServiceCallHelper<IAppFunctionService> {
+        private Consumer<RunServiceCallCallback<IAppFunctionService>> mOnRunServiceCallListener =
+                (callback) -> callback.onServiceConnected(new TestableAppFunctionService(
+                        AppSearchResult.newSuccessfulResult(
+                                new ExecuteAppFunctionResponse.Builder().build())), () -> {
+                });
+        private boolean mBindServiceResult = true;
+
+        /**
+         * Replaces the default service connection behavior. Use this in tests to simulate
+         * different connection results (e.g., failures).
+         */
+        public void setOnRunServiceCallListener(
+                @NonNull Consumer<RunServiceCallCallback<IAppFunctionService>> listener) {
+            mOnRunServiceCallListener = Objects.requireNonNull(listener);
+        }
+
+        /** Sets the result of {@link #runServiceCall} (defaults to {@code true}). */
+        public void setBindServiceResult(boolean bindResult) {
+            mBindServiceResult = bindResult;
+        }
+
+        @Override
+        public boolean runServiceCall(@NonNull Intent intent, int bindFlags,
+                long timeoutInMillis, @NonNull UserHandle userHandle,
+                @NonNull RunServiceCallCallback<IAppFunctionService> callback) {
+            mOnRunServiceCallListener.accept(callback);
+            return mBindServiceResult;
+        }
+    }
+
+    /**
+     * A testable implementation of {@link IAppFunctionService.Stub} for you to customize the
+     * result of {@link #executeAppFunction}.
+     */
+    private static class TestableAppFunctionService extends IAppFunctionService.Stub {
+        private final AppSearchResult<ExecuteAppFunctionResponse> mResult;
+
+        /**
+         * @param result the result to return in {@link #executeAppFunction}.
+         */
+        public TestableAppFunctionService(
+                @NonNull AppSearchResult<ExecuteAppFunctionResponse> result) {
+            mResult = Objects.requireNonNull(result);
+        }
+
+        @Override
+        public void executeAppFunction(
+                ExecuteAppFunctionRequest executeAppFunctionRequest,
+                IAppSearchResultCallback callback) throws RemoteException {
+            callback.onResult(new AppSearchResultParcel(mResult));
         }
     }
 }
