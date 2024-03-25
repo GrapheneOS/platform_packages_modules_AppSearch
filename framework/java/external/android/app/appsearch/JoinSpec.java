@@ -172,14 +172,19 @@ public final class JoinSpec extends AbstractSafeParcelable {
      * perform a join, but keep the parent ranking signal.
      */
     public static final int AGGREGATION_SCORING_OUTER_RESULT_RANKING_SIGNAL = 0;
+
     /** Score the aggregation of joined documents by counting the number of results. */
     public static final int AGGREGATION_SCORING_RESULT_COUNT = 1;
+
     /** Score the aggregation of joined documents using the smallest ranking signal. */
     public static final int AGGREGATION_SCORING_MIN_RANKING_SIGNAL = 2;
+
     /** Score the aggregation of joined documents using the average ranking signal. */
     public static final int AGGREGATION_SCORING_AVG_RANKING_SIGNAL = 3;
+
     /** Score the aggregation of joined documents using the largest ranking signal. */
     public static final int AGGREGATION_SCORING_MAX_RANKING_SIGNAL = 4;
+
     /** Score the aggregation of joined documents using the sum of ranking signal. */
     public static final int AGGREGATION_SCORING_SUM_RANKING_SIGNAL = 5;
 

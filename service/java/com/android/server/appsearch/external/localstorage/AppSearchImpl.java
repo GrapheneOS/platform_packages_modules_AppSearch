@@ -559,7 +559,7 @@ public final class AppSearchImpl implements Closeable {
                         databaseName,
                         // A CallerAccess object for internal use that has local access to this
                         // database.
-                        new CallerAccess(/*callingPackageName=*/ packageName));
+                        new CallerAccess(/* callingPackageName= */ packageName));
         long getOldSchemaEndTimeMillis = SystemClock.elapsedRealtime();
         if (setSchemaStatsBuilder != null) {
             setSchemaStatsBuilder
@@ -697,10 +697,10 @@ public final class AppSearchImpl implements Closeable {
 
                 if (sendNotification) {
                     mObserverManager.onSchemaChange(
-                            /*listeningPackageName=*/ listeningPackageName,
-                            /*targetPackageName=*/ packageName,
-                            /*databaseName=*/ databaseName,
-                            /*schemaName=*/ schemaName);
+                            /* listeningPackageName= */ listeningPackageName,
+                            /* targetPackageName= */ packageName,
+                            /* databaseName= */ databaseName,
+                            /* schemaName= */ schemaName);
                 }
             }
         }
@@ -1923,7 +1923,7 @@ public final class AppSearchImpl implements Closeable {
             checkSuccess(deleteResultProto.getStatus());
 
             // Update derived maps
-            updateDocumentCountAfterRemovalLocked(packageName, /*numDocumentsDeleted=*/ 1);
+            updateDocumentCountAfterRemovalLocked(packageName, /* numDocumentsDeleted= */ 1);
 
             // Prepare notifications
             if (schemaType != null) {
@@ -2399,7 +2399,7 @@ public final class AppSearchImpl implements Closeable {
                     finalSchema);
             SetSchemaResultProto setSchemaResultProto =
                     mIcingSearchEngineLocked.setSchema(
-                            finalSchema, /*ignoreErrorsAndDeleteDocuments=*/ true);
+                            finalSchema, /* ignoreErrorsAndDeleteDocuments= */ true);
             LogUtil.piiTrace(
                     TAG,
                     "clearPackageData.setSchema, response",
@@ -2846,7 +2846,7 @@ public final class AppSearchImpl implements Closeable {
             if (Log.isLoggable(icingTag, Log.VERBOSE)) {
                 boolean unused =
                         IcingSearchEngine.setLoggingLevel(
-                                LogSeverity.Code.VERBOSE, /*verbosity=*/ (short) 1);
+                                LogSeverity.Code.VERBOSE, /* verbosity= */ (short) 1);
                 return;
             } else if (Log.isLoggable(icingTag, Log.DEBUG)) {
                 IcingSearchEngine.setLoggingLevel(LogSeverity.Code.DBG);

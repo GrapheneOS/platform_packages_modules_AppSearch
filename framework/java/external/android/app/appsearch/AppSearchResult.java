@@ -108,9 +108,7 @@ public final class AppSearchResult<ValueType> {
     @FlaggedApi(Flags.FLAG_ENABLE_RESULT_DENIED_AND_RESULT_RATE_LIMITED)
     public static final int RESULT_DENIED = 9;
 
-    /**
-     * The caller has hit AppSearch's rate limit and the requested operation has been rejected.
-     */
+    /** The caller has hit AppSearch's rate limit and the requested operation has been rejected. */
     @FlaggedApi(Flags.FLAG_ENABLE_RESULT_DENIED_AND_RESULT_RATE_LIMITED)
     public static final int RESULT_RATE_LIMITED = 10;
 
@@ -208,7 +206,7 @@ public final class AppSearchResult<ValueType> {
     @NonNull
     public static <ValueType> AppSearchResult<ValueType> newSuccessfulResult(
             @Nullable ValueType value) {
-        return new AppSearchResult<>(RESULT_OK, value, /*errorMessage=*/ null);
+        return new AppSearchResult<>(RESULT_OK, value, /* errorMessage= */ null);
     }
 
     /**
@@ -220,7 +218,7 @@ public final class AppSearchResult<ValueType> {
     @NonNull
     public static <ValueType> AppSearchResult<ValueType> newFailedResult(
             @ResultCode int resultCode, @Nullable String errorMessage) {
-        return new AppSearchResult<>(resultCode, /*resultValue=*/ null, errorMessage);
+        return new AppSearchResult<>(resultCode, /* resultValue= */ null, errorMessage);
     }
 
     /**

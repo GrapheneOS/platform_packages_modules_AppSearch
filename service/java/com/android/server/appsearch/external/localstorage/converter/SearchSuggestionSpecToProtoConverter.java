@@ -39,16 +39,19 @@ import java.util.Set;
 public final class SearchSuggestionSpecToProtoConverter {
     private final String mSuggestionQueryExpression;
     private final SearchSuggestionSpec mSearchSuggestionSpec;
+
     /**
      * The client specific packages and databases to search for. For local storage, this always
      * contains a single prefix.
      */
     private final Set<String> mPrefixes;
+
     /**
      * The intersected prefixed namespaces that are existing in AppSearch and also accessible to the
      * client.
      */
     private final Set<String> mTargetPrefixedNamespaceFilters;
+
     /**
      * The intersected prefixed schema types that are existing in AppSearch and also accessible to
      * the client.

@@ -300,6 +300,7 @@ public final class GetSchemaResponse extends AbstractSafeParcelable {
     public static final class Builder {
         private int mVersion = 0;
         private ArrayList<AppSearchSchema> mSchemas = new ArrayList<>();
+
         /**
          * Creates the object when we actually set them. If we never set visibility settings, we
          * should throw {@link UnsupportedOperationException} in the visibility getters.

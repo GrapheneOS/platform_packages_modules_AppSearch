@@ -61,7 +61,7 @@ public final class LogUtil {
      */
     public static void piiTrace(
             @Size(min = 0, max = 23) @NonNull String tag, @NonNull String message) {
-        piiTrace(tag, message, /*fastTraceObj=*/ null, /*fullTraceObj=*/ null);
+        piiTrace(tag, message, /* fastTraceObj= */ null, /* fullTraceObj= */ null);
     }
 
     /**
@@ -76,7 +76,7 @@ public final class LogUtil {
             @Size(min = 0, max = 23) @NonNull String tag,
             @NonNull String message,
             @Nullable Object traceObj) {
-        piiTrace(tag, message, /*fastTraceObj=*/ traceObj, /*fullTraceObj=*/ null);
+        piiTrace(tag, message, /* fastTraceObj= */ traceObj, /* fullTraceObj= */ null);
     }
 
     /**

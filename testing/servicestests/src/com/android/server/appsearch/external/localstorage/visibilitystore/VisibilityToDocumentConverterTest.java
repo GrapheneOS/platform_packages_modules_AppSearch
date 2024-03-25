@@ -313,10 +313,10 @@ public class VisibilityToDocumentConverterTest {
         SetSchemaRequest setSchemaRequest =
                 new SetSchemaRequest.Builder()
                         .addSchemas(new AppSearchSchema.Builder("someSchema").build())
-                        .setSchemaTypeDisplayedBySystem("someSchema", /*displayed=*/ true)
+                        .setSchemaTypeDisplayedBySystem("someSchema", /* displayed= */ true)
                         .setSchemaTypeVisibilityForPackage(
                                 "someSchema",
-                                /*visible=*/ true,
+                                /* visible= */ true,
                                 new PackageIdentifier("com.example.test6", cert6))
                         .addRequiredPermissionsForSchemaTypeVisibility(
                                 "someSchema", ImmutableSet.of(1, 2))

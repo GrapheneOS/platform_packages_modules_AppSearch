@@ -64,18 +64,22 @@ public final class SearchSpecToProtoConverter {
     private static final String TAG = "AppSearchSearchSpecConv";
     private final String mQueryExpression;
     private final SearchSpec mSearchSpec;
+
     /** The union of allowed prefixes for the top-level SearchSpec and any nested SearchSpecs. */
     private final Set<String> mAllAllowedPrefixes;
+
     /**
      * The intersection of mAllAllowedPrefixes and prefixes requested in the SearchSpec currently
      * being handled.
      */
     private final Set<String> mCurrentSearchSpecPrefixFilters;
+
     /**
      * The intersected prefixed namespaces that are existing in AppSearch and also accessible to the
      * client.
      */
     private final Set<String> mTargetPrefixedNamespaceFilters;
+
     /**
      * The intersected prefixed schema types that are existing in AppSearch and also accessible to
      * the client.
@@ -214,8 +218,8 @@ public final class SearchSpecToProtoConverter {
         removeInaccessibleSchemaFilterCached(
                 callerAccess,
                 visibilityStore,
-                /*inaccessibleSchemaPrefixes=*/ new ArraySet<>(),
-                /*accessibleSchemaPrefixes=*/ new ArraySet<>(),
+                /* inaccessibleSchemaPrefixes= */ new ArraySet<>(),
+                /* accessibleSchemaPrefixes= */ new ArraySet<>(),
                 visibilityChecker);
     }
 

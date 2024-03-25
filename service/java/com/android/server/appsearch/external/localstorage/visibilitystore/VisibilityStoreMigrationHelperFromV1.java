@@ -68,7 +68,7 @@ public class VisibilityStoreMigrationHelperFromV1 {
                                         VisibilityStore.VISIBILITY_DATABASE_NAME,
                                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                                         allPrefixedSchemaTypes.get(i),
-                                        /*typePropertyPaths=*/ Collections.emptyMap())));
+                                        /* typePropertyPaths= */ Collections.emptyMap())));
             } catch (AppSearchException e) {
                 if (e.getResultCode() == AppSearchResult.RESULT_NOT_FOUND) {
                     // TODO(b/172068212): This indicates some desync error. We were expecting a

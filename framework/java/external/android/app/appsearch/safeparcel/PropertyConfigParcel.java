@@ -111,10 +111,10 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 Objects.requireNonNull(propertyName),
                 AppSearchSchema.PropertyConfig.DATA_TYPE_STRING,
                 cardinality,
-                /*schemaType=*/ null,
+                /* schemaType= */ null,
                 Objects.requireNonNull(stringIndexingConfigParcel),
-                /*documentIndexingConfigParcel=*/ null,
-                /*integerIndexingConfigParcel=*/ null,
+                /* documentIndexingConfigParcel= */ null,
+                /* integerIndexingConfigParcel= */ null,
                 Objects.requireNonNull(joinableConfigParcel),
                 Objects.requireNonNull(description));
     }
@@ -130,11 +130,11 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 Objects.requireNonNull(propertyName),
                 AppSearchSchema.PropertyConfig.DATA_TYPE_LONG,
                 cardinality,
-                /*schemaType=*/ null,
-                /*stringIndexingConfigParcel=*/ null,
-                /*documentIndexingConfigParcel=*/ null,
+                /* schemaType= */ null,
+                /* stringIndexingConfigParcel= */ null,
+                /* documentIndexingConfigParcel= */ null,
                 new IntegerIndexingConfigParcel(indexingType),
-                /*joinableConfigParcel=*/ null,
+                /* joinableConfigParcel= */ null,
                 Objects.requireNonNull(description));
     }
 
@@ -148,11 +148,11 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 Objects.requireNonNull(propertyName),
                 AppSearchSchema.PropertyConfig.DATA_TYPE_DOUBLE,
                 cardinality,
-                /*schemaType=*/ null,
-                /*stringIndexingConfigParcel=*/ null,
-                /*documentIndexingConfigParcel=*/ null,
-                /*integerIndexingConfigParcel=*/ null,
-                /*joinableConfigParcel=*/ null,
+                /* schemaType= */ null,
+                /* stringIndexingConfigParcel= */ null,
+                /* documentIndexingConfigParcel= */ null,
+                /* integerIndexingConfigParcel= */ null,
+                /* joinableConfigParcel= */ null,
                 Objects.requireNonNull(description));
     }
 
@@ -166,11 +166,11 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 Objects.requireNonNull(propertyName),
                 AppSearchSchema.PropertyConfig.DATA_TYPE_BOOLEAN,
                 cardinality,
-                /*schemaType=*/ null,
-                /*stringIndexingConfigParcel=*/ null,
-                /*documentIndexingConfigParcel=*/ null,
-                /*integerIndexingConfigParcel=*/ null,
-                /*joinableConfigParcel=*/ null,
+                /* schemaType= */ null,
+                /* stringIndexingConfigParcel= */ null,
+                /* documentIndexingConfigParcel= */ null,
+                /* integerIndexingConfigParcel= */ null,
+                /* joinableConfigParcel= */ null,
                 Objects.requireNonNull(description));
     }
 
@@ -184,11 +184,11 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 Objects.requireNonNull(propertyName),
                 AppSearchSchema.PropertyConfig.DATA_TYPE_BYTES,
                 cardinality,
-                /*schemaType=*/ null,
-                /*stringIndexingConfigParcel=*/ null,
-                /*documentIndexingConfigParcel=*/ null,
-                /*integerIndexingConfigParcel=*/ null,
-                /*joinableConfigParcel=*/ null,
+                /* schemaType= */ null,
+                /* stringIndexingConfigParcel= */ null,
+                /* documentIndexingConfigParcel= */ null,
+                /* integerIndexingConfigParcel= */ null,
+                /* joinableConfigParcel= */ null,
                 Objects.requireNonNull(description));
     }
 
@@ -205,10 +205,10 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 AppSearchSchema.PropertyConfig.DATA_TYPE_DOCUMENT,
                 cardinality,
                 Objects.requireNonNull(schemaType),
-                /*stringIndexingConfigParcel=*/ null,
+                /* stringIndexingConfigParcel= */ null,
                 Objects.requireNonNull(documentIndexingConfigParcel),
-                /*integerIndexingConfigParcel=*/ null,
-                /*joinableConfigParcel=*/ null,
+                /* integerIndexingConfigParcel= */ null,
+                /* joinableConfigParcel= */ null,
                 Objects.requireNonNull(description));
     }
 

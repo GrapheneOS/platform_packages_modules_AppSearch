@@ -215,9 +215,9 @@ public class ObserverManager {
                     continue; // Observer doesn't want this notification
                 }
                 if (!VisibilityUtil.isSchemaSearchableByCaller(
-                        /*callerAccess=*/ observerInfo.mListeningPackageAccess,
-                        /*targetPackageName=*/ packageName,
-                        /*prefixedSchema=*/ prefixedSchema,
+                        /* callerAccess= */ observerInfo.mListeningPackageAccess,
+                        /* targetPackageName= */ packageName,
+                        /* prefixedSchema= */ prefixedSchema,
                         visibilityStore,
                         visibilityChecker)) {
                     continue; // Observer can't have this notification.
@@ -344,9 +344,9 @@ public class ObserverManager {
                     continue; // Observer doesn't want this notification
                 }
                 if (!VisibilityUtil.isSchemaSearchableByCaller(
-                        /*callerAccess=*/ observerInfo.mListeningPackageAccess,
-                        /*targetPackageName=*/ packageName,
-                        /*prefixedSchema=*/ prefixedSchema,
+                        /* callerAccess= */ observerInfo.mListeningPackageAccess,
+                        /* targetPackageName= */ packageName,
+                        /* prefixedSchema= */ prefixedSchema,
                         visibilityStore,
                         visibilityChecker)) {
                     continue; // Observer can't have this notification.
@@ -403,11 +403,11 @@ public class ObserverManager {
                         for (Map.Entry<String, Set<String>> entry : schemaChanges.entrySet()) {
                             SchemaChangeInfo schemaChangeInfo =
                                     new SchemaChangeInfo(
-                                            /*packageName=*/ PrefixUtil.getPackageName(
+                                            /* packageName= */ PrefixUtil.getPackageName(
                                                     entry.getKey()),
-                                            /*databaseName=*/ PrefixUtil.getDatabaseName(
+                                            /* databaseName= */ PrefixUtil.getDatabaseName(
                                                     entry.getKey()),
-                                            /*changedSchemaNames=*/ entry.getValue());
+                                            /* changedSchemaNames= */ entry.getValue());
 
                             try {
                                 observerInfo.mObserverCallback.onSchemaChanged(schemaChangeInfo);

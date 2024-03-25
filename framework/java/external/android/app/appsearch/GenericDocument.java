@@ -259,7 +259,9 @@ public class GenericDocument {
         Objects.requireNonNull(path);
         Object rawValue =
                 getRawPropertyFromRawDocument(
-                        new PropertyPath(path), /*pathIndex=*/ 0, mDocumentParcel.getPropertyMap());
+                        new PropertyPath(path),
+                        /* pathIndex= */ 0,
+                        mDocumentParcel.getPropertyMap());
 
         // Unpack the raw value into the types the user expects, if required.
         if (rawValue instanceof GenericDocumentParcel) {
@@ -422,7 +424,7 @@ public class GenericDocument {
                     Object value =
                             getRawPropertyFromRawDocument(
                                     path,
-                                    /*pathIndex=*/ i + 1,
+                                    /* pathIndex= */ i + 1,
                                     ((GenericDocumentParcel) docParcel).getPropertyMap());
                     if (value != null) {
                         accumulator.add(value);

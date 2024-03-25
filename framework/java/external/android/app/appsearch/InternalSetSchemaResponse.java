@@ -74,7 +74,7 @@ public class InternalSetSchemaResponse extends AbstractSafeParcelable {
     public static InternalSetSchemaResponse newSuccessfulSetSchemaResponse(
             @NonNull SetSchemaResponse setSchemaResponse) {
         return new InternalSetSchemaResponse(
-                /*isSuccess=*/ true, setSchemaResponse, /*errorMessage=*/ null);
+                /* isSuccess= */ true, setSchemaResponse, /* errorMessage= */ null);
     }
 
     /**
@@ -86,7 +86,8 @@ public class InternalSetSchemaResponse extends AbstractSafeParcelable {
     @NonNull
     public static InternalSetSchemaResponse newFailedSetSchemaResponse(
             @NonNull SetSchemaResponse setSchemaResponse, @NonNull String errorMessage) {
-        return new InternalSetSchemaResponse(/*isSuccess=*/ false, setSchemaResponse, errorMessage);
+        return new InternalSetSchemaResponse(
+                /* isSuccess= */ false, setSchemaResponse, errorMessage);
     }
 
     /** Returns {@code true} if the schema request is proceeded successfully. */

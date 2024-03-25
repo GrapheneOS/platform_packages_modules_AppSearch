@@ -53,6 +53,7 @@ public final class GetByDocumentIdRequest extends AbstractSafeParcelable {
     @NonNull
     public static final Parcelable.Creator<GetByDocumentIdRequest> CREATOR =
             new GetByDocumentIdRequestCreator();
+
     /**
      * Schema type to be used in {@link GetByDocumentIdRequest.Builder#addProjection} to apply
      * property paths to all results, excepting any types that have had their own, specific property

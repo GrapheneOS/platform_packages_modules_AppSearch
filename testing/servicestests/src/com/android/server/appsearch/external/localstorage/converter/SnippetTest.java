@@ -112,13 +112,13 @@ public class SnippetTest {
         assertThat(match.getFullText()).isEqualTo(propertyValueString);
         assertThat(match.getExactMatch()).isEqualTo(exactMatch);
         assertThat(match.getExactMatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 29, /*upper=*/ 32));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 29, /* upper= */ 32));
         assertThat(match.getSubmatch()).isEqualTo("foo");
         assertThat(match.getSubmatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 29, /*upper=*/ 32));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 29, /* upper= */ 32));
         assertThat(match.getFullText()).isEqualTo(propertyValueString);
         assertThat(match.getSnippetRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 26, /*upper=*/ 32));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 26, /* upper= */ 32));
         assertThat(match.getSnippet()).isEqualTo(window);
     }
 
@@ -229,26 +229,26 @@ public class SnippetTest {
         assertThat(match1.getPropertyPath()).isEqualTo("senderName");
         assertThat(match1.getFullText()).isEqualTo("Test Name Jr.");
         assertThat(match1.getExactMatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 4));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 4));
         assertThat(match1.getExactMatch()).isEqualTo("Test");
         assertThat(match1.getSubmatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 4));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 4));
         assertThat(match1.getSubmatch()).isEqualTo("Test");
         assertThat(match1.getSnippetRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 9));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 9));
         assertThat(match1.getSnippet()).isEqualTo("Test Name");
 
         SearchResult.MatchInfo match2 = searchResultPage.getResults().get(0).getMatchInfos().get(1);
         assertThat(match2.getPropertyPath()).isEqualTo("senderEmail");
         assertThat(match2.getFullText()).isEqualTo("TestNameJr@gmail.com");
         assertThat(match2.getExactMatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 20));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 20));
         assertThat(match2.getExactMatch()).isEqualTo("TestNameJr@gmail.com");
         assertThat(match2.getSubmatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 4));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 4));
         assertThat(match2.getSubmatch()).isEqualTo("Test");
         assertThat(match2.getSnippetRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 20));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 20));
         assertThat(match2.getSnippet()).isEqualTo("TestNameJr@gmail.com");
     }
 
@@ -334,13 +334,13 @@ public class SnippetTest {
         assertThat(match1.getPropertyPathObject()).isEqualTo(new PropertyPath("sender.name"));
         assertThat(match1.getFullText()).isEqualTo("Test Name Jr.");
         assertThat(match1.getExactMatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 4));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 4));
         assertThat(match1.getExactMatch()).isEqualTo("Test");
         assertThat(match1.getSubmatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 4));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 4));
         assertThat(match1.getSubmatch()).isEqualTo("Test");
         assertThat(match1.getSnippetRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 9));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 9));
         assertThat(match1.getSnippet()).isEqualTo("Test Name");
 
         SearchResult.MatchInfo match2 = searchResultPage.getResults().get(0).getMatchInfos().get(1);
@@ -348,13 +348,13 @@ public class SnippetTest {
         assertThat(match2.getPropertyPathObject()).isEqualTo(new PropertyPath("sender.email[1]"));
         assertThat(match2.getFullText()).isEqualTo("TestNameJr2@gmail.com");
         assertThat(match2.getExactMatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 21));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 21));
         assertThat(match2.getExactMatch()).isEqualTo("TestNameJr2@gmail.com");
         assertThat(match2.getSubmatchRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 4));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 4));
         assertThat(match2.getSubmatch()).isEqualTo("Test");
         assertThat(match2.getSnippetRange())
-                .isEqualTo(new SearchResult.MatchRange(/*lower=*/ 0, /*upper=*/ 21));
+                .isEqualTo(new SearchResult.MatchRange(/* lower= */ 0, /* upper= */ 21));
         assertThat(match2.getSnippet()).isEqualTo("TestNameJr2@gmail.com");
     }
 }

@@ -27,18 +27,18 @@ public class VisibilityUtilTest {
         assertThat(
                         VisibilityUtil.isSchemaSearchableByCaller(
                                 callerAccess,
-                                /*targetPackageName=*/ "package1",
-                                /*prefixedSchema=*/ "schema",
-                                /*visibilityStore=*/ null,
-                                /*visibilityChecker=*/ null))
+                                /* targetPackageName= */ "package1",
+                                /* prefixedSchema= */ "schema",
+                                /* visibilityStore= */ null,
+                                /* visibilityChecker= */ null))
                 .isTrue();
         assertThat(
                         VisibilityUtil.isSchemaSearchableByCaller(
                                 callerAccess,
-                                /*targetPackageName=*/ "package2",
-                                /*prefixedSchema=*/ "schema",
-                                /*visibilityStore=*/ null,
-                                /*visibilityChecker=*/ null))
+                                /* targetPackageName= */ "package2",
+                                /* prefixedSchema= */ "schema",
+                                /* visibilityStore= */ null,
+                                /* visibilityChecker= */ null))
                 .isFalse();
     }
 
@@ -54,18 +54,18 @@ public class VisibilityUtilTest {
         assertThat(
                         VisibilityUtil.isSchemaSearchableByCaller(
                                 callerAccess,
-                                /*targetPackageName=*/ "package1",
-                                /*prefixedSchema=*/ "schema",
-                                /*visibilityStore=*/ null,
-                                /*visibilityChecker=*/ null))
+                                /* targetPackageName= */ "package1",
+                                /* prefixedSchema= */ "schema",
+                                /* visibilityStore= */ null,
+                                /* visibilityChecker= */ null))
                 .isFalse();
         assertThat(
                         VisibilityUtil.isSchemaSearchableByCaller(
                                 callerAccess,
-                                /*targetPackageName=*/ "package2",
-                                /*prefixedSchema=*/ "schema",
-                                /*visibilityStore=*/ null,
-                                /*visibilityChecker=*/ null))
+                                /* targetPackageName= */ "package2",
+                                /* prefixedSchema= */ "schema",
+                                /* visibilityStore= */ null,
+                                /* visibilityChecker= */ null))
                 .isFalse();
     }
 }

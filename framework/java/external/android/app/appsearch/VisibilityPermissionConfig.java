@@ -132,7 +132,7 @@ public final class VisibilityPermissionConfig extends AbstractSafeParcelable {
         if (mGenericDocument == null) {
             // This is used as a nested document, we do not need a namespace or id.
             GenericDocument.Builder<?> builder =
-                    new GenericDocument.Builder<>(/*namespace=*/ "", /*id=*/ "", SCHEMA_TYPE);
+                    new GenericDocument.Builder<>(/* namespace= */ "", /* id= */ "", SCHEMA_TYPE);
 
             if (mAllRequiredPermissions != null) {
                 // GenericDocument only supports long, so int[] needs to be converted to

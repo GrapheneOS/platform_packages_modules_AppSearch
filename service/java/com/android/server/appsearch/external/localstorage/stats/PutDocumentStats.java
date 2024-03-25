@@ -31,6 +31,7 @@ import java.util.Objects;
 public final class PutDocumentStats {
     @NonNull private final String mPackageName;
     @NonNull private final String mDatabase;
+
     /**
      * The status code returned by {@link AppSearchResult#getResultCode()} for the call or internal
      * state.

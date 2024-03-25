@@ -36,7 +36,7 @@ public class SearchResultPageInternalTest {
                         new SearchResult.Builder("package2", "database2")
                                 .setGenericDocument(document)
                                 .build());
-        SearchResultPage searchResultPage = new SearchResultPage(/*nextPageToken=*/ 123, results);
+        SearchResultPage searchResultPage = new SearchResultPage(/* nextPageToken= */ 123, results);
         assertThat(searchResultPage.getNextPageToken()).isEqualTo(123);
         List<SearchResult> searchResults = searchResultPage.getResults();
         assertThat(searchResults).hasSize(2);

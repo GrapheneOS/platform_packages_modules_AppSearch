@@ -81,7 +81,7 @@ public class InternalVisibilityConfigTest {
                         .setSchemaTypeDisplayedBySystem("testSchema", false)
                         .setSchemaTypeVisibilityForPackage(
                                 "testSchema",
-                                /*visible=*/ true,
+                                /* visible= */ true,
                                 new PackageIdentifier("com.example.test", packageSha256Cert))
                         .setPubliclyVisibleSchema(
                                 "testSchema",

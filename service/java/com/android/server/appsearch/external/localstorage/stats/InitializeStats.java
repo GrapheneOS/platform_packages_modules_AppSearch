@@ -80,35 +80,47 @@ public final class InitializeStats {
 
     @AppSearchResult.ResultCode private final int mStatusCode;
     private final int mTotalLatencyMillis;
+
     /** Whether the initialize() detects deSync. */
     private final boolean mHasDeSync;
+
     /** Time used to read and process the schema and namespaces. */
     private final int mPrepareSchemaAndNamespacesLatencyMillis;
+
     /** Time used to read and process the visibility store. */
     private final int mPrepareVisibilityStoreLatencyMillis;
+
     /** Overall time used for the native function call. */
     private final int mNativeLatencyMillis;
 
     @RecoveryCause private final int mNativeDocumentStoreRecoveryCause;
     @RecoveryCause private final int mNativeIndexRestorationCause;
     @RecoveryCause private final int mNativeSchemaStoreRecoveryCause;
+
     /** Time used to recover the document store. */
     private final int mNativeDocumentStoreRecoveryLatencyMillis;
+
     /** Time used to restore the index. */
     private final int mNativeIndexRestorationLatencyMillis;
+
     /** Time used to recover the schema store. */
     private final int mNativeSchemaStoreRecoveryLatencyMillis;
+
     /** Status regarding how much data is lost during the initialization. */
     private final int mNativeDocumentStoreDataStatus;
+
     /**
      * Returns number of documents currently in document store. Those may include alive, deleted,
      * and expired documents.
      */
     private final int mNativeNumDocuments;
+
     /** Returns number of schema types currently in the schema store. */
     private final int mNativeNumSchemaTypes;
+
     /** Whether we had to reset the index, losing all data, during initialization. */
     private final boolean mHasReset;
+
     /** If we had to reset, contains the status code of the reset operation. */
     @AppSearchResult.ResultCode private final int mResetStatusCode;
 

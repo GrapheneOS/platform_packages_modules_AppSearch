@@ -53,8 +53,10 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
 
     /** This SetSchema call is not relative to a SchemaMigration case. */
     public static final int NO_MIGRATION = 0;
+
     /** This is the first SetSchema call in Migration cases to get all incompatible changes. */
     public static final int FIRST_CALL_GET_INCOMPATIBLE = 1;
+
     /** This is the second SetSchema call in Migration cases to apply new schema changes */
     public static final int SECOND_CALL_APPLY_NEW_SCHEMA = 2;
 

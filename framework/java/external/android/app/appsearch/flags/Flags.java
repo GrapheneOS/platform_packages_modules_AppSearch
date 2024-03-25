@@ -24,8 +24,7 @@ package android.app.appsearch.flags;
  * @hide
  */
 public final class Flags {
-    private Flags() {
-    }
+    private Flags() {}
 
     // The prefix of all the flags defined for AppSearch. The prefix has
     // "com.android.appsearch.flags", aka the package name for generated AppSearch flag classes in
@@ -61,6 +60,7 @@ public final class Flags {
      */
     public static final String FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES =
             FLAG_PREFIX + "enable_search_spec_filter_properties";
+
     /** Enable the {@link android.app.appsearch.SearchSpec.Builder#setSearchSourceLogTag} method. */
     public static final String FLAG_ENABLE_SEARCH_SPEC_SET_SEARCH_SOURCE_LOG_TAG =
             FLAG_PREFIX + "enable_search_spec_set_search_source_log_tag";
@@ -94,19 +94,16 @@ public final class Flags {
     public static final String FLAG_ENABLE_APP_FUNCTIONS = FLAG_PREFIX + "enable_app_functions";
 
     /**
-     * Enable {@link android.app.appsearch.AppSearchResult#RESULT_DENIED} and
-     * {@link android.app.appsearch.AppSearchResult#RESULT_RATE_LIMITED} which were previously
-     * hidden.
+     * Enable {@link android.app.appsearch.AppSearchResult#RESULT_DENIED} and {@link
+     * android.app.appsearch.AppSearchResult#RESULT_RATE_LIMITED} which were previously hidden.
      */
     public static final String FLAG_ENABLE_RESULT_DENIED_AND_RESULT_RATE_LIMITED =
             FLAG_PREFIX + "enable_result_denied_and_result_rate_limited";
 
     /**
-     * Enables {@link android.app.appsearch.AppSearchSchema#getParentTypes()},
-     * {@link
+     * Enables {@link android.app.appsearch.AppSearchSchema#getParentTypes()}, {@link
      * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig#getIndexableNestedProperties()}
-     * and variants of
-     * {@link
+     * and variants of {@link
      * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder#addIndexableNestedProperties(String...)}.
      */
     public static final String FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES =
@@ -186,19 +183,17 @@ public final class Flags {
     }
 
     /**
-     * Whether {@link android.app.appsearch.AppSearchResult#RESULT_DENIED} and
-     * {@link android.app.appsearch.AppSearchResult#RESULT_RATE_LIMITED} should be enabled.
+     * Whether {@link android.app.appsearch.AppSearchResult#RESULT_DENIED} and {@link
+     * android.app.appsearch.AppSearchResult#RESULT_RATE_LIMITED} should be enabled.
      */
     public static boolean enableResultDeniedAndResultRateLimited() {
         return true;
     }
 
     /**
-     * Whether {@link android.app.appsearch.AppSearchSchema#getParentTypes()},
-     * {@link
+     * Whether {@link android.app.appsearch.AppSearchSchema#getParentTypes()}, {@link
      * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig#getIndexableNestedProperties()}
-     * and variants of
-     * {@link
+     * and variants of {@link
      * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder#addIndexableNestedProperties(String...)}
      * should be enabled.
      */

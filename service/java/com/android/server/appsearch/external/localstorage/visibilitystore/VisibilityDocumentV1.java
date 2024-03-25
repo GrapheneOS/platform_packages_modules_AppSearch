@@ -34,6 +34,7 @@ import java.util.Set;
 class VisibilityDocumentV1 extends GenericDocument {
     /** The Schema type for documents that hold AppSearch's metadata, e.g. visibility settings. */
     static final String SCHEMA_TYPE = "VisibilityType";
+
     /** Namespace of documents that contain visibility settings */
     static final String NAMESPACE = "";
 

@@ -98,7 +98,9 @@ public class SchemaToProtoConverterTest {
                                                                 TermMatchType.Code.PREFIX)))
                         .build();
 
-        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(emailSchema, /*version=*/ 12345))
+        assertThat(
+                        SchemaToProtoConverter.toSchemaTypeConfigProto(
+                                emailSchema, /* version= */ 12345))
                 .isEqualTo(expectedEmailProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedEmailProto))
                 .isEqualTo(emailSchema);
@@ -167,7 +169,9 @@ public class SchemaToProtoConverterTest {
                                                                 TermMatchType.Code.PREFIX)))
                         .build();
 
-        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(emailSchema, /*version=*/ 12345))
+        assertThat(
+                        SchemaToProtoConverter.toSchemaTypeConfigProto(
+                                emailSchema, /* version= */ 12345))
                 .isEqualTo(expectedEmailProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedEmailProto))
                 .isEqualTo(emailSchema);
@@ -225,7 +229,7 @@ public class SchemaToProtoConverterTest {
 
         assertThat(
                         SchemaToProtoConverter.toSchemaTypeConfigProto(
-                                musicRecordingSchema, /*version=*/ 0))
+                                musicRecordingSchema, /* version= */ 0))
                 .isEqualTo(expectedMusicRecordingProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedMusicRecordingProto))
                 .isEqualTo(musicRecordingSchema);
@@ -276,7 +280,7 @@ public class SchemaToProtoConverterTest {
                                         .setJoinableConfig(joinableConfig))
                         .build();
 
-        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(albumSchema, /*version=*/ 0))
+        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(albumSchema, /* version= */ 0))
                 .isEqualTo(expectedAlbumProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedAlbumProto))
                 .isEqualTo(albumSchema);
@@ -299,7 +303,7 @@ public class SchemaToProtoConverterTest {
                         .addParentTypes("Message")
                         .build();
 
-        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(schema, /*version=*/ 12345))
+        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(schema, /* version= */ 12345))
                 .isEqualTo(expectedSchemaProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedSchemaProto)).isEqualTo(schema);
     }
@@ -366,7 +370,7 @@ public class SchemaToProtoConverterTest {
                                         .setDocumentIndexingConfig(documentIndexingConfig))
                         .build();
 
-        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(personSchema, /*version=*/ 0))
+        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(personSchema, /* version= */ 0))
                 .isEqualTo(expectedPersonProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedPersonProto))
                 .isEqualTo(personSchema);

@@ -149,6 +149,7 @@ public class CallStats {
 
     @Nullable private final String mPackageName;
     @Nullable private final String mDatabase;
+
     /**
      * The status code returned by {@link AppSearchResult#getResultCode()} for the call or internal
      * state.

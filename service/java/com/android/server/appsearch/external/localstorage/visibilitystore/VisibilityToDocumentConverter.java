@@ -50,6 +50,7 @@ public class VisibilityToDocumentConverter {
      * The Schema type for documents that hold AppSearch's metadata, such as visibility settings.
      */
     public static final String VISIBILITY_DOCUMENT_SCHEMA_TYPE = "VisibilityType";
+
     /** Namespace of documents that contain visibility settings */
     public static final String VISIBILITY_DOCUMENT_NAMESPACE = "";
 
@@ -58,8 +59,10 @@ public class VisibilityToDocumentConverter {
      * additional visibility settings.
      */
     public static final String ANDROID_V_OVERLAY_SCHEMA_TYPE = "AndroidVOverlayType";
+
     /** Namespace of documents that contain Android V visibility setting overlay documents */
     public static final String ANDROID_V_OVERLAY_NAMESPACE = "androidVOverlay";
+
     /** Property that holds the serialized {@link AndroidVOverlayProto}. */
     public static final String VISIBILITY_PROTO_SERIALIZE_PROPERTY =
             "visibilityProtoSerializeProperty";
@@ -147,6 +150,7 @@ public class VisibilityToDocumentConverter {
                                             AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                     .build())
                     .build();
+
     /**
      * The Deprecated schemas and properties that we need to remove from visibility database.
      * TODO(b/321326441) remove this method when we no longer to migrate devices in this state.

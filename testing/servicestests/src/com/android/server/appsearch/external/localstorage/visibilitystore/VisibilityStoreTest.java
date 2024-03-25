@@ -68,8 +68,8 @@ public class VisibilityStoreTest {
                         appSearchDir,
                         new AppSearchConfigImpl(
                                 new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
-                        /*initStatsBuilder=*/ null,
-                        /*visibilityChecker=*/ null,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
                         ALWAYS_OPTIMIZE);
         mVisibilityStore = new VisibilityStore(mAppSearchImpl);
     }
@@ -141,8 +141,8 @@ public class VisibilityStoreTest {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.VISIBILITY_DATABASE_NAME,
                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
-                        /*id=*/ prefix + "Email",
-                        /*typePropertyPaths=*/ Collections.emptyMap());
+                        /* id= */ prefix + "Email",
+                        /* typePropertyPaths= */ Collections.emptyMap());
         // Ignore the creation timestamp
         actualDocument =
                 new GenericDocument.Builder<>(actualDocument).setCreationTimestampMillis(0).build();
@@ -169,9 +169,9 @@ public class VisibilityStoreTest {
                                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
                                 VisibilityStore.VISIBILITY_DATABASE_NAME,
                                 VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
-                                /*id=*/ "Email",
-                                /*typePropertyPaths=*/ Collections.emptyMap()),
-                        /*androidVOverlayDocument=*/ null);
+                                /* id= */ "Email",
+                                /* typePropertyPaths= */ Collections.emptyMap()),
+                        /* androidVOverlayDocument= */ null);
         assertThat(actualConfig).isEqualTo(visibilityConfig);
 
         mVisibilityStore.removeVisibility(ImmutableSet.of(visibilityConfig.getSchemaType()));
@@ -185,8 +185,8 @@ public class VisibilityStoreTest {
                                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                                         VisibilityStore.VISIBILITY_DATABASE_NAME,
                                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
-                                        /*id=*/ "Email",
-                                        /*typePropertyPaths=*/ Collections.emptyMap()));
+                                        /* id= */ "Email",
+                                        /* typePropertyPaths= */ Collections.emptyMap()));
         assertThat(e).hasMessageThat().contains("Document (VS#Pkg$VS#Db/, Email) not found.");
     }
 
@@ -205,10 +205,10 @@ public class VisibilityStoreTest {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.VISIBILITY_DATABASE_NAME,
                         Collections.singletonList(brokenSchema),
-                        /*visibilityConfigs=*/ Collections.emptyList(),
-                        /*forceOverride=*/ true,
-                        /*version=*/ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
-                        /*setSchemaStatsBuilder=*/ null);
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ true,
+                        /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
+                        /* setSchemaStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
         // Create VisibilityStore should recover the broken schema
         mVisibilityStore = new VisibilityStore(mAppSearchImpl);
@@ -248,8 +248,8 @@ public class VisibilityStoreTest {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                        /*id=*/ prefix + "Email",
-                        /*typePropertyPaths=*/ Collections.emptyMap());
+                        /* id= */ prefix + "Email",
+                        /* typePropertyPaths= */ Collections.emptyMap());
         // Ignore the creation timestamp
         visibleToConfigOverlay =
                 new GenericDocument.Builder<>(visibleToConfigOverlay)
@@ -268,8 +268,8 @@ public class VisibilityStoreTest {
                                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                                         VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                                        /*id=*/ prefix + "Email",
-                                        /*typePropertyPaths=*/ Collections.emptyMap()));
+                                        /* id= */ prefix + "Email",
+                                        /* typePropertyPaths= */ Collections.emptyMap()));
         assertThat(e).hasMessageThat().contains("not found.");
     }
 
@@ -295,8 +295,8 @@ public class VisibilityStoreTest {
                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
                 VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                 fakeAndroidVOverlay,
-                /*sendChangeNotifications=*/ false,
-                /*logger=*/ null);
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
 
         // update the visibility config w/o overlay
         InternalVisibilityConfig updateConfig =
@@ -312,8 +312,8 @@ public class VisibilityStoreTest {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                        /*id=*/ "Email",
-                        /*typePropertyPaths=*/ Collections.emptyMap());
+                        /* id= */ "Email",
+                        /* typePropertyPaths= */ Collections.emptyMap());
 
         // Ignore the creation timestamp
         actualAndroidVOverlay =
@@ -339,8 +339,8 @@ public class VisibilityStoreTest {
                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
                 VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                 VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                /*id=*/ "Email",
-                /*typePropertyPaths=*/ Collections.emptyMap());
+                /* id= */ "Email",
+                /* typePropertyPaths= */ Collections.emptyMap());
 
         // update the visibility config w/o overlay
         InternalVisibilityConfig updateConfig =
@@ -356,8 +356,8 @@ public class VisibilityStoreTest {
                                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                                         VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                                        /*id=*/ "Email",
-                                        /*typePropertyPaths=*/ Collections.emptyMap()));
+                                        /* id= */ "Email",
+                                        /* typePropertyPaths= */ Collections.emptyMap()));
         assertThat(e).hasMessageThat().contains("not found.");
     }
 
@@ -379,8 +379,8 @@ public class VisibilityStoreTest {
                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
                 VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                 VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                /*id=*/ "Email",
-                /*typePropertyPaths=*/ Collections.emptyMap());
+                /* id= */ "Email",
+                /* typePropertyPaths= */ Collections.emptyMap());
 
         // update the visibility config w/o overlay
         InternalVisibilityConfig updateConfig =
@@ -396,8 +396,8 @@ public class VisibilityStoreTest {
                                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                                         VisibilityStore.ANDROID_V_OVERLAY_DATABASE_NAME,
                                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                                        /*id=*/ "Email",
-                                        /*typePropertyPaths=*/ Collections.emptyMap()));
+                                        /* id= */ "Email",
+                                        /* typePropertyPaths= */ Collections.emptyMap()));
         assertThat(e).hasMessageThat().contains("not found.");
     }
 
@@ -411,10 +411,10 @@ public class VisibilityStoreTest {
                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                         VisibilityPermissionConfig.SCHEMA,
                         VisibilityToDocumentConverter.DEPRECATED_PUBLIC_ACL_OVERLAY_SCHEMA),
-                /*visibilityConfigs=*/ Collections.emptyList(),
-                /*forceOverride=*/ true,
-                /*version=*/ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
-                /*setSchemaStatsBuilder=*/ null);
+                /* visibilityConfigs= */ Collections.emptyList(),
+                /* forceOverride= */ true,
+                /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
+                /* setSchemaStatsBuilder= */ null);
 
         // Create VisibilityStore with success and force remove deprecated public acl schema from
         // the main visibility database.
@@ -501,11 +501,11 @@ public class VisibilityStoreTest {
                         deprecatedOverlaySchema,
                         deprecatedVisibleToConfigSchema,
                         VisibilityPermissionConfig.SCHEMA),
-                /*visibilityConfigs=*/ Collections.emptyList(),
-                /*forceOverride=*/ true,
-                /*version=*/ VisibilityToDocumentConverter
+                /* visibilityConfigs= */ Collections.emptyList(),
+                /* forceOverride= */ true,
+                /* version= */ VisibilityToDocumentConverter
                         .OVERLAY_SCHEMA_VERSION_PUBLIC_ACL_VISIBLE_TO_CONFIG,
-                /*setSchemaStatsBuilder=*/ null);
+                /* setSchemaStatsBuilder= */ null);
 
         // Create VisibilityStore with success and force remove override overlay schema.
         mVisibilityStore = new VisibilityStore(mAppSearchImpl);

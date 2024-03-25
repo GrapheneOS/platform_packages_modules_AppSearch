@@ -45,7 +45,7 @@ public class GenericDocumentInternalTest {
 
         // Serialize the document
         Parcel inParcel = Parcel.obtain();
-        inParcel.writeParcelable(inDoc.getDocumentParcel(), /*parcelableFlags=*/ 0);
+        inParcel.writeParcelable(inDoc.getDocumentParcel(), /* parcelableFlags= */ 0);
         byte[] data = inParcel.marshall();
         inParcel.recycle();
 
@@ -87,7 +87,7 @@ public class GenericDocumentInternalTest {
 
         // Serialize the document
         Parcel inParcel = Parcel.obtain();
-        inParcel.writeParcelable(inDoc.getDocumentParcel(), /*parcelableFlags=*/ 0);
+        inParcel.writeParcelable(inDoc.getDocumentParcel(), /* parcelableFlags= */ 0);
         byte[] data = inParcel.marshall();
         inParcel.recycle();
 

@@ -44,6 +44,7 @@ import java.util.Set;
  */
 public class VisibilityStoreMigrationHelperFromV0 {
     private VisibilityStoreMigrationHelperFromV0() {}
+
     /** Prefix to add to all visibility document ids. IcingSearchEngine doesn't allow empty ids. */
     private static final String DEPRECATED_ID_PREFIX = "uri:";
 
@@ -149,7 +150,7 @@ public class VisibilityStoreMigrationHelperFromV0 {
                                     VisibilityStore.VISIBILITY_DATABASE_NAME,
                                     VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                                     getDeprecatedVisibilityDocumentId(packageName, databaseName),
-                                    /*typePropertyPaths=*/ Collections.emptyMap()));
+                                    /* typePropertyPaths= */ Collections.emptyMap()));
                 } catch (AppSearchException e) {
                     if (e.getResultCode() == AppSearchResult.RESULT_NOT_FOUND) {
                         // TODO(b/172068212): This indicates some desync error. We were expecting a
@@ -252,7 +253,7 @@ public class VisibilityStoreMigrationHelperFromV0 {
             @NonNull String schemaType) {
         VisibilityDocumentV1.Builder builder = documentBuilderMap.get(schemaType);
         if (builder == null) {
-            builder = new VisibilityDocumentV1.Builder(/*id=*/ schemaType);
+            builder = new VisibilityDocumentV1.Builder(/* id= */ schemaType);
             documentBuilderMap.put(schemaType, builder);
         }
         return builder;

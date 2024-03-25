@@ -168,9 +168,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
         return ret;
     }
 
-    /**
-     * Returns the list of parent types of this schema for polymorphism.
-     */
+    /** Returns the list of parent types of this schema for polymorphism. */
     @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
     @NonNull
     public List<String> getParentTypes() {
@@ -762,9 +760,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 mPropertyName = Objects.requireNonNull(propertyName);
             }
 
-            /**
-             * Sets the description of the property.
-             */
+            /** Sets the description of the property. */
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -878,7 +874,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     Preconditions.checkState(
                             mCardinality != CARDINALITY_REPEATED,
                             "Cannot set JOINABLE_VALUE_TYPE_QUALIFIED_ID with"
-                                + " CARDINALITY_REPEATED.");
+                                    + " CARDINALITY_REPEATED.");
                 } else {
                     Preconditions.checkState(
                             !mDeletionPropagation,
@@ -997,9 +993,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 mPropertyName = Objects.requireNonNull(propertyName);
             }
 
-            /**
-             * Sets the description of the property.
-             */
+            /** Sets the description of the property. */
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1088,9 +1082,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 mPropertyName = Objects.requireNonNull(propertyName);
             }
 
-            /**
-             * Sets the description of the property.
-             */
+            /** Sets the description of the property. */
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1120,7 +1112,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
             public DoublePropertyConfig build() {
                 return new DoublePropertyConfig(
                         PropertyConfigParcel.createForDouble(
-                            mPropertyName, mDescription, mCardinality));
+                                mPropertyName, mDescription, mCardinality));
             }
         }
     }
@@ -1142,9 +1134,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 mPropertyName = Objects.requireNonNull(propertyName);
             }
 
-            /**
-             * Sets the description of the property.
-             */
+            /** Sets the description of the property. */
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1174,7 +1164,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
             public BooleanPropertyConfig build() {
                 return new BooleanPropertyConfig(
                         PropertyConfigParcel.createForBoolean(
-                            mPropertyName, mDescription, mCardinality));
+                                mPropertyName, mDescription, mCardinality));
             }
         }
     }
@@ -1196,9 +1186,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 mPropertyName = Objects.requireNonNull(propertyName);
             }
 
-            /**
-             * Sets the description of the property.
-             */
+            /** Sets the description of the property. */
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1228,7 +1216,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
             public BytesPropertyConfig build() {
                 return new BytesPropertyConfig(
                         PropertyConfigParcel.createForBytes(
-                            mPropertyName, mDescription, mCardinality));
+                                mPropertyName, mDescription, mCardinality));
             }
         }
     }
@@ -1261,9 +1249,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     .shouldIndexNestedProperties();
         }
 
-        /**
-         * Returns the list of indexable nested properties for the nested document.
-         */
+        /** Returns the list of indexable nested properties for the nested document. */
         @FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES)
         @NonNull
         public List<String> getIndexableNestedProperties() {
@@ -1300,9 +1286,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 mSchemaType = Objects.requireNonNull(schemaType);
             }
 
-            /**
-             * Sets the description of the property.
-             */
+            /** Sets the description of the property. */
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull

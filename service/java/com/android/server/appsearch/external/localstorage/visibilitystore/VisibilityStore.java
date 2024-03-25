@@ -60,6 +60,7 @@ import java.util.Set;
  */
 public class VisibilityStore {
     private static final String TAG = "AppSearchVisibilityStor";
+
     /**
      * These cannot have any of the special characters used by AppSearchImpl (e.g. {@code
      * AppSearchImpl#PACKAGE_DELIMITER} or {@code AppSearchImpl#DATABASE_DELIMITER}.
@@ -84,7 +85,7 @@ public class VisibilityStore {
                 mAppSearchImpl.getSchema(
                         VISIBILITY_PACKAGE_NAME,
                         VISIBILITY_DATABASE_NAME,
-                        new CallerAccess(/*callingPackageName=*/ VISIBILITY_PACKAGE_NAME));
+                        new CallerAccess(/* callingPackageName= */ VISIBILITY_PACKAGE_NAME));
         List<VisibilityDocumentV1> visibilityDocumentsV1s = null;
         switch (getSchemaResponse.getVersion()) {
             case VisibilityToDocumentConverter.SCHEMA_VERSION_DOC_PER_PACKAGE:
@@ -148,8 +149,8 @@ public class VisibilityStore {
                     VISIBILITY_DATABASE_NAME,
                     VisibilityToDocumentConverter.createVisibilityDocument(
                             prefixedVisibilityConfig),
-                    /*sendChangeNotifications=*/ false,
-                    /*logger=*/ null);
+                    /* sendChangeNotifications= */ false,
+                    /* logger= */ null);
 
             // Put the android V visibility overlay document to AppSearchImpl.
             GenericDocument androidVOverlay =
@@ -159,8 +160,8 @@ public class VisibilityStore {
                         VISIBILITY_PACKAGE_NAME,
                         ANDROID_V_OVERLAY_DATABASE_NAME,
                         androidVOverlay,
-                        /*sendChangeNotifications=*/ false,
-                        /*logger=*/ null);
+                        /* sendChangeNotifications= */ false,
+                        /* logger= */ null);
             } else if (isConfigContainsAndroidVOverlay(oldVisibilityConfig)) {
                 // We need to make sure to remove the VisibilityOverlay on disk as the current
                 // VisibilityConfig does not have a VisibilityOverlay.
@@ -172,7 +173,7 @@ public class VisibilityStore {
                             ANDROID_V_OVERLAY_DATABASE_NAME,
                             VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
                             prefixedVisibilityConfig.getSchemaType(),
-                            /*removeStatsBuilder=*/ null);
+                            /* removeStatsBuilder= */ null);
                 } catch (AppSearchException e) {
                     // If it already doesn't exist, that is fine
                     if (e.getResultCode() != RESULT_NOT_FOUND) {
@@ -205,7 +206,7 @@ public class VisibilityStore {
                             VISIBILITY_DATABASE_NAME,
                             VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                             prefixedSchemaType,
-                            /*removeStatsBuilder=*/ null);
+                            /* removeStatsBuilder= */ null);
                 } catch (AppSearchException e) {
                     if (e.getResultCode() == RESULT_NOT_FOUND) {
                         // We are trying to remove this visibility setting, so it's weird but seems
@@ -226,7 +227,7 @@ public class VisibilityStore {
                             ANDROID_V_OVERLAY_DATABASE_NAME,
                             VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
                             prefixedSchemaType,
-                            /*removeStatsBuilder=*/ null);
+                            /* removeStatsBuilder= */ null);
                 } catch (AppSearchException e) {
                     if (e.getResultCode() == RESULT_NOT_FOUND) {
                         // It's possible no overlay was set, so this this is fine.
@@ -274,8 +275,8 @@ public class VisibilityStore {
                                 VISIBILITY_PACKAGE_NAME,
                                 VISIBILITY_DATABASE_NAME,
                                 VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
-                                /*id=*/ prefixedSchemaType,
-                                /*typePropertyPaths=*/ Collections.emptyMap());
+                                /* id= */ prefixedSchemaType,
+                                /* typePropertyPaths= */ Collections.emptyMap());
             } catch (AppSearchException e) {
                 if (e.getResultCode() == RESULT_NOT_FOUND) {
                     // The schema has all default setting and we won't have a VisibilityDocument for
@@ -292,8 +293,8 @@ public class VisibilityStore {
                                 VISIBILITY_PACKAGE_NAME,
                                 ANDROID_V_OVERLAY_DATABASE_NAME,
                                 VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
-                                /*id=*/ prefixedSchemaType,
-                                /*typePropertyPaths=*/ Collections.emptyMap());
+                                /* id= */ prefixedSchemaType,
+                                /* typePropertyPaths= */ Collections.emptyMap());
             } catch (AppSearchException e) {
                 if (e.getResultCode() != RESULT_NOT_FOUND) {
                     // This is some other error we should pass up.
@@ -322,10 +323,10 @@ public class VisibilityStore {
                         Arrays.asList(
                                 VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                                 VisibilityPermissionConfig.SCHEMA),
-                        /*visibilityConfigs=*/ Collections.emptyList(),
-                        /*forceOverride=*/ true,
-                        /*version=*/ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
-                        /*setSchemaStatsBuilder=*/ null);
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ true,
+                        /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
+                        /* setSchemaStatsBuilder= */ null);
         if (!internalSetSchemaResponse.isSuccess()) {
             // Impossible case, we just set forceOverride to be true, we should never
             // fail in incompatible changes.
@@ -339,11 +340,11 @@ public class VisibilityStore {
                         ANDROID_V_OVERLAY_DATABASE_NAME,
                         Collections.singletonList(
                                 VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA),
-                        /*visibilityConfigs=*/ Collections.emptyList(),
-                        /*forceOverride=*/ true,
-                        /*version=*/ VisibilityToDocumentConverter
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ true,
+                        /* version= */ VisibilityToDocumentConverter
                                 .ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
-                        /*setSchemaStatsBuilder=*/ null);
+                        /* setSchemaStatsBuilder= */ null);
         if (!internalSetAndroidVOverlaySchemaResponse.isSuccess()) {
             // Impossible case, we just set forceOverride to be true, we should never
             // fail in incompatible changes.
@@ -358,8 +359,8 @@ public class VisibilityStore {
                     VISIBILITY_PACKAGE_NAME,
                     VISIBILITY_DATABASE_NAME,
                     VisibilityToDocumentConverter.createVisibilityDocument(migratedConfig),
-                    /*sendChangeNotifications=*/ false,
-                    /*logger=*/ null);
+                    /* sendChangeNotifications= */ false,
+                    /* logger= */ null);
         }
     }
 
@@ -372,7 +373,7 @@ public class VisibilityStore {
                 mAppSearchImpl.getSchema(
                         VISIBILITY_PACKAGE_NAME,
                         ANDROID_V_OVERLAY_DATABASE_NAME,
-                        new CallerAccess(/*callingPackageName=*/ VISIBILITY_PACKAGE_NAME));
+                        new CallerAccess(/* callingPackageName= */ VISIBILITY_PACKAGE_NAME));
         switch (getSchemaResponse.getVersion()) {
             case VisibilityToDocumentConverter.OVERLAY_SCHEMA_VERSION_PUBLIC_ACL_VISIBLE_TO_CONFIG:
                 // Force override to next version. This version hasn't released to any public
@@ -384,11 +385,11 @@ public class VisibilityStore {
                                 ANDROID_V_OVERLAY_DATABASE_NAME,
                                 Collections.singletonList(
                                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA),
-                                /*visibilityConfigs=*/ Collections.emptyList(),
-                                /*forceOverride=*/ true, // force update to nest version.
+                                /* visibilityConfigs= */ Collections.emptyList(),
+                                /* forceOverride= */ true, // force update to nest version.
                                 VisibilityToDocumentConverter
                                         .ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
-                                /*setSchemaStatsBuilder=*/ null);
+                                /* setSchemaStatsBuilder= */ null);
                 if (!internalSetSchemaResponse.isSuccess()) {
                     // Impossible case, we just set forceOverride to be true, we should never
                     // fail in incompatible changes.
@@ -436,10 +437,10 @@ public class VisibilityStore {
                             Arrays.asList(
                                     VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                                     VisibilityPermissionConfig.SCHEMA),
-                            /*visibilityConfigs=*/ Collections.emptyList(),
-                            /*forceOverride=*/ true,
-                            /*version=*/ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
-                            /*setSchemaStatsBuilder=*/ null);
+                            /* visibilityConfigs= */ Collections.emptyList(),
+                            /* forceOverride= */ true,
+                            /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
+                            /* setSchemaStatsBuilder= */ null);
             if (!internalSetSchemaResponse.isSuccess()) {
                 throw new AppSearchException(
                         AppSearchResult.RESULT_INTERNAL_ERROR,
@@ -457,10 +458,10 @@ public class VisibilityStore {
                             Arrays.asList(
                                     VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                                     VisibilityPermissionConfig.SCHEMA),
-                            /*visibilityConfigs=*/ Collections.emptyList(),
-                            /*forceOverride=*/ false,
-                            /*version=*/ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
-                            /*setSchemaStatsBuilder=*/ null);
+                            /* visibilityConfigs= */ Collections.emptyList(),
+                            /* forceOverride= */ false,
+                            /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
+                            /* setSchemaStatsBuilder= */ null);
             if (!internalSetSchemaResponse.isSuccess()) {
                 // If you hit problem here it means you made a incompatible change in
                 // Visibility Schema without update the version number. You should bump
@@ -494,10 +495,10 @@ public class VisibilityStore {
                             ANDROID_V_OVERLAY_DATABASE_NAME,
                             Collections.singletonList(
                                     VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA),
-                            /*visibilityConfigs=*/ Collections.emptyList(),
-                            /*forceOverride=*/ false,
+                            /* visibilityConfigs= */ Collections.emptyList(),
+                            /* forceOverride= */ false,
                             VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
-                            /*setSchemaStatsBuilder=*/ null);
+                            /* setSchemaStatsBuilder= */ null);
             if (!internalSetSchemaResponse.isSuccess()) {
                 // If you hit problem here it means you made a incompatible change in
                 // Visibility Schema. You should create new overlay schema
