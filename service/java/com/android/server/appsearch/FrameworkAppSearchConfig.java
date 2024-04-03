@@ -16,12 +16,9 @@
 
 package com.android.server.appsearch;
 
-import android.app.appsearch.functions.ExecuteAppFunctionRequest;
+import static android.text.format.DateUtils.DAY_IN_MILLIS;
 
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
-
-import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 /**
  * An interface which exposes config flags to AppSearch.
@@ -84,6 +81,11 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
      * This flag value is true by default because the flag is intended as a kill-switch.
      */
     boolean DEFAULT_SHOULD_RETRIEVE_PARENT_INFO = true;
+
+    /**
+     * The default interval in millisecond to trigger fully persist job.
+     */
+    long DEFAULT_FULLY_PERSIST_JOB_INTERVAL = DAY_IN_MILLIS;
 
     /** Returns cached value for minTimeIntervalBetweenSamplesMillis. */
     long getCachedMinTimeIntervalBetweenSamplesMillis();
@@ -196,6 +198,11 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
      * @see android.app.appsearch.functions.AppFunctionManager#executeAppFunction
      */
     long getAppFunctionCallTimeoutMillis();
+
+    /**
+     * Returns the time interval to schedule a full persist to disk back ground job in milliseconds.
+     */
+    long getCachedFullyPersistJobIntervalMillis();
 
     /**
      * Closes this {@link AppSearchConfig}.

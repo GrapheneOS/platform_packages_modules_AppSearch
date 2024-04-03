@@ -99,17 +99,20 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
     public static final String KEY_ICING_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD =
             "icing_integer_index_bucket_split_threshold";
     public static final String KEY_ICING_LITE_INDEX_SORT_AT_INDEXING =
-        "icing_lite_index_sort_at_indexing";
+            "icing_lite_index_sort_at_indexing";
     public static final String KEY_ICING_LITE_INDEX_SORT_SIZE =
-        "icing_lite_index_sort_size";
+            "icing_lite_index_sort_size";
     public static final String KEY_SHOULD_RETRIEVE_PARENT_INFO =
-        "should_retrieve_parent_info";
+            "should_retrieve_parent_info";
     public static final String KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX =
-        "use_new_qualified_id_join_index";
+            "use_new_qualified_id_join_index";
     public static final String KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS =
-        "build_property_existence_metadata_hits";
+            "build_property_existence_metadata_hits";
     public static final String KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS =
             "app_function_call_timeout_millis";
+    public static final String KEY_FULLY_PERSIST_JOB_INTERVAL =
+            "fully_persist_job_interval";
+
     /**
      * This config does not need to be cached in FrameworkAppSearchConfigImpl as it is only accessed
      * statically. AppSearch retrieves this directly from DeviceConfig when needed.
@@ -154,7 +157,8 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
             KEY_SHOULD_RETRIEVE_PARENT_INFO,
             KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX,
             KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
-            KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS
+            KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
+            KEY_FULLY_PERSIST_JOB_INTERVAL
     };
 
     // Lock needed for all the operations in this class.
@@ -537,6 +541,16 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
     }
 
     @Override
+    public long getCachedFullyPersistJobIntervalMillis() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return  mBundleLocked.getLong(
+                    KEY_FULLY_PERSIST_JOB_INTERVAL,
+                    DEFAULT_FULLY_PERSIST_JOB_INTERVAL);
+        }
+    }
+
+    @Override
     public int getIntegerIndexBucketSplitThreshold() {
         synchronized (mLock) {
             throwIfClosedLocked();
@@ -818,6 +832,12 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
                     mBundleLocked.putLong(
                             key,
                             properties.getLong(key, DEFAULT_APP_FUNCTION_CALL_TIMEOUT_MILLIS));
+                }
+                break;
+            case KEY_FULLY_PERSIST_JOB_INTERVAL:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(key, properties.getLong(key,
+                            DEFAULT_FULLY_PERSIST_JOB_INTERVAL));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:

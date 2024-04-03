@@ -20,6 +20,7 @@ import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH;
 import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD;
 import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT;
@@ -37,6 +38,7 @@ import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_API_
 import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_DENYLIST;
 import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_ICING_COMPRESSION_LEVEL;
 import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_ICING_DOCUMENT_STORE_NAMESPACE_ID_FINGERPRINT;
 import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_ICING_INDEX_MERGE_SIZE;
@@ -162,6 +164,8 @@ public class FrameworkAppSearchConfigTest {
         assertThat(appSearchConfig.getLiteIndexSortSize()).isEqualTo(DEFAULT_LITE_INDEX_SORT_SIZE);
         assertThat(appSearchConfig.getUseNewQualifiedIdJoinIndex())
             .isEqualTo(DEFAULT_USE_NEW_QUALIFIED_ID_JOIN_INDEX);
+        assertThat(appSearchConfig.getCachedFullyPersistJobIntervalMillis())
+                .isEqualTo(DEFAULT_FULLY_PERSIST_JOB_INTERVAL);
     }
 
     @Test
@@ -851,6 +855,27 @@ public class FrameworkAppSearchConfigTest {
     }
 
     @Test
+    public void testCustomizedValueOverride_fullyPersistJobInterval() {
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_FULLY_PERSIST_JOB_INTERVAL,
+                Integer.toString(2003),
+                /*makeDefault=*/ false);
+
+        FrameworkAppSearchConfig appSearchConfig =
+                FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
+        assertThat(appSearchConfig.getCachedFullyPersistJobIntervalMillis()).isEqualTo(2003);
+
+        // Override
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_FULLY_PERSIST_JOB_INTERVAL,
+                Integer.toString(1777),
+                /*makeDefault=*/ false);
+
+        assertThat(appSearchConfig.getCachedFullyPersistJobIntervalMillis()).isEqualTo(1777);
+    }
+
+
+    @Test
     public void testNotUsable_afterClose() {
         FrameworkAppSearchConfig appSearchConfig =
             FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
@@ -950,5 +975,8 @@ public class FrameworkAppSearchConfigTest {
         Assert.assertThrows("Trying to use a closed AppSearchConfig instance.",
                 IllegalStateException.class,
                 () -> appSearchConfig.getUseNewQualifiedIdJoinIndex());
+        Assert.assertThrows("Trying to use a closed AppSearchConfig instance.",
+                IllegalStateException.class,
+                () -> appSearchConfig.getCachedFullyPersistJobIntervalMillis());
     }
 }

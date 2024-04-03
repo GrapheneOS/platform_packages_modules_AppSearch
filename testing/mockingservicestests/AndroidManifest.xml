@@ -21,6 +21,9 @@
             android:label="AppSearchMockingServicesTests"
             android:debuggable="true">
         <uses-library android:name="android.test.runner"/>
+        <service android:name="com.android.server.appsearch.AppSearchMaintenanceService"
+            android:permission="android.permission.BIND_JOB_SERVICE">
+        </service>
     </application>
     <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner"
                      android:targetPackage="com.android.appsearch.mockingservicestests"
