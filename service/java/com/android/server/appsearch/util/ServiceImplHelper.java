@@ -22,6 +22,7 @@ import android.Manifest;
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.admin.DevicePolicyManager;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
@@ -57,6 +58,7 @@ public class ServiceImplHelper {
 
     private final Context mContext;
     private final UserManager mUserManager;
+    private final DevicePolicyManager mDevicePolicyManager;
     private final ExecutorManager mExecutorManager;
     private final AppSearchUserInstanceManager mAppSearchUserInstanceManager;
 
@@ -81,6 +83,7 @@ public class ServiceImplHelper {
         mUserManager = context.getSystemService(UserManager.class);
         mExecutorManager = Objects.requireNonNull(executorManager);
         mAppSearchUserInstanceManager = AppSearchUserInstanceManager.getInstance();
+        mDevicePolicyManager = context.getSystemService(DevicePolicyManager.class);
     }
 
     public void setUserIsLocked(@NonNull UserHandle userHandle, boolean isLocked) {
@@ -472,6 +475,21 @@ public class ServiceImplHelper {
             return null;
         }
         return enterpriseUser;
+    }
+
+    /**
+     * Returns whether the given user is managed by an organization.
+     */
+    public boolean isUserOrganizationManaged(@NonNull UserHandle targetUser) {
+        long token = Binder.clearCallingIdentity();
+        try {
+            if (mDevicePolicyManager.isDeviceManaged()) {
+                return true;
+            }
+            return mUserManager.isManagedProfile(targetUser.getIdentifier());
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
     }
 
     /** Invokes the {@link IAppSearchResultCallback} with the result. */

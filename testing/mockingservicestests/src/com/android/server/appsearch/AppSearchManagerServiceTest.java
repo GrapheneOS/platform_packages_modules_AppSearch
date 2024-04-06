@@ -45,6 +45,7 @@ import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.UiAutomation;
+import android.app.admin.DevicePolicyManager;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
@@ -102,16 +103,17 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.content.pm.UserInfo;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -123,6 +125,7 @@ import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.LocalManagerRegistry;
+import com.android.server.SystemService;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
@@ -165,6 +168,7 @@ public class AppSearchManagerServiceTest {
 
     private final MockServiceManager mMockServiceManager = new MockServiceManager();
     private final RoleManager mRoleManager = mock(RoleManager.class);
+    private final DevicePolicyManager mDevicePolicyManager = mock(DevicePolicyManager.class);
 
     @Rule
     public ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder()
@@ -191,6 +195,7 @@ public class AppSearchManagerServiceTest {
         mContext = new ContextWrapper(context) {
             // Mock-able package manager for testing
             final PackageManager mPackageManager = spy(context.getPackageManager());
+            final UserManager mUserManager = spy(context.getSystemService(UserManager.class));
 
             @Override
             public Intent registerReceiverForAllUsers(@Nullable BroadcastReceiver receiver,
@@ -220,6 +225,12 @@ public class AppSearchManagerServiceTest {
             public Object getSystemService(String name) {
                 if (Context.ROLE_SERVICE.equals(name)) {
                     return mRoleManager;
+                }
+                if (Context.DEVICE_POLICY_SERVICE.equals(name)) {
+                    return mDevicePolicyManager;
+                }
+                if (Context.USER_SERVICE.equals(name)) {
+                    return mUserManager;
                 }
                 return super.getSystemService(name);
             }
@@ -1364,6 +1375,21 @@ public class AppSearchManagerServiceTest {
         verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_INVALID_ARGUMENT);
     }
 
+    @Test
+    public void executeAppFunction_hasDeviceOwner_fail() throws Exception {
+        doReturn(true).when(mDevicePolicyManager).isDeviceManaged();
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_SECURITY_ERROR);
+    }
+
+    @Test
+    public void executeAppFunction_fromManagedProfile_fail() throws Exception {
+        UserManager spyUserManager = mContext.getSystemService(UserManager.class);
+        doReturn(true).when(spyUserManager).isManagedProfile(mUserHandle.getIdentifier());
+
+        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_SECURITY_ERROR);
+    }
+
     private void verifyLocalCallsResults(int resultCode) throws Exception {
         // These APIs are local calls since they specify a database. If the API specifies a target
         // package, then the target package matches the calling package
@@ -1797,6 +1823,10 @@ public class AppSearchManagerServiceTest {
         resolveInfo.serviceInfo = serviceInfo;
         PackageManager spyPackageManager = mContext.getPackageManager();
         doReturn(resolveInfo).when(spyPackageManager).resolveService(any(Intent.class), eq(0));
+
+        doReturn(false).when(mDevicePolicyManager).isDeviceManaged();
+        UserManager spyUserManager = mContext.getSystemService(UserManager.class);
+        doReturn(false).when(spyUserManager).isManagedProfile(mUserHandle.getIdentifier());
     }
 
     private static class MockServiceManager implements StaticMockFixture {

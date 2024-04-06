@@ -45,8 +45,6 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
-import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
-import android.app.appsearch.functions.SafeOneTimeAppSearchResultCallback;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SearchSuggestionResult;
@@ -54,10 +52,11 @@ import android.app.appsearch.SetSchemaResponse;
 import android.app.appsearch.SetSchemaResponse.MigrationFailure;
 import android.app.appsearch.StorageInfo;
 import android.app.appsearch.aidl.AppSearchResultParcel;
-import android.app.appsearch.aidl.GetSchemaAidlRequest;
+import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
 import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
 import android.app.appsearch.aidl.GetNextPageAidlRequest;
+import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.GetStorageInfoAidlRequest;
 import android.app.appsearch.aidl.GlobalSearchAidlRequest;
 import android.app.appsearch.aidl.IAppFunctionService;
@@ -82,6 +81,8 @@ import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.functions.AppFunctionService;
 import android.app.appsearch.functions.ExecuteAppFunctionRequest;
+import android.app.appsearch.functions.SafeOneTimeAppSearchResultCallback;
+import android.app.appsearch.functions.ServiceCallHelper;
 import android.app.appsearch.functions.ServiceCallHelper.ServiceUsageCompleteListener;
 import android.app.appsearch.functions.ServiceCallHelperImpl;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
@@ -123,7 +124,6 @@ import com.android.server.appsearch.util.AdbDumpUtil;
 import com.android.server.appsearch.util.ApiCallRecord;
 import com.android.server.appsearch.util.ExceptionUtil;
 import com.android.server.appsearch.util.ExecutorManager;
-import android.app.appsearch.functions.ServiceCallHelper;
 import com.android.server.appsearch.util.ServiceImplHelper;
 import com.android.server.appsearch.visibilitystore.FrameworkCallerAccess;
 import com.android.server.usage.StorageStatsManagerLocal;
@@ -2296,6 +2296,14 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .build());
                     });
+
+            // TODO(b/327134039): Add a new policy for this in W timeframe.
+            if (mServiceImplHelper.isUserOrganizationManaged(targetUser)) {
+                safeCallback.onResult(AppSearchResult.newFailedResult(
+                        RESULT_SECURITY_ERROR,
+                        "Cannot run on a device with a device owner or from the managed profile."));
+                return;
+            }
 
             String targetPackageName = request.getClientRequest().getTargetPackageName();
             if (TextUtils.isEmpty(targetPackageName)) {
