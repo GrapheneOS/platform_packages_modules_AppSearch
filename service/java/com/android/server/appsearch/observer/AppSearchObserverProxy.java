@@ -82,8 +82,12 @@ public class AppSearchObserverProxy implements ObserverCallback {
 
     @Override
     public boolean equals(@Nullable Object o) {
-        if (this == o) return true;
-        if (!(o instanceof AppSearchObserverProxy)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AppSearchObserverProxy)) {
+            return false;
+        }
         AppSearchObserverProxy that = (AppSearchObserverProxy) o;
         return Objects.equals(mStub.asBinder(), that.mStub.asBinder());
     }

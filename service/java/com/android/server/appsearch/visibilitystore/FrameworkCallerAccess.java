@@ -85,8 +85,12 @@ public class FrameworkCallerAccess extends CallerAccess {
 
     @Override
     public boolean equals(@Nullable Object o) {
-        if (this == o) return true;
-        if (!(o instanceof FrameworkCallerAccess)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof FrameworkCallerAccess)) {
+            return false;
+        }
         FrameworkCallerAccess that = (FrameworkCallerAccess) o;
         return super.equals(o)
                 && mCallerHasSystemAccess == that.mCallerHasSystemAccess

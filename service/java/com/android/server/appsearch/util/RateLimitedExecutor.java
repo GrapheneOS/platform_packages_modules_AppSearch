@@ -35,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/** An implementation of {@link ExecutorService} for AppSearch's per-package task queue. */
 public class RateLimitedExecutor implements ExecutorService {
     private static final String TAG = "AppSearchRateLimitExec";
     private final ExecutorService mExecutor;

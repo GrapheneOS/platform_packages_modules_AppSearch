@@ -33,9 +33,11 @@ import com.android.server.appsearch.util.ExceptionUtil;
 import java.io.PrintWriter;
 import java.util.Objects;
 
+/** This class encapsulate the lifecycle methods of AppSearch module. */
 public class AppSearchModule {
     private static final String TAG = "AppSearchModule";
 
+    /** Lifecycle definition for AppSearch module. */
     public static final class Lifecycle extends SystemService {
         private AppSearchManagerService mAppSearchManagerService;
         @Nullable
