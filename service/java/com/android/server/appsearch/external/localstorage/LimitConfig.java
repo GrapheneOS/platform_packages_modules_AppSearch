@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+
 /**
  * Defines limits placed on users of AppSearch and enforced by {@link AppSearchImpl}.
  *

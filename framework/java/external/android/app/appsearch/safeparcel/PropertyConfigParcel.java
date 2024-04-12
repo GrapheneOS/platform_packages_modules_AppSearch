@@ -57,18 +57,23 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
     private final int mCardinality;
 
     @Field(id = 4, getter = "getSchemaType")
+    @Nullable
     private final String mSchemaType;
 
     @Field(id = 5, getter = "getStringIndexingConfigParcel")
+    @Nullable
     private final StringIndexingConfigParcel mStringIndexingConfigParcel;
 
     @Field(id = 6, getter = "getDocumentIndexingConfigParcel")
+    @Nullable
     private final DocumentIndexingConfigParcel mDocumentIndexingConfigParcel;
 
     @Field(id = 7, getter = "getIntegerIndexingConfigParcel")
+    @Nullable
     private final IntegerIndexingConfigParcel mIntegerIndexingConfigParcel;
 
     @Field(id = 8, getter = "getJoinableConfigParcel")
+    @Nullable
     private final JoinableConfigParcel mJoinableConfigParcel;
 
     @Field(id = 9, getter = "getDescription")
@@ -474,7 +479,7 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
     @SafeParcelable.Class(creator = "IntegerIndexingConfigParcelCreator")
     public static class IntegerIndexingConfigParcel extends AbstractSafeParcelable {
         @NonNull
-        public static final IntegerIndexingConfigParcelCreator CREATOR =
+        public static final Parcelable.Creator<IntegerIndexingConfigParcel> CREATOR =
                 new IntegerIndexingConfigParcelCreator();
 
         @AppSearchSchema.LongPropertyConfig.IndexingType
@@ -527,7 +532,7 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
     @SafeParcelable.Class(creator = "DocumentIndexingConfigParcelCreator")
     public static class DocumentIndexingConfigParcel extends AbstractSafeParcelable {
         @NonNull
-        public static final DocumentIndexingConfigParcelCreator CREATOR =
+        public static final Parcelable.Creator<DocumentIndexingConfigParcel> CREATOR =
                 new DocumentIndexingConfigParcelCreator();
 
         @Field(id = 1, getter = "shouldIndexNestedProperties")

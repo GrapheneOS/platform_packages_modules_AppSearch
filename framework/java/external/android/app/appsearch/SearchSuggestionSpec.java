@@ -355,6 +355,7 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          *     of property names indicating which property in the document these snippets correspond
          *     to.
          */
+        @CanIgnoreReturnValue
         @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES)
         public Builder addFilterProperties(

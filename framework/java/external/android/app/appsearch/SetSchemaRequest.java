@@ -549,6 +549,7 @@ public final class SetSchemaRequest {
          *     schema}.
          */
         // Merged list available from getPubliclyVisibleSchemas
+        @CanIgnoreReturnValue
         @SuppressLint("MissingGetterMatchingBuilder")
         @FlaggedApi(Flags.FLAG_ENABLE_SET_PUBLICLY_VISIBLE_SCHEMA)
         @NonNull
@@ -583,6 +584,7 @@ public final class SetSchemaRequest {
          *     that a call must to match to access the schema.
          */
         // Merged list available from getSchemasVisibleToConfigs
+        @CanIgnoreReturnValue
         @SuppressLint("MissingGetterMatchingBuilder")
         @FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS)
         @NonNull
@@ -602,6 +604,7 @@ public final class SetSchemaRequest {
         }
 
         /** Clears all visible to {@link SchemaVisibilityConfig} for the given schema type. */
+        @CanIgnoreReturnValue
         @FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS)
         @NonNull
         public Builder clearSchemaTypeVisibleToConfigs(@NonNull String schemaType) {

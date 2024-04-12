@@ -19,7 +19,6 @@ package android.app.appsearch;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
@@ -192,12 +191,12 @@ public final class JoinSpec extends AbstractSafeParcelable {
     JoinSpec(
             @Param(id = 1) @NonNull String nestedQuery,
             @Param(id = 2) @NonNull SearchSpec nestedSearchSpec,
-            @Param(id = 3) @Nullable String childPropertyExpression,
+            @Param(id = 3) @NonNull String childPropertyExpression,
             @Param(id = 4) int maxJoinedResultCount,
             @Param(id = 5) @AggregationScoringStrategy int aggregationScoringStrategy) {
         mNestedQuery = Objects.requireNonNull(nestedQuery);
         mNestedSearchSpec = Objects.requireNonNull(nestedSearchSpec);
-        mChildPropertyExpression = childPropertyExpression;
+        mChildPropertyExpression = Objects.requireNonNull(childPropertyExpression);
         mMaxJoinedResultCount = maxJoinedResultCount;
         mAggregationScoringStrategy = aggregationScoringStrategy;
     }

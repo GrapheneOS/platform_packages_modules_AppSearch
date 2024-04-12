@@ -16,6 +16,10 @@
 
 package android.app.appsearch.flags;
 
+import android.app.appsearch.AppSearchSchema;
+
+import java.util.Collection;
+
 /**
  * Flags to control different features.
  *
@@ -101,10 +105,9 @@ public final class Flags {
             FLAG_PREFIX + "enable_result_denied_and_result_rate_limited";
 
     /**
-     * Enables {@link android.app.appsearch.AppSearchSchema#getParentTypes()}, {@link
-     * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig#getIndexableNestedProperties()}
-     * and variants of {@link
-     * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder#addIndexableNestedProperties(String...)}.
+     * Enables {@link AppSearchSchema#getParentTypes()}, {@link
+     * AppSearchSchema.DocumentPropertyConfig#getIndexableNestedProperties()} and variants of {@link
+     * AppSearchSchema.DocumentPropertyConfig.Builder#addIndexableNestedProperties(Collection)}}.
      */
     public static final String FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES =
             FLAG_PREFIX + "enable_get_parent_types_and_indexable_nested_properties";
@@ -191,10 +194,9 @@ public final class Flags {
     }
 
     /**
-     * Whether {@link android.app.appsearch.AppSearchSchema#getParentTypes()}, {@link
-     * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig#getIndexableNestedProperties()}
-     * and variants of {@link
-     * android.app.appsearch.AppSearchSchema.DocumentPropertyConfig.Builder#addIndexableNestedProperties(String...)}
+     * Whether {@link AppSearchSchema#getParentTypes()}, {@link
+     * AppSearchSchema.DocumentPropertyConfig#getIndexableNestedProperties()} and variants of {@link
+     * AppSearchSchema.DocumentPropertyConfig.Builder#addIndexableNestedProperties(Collection)}}
      * should be enabled.
      */
     public static boolean enableGetParentTypesAndIndexableNestedProperties() {

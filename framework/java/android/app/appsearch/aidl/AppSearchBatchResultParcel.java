@@ -22,6 +22,7 @@ import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.ParcelableUtil;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
+import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -81,15 +82,49 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
         mAppSearchResultBundle = appSearchResultBundle;
     }
 
-    /** Creates a new {@link AppSearchBatchResultParcel} from the given result. */
-    public AppSearchBatchResultParcel(@NonNull AppSearchBatchResult<String, ValueType> result) {
-        mResultCached = result;
-        mAppSearchResultBundle = new Bundle();
-        for (Map.Entry<String, AppSearchResult<ValueType>> entry
+    /**
+     * Creates a new {@link AppSearchBatchResultParcel} from the given {@link GenericDocumentParcel}
+     * results.
+     */
+    public static AppSearchBatchResultParcel<GenericDocumentParcel>
+    fromStringToGenericDocumentParcel(
+            @NonNull AppSearchBatchResult<String, GenericDocumentParcel> result) {
+        Bundle appSearchResultBundle = new Bundle();
+        for (Map.Entry<String, AppSearchResult<GenericDocumentParcel>> entry
                 : result.getAll().entrySet()) {
-            mAppSearchResultBundle.putParcelable(entry.getKey(),
-                    new AppSearchResultParcel<>(entry.getValue()));
+            AppSearchResultParcel<GenericDocumentParcel> appSearchResultParcel;
+            // Create result from value in success case and errorMessage in
+            // failure case.
+            if (entry.getValue().isSuccess()) {
+                appSearchResultParcel = AppSearchResultParcel
+                        .fromGenericDocumentParcel(entry.getValue().getResultValue());
+            } else {
+                appSearchResultParcel = AppSearchResultParcel.fromFailedResult(entry.getValue());
+            }
+            appSearchResultBundle.putParcelable(entry.getKey(), appSearchResultParcel);
         }
+        return new AppSearchBatchResultParcel<>(appSearchResultBundle);
+    }
+
+    /**
+     * Creates a new {@link AppSearchBatchResultParcel} from the given {@link Void} results.
+     */
+    public static AppSearchBatchResultParcel<Void> fromStringToVoid(
+            @NonNull AppSearchBatchResult<String, Void> result) {
+        Bundle appSearchResultBundle = new Bundle();
+        for (Map.Entry<String, AppSearchResult<Void>> entry
+                : result.getAll().entrySet()) {
+            AppSearchResultParcel<Void> appSearchResultParcel;
+            // Create result from value in success case and errorMessage in
+            // failure case.
+            if (entry.getValue().isSuccess()) {
+                appSearchResultParcel = AppSearchResultParcel.fromVoid();
+            } else {
+                appSearchResultParcel = AppSearchResultParcel.fromFailedResult(entry.getValue());
+            }
+            appSearchResultBundle.putParcelable(entry.getKey(), appSearchResultParcel);
+        }
+        return new AppSearchBatchResultParcel<>(appSearchResultBundle);
     }
 
     @NonNull

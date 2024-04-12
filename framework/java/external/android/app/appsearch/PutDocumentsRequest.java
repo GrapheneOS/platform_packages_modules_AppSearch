@@ -16,6 +16,7 @@
 
 package android.app.appsearch;
 
+
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;

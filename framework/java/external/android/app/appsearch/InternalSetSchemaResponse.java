@@ -52,6 +52,7 @@ public class InternalSetSchemaResponse extends AbstractSafeParcelable {
     private final SetSchemaResponse mSetSchemaResponse;
 
     @Field(id = 3, getter = "getErrorMessage")
+    @Nullable
     private final String mErrorMessage;
 
     @Constructor

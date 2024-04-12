@@ -50,16 +50,39 @@ public class SchemaToProtoConverterTest {
                                                         .TOKENIZER_TYPE_PLAIN)
                                         .build())
                         .addProperty(
-                                new AppSearchSchema.StringPropertyConfig.Builder("body")
-                                        .setDescription("The rest of the email.")
+                                new AppSearchSchema.LongPropertyConfig.Builder("timestamp")
+                                        .setDescription("The time at which the email was sent.")
                                         .setCardinality(
                                                 AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                        .setIndexingType(
-                                                AppSearchSchema.StringPropertyConfig
-                                                        .INDEXING_TYPE_PREFIXES)
-                                        .setTokenizerType(
-                                                AppSearchSchema.StringPropertyConfig
-                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.DoublePropertyConfig.Builder("importanceScore")
+                                        .setDescription(
+                                                "A value representing this document's importance.")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.BooleanPropertyConfig.Builder("read")
+                                        .setDescription(
+                                                "Whether the email has been read by the recipient")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.BytesPropertyConfig.Builder("attachment")
+                                        .setDescription("Documents that are attached to the email.")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                        .build())
+                        // We don't need to actually define the Person type for this test because
+                        // the converter will process each schema individually.
+                        .addProperty(
+                                new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                                "sender", "Person")
+                                        .setDescription("The person who wrote this email.")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                         .build())
                         .build();
 
@@ -84,18 +107,45 @@ public class SchemaToProtoConverterTest {
                                                                 TermMatchType.Code.PREFIX)))
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
-                                        .setPropertyName("body")
-                                        .setDescription("The rest of the email.")
-                                        .setDataType(PropertyConfigProto.DataType.Code.STRING)
+                                        .setPropertyName("timestamp")
+                                        .setDescription("The time at which the email was sent.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.INT64)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("importanceScore")
+                                        .setDescription(
+                                                "A value representing this document's importance.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.DOUBLE)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("read")
+                                        .setDescription(
+                                                "Whether the email has been read by the recipient")
+                                        .setDataType(PropertyConfigProto.DataType.Code.BOOLEAN)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("attachment")
+                                        .setDescription("Documents that are attached to the email.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.BYTES)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.REPEATED))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("sender")
+                                        .setSchemaType("Person")
+                                        .setDescription("The person who wrote this email.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.DOCUMENT)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.OPTIONAL)
-                                        .setStringIndexingConfig(
-                                                StringIndexingConfig.newBuilder()
-                                                        .setTokenizerType(
-                                                                StringIndexingConfig.TokenizerType
-                                                                        .Code.PLAIN)
-                                                        .setTermMatchType(
-                                                                TermMatchType.Code.PREFIX)))
+                                        .setDocumentIndexingConfig(
+                                                DocumentIndexingConfig.newBuilder()
+                                                        .setIndexNestedProperties(false)))
                         .build();
 
         assertThat(
@@ -246,10 +296,6 @@ public class SchemaToProtoConverterTest {
                                         .setJoinableValueType(
                                                 AppSearchSchema.StringPropertyConfig
                                                         .JOINABLE_VALUE_TYPE_QUALIFIED_ID)
-                                        // TODO(b/274157614): Export this to framework when we can
-                                        // access hidden
-                                        //  APIs.
-
                                         .build())
                         .build();
 

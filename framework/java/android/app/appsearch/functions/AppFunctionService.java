@@ -79,15 +79,26 @@ public abstract class AppFunctionService extends Service {
                     try {
                         AppFunctionService.this.onExecuteFunction(
                                 request,
-                                appFunctionResult ->
-                                        safeCallback.onResult(
-                                                new AppSearchResultParcel<>(appFunctionResult)));
+                                appFunctionResult -> {
+                                    AppSearchResultParcel appSearchResultParcel;
+                                    // Create result from value in success case and errorMessage in
+                                    // failure case.
+                                    if (appFunctionResult.isSuccess()) {
+                                        appSearchResultParcel = AppSearchResultParcel
+                                                .fromExecuteAppFunctionResponse(
+                                                        appFunctionResult.getResultValue());
+                                    } else {
+                                        appSearchResultParcel = AppSearchResultParcel
+                                                .fromFailedResult(appFunctionResult);
+                                    }
+                                    safeCallback.onResult(appSearchResultParcel);
+                                });
                     } catch (Exception ex) {
                         // Apps should handle exceptions. But if they don't, report the error on
                         // behalf of them.
-                        safeCallback.onResult(
-                                new AppSearchResultParcel<>(
-                                        AppSearchResult.throwableToFailedResult(ex)));
+                        AppSearchResult failedResult = AppSearchResult.throwableToFailedResult(ex);
+                        safeCallback.onResult(AppSearchResultParcel.fromFailedResult(
+                                failedResult));
                     }
                 }
             };

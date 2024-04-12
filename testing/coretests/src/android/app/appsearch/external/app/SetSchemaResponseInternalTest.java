@@ -18,8 +18,6 @@ package android.app.appsearch;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.Assert.assertThrows;
-
 import android.app.appsearch.AppSearchSchema.PropertyConfig;
 import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
 
@@ -90,7 +88,6 @@ public class SetSchemaResponseInternalTest {
                                         .setJoinableValueType(
                                                 StringPropertyConfig
                                                         .JOINABLE_VALUE_TYPE_QUALIFIED_ID)
-                                        .setDeletionPropagation(true)
                                         .build())
                         .build();
 
@@ -103,20 +100,5 @@ public class SetSchemaResponseInternalTest {
                 .isEqualTo(PropertyConfig.CARDINALITY_OPTIONAL);
         assertThat(((StringPropertyConfig) properties.get(0)).getJoinableValueType())
                 .isEqualTo(StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID);
-        assertThat(((StringPropertyConfig) properties.get(0)).getDeletionPropagation())
-                .isEqualTo(true);
-    }
-
-    // TODO(b/268521214): Move test to cts once deletion propagation is available in framework.
-    @Test
-    public void testStringPropertyConfig_setJoinableProperty_deletePropagationError() {
-        final StringPropertyConfig.Builder builder =
-                new StringPropertyConfig.Builder("qualifiedId")
-                        .setCardinality(PropertyConfig.CARDINALITY_REPEATED)
-                        .setDeletionPropagation(true);
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> builder.build());
-        assertThat(e)
-                .hasMessageThat()
-                .contains("Cannot set deletion propagation without setting a joinable value type");
     }
 }

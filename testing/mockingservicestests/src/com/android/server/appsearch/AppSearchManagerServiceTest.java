@@ -106,7 +106,6 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
-import android.content.pm.UserInfo;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
@@ -125,7 +124,6 @@ import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.LocalManagerRegistry;
-import com.android.server.SystemService;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
@@ -1953,7 +1951,12 @@ public class AppSearchManagerServiceTest {
         public void executeAppFunction(
                 ExecuteAppFunctionRequest executeAppFunctionRequest,
                 IAppSearchResultCallback callback) throws RemoteException {
-            callback.onResult(new AppSearchResultParcel(mResult));
+            if (mResult.isSuccess()) {
+                callback.onResult(AppSearchResultParcel.fromExecuteAppFunctionResponse(
+                        mResult.getResultValue()));
+            } else {
+                callback.onResult(AppSearchResultParcel.fromFailedResult(mResult));
+            }
         }
     }
 }

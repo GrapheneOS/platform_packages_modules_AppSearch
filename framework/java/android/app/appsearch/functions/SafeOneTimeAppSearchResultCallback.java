@@ -62,8 +62,8 @@ public class SafeOneTimeAppSearchResultCallback {
         mOnDispatchCallback = onDispatchCallback;
     }
 
-    public void onResult(@NonNull AppSearchResult<?> result) {
-        onResult(new AppSearchResultParcel<>(result));
+    public void onFailedResult(@NonNull AppSearchResult<?> result) {
+        onResult(AppSearchResultParcel.fromFailedResult(result));
     }
 
     public void onResult(@NonNull AppSearchResultParcel<?> result) {

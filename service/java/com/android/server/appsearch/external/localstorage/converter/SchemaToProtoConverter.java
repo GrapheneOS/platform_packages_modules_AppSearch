@@ -178,14 +178,17 @@ public final class SchemaToProtoConverter {
                 return toLongPropertyConfig(proto);
             case DOUBLE:
                 return new AppSearchSchema.DoublePropertyConfig.Builder(proto.getPropertyName())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber())
                         .build();
             case BOOLEAN:
                 return new AppSearchSchema.BooleanPropertyConfig.Builder(proto.getPropertyName())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber())
                         .build();
             case BYTES:
                 return new AppSearchSchema.BytesPropertyConfig.Builder(proto.getPropertyName())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber())
                         .build();
             case DOCUMENT:
@@ -205,7 +208,6 @@ public final class SchemaToProtoConverter {
                         .setJoinableValueType(
                                 convertJoinableValueTypeFromProto(
                                         proto.getJoinableConfig().getValueType()))
-                        .setDeletionPropagation(proto.getJoinableConfig().getPropagateDelete())
                         .setTokenizerType(
                                 proto.getStringIndexingConfig().getTokenizerType().getNumber());
 

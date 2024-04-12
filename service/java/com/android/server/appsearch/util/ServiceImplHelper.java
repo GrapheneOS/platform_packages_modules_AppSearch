@@ -23,7 +23,6 @@ import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.admin.DevicePolicyManager;
-import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
@@ -159,7 +158,9 @@ public class ServiceImplHelper {
         try {
             return verifyIncomingCall(callerAttributionSource, userHandle);
         } catch (Throwable t) {
-            invokeCallbackOnResult(errorCallback, throwableToFailedResult(t));
+            AppSearchResult failedResult = throwableToFailedResult(t);
+            invokeCallbackOnResult(errorCallback, AppSearchResultParcel.fromFailedResult(
+                    failedResult));
             return null;
         }
     }
@@ -173,7 +174,7 @@ public class ServiceImplHelper {
      * <p>This method must be called on the binder thread.
      *
      * @return The result containing the final verified user that the call should run as, if all
-     * checks pass. Otherwise return null.
+     * checks pass. Otherwise, return null.
      */
     @BinderThread
     @Nullable
@@ -365,15 +366,18 @@ public class ServiceImplHelper {
                         callingPackageName, apiType);
                 if (!callAccepted) {
                     invokeCallbackOnResult(errorCallback,
-                            AppSearchResult.newFailedResult(RESULT_RATE_LIMITED,
-                                    "AppSearch rate limit reached."));
+                            AppSearchResultParcel.fromFailedResult(AppSearchResult.newFailedResult(
+                                    RESULT_RATE_LIMITED,
+                                    "AppSearch rate limit reached.")));
                     return false;
                 }
             } else {
                 executor.execute(lambda);
             }
         } catch (RuntimeException e) {
-            invokeCallbackOnResult(errorCallback, throwableToFailedResult(e));
+            AppSearchResult failedResult = throwableToFailedResult(e);
+            invokeCallbackOnResult(errorCallback, AppSearchResultParcel.fromFailedResult(
+                    failedResult));
         }
         return true;
     }
@@ -492,11 +496,11 @@ public class ServiceImplHelper {
         }
     }
 
-    /** Invokes the {@link IAppSearchResultCallback} with the result. */
+    /** Invokes the {@link IAppSearchResultCallback} with the result parcel. */
     public static void invokeCallbackOnResult(
-            IAppSearchResultCallback callback, AppSearchResult<?> result) {
+            IAppSearchResultCallback callback, AppSearchResultParcel<?> resultParcel) {
         try {
-            callback.onResult(new AppSearchResultParcel<>(result));
+            callback.onResult(resultParcel);
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to send result to the callback", e);
         }
@@ -504,9 +508,10 @@ public class ServiceImplHelper {
 
     /** Invokes the {@link IAppSearchBatchResultCallback} with the result. */
     public static void invokeCallbackOnResult(
-            IAppSearchBatchResultCallback callback, AppSearchBatchResult<String, ?> result) {
+            IAppSearchBatchResultCallback callback,
+            AppSearchBatchResultParcel<?> resultParcel) {
         try {
-            callback.onResult(new AppSearchBatchResultParcel<>(result));
+            callback.onResult(resultParcel);
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to send result to the callback", e);
         }
@@ -528,7 +533,7 @@ public class ServiceImplHelper {
     public static void invokeCallbackOnError(
             @NonNull IAppSearchBatchResultCallback callback, @NonNull AppSearchResult<?> result) {
         try {
-            callback.onSystemError(new AppSearchResultParcel<>(result));
+            callback.onSystemError(AppSearchResultParcel.fromFailedResult(result));
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to send error to the callback", e);
         }
