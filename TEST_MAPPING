@@ -18,5 +18,11 @@
     {
       "name": "AppSearchMockingServicesTests"
     }
+  ],
+  "postsubmit": [
+    {
+      // TODO(b/275592563): Move this to presubmit
+      "name": "AppsIndexerTests"
+    }
   ]
 }
