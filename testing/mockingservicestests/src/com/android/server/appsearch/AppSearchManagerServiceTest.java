@@ -16,6 +16,8 @@
 package com.android.server.appsearch;
 
 import static android.Manifest.permission.READ_GLOBAL_APP_SEARCH_DATA;
+import static android.app.appsearch.AppSearchResult.RESULT_DENIED;
+import static android.app.appsearch.AppSearchResult.RESULT_RATE_LIMITED;
 import static android.system.OsConstants.O_RDONLY;
 import static android.system.OsConstants.O_WRONLY;
 
@@ -156,12 +158,6 @@ public class AppSearchManagerServiceTest {
     private static final SearchSpec EMPTY_SEARCH_SPEC = new SearchSpec.Builder().build();
     // Mostly guarantees the logged estimated binder latency is positive and doesn't overflow
     private static final long BINDER_CALL_START_TIME = SystemClock.elapsedRealtime() - 1;
-    // TODO(b/279047435): use actual AppSearchResult.RESULT_DENIED constant after it's unhidden
-    private static final int RESULT_DENIED = 9;
-
-    // TODO(b/279047435): use actual AppSearchResult.RESULT_RATE_LIMITED constant after it's
-    //  unhidden
-    private static final int RESULT_RATE_LIMITED = 10;
     private static final String FOO_PACKAGE_NAME = "foo";
 
     private final MockServiceManager mMockServiceManager = new MockServiceManager();
@@ -939,19 +935,19 @@ public class AppSearchManagerServiceTest {
 
         verifySetSchemaResult(RESULT_RATE_LIMITED);
         verifyLocalGetSchemaResult(RESULT_RATE_LIMITED);
-        verifySearchResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyPutDocumentsResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyLocalGetDocumentsResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyLocalGetNextPageResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyGlobalGetDocumentsResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyGlobalSearchResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyGlobalGetNextPageResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyInvalidateNextPageTokenResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyGlobalReportUsageResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyPersistToDiskResult(AppSearchResult.RESULT_RATE_LIMITED);
-        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_RATE_LIMITED);
+        verifySearchResult(RESULT_RATE_LIMITED);
+        verifyPutDocumentsResult(RESULT_RATE_LIMITED);
+        verifyLocalGetDocumentsResult(RESULT_RATE_LIMITED);
+        verifyLocalGetNextPageResult(RESULT_RATE_LIMITED);
+        verifyGlobalGetDocumentsResult(RESULT_RATE_LIMITED);
+        verifyGlobalSearchResult(RESULT_RATE_LIMITED);
+        verifyGlobalGetNextPageResult(RESULT_RATE_LIMITED);
+        verifyInvalidateNextPageTokenResult(RESULT_RATE_LIMITED);
+        verifyGlobalReportUsageResult(RESULT_RATE_LIMITED);
+        verifyPersistToDiskResult(RESULT_RATE_LIMITED);
+        verifyExecuteAppFunctionCallbackResult(RESULT_RATE_LIMITED);
 
-        // initialize, registerObserver and unregisterObserver do not have rate liimt.
+        // initialize, registerObserver and unregisterObserver do not have rate limit.
     }
 
     @Test
