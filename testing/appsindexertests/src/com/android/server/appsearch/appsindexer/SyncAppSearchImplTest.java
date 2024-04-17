@@ -36,6 +36,7 @@ import android.content.Context;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -56,20 +57,27 @@ public class SyncAppSearchImplTest {
 
     @Before
     public void setUp() throws Exception {
-        // Remove all documents from any instances that may have been created in the tests.
         Objects.requireNonNull(mAppSearch);
+        clean();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+       clean();
+    }
+
+    private void clean() throws Exception {
+        // Remove all documents from any instances that may have been created in the tests.
         AppSearchManager.SearchContext searchContext =
                 new AppSearchManager.SearchContext.Builder("testDb").build();
         CompletableFuture<AppSearchResult<AppSearchSession>> future = new CompletableFuture<>();
         mAppSearch.createSearchSession(searchContext, mExecutor, future::complete);
         AppSearchSession searchSession = future.get().getResultValue();
-
         CompletableFuture<AppSearchResult<SetSchemaResponse>> schemaFuture =
                 new CompletableFuture<>();
         searchSession.setSchema(
                 new SetSchemaRequest.Builder().setForceOverride(true).build(), mExecutor, mExecutor,
                 schemaFuture::complete);
-
         schemaFuture.get().getResultValue();
     }
 
@@ -104,7 +112,7 @@ public class SyncAppSearchImplTest {
 
         SyncGlobalSearchSession globalSession =
                 new SyncGlobalSearchSessionImpl(mAppSearch, mExecutor);
-        // Search glboally for only 2 result per page
+        // Search globally for only 2 result per page
         SearchSpec searchSpec = new SearchSpec.Builder()
                 .setTermMatch(TERM_MATCH_PREFIX)
                 .addFilterPackageNames(mContext.getPackageName())
