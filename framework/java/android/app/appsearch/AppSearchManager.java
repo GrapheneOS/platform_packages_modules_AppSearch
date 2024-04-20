@@ -25,6 +25,7 @@ import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.flags.Flags;
 import android.app.appsearch.functions.AppFunctionManager;
 import android.content.Context;
+import android.os.Process;
 
 import com.android.internal.util.Preconditions;
 
@@ -214,7 +215,8 @@ public class AppSearchManager {
                 searchContext,
                 mService,
                 mContext.getUser(),
-                AppSearchAttributionSource.createAttributionSource(mContext),
+                AppSearchAttributionSource.createAttributionSource(mContext,
+                        /* callingPid= */ Process.myPid()),
                 AppSearchEnvironmentFactory.getEnvironmentInstance().getCacheDir(mContext),
                 executor,
                 callback);
@@ -240,7 +242,8 @@ public class AppSearchManager {
         GlobalSearchSession.createGlobalSearchSession(
                 mService,
                 mContext.getUser(),
-                AppSearchAttributionSource.createAttributionSource(mContext),
+                AppSearchAttributionSource.createAttributionSource(mContext,
+                        /* callingPid= */ Process.myPid()),
                 executor, callback);
     }
 
@@ -270,7 +273,8 @@ public class AppSearchManager {
         EnterpriseGlobalSearchSession.createEnterpriseGlobalSearchSession(
                 mService,
                 mContext.getUser(),
-                AppSearchAttributionSource.createAttributionSource(mContext),
+                AppSearchAttributionSource.createAttributionSource(mContext,
+                        /* callingPid= */ Process.myPid()),
                 executor,
                 callback);
     }

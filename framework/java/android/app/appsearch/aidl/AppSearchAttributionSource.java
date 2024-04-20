@@ -64,25 +64,42 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
     @Field(id = 3, getter = "getUid")
     private final int mCallingUid;
 
+    @Field(id = 4, getter = "getPid")
+    private int mCallingPid;
+
+    private static final int INVALID_PID = -1;
+
     /**
      * Constructs an instance of AppSearchAttributionSource for AbstractSafeParcelable.
-     * @param attributionSource The attribution source that is accessing permission
-     *      protected data.
+     *
+     * @param attributionSource The attribution source that is accessing permission protected data.
      * @param callingPackageName The package that is accessing the permission protected data.
      * @param callingUid The UID that is accessing the permission protected data.
      */
     @Constructor
     AppSearchAttributionSource(
-        @Param(id = 1) @Nullable AttributionSource attributionSource,
-        @Param(id = 2) @Nullable String callingPackageName,
-        @Param(id = 3) int callingUid) {
+            @Param(id = 1) @Nullable AttributionSource attributionSource,
+            @Param(id = 2) @Nullable String callingPackageName,
+            @Param(id = 3) int callingUid,
+            @Param(id = 4) int callingPid) {
         mAttributionSource = attributionSource;
         mCallingPackageName = callingPackageName;
         mCallingUid = callingUid;
+        mCallingPid = callingPid;
         if (VERSION.SDK_INT >= Build.VERSION_CODES.S && mAttributionSource != null) {
-            mCompat = new Api31Impl(mAttributionSource);
+            mCompat = new Api31Impl(mAttributionSource, mCallingPid);
         } else {
-            mCompat = new Api19Impl(mCallingPackageName, mCallingUid);
+            // If this object is being constructed as part of a oneway Binder call, getCallingPid
+            // will return 0 instead of the true PID. In that case, invalidate the PID by setting it
+            // to INVALID_PID (-1).
+            final int callingPidFromBinder = Binder.getCallingPid();
+            if (callingPidFromBinder == 0) {
+                mCallingPid = INVALID_PID;
+            }
+            Api19Impl impl = new Api19Impl(mCallingPackageName, mCallingUid, mCallingPid);
+            impl.enforceCallingUid();
+            impl.enforceCallingPid();
+            mCompat = impl;
         }
     }
 
@@ -96,6 +113,7 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
         mAttributionSource = mCompat.getAttributionSource();
         mCallingPackageName = mCompat.getPackageName();
         mCallingUid = mCompat.getUid();
+        mCallingPid = mCompat.getPid();
     }
 
     /**
@@ -104,17 +122,26 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
      * @param callingUid The UID that is accessing the permission protected data.
      */
     @VisibleForTesting
-    public AppSearchAttributionSource(@Nullable String callingPackageName, int callingUid) {
+    public AppSearchAttributionSource(
+            @Nullable String callingPackageName, int callingUid, int callingPid) {
         mCallingPackageName = callingPackageName;
         mCallingUid = callingUid;
+        mCallingPid = callingPid;
 
         if (VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-             mAttributionSource = new AttributionSource.Builder(mCallingUid)
-                    .setPackageName(mCallingPackageName).build();
-            mCompat = new Api31Impl(mAttributionSource);
+            // This constructor is only used in unit test, AttributionSource#setPid is only
+            // available on 34+.
+            AttributionSource.Builder attributionSourceBuilder = new AttributionSource
+                    .Builder(mCallingUid)
+                    .setPackageName(mCallingPackageName);
+            if (VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                attributionSourceBuilder.setPid(callingPid);
+            }
+            mAttributionSource = attributionSourceBuilder.build();
+            mCompat = new Api31Impl(mAttributionSource, mCallingPid);
         } else {
             mAttributionSource = null;
-            mCompat = new Api19Impl(mCallingPackageName, mCallingUid);
+            mCompat = new Api19Impl(mCallingPackageName, mCallingUid, mCallingPid);
         }
     }
 
@@ -130,14 +157,14 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
     @RequiresApi(Build.VERSION_CODES.S)
     @NonNull
     private static AppSearchAttributionSource toAppSearchAttributionSource(
-        @NonNull AttributionSource attributionSource) {
-        return new AppSearchAttributionSource(new Api31Impl(attributionSource));
+            @NonNull AttributionSource attributionSource, int pid) {
+        return new AppSearchAttributionSource(new Api31Impl(attributionSource, pid));
     }
 
     /**
      * Provides a backward-compatible wrapper for AttributionSource.
      *
-     * This method is not supported on devices running SDK <= 19(H) since the AttributionSource
+     * <p>This method is not supported on devices running SDK <= 19(H) since the AttributionSource
      * class will not be available.
      *
      * @param packageName The package name to wrap, must not be null
@@ -145,9 +172,8 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
      * @return wrapped class
      */
     private static AppSearchAttributionSource toAppSearchAttributionSource(
-        @Nullable String packageName, int uid) {
-        return new AppSearchAttributionSource(
-            new Api19Impl(packageName, uid));
+            @Nullable String packageName, int uid, int pid) {
+        return new AppSearchAttributionSource(new Api19Impl(packageName, uid, pid));
     }
 
     /**
@@ -156,12 +182,12 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
      * @param context Context the application is running on.
      */
     public static AppSearchAttributionSource createAttributionSource(
-        @NonNull Context context) {
+            @NonNull Context context, int callingPid) {
         if (VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            return toAppSearchAttributionSource(context.getAttributionSource());
+            return toAppSearchAttributionSource(context.getAttributionSource(), callingPid);
         }
 
-        return toAppSearchAttributionSource(context.getPackageName(), Process.myUid());
+        return toAppSearchAttributionSource(context.getPackageName(), Process.myUid(), callingPid);
     }
 
     /**
@@ -179,6 +205,10 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
 
     public int getUid() {
         return mCompat.getUid();
+    }
+
+    public int getPid() {
+        return mCompat.getPid();
     }
 
     @Override
@@ -204,11 +234,12 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
                 mCompat.getAttributionSource());
             AttributionSource thatAttributionSource = Objects.requireNonNull(
                 that.getAttributionSource());
-            return thisAttributionSource.equals(thatAttributionSource);
+            return thisAttributionSource.equals(thatAttributionSource)
+                    && (that.getPid() == mCompat.getPid());
         }
 
         return (Objects.equals(mCompat.getPackageName(), that.getPackageName())
-            && (mCompat.getUid() == that.getUid()));
+            && (mCompat.getUid() == that.getUid()) && mCompat.getPid() == that.getPid());
     }
 
     @Override
@@ -228,12 +259,16 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
 
         /** The UID that is accessing the permission protected data. */
         int getUid();
+
+        /** The PID that is accessing the permission protected data. */
+        int getPid();
     }
 
     @RequiresApi(VERSION_CODES.S)
     private static final class Api31Impl implements Compat {
 
         private final AttributionSource mAttributionSource;
+        private final int mPid;
 
         /**
          * Creates a new implementation for AppSearchAttributionSource's Compat for API levels 31+.
@@ -241,8 +276,9 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
          * @param attributionSource The attribution source that is accessing permission
          *      protected data.
          */
-        Api31Impl(@NonNull AttributionSource attributionSource) {
+        Api31Impl(@NonNull AttributionSource attributionSource, int pid) {
             mAttributionSource = attributionSource;
+            mPid = pid;
         }
 
         @Override
@@ -261,12 +297,18 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
         public int getUid() {
             return mAttributionSource.getUid();
         }
+
+        @Override
+        public int getPid() {
+            return mPid;
+        }
     }
 
     private static class Api19Impl implements Compat {
 
         @Nullable private final String mPackageName;
         private final int mUid;
+        private final int mPid;
 
         /**
          * Creates a new implementation for AppSearchAttributionSource's Compat for API levels 19+.
@@ -274,9 +316,10 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
          * @param packageName The package name that is accessing permission protected data.
          * @param uid The uid that is accessing permission protected data.
          */
-        Api19Impl(@Nullable String packageName, int uid) {
+        Api19Impl(@Nullable String packageName, int uid, int pid) {
             mPackageName = packageName;
             mUid = uid;
+            mPid = pid;
         }
 
         @Override
@@ -298,6 +341,11 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
         @Override
         public int getUid() {
             return mUid;
+        }
+
+        @Override
+        public int getPid() {
+            return mPid;
         }
 
         /**
@@ -334,29 +382,36 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
         }
 
         /**
-         * Validate that the call is happening on a Binder transaction.
+         * Validate that the pid being claimed for the calling app is not spoofed.
          *
-         * @throws SecurityException if the attribution source cannot be trusted to be from
-         *         the caller.
+         * <p>Note that the PID may be unavailable, for example if we're in a oneway Binder call. In
+         * this case, calling enforceCallingPid is guaranteed to fail. The caller should anticipate
+         * this.
+         *
+         * @throws SecurityException if the attribution source cannot be trusted to be from the
+         * caller.
          */
         private void enforceCallingPid() {
             if (!checkCallingPid()) {
-                throw new SecurityException(
-                    "Calling pid: "
-                        + Binder.getCallingPid()
-                        + " is same as process pid: "
-                        + Process.myPid());
+                if (Binder.getCallingPid() == 0) {
+                    throw new SecurityException("Calling pid unavailable due to oneway Binder "
+                            + "call.");
+                } else {
+                    throw new SecurityException(
+                            "Calling pid: " + Binder.getCallingPid() + " doesn't match source pid: "
+                                    + mPid);
+                }
             }
         }
 
         /**
-         * Validate that the call is happening on a Binder transaction.
+         * Validate that the pid being claimed for the calling app is not spoofed
          *
-         * @return if the call is happening on the Binder thread.
+         * @return if the attribution source cannot be trusted to be from the caller.
          */
         private boolean checkCallingPid() {
             final int callingPid = Binder.getCallingPid();
-            if (callingPid == Process.myPid()) {
+            if (mPid != INVALID_PID && mPid != callingPid) {
                 // Only call this on the binder thread. If a new thread is created to handle the
                 // client request, Binder.getCallingPid() will return the thread's own pid.
                 return false;

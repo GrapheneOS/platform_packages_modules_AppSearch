@@ -19,9 +19,8 @@ package android.app.appsearch;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.app.appsearch.aidl.AppSearchAttributionSource;
-import android.content.Context;
 
-import androidx.test.core.app.ApplicationProvider;
+import androidx.test.filters.SdkSuppress;
 
 import org.junit.Test;
 
@@ -30,20 +29,26 @@ public class AppSearchAttributionSourceUnitTest {
     @Test
     public void testSameAttributionSource() {
         AppSearchAttributionSource appSearchAttributionSource1 =
-                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1);
+                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1,
+                        /* callingPid= */ 1);
         AppSearchAttributionSource appSearchAttributionSource2 =
-                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1);
+                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1,
+                        /* callingPid= */ 1);
         assertThat(appSearchAttributionSource1.equals(appSearchAttributionSource2)).isTrue();
         assertThat(appSearchAttributionSource1.hashCode()).isEqualTo(
                 appSearchAttributionSource2.hashCode());
+        assertThat(appSearchAttributionSource1.getPid())
+                .isEqualTo(appSearchAttributionSource2.getPid());
     }
 
     @Test
     public void testDifferentAttributionSource() {
         AppSearchAttributionSource appSearchAttributionSource1 =
-                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1);
+                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1,
+                        /* callingPid= */ 1);
         AppSearchAttributionSource appSearchAttributionSource2 =
-                new AppSearchAttributionSource("testPackageName2", /* callingUid= */ 2);
+                new AppSearchAttributionSource("testPackageName2", /* callingUid= */ 2,
+                        /* callingPid= */ 1);
         assertThat(appSearchAttributionSource1.equals(appSearchAttributionSource2)).isFalse();
         assertThat(appSearchAttributionSource1.hashCode())
                 .isNotEqualTo(appSearchAttributionSource2.hashCode());
@@ -52,12 +57,32 @@ public class AppSearchAttributionSourceUnitTest {
     @Test
     public void testPackageNamesNull() {
         AppSearchAttributionSource appSearchAttributionSource1 =
-                new AppSearchAttributionSource(/* callingPackageName= */ null, /* callingUid= */ 1);
+                new AppSearchAttributionSource(/* callingPackageName= */ null, /* callingUid= */ 1,
+                        /* callingPid= */ 1);
         AppSearchAttributionSource appSearchAttributionSource2 =
-                new AppSearchAttributionSource(/* callingPackageName= */ null, /* callingUid= */ 1);
+                new AppSearchAttributionSource(/* callingPackageName= */ null, /* callingUid= */ 1,
+                        /* callingPid= */ 1);
         assertThat(appSearchAttributionSource1.equals(appSearchAttributionSource2)).isTrue();
         assertThat(appSearchAttributionSource1.hashCode())
                 .isEqualTo(appSearchAttributionSource2.hashCode());
+    }
+
+    @Test
+    // We can only set and get pId in AttributionSource on U and above.
+    @SdkSuppress(minSdkVersion = android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    public void testDifferentAttributionSourcePid() {
+        AppSearchAttributionSource appSearchAttributionSource1 =
+                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1,
+                        /* callingPid= */ 1);
+        AppSearchAttributionSource appSearchAttributionSource2 =
+                new AppSearchAttributionSource("testPackageName1", /* callingUid= */ 1,
+                        /* callingPid= */ 2);
+        assertThat(appSearchAttributionSource1).isNotEqualTo(appSearchAttributionSource2);
+        // verify that AppSearchAttributionSource and AttributionSource contain different pId.
+        assertThat(appSearchAttributionSource1.getPid())
+                .isNotEqualTo(appSearchAttributionSource2.getPid());
+        assertThat(appSearchAttributionSource1.getAttributionSource().getPid())
+                .isNotEqualTo(appSearchAttributionSource2.getAttributionSource().getPid());
     }
 
 }

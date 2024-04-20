@@ -31,6 +31,7 @@ import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.flags.Flags;
 import android.content.Context;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 
@@ -95,7 +96,8 @@ public final class AppFunctionManager {
 
         ExecuteAppFunctionAidlRequest aidlRequest = new ExecuteAppFunctionAidlRequest(
                 request,
-                AppSearchAttributionSource.createAttributionSource(mContext),
+                AppSearchAttributionSource.createAttributionSource(mContext,
+                        /* callingPid= */ Process.myPid()),
                 mContext.getUser(),
                 SystemClock.elapsedRealtime());
         try {

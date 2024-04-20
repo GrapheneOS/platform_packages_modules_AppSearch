@@ -95,7 +95,7 @@ public class GlobalSearchSessionUnitTest {
         service.getDocuments(
                 new GetDocumentsAidlRequest(
                         new AppSearchAttributionSource(invalidPackageName,
-                                android.os.Process.myUid()),
+                                android.os.Process.myUid(), android.os.Process.myPid()),
                 /*targetPackageName=*/ mContext.getPackageName(),
                 /*databaseName*/ "testDb",
                 new GetByDocumentIdRequest.Builder("namespace")
