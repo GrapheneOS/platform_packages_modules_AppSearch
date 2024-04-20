@@ -344,10 +344,13 @@ public class AppSearchManagerService extends SystemService {
         Objects.requireNonNull(user);
         UserHandle userHandle = user.getUserHandle();
         mServiceImplHelper.setUserIsLocked(userHandle, false);
-        mExecutorManager.getOrCreateUserExecutor(userHandle).execute(() -> {
-            try {
-                // Only clear the package's data if AppSearch exists for this user.
-                if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
+
+        // Only schedule task if AppSearch exists for this user.
+        if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
+            mExecutorManager.getOrCreateUserExecutor(userHandle).execute(() -> {
+                // Try to prune garbage package data, this is to recover if user remove a package
+                // and reboot the device before we prune the package data.
+                try {
                     Context userContext = mAppSearchEnvironment
                             .createContextAsUser(mContext, userHandle);
                     AppSearchUserInstance instance =
@@ -364,15 +367,22 @@ public class AppSearchManagerService extends SystemService {
                     }
                     packagesToKeep.add(VisibilityStore.VISIBILITY_PACKAGE_NAME);
                     instance.getAppSearchImpl().prunePackageData(packagesToKeep);
+                } catch (AppSearchException | RuntimeException e) {
+                    Log.e(TAG, "Unable to prune packages for " + user, e);
+                    ExceptionUtil.handleException(e);
+                }
+
+                // Try to schedule fully persist job.
+                try {
                     AppSearchMaintenanceService.scheduleFullyPersistJob(mContext,
                             userHandle.getIdentifier(),
                             mAppSearchConfig.getCachedFullyPersistJobIntervalMillis());
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "Unable to schedule fully persist job for " + user, e);
+                    ExceptionUtil.handleException(e);
                 }
-            } catch (AppSearchException | RuntimeException e) {
-                Log.e(TAG, "Unable to prune packages for " + user, e);
-                ExceptionUtil.handleException(e);
-            }
-        });
+            });
+        }
     }
 
     @Override
