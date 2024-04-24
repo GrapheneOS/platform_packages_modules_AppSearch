@@ -26,12 +26,11 @@ import android.util.Log;
 import com.android.server.SystemService;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService;
-import com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerService;
+import com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerConfig;
 import com.android.server.appsearch.util.ExceptionUtil;
 
 import java.io.PrintWriter;
-import java.util.Objects;
 
 /** This class encapsulate the lifecycle methods of AppSearch module. */
 public class AppSearchModule {
@@ -117,3 +116,4 @@ public class AppSearchModule {
         }
     }
 }
+
