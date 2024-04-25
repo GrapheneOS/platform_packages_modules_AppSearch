@@ -18,18 +18,17 @@ package android.app.appsearch;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.appsearch.AppSearchEnvironment;
 import android.content.Context;
 import android.os.Environment;
 import android.os.UserHandle;
 
 import java.io.File;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.Objects;
 
 /**
  * Contains utility methods for Framework implementation of AppSearch.

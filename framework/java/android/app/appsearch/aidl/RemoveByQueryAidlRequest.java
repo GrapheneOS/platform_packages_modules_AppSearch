@@ -25,7 +25,6 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.UserHandle;
 
-import java.util.List;
 import java.util.Objects;
 
 /**

@@ -110,6 +110,7 @@ flag {
     description: "Guards everything related to AppFunction."
     bug: "327134039"
     is_fixed_read_only: true
+    is_exported: true
 }
 
 flag {

@@ -33,7 +33,6 @@ import android.os.UserHandle;
 
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;

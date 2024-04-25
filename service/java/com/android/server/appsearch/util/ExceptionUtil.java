@@ -23,30 +23,30 @@ package com.android.server.appsearch.util;
  */
 public final class ExceptionUtil {
 
-  /**
-   * {@link RuntimeException} will be rethrown if {@link #isItOkayToRethrowException()}
-   * returns true.
-   */
-  public static final void handleException(Exception e) {
-    if (isItOkayToRethrowException() && e instanceof RuntimeException) {
-      rethrowRuntimeException((RuntimeException) e);
+    /**
+     * {@link RuntimeException} will be rethrown if {@link #isItOkayToRethrowException()} returns
+     * true.
+     */
+    public static void handleException(Exception e) {
+        if (isItOkayToRethrowException() && e instanceof RuntimeException) {
+            rethrowRuntimeException((RuntimeException) e);
+        }
     }
-  }
 
-  /** Returns whether it is OK to rethrow exceptions from this entrypoint. */
-  private static final boolean isItOkayToRethrowException() {
-    return false;
-  }
+    /** Returns whether it is OK to rethrow exceptions from this entrypoint. */
+    private static boolean isItOkayToRethrowException() {
+        return false;
+    }
 
-  /**
-   * A helper method to rethrow {@link RuntimeException}.
-   *
-   * <p>We use this to enforce exception type and assure the compiler/linter that the exception is
-   * indeed {@link RuntimeException} and can be rethrown safely.
-   */
-  private static final void rethrowRuntimeException(RuntimeException e) {
-    throw e;
-  }
+    /**
+     * A helper method to rethrow {@link RuntimeException}.
+     *
+     * <p>We use this to enforce exception type and assure the compiler/linter that the exception is
+     * indeed {@link RuntimeException} and can be rethrown safely.
+     */
+    private static void rethrowRuntimeException(RuntimeException e) {
+        throw e;
+    }
 
-  private ExceptionUtil() {}
+    private ExceptionUtil() {}
 }

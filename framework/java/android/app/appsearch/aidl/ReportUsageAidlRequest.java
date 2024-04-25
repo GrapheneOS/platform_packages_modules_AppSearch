@@ -16,7 +16,6 @@
 
 package android.app.appsearch.aidl;
 
-import android.annotation.CurrentTimeMillisLong;
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
 import android.app.appsearch.ReportUsageRequest;

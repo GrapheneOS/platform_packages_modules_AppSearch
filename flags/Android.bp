@@ -9,6 +9,7 @@ aconfig_declarations {
     srcs: [
         "appsearch.aconfig",
     ],
+    exportable: true,
 }
 
 java_aconfig_library {
@@ -19,4 +20,5 @@ java_aconfig_library {
         "//packages/modules/AppSearch:__subpackages__",
     ],
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
 }
