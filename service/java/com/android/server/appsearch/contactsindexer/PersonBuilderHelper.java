@@ -55,8 +55,8 @@ public final class PersonBuilderHelper {
 
     // We want to store id separately even if we do have it set in the builder, since we
     // can't get its value out of the builder, which will be used to fetch fingerprints.
-    final private String mId;
-    final private Person.Builder mBuilder;
+    private final String mId;
+    private final Person.Builder mBuilder;
     private long mCreationTimestampMillis = -1;
     private Map<String, ContactPointBuilderHelper> mContactPointBuilderHelpers = new ArrayMap<>();
 
@@ -104,7 +104,8 @@ public final class PersonBuilderHelper {
      */
     @NonNull
     public Person buildPerson() {
-        Preconditions.checkState(mCreationTimestampMillis >= 0,
+        Preconditions.checkState(
+                mCreationTimestampMillis >= 0,
                 "creationTimestamp must be explicitly set in the PersonBuilderHelper.");
 
         for (ContactPointBuilderHelper builderHelper : mContactPointBuilderHelpers.values()) {
@@ -125,15 +126,18 @@ public final class PersonBuilderHelper {
             // This is an "a priori" document score that doesn't take any usage into account.
             // Hence, the heuristic that's used to assign the document score is to add the
             // presence or count of all the salient properties of the contact.
-            int score = BASE_SCORE + contactForFingerPrint.getContactPoints().length
-                    + contactForFingerPrint.getAdditionalNames().length;
+            int score =
+                    BASE_SCORE
+                            + contactForFingerPrint.getContactPoints().length
+                            + contactForFingerPrint.getAdditionalNames().length;
             mBuilder.setScore(score);
             mBuilder.setFingerprint(fingerprint);
             mBuilder.setCreationTimestampMillis(mCreationTimestampMillis);
         } catch (NoSuchAlgorithmException e) {
             // debug logging here to avoid flooding the log.
             if (LogUtil.DEBUG) {
-                Log.d(TAG,
+                Log.d(
+                        TAG,
                         "Failed to generate fingerprint for contact "
                                 + contactForFingerPrint.getId(),
                         e);
@@ -156,13 +160,15 @@ public final class PersonBuilderHelper {
 
     @NonNull
     private ContactPointBuilderHelper getOrCreateContactPointBuilderHelper(@NonNull String label) {
-        ContactPointBuilderHelper builderHelper = mContactPointBuilderHelpers.get(
-                Objects.requireNonNull(label));
+        ContactPointBuilderHelper builderHelper =
+                mContactPointBuilderHelpers.get(Objects.requireNonNull(label));
         if (builderHelper == null) {
-            builderHelper = new ContactPointBuilderHelper(
-                    new ContactPoint.Builder(AppSearchHelper.NAMESPACE_NAME,
-                            /*id=*/"", // doesn't matter for this nested type.
-                            label));
+            builderHelper =
+                    new ContactPointBuilderHelper(
+                            new ContactPoint.Builder(
+                                    AppSearchHelper.NAMESPACE_NAME,
+                                    /* id= */ "", // doesn't matter for this nested type.
+                                    label));
             mContactPointBuilderHelpers.put(label, builderHelper);
         }
 
@@ -177,34 +183,38 @@ public final class PersonBuilderHelper {
 
     @NonNull
     public PersonBuilderHelper addAppIdToPerson(@NonNull String label, @NonNull String appId) {
-        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label)).mBuilder
+        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
+                .mBuilder
                 .addAppId(Objects.requireNonNull(appId));
         return this;
     }
 
     public PersonBuilderHelper addEmailToPerson(@NonNull String label, @NonNull String email) {
-        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label)).mBuilder
+        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
+                .mBuilder
                 .addEmail(Objects.requireNonNull(email));
         return this;
     }
 
     @NonNull
     public PersonBuilderHelper addAddressToPerson(@NonNull String label, @NonNull String address) {
-        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label)).mBuilder
+        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
+                .mBuilder
                 .addAddress(Objects.requireNonNull(address));
         return this;
     }
 
     @NonNull
     public PersonBuilderHelper addPhoneToPerson(@NonNull String label, @NonNull String phone) {
-        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label)).mBuilder
+        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
+                .mBuilder
                 .addPhone(Objects.requireNonNull(phone));
         return this;
     }
 
     @NonNull
-    public PersonBuilderHelper addPhoneVariantToPerson(@NonNull String label,
-            @NonNull String phoneVariant) {
+    public PersonBuilderHelper addPhoneVariantToPerson(
+            @NonNull String label, @NonNull String phoneVariant) {
         getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
                 .addPhoneNumberVariant(Objects.requireNonNull(phoneVariant));
         return this;
@@ -232,12 +242,12 @@ public final class PersonBuilderHelper {
     /**
      * Appends string representation of a {@link GenericDocument} to the {@link StringBuilder}.
      *
-     * <p>This is basically same as
-     * {@link GenericDocument#appendGenericDocumentString(IndentingStringBuilder)}, but only keep
-     * the properties part and use a normal {@link StringBuilder} to skip the indentation.
+     * <p>This is basically same as {@link
+     * GenericDocument#appendGenericDocumentString(IndentingStringBuilder)}, but only keep the
+     * properties part and use a normal {@link StringBuilder} to skip the indentation.
      */
-    private static void appendGenericDocumentString(@NonNull GenericDocument doc,
-            @NonNull StringBuilder builder) {
+    private static void appendGenericDocumentString(
+            @NonNull GenericDocument doc, @NonNull StringBuilder builder) {
         Objects.requireNonNull(doc);
         Objects.requireNonNull(builder);
 
@@ -256,12 +266,11 @@ public final class PersonBuilderHelper {
     }
 
     /**
-     * Appends string representation of a {@link GenericDocument}'s property to the
-     * {@link StringBuilder}.
+     * Appends string representation of a {@link GenericDocument}'s property to the {@link
+     * StringBuilder}.
      *
-     * <p>This is basically same as
-     * {@link GenericDocument#appendPropertyString(String, Object, IndentingStringBuilder)}, but
-     * use a normal {@link StringBuilder} to skip the indentation.
+     * <p>This is basically same as {@link GenericDocument#appendPropertyString(String, Object,
+     * IndentingStringBuilder)}, but use a normal {@link StringBuilder} to skip the indentation.
      *
      * <p>Here we still keep most of the formatting(e.g. '\n') to make sure we won't hit some
      * possible corner cases. E.g. We will have "someProperty1: some\n Property2:..." instead of

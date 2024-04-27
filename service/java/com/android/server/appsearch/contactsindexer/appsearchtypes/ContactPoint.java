@@ -42,45 +42,67 @@ public final class ContactPoint extends GenericDocument {
     public static final String CONTACT_POINT_PROPERTY_TELEPHONE = "telephone";
 
     // Schema
-    public static final AppSearchSchema SCHEMA = new AppSearchSchema.Builder(
-            SCHEMA_TYPE)
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                    CONTACT_POINT_PROPERTY_LABEL)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                    .setIndexingType(
-                            AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                    .build())
-            // appIds
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                    CONTACT_POINT_PROPERTY_APP_ID)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                    .build())
-            // address
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                    CONTACT_POINT_PROPERTY_ADDRESS)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                    .setIndexingType(
-                            AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                    .build())
-            // email
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                    CONTACT_POINT_PROPERTY_EMAIL)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                    .setIndexingType(
-                            AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                    .build())
-            // telephone
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                    CONTACT_POINT_PROPERTY_TELEPHONE)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                    .setIndexingType(
-                            AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                    .build())
-            .build();
+    public static final AppSearchSchema SCHEMA =
+            new AppSearchSchema.Builder(SCHEMA_TYPE)
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            CONTACT_POINT_PROPERTY_LABEL)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build())
+                    // appIds
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            CONTACT_POINT_PROPERTY_APP_ID)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .build())
+                    // address
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            CONTACT_POINT_PROPERTY_ADDRESS)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build())
+                    // email
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            CONTACT_POINT_PROPERTY_EMAIL)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build())
+                    // telephone
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            CONTACT_POINT_PROPERTY_TELEPHONE)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build())
+                    .build();
 
     /** Constructs a {@link ContactPoint}. */
     @VisibleForTesting
@@ -124,9 +146,9 @@ public final class ContactPoint extends GenericDocument {
          * Creates a new {@link Builder}
          *
          * @param namespace The namespace for this document.
-         * @param id        The id of this {@link ContactPoint}. It doesn't matter if it is used as
-         *                  a nested documents in {@link Person}.
-         * @param label     The label for this {@link ContactPoint}.
+         * @param id The id of this {@link ContactPoint}. It doesn't matter if it is used as a
+         *     nested documents in {@link Person}.
+         * @param label The label for this {@link ContactPoint}.
          */
         public Builder(@NonNull String namespace, @NonNull String id, @NonNull String label) {
             super(namespace, id, SCHEMA_TYPE);

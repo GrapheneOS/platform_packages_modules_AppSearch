@@ -40,38 +40,30 @@ public class RateLimitedExecutor implements ExecutorService {
     private static final String TAG = "AppSearchRateLimitExec";
     private final ExecutorService mExecutor;
 
-    /**
-     * Lock needed for operations in this class.
-     */
+    /** Lock needed for operations in this class. */
     private final Object mLock = new Object();
 
     /**
-     * A map of packageName -> {@link TaskCostInfo} of package task count and cost currently on
-     * task queue.
+     * A map of packageName -> {@link TaskCostInfo} of package task count and cost currently on task
+     * queue.
      */
     @GuardedBy("mLock")
     private final ArrayMap<String, TaskCostInfo> mPerPackageTaskCostsLocked = new ArrayMap<>();
 
-    /**
-     * The {@link AppSearchRateLimitConfig} for the executor
-     */
+    /** The {@link AppSearchRateLimitConfig} for the executor */
     @GuardedBy("mLock")
     private AppSearchRateLimitConfig mRateLimitConfigLocked;
 
-    /**
-     * Keeps track of the task queue size.
-     */
+    /** Keeps track of the task queue size. */
     @GuardedBy("mLock")
     private int mTaskQueueSizeLocked;
 
-    /**
-     * Sum of costs of all tasks currently on the executor queue.
-     */
+    /** Sum of costs of all tasks currently on the executor queue. */
     @GuardedBy("mLock")
     private int mTaskQueueTotalCostLocked;
 
-    public RateLimitedExecutor(@NonNull ExecutorService executor,
-            @NonNull AppSearchRateLimitConfig rateLimitConfig) {
+    public RateLimitedExecutor(
+            @NonNull ExecutorService executor, @NonNull AppSearchRateLimitConfig rateLimitConfig) {
         mExecutor = Objects.requireNonNull(executor);
         mRateLimitConfigLocked = Objects.requireNonNull(rateLimitConfig);
         mTaskQueueSizeLocked = 0;
@@ -82,26 +74,30 @@ public class RateLimitedExecutor implements ExecutorService {
      * Returns true and executes the runnable if it can be accepted by the rate-limited executor.
      * Otherwise returns false.
      *
-     * @param lambda        The lambda to execute on the rate-limited executor.
-     * @param packageName   Package making this lambda call.
-     * @param apiType       Api type of this lambda call.
+     * @param lambda The lambda to execute on the rate-limited executor.
+     * @param packageName Package making this lambda call.
+     * @param apiType Api type of this lambda call.
      */
-    public boolean execute(@NonNull Runnable lambda, @NonNull String packageName,
+    public boolean execute(
+            @NonNull Runnable lambda,
+            @NonNull String packageName,
             @CallStats.CallType int apiType) {
         Objects.requireNonNull(lambda);
         Objects.requireNonNull(packageName);
         if (!addTaskToQueue(packageName, apiType)) {
             return false;
         }
-        mExecutor.execute(() -> {
-            try {
-                lambda.run();
-            } finally {
-                removeTaskFromQueue(packageName, apiType);
-            }
-        });
+        mExecutor.execute(
+                () -> {
+                    try {
+                        lambda.run();
+                    } finally {
+                        removeTaskFromQueue(packageName, apiType);
+                    }
+                });
         return true;
     }
+
     @NonNull
     public ExecutorService getExecutor() {
         return mExecutor;
@@ -114,7 +110,6 @@ public class RateLimitedExecutor implements ExecutorService {
         }
     }
 
-
     @VisibleForTesting
     @NonNull
     public ArrayMap<String, TaskCostInfo> getPerPackageTaskCosts() {
@@ -123,9 +118,7 @@ public class RateLimitedExecutor implements ExecutorService {
         }
     }
 
-    /**
-     * Sets the rate limit config for this rate limited executor.
-     */
+    /** Sets the rate limit config for this rate limited executor. */
     public void setRateLimitConfig(@NonNull AppSearchRateLimitConfig rateLimitConfigLocked) {
         synchronized (mLock) {
             mRateLimitConfigLocked = Objects.requireNonNull(rateLimitConfigLocked);
@@ -145,8 +138,8 @@ public class RateLimitedExecutor implements ExecutorService {
                     packageTaskCostInfo == null ? 0 : packageTaskCostInfo.mTotalTaskCost;
             int apiCost = mRateLimitConfigLocked.getApiCost(apiType);
             if (totalPackageApiCost + apiCost
-                    > mRateLimitConfigLocked.getTaskQueuePerPackageCapacity() ||
-                    mTaskQueueTotalCostLocked + apiCost
+                            > mRateLimitConfigLocked.getTaskQueuePerPackageCapacity()
+                    || mTaskQueueTotalCostLocked + apiCost
                             > mRateLimitConfigLocked.getTaskQueueTotalCapacity()) {
                 return false;
             } else {
@@ -159,15 +152,16 @@ public class RateLimitedExecutor implements ExecutorService {
     }
 
     /**
-     * Removes a task from the executor queue by decrementing the count for the task's package
-     * and api type.
+     * Removes a task from the executor queue by decrementing the count for the task's package and
+     * api type.
      */
     @VisibleForTesting
     public void removeTaskFromQueue(@NonNull String packageName, @CallStats.CallType int apiType) {
         synchronized (mLock) {
             Objects.requireNonNull(packageName);
             if (!mPerPackageTaskCostsLocked.containsKey(packageName)) {
-                Log.e(TAG,
+                Log.e(
+                        TAG,
                         "There are no tasks to remove from the queue for package: " + packageName);
                 return;
             }
@@ -255,8 +249,9 @@ public class RateLimitedExecutor implements ExecutorService {
     }
 
     @Override
-    public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout,
-            TimeUnit unit) throws InterruptedException {
+    public <T> List<Future<T>> invokeAll(
+            Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+            throws InterruptedException {
         return mExecutor.invokeAll(tasks, timeout, unit);
     }
 
@@ -272,9 +267,7 @@ public class RateLimitedExecutor implements ExecutorService {
         return mExecutor.invokeAny(tasks, timeout, unit);
     }
 
-    /**
-     * Class containing the integer pair of task count and total task costs.
-     */
+    /** Class containing the integer pair of task count and total task costs. */
     public static final class TaskCostInfo {
         public int mTaskCount;
         public int mTotalTaskCost;

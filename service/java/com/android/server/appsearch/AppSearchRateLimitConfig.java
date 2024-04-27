@@ -38,45 +38,38 @@ import java.util.Objects;
  * capacity.
  *
  * <p>Each AppSearch API call has an associated integer cost that is configured by the API costs
- * string. API costs must be positive.
- * The API costs string uses API_ENTRY_DELIMITER (';') to separate API entries and has a string API
- * name followed by API_COST_DELIMITER (':') and the integer cost to define each entry.
- * If an API's cost is not specified in the string, its cost is set to DEFAULT_API_COST.
- * e.g. A valid API cost string: "putDocument:5;query:1;setSchema:10".
+ * string. API costs must be positive. The API costs string uses API_ENTRY_DELIMITER (';') to
+ * separate API entries and has a string API name followed by API_COST_DELIMITER (':') and the
+ * integer cost to define each entry. If an API's cost is not specified in the string, its cost is
+ * set to DEFAULT_API_COST. e.g. A valid API cost string: "putDocument:5;query:1;setSchema:10".
  *
  * <p>If an API call has a higher cost, this means that the API consumes more of the task queue
- * budget and fewer number of tasks can be placed on the task queue.
- * An incoming API call from a calling package is dropped when the rate limit is exceeded, which
- * happens when either:
- * 1. Total cost of all API calls currently on the task queue + cost of incoming API call >
- * task queue total capacity. OR
- * 2. Total cost of all API calls currently on the task queue from the calling package +
- * cost of incoming API call > task queue per-package capacity.
+ * budget and fewer number of tasks can be placed on the task queue. An incoming API call from a
+ * calling package is dropped when the rate limit is exceeded, which happens when either: 1. Total
+ * cost of all API calls currently on the task queue + cost of incoming API call > task queue total
+ * capacity. OR 2. Total cost of all API calls currently on the task queue from the calling package
+ * + cost of incoming API call > task queue per-package capacity.
  */
 public final class AppSearchRateLimitConfig {
-    @VisibleForTesting
-    public static final int DEFAULT_API_COST = 1;
+    @VisibleForTesting public static final int DEFAULT_API_COST = 1;
 
     /**
      * Creates an instance of {@link AppSearchRateLimitConfig}.
      *
-     * @param totalCapacity                configures total cost of tasks that AppSearch can accept
-     *                                     onto its task queue from all packages.
+     * @param totalCapacity configures total cost of tasks that AppSearch can accept onto its task
+     *     queue from all packages.
      * @param perPackageCapacityPercentage configures total cost of tasks that AppSearch can accept
-     *                                     onto its task queue from a single calling package, as a
-     *                                     percentage of totalCapacity.
-     * @param apiCostsString               configures costs for each {@link CallStats.CallType}. The
-     *                                     string should use API_ENTRY_DELIMITER (';') to separate
-     *                                     entries, with each entry defined by the string API name
-     *                                     followed by API_COST_DELIMITER (':').
-     *                                     e.g. "putDocument:5;query:1;setSchema:10"
+     *     onto its task queue from a single calling package, as a percentage of totalCapacity.
+     * @param apiCostsString configures costs for each {@link CallStats.CallType}. The string should
+     *     use API_ENTRY_DELIMITER (';') to separate entries, with each entry defined by the string
+     *     API name followed by API_COST_DELIMITER (':'). e.g. "putDocument:5;query:1;setSchema:10"
      */
-    public static AppSearchRateLimitConfig create(int totalCapacity,
-            float perPackageCapacityPercentage, @NonNull String apiCostsString) {
+    public static AppSearchRateLimitConfig create(
+            int totalCapacity, float perPackageCapacityPercentage, @NonNull String apiCostsString) {
         Objects.requireNonNull(apiCostsString);
         Map<Integer, Integer> apiCostsMap = createApiCostsMap(apiCostsString);
-        return new AppSearchRateLimitConfig(totalCapacity, perPackageCapacityPercentage,
-                apiCostsString, apiCostsMap);
+        return new AppSearchRateLimitConfig(
+                totalCapacity, perPackageCapacityPercentage, apiCostsString, apiCostsMap);
     }
 
     // Truncated as logging tag is allowed to be at most 23 characters.
@@ -91,8 +84,11 @@ public final class AppSearchRateLimitConfig {
     // Mapping of @CallStats.CallType -> cost
     private final Map<Integer, Integer> mTaskQueueApiCosts;
 
-    private AppSearchRateLimitConfig(int totalCapacity, float perPackageCapacityPercentage,
-            @NonNull String apiCostsString, @NonNull Map<Integer, Integer> apiCostsMap) {
+    private AppSearchRateLimitConfig(
+            int totalCapacity,
+            float perPackageCapacityPercentage,
+            @NonNull String apiCostsString,
+            @NonNull Map<Integer, Integer> apiCostsMap) {
         mTaskQueueTotalCapacity = totalCapacity;
         mTaskQueuePerPackageCapacity = (int) (totalCapacity * perPackageCapacityPercentage);
         mApiCostsString = Objects.requireNonNull(apiCostsString);
@@ -100,47 +96,38 @@ public final class AppSearchRateLimitConfig {
     }
 
     /**
-     * Returns an AppSearchRateLimitConfig instance given the input capacities and ApiCosts.
-     * This may be the same instance if there are no changes in these configs.
+     * Returns an AppSearchRateLimitConfig instance given the input capacities and ApiCosts. This
+     * may be the same instance if there are no changes in these configs.
      *
-     * @param totalCapacity                configures total cost of tasks that AppSearch can accept
-     *                                     onto its task queue from all packages.
+     * @param totalCapacity configures total cost of tasks that AppSearch can accept onto its task
+     *     queue from all packages.
      * @param perPackageCapacityPercentage configures total cost of tasks that AppSearch can accept
-     *                                     onto its task queue from a single calling package, as a
-     *                                     percentage of totalCapacity.
-     * @param apiCostsString               configures costs for each {@link CallStats.CallType}. The
-     *                                     string should use API_ENTRY_DELIMITER (';') to separate
-     *                                     entries, with each entry defined by the string API name
-     *                                     followed by API_COST_DELIMITER (':').
-     *                                     e.g. "putDocument:5;query:1;setSchema:10"
+     *     onto its task queue from a single calling package, as a percentage of totalCapacity.
+     * @param apiCostsString configures costs for each {@link CallStats.CallType}. The string should
+     *     use API_ENTRY_DELIMITER (';') to separate entries, with each entry defined by the string
+     *     API name followed by API_COST_DELIMITER (':'). e.g. "putDocument:5;query:1;setSchema:10"
      */
-    public AppSearchRateLimitConfig rebuildIfNecessary(int totalCapacity,
-            float perPackageCapacityPercentage, @NonNull String apiCostsString) {
+    public AppSearchRateLimitConfig rebuildIfNecessary(
+            int totalCapacity, float perPackageCapacityPercentage, @NonNull String apiCostsString) {
         int perPackageCapacity = (int) (totalCapacity * perPackageCapacityPercentage);
         if (totalCapacity != mTaskQueueTotalCapacity
                 || perPackageCapacity != mTaskQueuePerPackageCapacity
                 || !Objects.equals(apiCostsString, mApiCostsString)) {
-            return AppSearchRateLimitConfig.create(totalCapacity, perPackageCapacityPercentage,
-                    apiCostsString);
+            return AppSearchRateLimitConfig.create(
+                    totalCapacity, perPackageCapacityPercentage, apiCostsString);
         }
         return this;
     }
 
-    /**
-     * Returns the task queue total capacity.
-     */
+    /** Returns the task queue total capacity. */
     public int getTaskQueueTotalCapacity() {
         return mTaskQueueTotalCapacity;
     }
 
-
-    /**
-     * Returns the per-package task queue capacity.
-     */
+    /** Returns the per-package task queue capacity. */
     public int getTaskQueuePerPackageCapacity() {
         return mTaskQueuePerPackageCapacity;
     }
-
 
     /**
      * Returns the cost of an API type.
@@ -152,9 +139,7 @@ public final class AppSearchRateLimitConfig {
         return mTaskQueueApiCosts.getOrDefault(apiType, DEFAULT_API_COST);
     }
 
-    /**
-     * Returns an API costs map based on apiCostsString.
-     */
+    /** Returns an API costs map based on apiCostsString. */
     private static Map<Integer, Integer> createApiCostsMap(@NonNull String apiCostsString) {
         if (TextUtils.getTrimmedLength(apiCostsString) == 0) {
             return new ArrayMap<>();
@@ -171,8 +156,9 @@ public final class AppSearchRateLimitConfig {
             String apiName = entry.substring(0, costDelimiterIndex);
             int apiCost;
             try {
-                apiCost = Integer.parseInt(entry, costDelimiterIndex + 1,
-                        entry.length(), /* radix= */10);
+                apiCost =
+                        Integer.parseInt(
+                                entry, costDelimiterIndex + 1, entry.length(), /* radix= */ 10);
             } catch (NumberFormatException e) {
                 Log.e(TAG, "Invalid cost for API cost entry: " + entry);
                 continue;

@@ -61,14 +61,13 @@ public final class AppFunctionManager {
             "android.permission.EXECUTE_APP_FUNCTION";
 
     /**
-     * Must be required by a {@link android.app.appsearch.functions.AppFunctionService},
-     * to ensure that only the system can bind to it.
+     * Must be required by a {@link android.app.appsearch.functions.AppFunctionService}, to ensure
+     * that only the system can bind to it.
      *
      * <p>Protection level: signature.
      */
     public static final String PERMISSION_BIND_APP_FUNCTION_SERVICE =
             "android.permission.BIND_APP_FUNCTION_SERVICE";
-
 
     private final IAppSearchManager mService;
     private final Context mContext;
@@ -94,12 +93,13 @@ public final class AppFunctionManager {
         Objects.requireNonNull(request);
         Objects.requireNonNull(callback);
 
-        ExecuteAppFunctionAidlRequest aidlRequest = new ExecuteAppFunctionAidlRequest(
-                request,
-                AppSearchAttributionSource.createAttributionSource(mContext,
-                        /* callingPid= */ Process.myPid()),
-                mContext.getUser(),
-                SystemClock.elapsedRealtime());
+        ExecuteAppFunctionAidlRequest aidlRequest =
+                new ExecuteAppFunctionAidlRequest(
+                        request,
+                        AppSearchAttributionSource.createAttributionSource(
+                                mContext, /* callingPid= */ Process.myPid()),
+                        mContext.getUser(),
+                        SystemClock.elapsedRealtime());
         try {
             mService.executeAppFunction(
                     aidlRequest,

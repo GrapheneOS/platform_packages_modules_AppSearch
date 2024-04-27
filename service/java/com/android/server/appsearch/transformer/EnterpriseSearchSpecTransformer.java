@@ -35,21 +35,20 @@ import java.util.Objects;
 //  currently it applies to all Person types
 public final class EnterpriseSearchSpecTransformer {
 
-    private EnterpriseSearchSpecTransformer() {
-    }
+    private EnterpriseSearchSpecTransformer() {}
 
     /**
      * Transforms a {@link SearchSpec}, adding property filters and projections that restrict the
      * allowed properties for certain schema types when accessed through an enterprise session.
-     * <p>
-     * Currently, we only add filters and projections for {@link Person} schema type.
+     *
+     * <p>Currently, we only add filters and projections for {@link Person} schema type.
      */
     @NonNull
     public static SearchSpec transformSearchSpec(@NonNull SearchSpec searchSpec) {
         Objects.requireNonNull(searchSpec);
         boolean shouldTransformSearchSpecFilters = shouldTransformSearchSpecFilters(searchSpec);
-        boolean shouldTransformJoinSpecFilters = shouldTransformJoinSpecFilters(
-                searchSpec.getJoinSpec());
+        boolean shouldTransformJoinSpecFilters =
+                shouldTransformJoinSpecFilters(searchSpec.getJoinSpec());
         if (!shouldTransformSearchSpecFilters && !shouldTransformJoinSpecFilters) {
             return searchSpec;
         }
@@ -60,8 +59,8 @@ public final class EnterpriseSearchSpecTransformer {
         if (shouldTransformJoinSpecFilters) {
             JoinSpec joinSpec = searchSpec.getJoinSpec();
             JoinSpec.Builder joinSpecBuilder = new JoinSpec.Builder(joinSpec);
-            joinSpecBuilder.setNestedSearch(joinSpec.getNestedQuery(),
-                    transformSearchSpec(joinSpec.getNestedSearchSpec()));
+            joinSpecBuilder.setNestedSearch(
+                    joinSpec.getNestedQuery(), transformSearchSpec(joinSpec.getNestedSearchSpec()));
             builder.setJoinSpec(joinSpecBuilder.build());
         }
         return builder.build();

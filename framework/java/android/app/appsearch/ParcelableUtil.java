@@ -29,7 +29,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-/** Wrapper class to provide implementation for readBlob/writeBlob for all API levels.
+/**
+ * Wrapper class to provide implementation for readBlob/writeBlob for all API levels.
  *
  * @hide
  */
@@ -40,7 +41,6 @@ public class ParcelableUtil {
     // Same as IBinder.MAX_IPC_LIMIT. Limit that should be placed on IPC sizes to keep them safely
     // under the transaction buffer limit.
     private static final int DOCUMENT_SIZE_LIMIT_IN_BYTES = 64 * 1024;
-
 
     // TODO(b/232805516): Update SDK_INT in Android.bp to safeguard from unexpected compiler issues.
     @SuppressLint("ObsoleteSdkInt")
@@ -60,8 +60,7 @@ public class ParcelableUtil {
             if (bytes.length <= DOCUMENT_SIZE_LIMIT_IN_BYTES) {
                 parcel.writeByteArray(bytes);
             } else {
-                ParcelFileDescriptor parcelFileDescriptor =
-                        writeDataToTempFileAndUnlinkFile(bytes);
+                ParcelFileDescriptor parcelFileDescriptor = writeDataToTempFileAndUnlinkFile(bytes);
                 parcel.writeFileDescriptor(parcelFileDescriptor.getFileDescriptor());
             }
         } catch (IOException e) {
@@ -102,16 +101,15 @@ public class ParcelableUtil {
     }
 
     /**
-     * Reads data bytes from file using provided FileDescriptor. It also closes the PFD so that
-     * will delete the underlying file if it's the only reference left.
+     * Reads data bytes from file using provided FileDescriptor. It also closes the PFD so that will
+     * delete the underlying file if it's the only reference left.
      *
      * @param pfd ParcelFileDescriptor for the file to read.
      * @param length Number of bytes to read from the file.
      */
-    private static byte[] getDataFromFd(ParcelFileDescriptor pfd,
-            int length) throws IOException {
-        try(DataInputStream in =
-                new DataInputStream(new ParcelFileDescriptor.AutoCloseInputStream(pfd))){
+    private static byte[] getDataFromFd(ParcelFileDescriptor pfd, int length) throws IOException {
+        try (DataInputStream in =
+                new DataInputStream(new ParcelFileDescriptor.AutoCloseInputStream(pfd))) {
             byte[] data = new byte[length];
             in.read(data);
             return data;
@@ -129,14 +127,14 @@ public class ParcelableUtil {
         // TODO(b/232959004):  Update directory to app-specific cache dir instead of null.
         File unlinkedFile =
                 File.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX, /* directory= */ null);
-        try(DataOutputStream out = new DataOutputStream(new FileOutputStream(unlinkedFile))) {
+        try (DataOutputStream out = new DataOutputStream(new FileOutputStream(unlinkedFile))) {
             out.write(data);
             out.flush();
         }
         ParcelFileDescriptor parcelFileDescriptor =
-                ParcelFileDescriptor.open(unlinkedFile,
-                        ParcelFileDescriptor.MODE_CREATE
-                                | ParcelFileDescriptor.MODE_READ_WRITE);
+                ParcelFileDescriptor.open(
+                        unlinkedFile,
+                        ParcelFileDescriptor.MODE_CREATE | ParcelFileDescriptor.MODE_READ_WRITE);
         unlinkedFile.delete();
         return parcelFileDescriptor;
     }

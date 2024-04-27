@@ -39,8 +39,7 @@ public class AppSearchModule {
     /** Lifecycle definition for AppSearch module. */
     public static final class Lifecycle extends SystemService {
         private AppSearchManagerService mAppSearchManagerService;
-        @Nullable
-        private ContactsIndexerManagerService mContactsIndexerManagerService;
+        @Nullable private ContactsIndexerManagerService mContactsIndexerManagerService;
 
         public Lifecycle(Context context) {
             super(context);
@@ -48,8 +47,8 @@ public class AppSearchModule {
 
         @Override
         public void onStart() {
-            mAppSearchManagerService = new AppSearchManagerService(
-                    getContext(), /* lifecycle= */ this);
+            mAppSearchManagerService =
+                    new AppSearchManagerService(getContext(), /* lifecycle= */ this);
 
             try {
                 mAppSearchManagerService.onStart();
@@ -65,8 +64,8 @@ public class AppSearchModule {
             // uses, starts before AppSearch.
             ContactsIndexerConfig contactsIndexerConfig = new FrameworkContactsIndexerConfig();
             if (contactsIndexerConfig.isContactsIndexerEnabled()) {
-                mContactsIndexerManagerService = new ContactsIndexerManagerService(getContext(),
-                        contactsIndexerConfig);
+                mContactsIndexerManagerService =
+                        new ContactsIndexerManagerService(getContext(), contactsIndexerConfig);
                 try {
                     mContactsIndexerManagerService.onStart();
                 } catch (Throwable t) {
@@ -100,8 +99,8 @@ public class AppSearchModule {
         public void onUserUnlocking(@NonNull TargetUser user) {
             mAppSearchManagerService.onUserUnlocking(user);
             if (mContactsIndexerManagerService == null) {
-                ContactsIndexerMaintenanceService.cancelFullUpdateJobIfScheduled(getContext(),
-                        user.getUserHandle());
+                ContactsIndexerMaintenanceService.cancelFullUpdateJobIfScheduled(
+                        getContext(), user.getUserHandle());
             } else {
                 mContactsIndexerManagerService.onUserUnlocking(user);
             }
@@ -116,4 +115,3 @@ public class AppSearchModule {
         }
     }
 }
-

@@ -37,18 +37,16 @@ import java.util.function.Function;
 public class ServiceCallHelperImpl<T> implements ServiceCallHelper<T> {
     private static final String TAG = "AppSearchAppFunction";
 
-    @NonNull
-    private final Context mContext;
-    @NonNull
-    private final Function<IBinder, T> mInterfaceConverter;
+    @NonNull private final Context mContext;
+    @NonNull private final Function<IBinder, T> mInterfaceConverter;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final Executor mExecutor;
 
     /**
-     * @param interfaceConverter A function responsible for converting an IBinder object into
-     *                           the desired service interface.
-     * @param executor           An Executor instance to dispatch callback.
-     * @param context            The system context.
+     * @param interfaceConverter A function responsible for converting an IBinder object into the
+     *     desired service interface.
+     * @param executor An Executor instance to dispatch callback.
+     * @param context The system context.
      */
     public ServiceCallHelperImpl(
             @NonNull Context context,
@@ -68,17 +66,13 @@ public class ServiceCallHelperImpl<T> implements ServiceCallHelper<T> {
             @NonNull RunServiceCallCallback<T> callback) {
         OneOffServiceConnection serviceConnection =
                 new OneOffServiceConnection(
-                        intent,
-                        bindFlags,
-                        timeoutInMillis,
-                        userHandle,
-                        callback);
+                        intent, bindFlags, timeoutInMillis, userHandle, callback);
 
         return serviceConnection.bindAndRun();
     }
 
-    private class OneOffServiceConnection implements ServiceConnection,
-            ServiceUsageCompleteListener {
+    private class OneOffServiceConnection
+            implements ServiceConnection, ServiceUsageCompleteListener {
         private final Intent mIntent;
         private final int mFlags;
         private final long mTimeoutMillis;
@@ -96,19 +90,19 @@ public class ServiceCallHelperImpl<T> implements ServiceCallHelper<T> {
             mFlags = flags;
             mTimeoutMillis = timeoutMillis;
             mCallback = callback;
-            mTimeoutCallback = () -> mExecutor.execute(() -> {
-                safeUnbind();
-                mCallback.onTimedOut();
-            });
+            mTimeoutCallback =
+                    () ->
+                            mExecutor.execute(
+                                    () -> {
+                                        safeUnbind();
+                                        mCallback.onTimedOut();
+                                    });
             mUserHandle = userHandle;
         }
 
         public boolean bindAndRun() {
-            boolean bindServiceResult = mContext.bindServiceAsUser(
-                    mIntent,
-                    this,
-                    mFlags,
-                    mUserHandle);
+            boolean bindServiceResult =
+                    mContext.bindServiceAsUser(mIntent, this, mFlags, mUserHandle);
 
             if (bindServiceResult) {
                 mHandler.postDelayed(mTimeoutCallback, mTimeoutMillis);
@@ -158,5 +152,4 @@ public class ServiceCallHelperImpl<T> implements ServiceCallHelper<T> {
             safeUnbind();
         }
     }
-
 }

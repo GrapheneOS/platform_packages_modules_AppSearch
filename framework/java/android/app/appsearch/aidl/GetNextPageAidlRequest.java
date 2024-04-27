@@ -31,6 +31,7 @@ import java.util.Objects;
 /**
  * Encapsulates a request to make a binder call to fetch the next page of results of a previously
  * executed search.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "GetNextPageAidlRequestCreator")
@@ -42,18 +43,24 @@ public class GetNextPageAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @Nullable
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @Field(id = 3, getter = "getNextPageToken")
     private final long mNextPageToken;
+
     @Field(id = 4, getter = "getJoinType")
     private final @AppSearchSchema.StringPropertyConfig.JoinableValueType int mJoinType;
+
     @NonNull
     @Field(id = 5, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 6, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+
     @Field(id = 7, getter = "isForEnterprise")
     private final boolean mIsForEnterprise;
 
@@ -61,10 +68,9 @@ public class GetNextPageAidlRequest extends AbstractSafeParcelable {
      * Fetches the next page of results of a previously executed search. Results can be empty if
      * next-page token is invalid or all pages have been returned.
      *
-     * @param callerAttributionSource The permission identity of the package to persist to disk
-     *     for.
+     * @param callerAttributionSource The permission identity of the package to persist to disk for.
      * @param databaseName The nullable databaseName this search for. The databaseName will be null
-     *                     if the search is a global search.
+     *     if the search is a global search.
      * @param nextPageToken The token of pre-loaded results of previously executed search.
      * @param joinType the type of join performed. 0 if no join is performed
      * @param userHandle Handle of the calling user

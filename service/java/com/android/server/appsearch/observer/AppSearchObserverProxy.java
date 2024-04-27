@@ -22,7 +22,6 @@ import android.app.appsearch.aidl.IAppSearchObserverProxy;
 import android.app.appsearch.observer.DocumentChangeInfo;
 import android.app.appsearch.observer.ObserverCallback;
 import android.app.appsearch.observer.SchemaChangeInfo;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -30,12 +29,12 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 /**
- * A wrapper that adapts {@link android.app.appsearch.aidl.IAppSearchObserverProxy} to the
- * {@link android.app.appsearch.observer.ObserverCallback} interface.
+ * A wrapper that adapts {@link android.app.appsearch.aidl.IAppSearchObserverProxy} to the {@link
+ * android.app.appsearch.observer.ObserverCallback} interface.
  *
  * <p>When using this class, you must register for {@link android.os.IBinder#linkToDeath}
- * notifications on the stub you provide to the constructor, to unregister this class from
- * {@link com.android.server.appsearch.external.localstorage.AppSearchImpl} when binder dies.
+ * notifications on the stub you provide to the constructor, to unregister this class from {@link
+ * com.android.server.appsearch.external.localstorage.AppSearchImpl} when binder dies.
  *
  * @hide
  */

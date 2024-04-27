@@ -25,6 +25,7 @@ import java.util.List;
 
 /**
  * A non-public interface for implementing AppSearch logging based operations stats.
+ *
  * @hide
  */
 public interface InternalAppSearchLogger extends AppSearchLogger {

@@ -43,53 +43,55 @@ import java.util.Set;
  *
  * <p>Each entry can only contain the following keys in the format of URL parameters. Unknown keys
  * invalidate the entry in which they're found but do not invalidate other entries.
+ *
  * <ul>
- * <li>pkg - a calling package name
- * <li>db - a calling database name
- * <li>apis - a non-empty, comma-separated list of apis to deny
+ *   <li>pkg - a calling package name
+ *   <li>db - a calling database name
+ *   <li>apis - a non-empty, comma-separated list of apis to deny
  * </ul>
  *
- * <p>At least one of pkg or db must be specified, and consequently, the listed apis will be
- * denied either by calling package, calling database, or the combination of both. Note that
- * a key that is present without a value (i.e. "pkg&..." or "pkg=&...") is not a missing key. For
- * example,
+ * <p>At least one of pkg or db must be specified, and consequently, the listed apis will be denied
+ * either by calling package, calling database, or the combination of both. Note that a key that is
+ * present without a value (i.e. "pkg&..." or "pkg=&...") is not a missing key. For example,
+ *
  * <ul>
- * <li>"pkg=foo&apis=localSetSchema,globalSearch" denies for calling package "foo" and any
- * calling database since db is missing
- * <li>"db=bar&apis=localGetSchema,localGetDocuments" denies for calling database "bar" and
- * any calling package since pkg is missing
- * <li>"pkg=foo&db=bar&apis=localPutDocuments,localSearch" denies only if the calling package is
- * "foo" and the calling database is "bar"
- * <li>"pkg&db=&apis=localReportUsage" denies only if the calling package is "" and the calling
- * database is ""
+ *   <li>"pkg=foo&apis=localSetSchema,globalSearch" denies for calling package "foo" and any calling
+ *       database since db is missing
+ *   <li>"db=bar&apis=localGetSchema,localGetDocuments" denies for calling database "bar" and any
+ *       calling package since pkg is missing
+ *   <li>"pkg=foo&db=bar&apis=localPutDocuments,localSearch" denies only if the calling package is
+ *       "foo" and the calling database is "bar"
+ *   <li>"pkg&db=&apis=localReportUsage" denies only if the calling package is "" and the calling
+ *       database is ""
  * </ul>
  *
  * <p>The full list of apis is:
+ *
  * <ul>
- * <li>initialize
- * <li>localSetSchema
- * <li>localPutDocuments
- * <li>globalGetDocuments
- * <li>localGetDocuments
- * <li>localRemoveByDocumentId
- * <li>localRemoveBySearch
- * <li>globalSearch
- * <li>localSearch
- * <li>flush
- * <li>globalGetSchema
- * <li>localGetSchema
- * <li>localGetNamespaces
- * <li>globalGetNextPage
- * <li>localGetNextPage
- * <li>invalidateNextPageToken
- * <li>localWriteSearchResultsToFile
- * <li>localPutDocumentsFromFile
- * <li>localSearchSuggestion
- * <li>globalReportUsage
- * <li>localReportUsage
- * <li>localGetStorageInfo
- * <li>globalRegisterObserverCallback
- * <li>globalUnregisterObserverCallback
+ *   <li>initialize
+ *   <li>localSetSchema
+ *   <li>localPutDocuments
+ *   <li>globalGetDocuments
+ *   <li>localGetDocuments
+ *   <li>localRemoveByDocumentId
+ *   <li>localRemoveBySearch
+ *   <li>globalSearch
+ *   <li>localSearch
+ *   <li>flush
+ *   <li>globalGetSchema
+ *   <li>localGetSchema
+ *   <li>localGetNamespaces
+ *   <li>globalGetNextPage
+ *   <li>localGetNextPage
+ *   <li>invalidateNextPageToken
+ *   <li>localWriteSearchResultsToFile
+ *   <li>localPutDocumentsFromFile
+ *   <li>localSearchSuggestion
+ *   <li>globalReportUsage
+ *   <li>localReportUsage
+ *   <li>localGetStorageInfo
+ *   <li>globalRegisterObserverCallback
+ *   <li>globalUnregisterObserverCallback
  * </ul>
  *
  * <p>Note, the denylist string is case-sensitive, and whitespace is not trimmed during parsing.
@@ -112,19 +114,16 @@ public final class Denylist {
     private static final String KEY_PACKAGE = "pkg";
     private static final String KEY_DATABASE = "db";
     private static final String KEY_APIS = "apis";
-    private static final Set<String> KNOWN_KEYS = new ArraySet<>(
-            Arrays.asList(KEY_PACKAGE, KEY_DATABASE, KEY_APIS));
+    private static final Set<String> KNOWN_KEYS =
+            new ArraySet<>(Arrays.asList(KEY_PACKAGE, KEY_DATABASE, KEY_APIS));
 
     private final Map<String, Set<Integer>> deniedPackages = new ArrayMap<>();
     private final Map<String, Set<Integer>> deniedDatabases = new ArrayMap<>();
     private final Map<String, Set<Integer>> deniedPrefixes = new ArrayMap<>();
 
-    private Denylist() {
-    }
+    private Denylist() {}
 
-    /**
-     * Creates an instance of {@link Denylist}.
-     */
+    /** Creates an instance of {@link Denylist}. */
     @NonNull
     public static Denylist create(@NonNull String denylistString) {
         Objects.requireNonNull(denylistString);
@@ -152,8 +151,9 @@ public final class Denylist {
             String packageName = uri.getQueryParameter(KEY_PACKAGE);
             String databaseName = uri.getQueryParameter(KEY_DATABASE);
             if (packageName == null && databaseName == null) {
-                Log.e(TAG, "The parameters 'pkg' and 'db' were both missing for this entry: "
-                        + entry);
+                Log.e(
+                        TAG,
+                        "The parameters 'pkg' and 'db' were both missing for this entry: " + entry);
                 continue;
             }
             if (!keys.contains(KEY_APIS)) {
@@ -182,7 +182,9 @@ public final class Denylist {
         return apiTypes;
     }
 
-    private void addEntry(@Nullable String packageName, @Nullable String databaseName,
+    private void addEntry(
+            @Nullable String packageName,
+            @Nullable String databaseName,
             @NonNull Set<Integer> apiTypes) {
         if (packageName != null && databaseName != null) {
             String prefix = PrefixUtil.createPrefix(packageName, databaseName);
@@ -190,12 +192,12 @@ public final class Denylist {
                     deniedPrefixes.computeIfAbsent(prefix, k -> new ArraySet<>());
             deniedApiTypes.addAll(apiTypes);
         } else if (packageName != null) {
-            Set<Integer> deniedApiTypes = deniedPackages.computeIfAbsent(packageName,
-                    k -> new ArraySet<>());
+            Set<Integer> deniedApiTypes =
+                    deniedPackages.computeIfAbsent(packageName, k -> new ArraySet<>());
             deniedApiTypes.addAll(apiTypes);
         } else if (databaseName != null) {
-            Set<Integer> deniedApiTypes = deniedDatabases.computeIfAbsent(databaseName,
-                    k -> new ArraySet<>());
+            Set<Integer> deniedApiTypes =
+                    deniedDatabases.computeIfAbsent(databaseName, k -> new ArraySet<>());
             deniedApiTypes.addAll(apiTypes);
         }
     }
@@ -209,10 +211,12 @@ public final class Denylist {
      * @param apiType the api type to check for denial.
      * @return true if the api is denied for the given package-database pair.
      */
-    public boolean checkDeniedPackageDatabase(@NonNull String packageName,
-            @NonNull String databaseName, @CallStats.CallType int apiType) {
-        if (checkDeniedPackage(packageName, apiType) || checkDeniedDatabase(databaseName,
-                apiType)) {
+    public boolean checkDeniedPackageDatabase(
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @CallStats.CallType int apiType) {
+        if (checkDeniedPackage(packageName, apiType)
+                || checkDeniedDatabase(databaseName, apiType)) {
             return true;
         }
         if (deniedPrefixes.isEmpty()) {
@@ -231,8 +235,8 @@ public final class Denylist {
      * @param apiType the api type to check for denial.
      * @return true if the api is denied for the given package name.
      */
-    public boolean checkDeniedPackage(@NonNull String packageName,
-            @CallStats.CallType int apiType) {
+    public boolean checkDeniedPackage(
+            @NonNull String packageName, @CallStats.CallType int apiType) {
         Set<Integer> deniedApiTypes = deniedPackages.get(packageName);
         return deniedApiTypes != null && deniedApiTypes.contains(apiType);
     }
@@ -245,8 +249,8 @@ public final class Denylist {
      * @param apiType the api type to check for denial.
      * @return true if the api is denied for the given database name.
      */
-    private boolean checkDeniedDatabase(@NonNull String databaseName,
-            @CallStats.CallType int apiType) {
+    private boolean checkDeniedDatabase(
+            @NonNull String databaseName, @CallStats.CallType int apiType) {
         Set<Integer> deniedApiTypes = deniedDatabases.get(databaseName);
         return deniedApiTypes != null && deniedApiTypes.contains(apiType);
     }

@@ -33,6 +33,7 @@ import java.util.Objects;
 /**
  * Encapsulates a request to make a binder call to update the schema of an {@link AppSearchSession}
  * database.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "SetSchemaAidlRequestCreator")
@@ -44,24 +45,32 @@ public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getSchemas")
     private final List<AppSearchSchema> mSchemas;
+
     @NonNull
     @Field(id = 4, getter = "getVisibilityConfigs")
     private final List<InternalVisibilityConfig> mVisibilityConfigs;
+
     @Field(id = 5, getter = "isForceOverride")
     private final boolean mForceOverride;
+
     @Field(id = 6, getter = "getSchemaVersion")
     private final int mSchemaVersion;
+
     @NonNull
     @Field(id = 7, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 8, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+
     @Field(id = 9, getter = "getSchemaMigrationCallType")
     private final int mSchemaMigrationCallType;
 
@@ -69,13 +78,13 @@ public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
      * Updates the AppSearch schema for this database.
      *
      * @param callerAttributionSource The permission identity of the package that owns this schema.
-     * @param databaseName  The name of the database where this schema lives.
+     * @param databaseName The name of the database where this schema lives.
      * @param schemas List of {@link AppSearchSchema} objects.
      * @param visibilityConfigs List of {@link InternalVisibilityConfig} objects defining the
      *     visibility for the schema types.
      * @param forceOverride Whether to apply the new schema even if it is incompatible. All
      *     incompatible documents will be deleted.
-     * @param schemaVersion  The overall schema version number of the request.
+     * @param schemaVersion The overall schema version number of the request.
      * @param userHandle Handle of the calling user
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis
      * @param schemaMigrationCallType Indicates how a SetSchema call relative to SchemaMigration

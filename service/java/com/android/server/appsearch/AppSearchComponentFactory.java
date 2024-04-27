@@ -36,8 +36,7 @@ public final class AppSearchComponentFactory {
             synchronized (AppSearchComponentFactory.class) {
                 localRef = mConfigInstance;
                 if (localRef == null) {
-                    mConfigInstance = localRef = FrameworkAppSearchConfigImpl
-                            .getInstance(executor);
+                    mConfigInstance = localRef = FrameworkAppSearchConfigImpl.getInstance(executor);
                 }
             }
         }
@@ -45,8 +44,7 @@ public final class AppSearchComponentFactory {
     }
 
     @VisibleForTesting
-    static void setConfigInstanceForTest(
-            @NonNull FrameworkAppSearchConfig appSearchConfig) {
+    static void setConfigInstanceForTest(@NonNull FrameworkAppSearchConfig appSearchConfig) {
         synchronized (AppSearchComponentFactory.class) {
             mConfigInstance = appSearchConfig;
         }
@@ -61,6 +59,5 @@ public final class AppSearchComponentFactory {
         return new VisibilityCheckerImpl(context);
     }
 
-    private AppSearchComponentFactory() {
-    }
+    private AppSearchComponentFactory() {}
 }

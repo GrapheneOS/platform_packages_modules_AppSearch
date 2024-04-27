@@ -49,8 +49,8 @@ public class PolicyCheckerImpl implements PolicyChecker {
         // https://cs.android.com/android/platform/superproject/main/+/main:packages/providers/ContactsProvider/src/com/android/providers/contacts/enterprise/EnterprisePolicyGuard.java;l=81;drc=242bb9f25b210fbfe36a384088221b54b2602b34
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             // This api is only supported on U+
-            return mDevicePolicyManager.hasManagedProfileContactsAccess(mUserContext.getUser(),
-                    callingPackageName);
+            return mDevicePolicyManager.hasManagedProfileContactsAccess(
+                    mUserContext.getUser(), callingPackageName);
         }
         // Below U, we should call
         // DevicePolicyManager#getCrossProfileContactsSearchDisabled(UserHandle) to check if the

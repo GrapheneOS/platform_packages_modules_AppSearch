@@ -52,18 +52,22 @@ public class EnterpriseGlobalSearchSession extends ReadOnlyGlobalSearchSession {
             @NonNull Consumer<AppSearchResult<EnterpriseGlobalSearchSession>> callback) {
         EnterpriseGlobalSearchSession enterpriseGlobalSearchSession =
                 new EnterpriseGlobalSearchSession(service, userHandle, attributionSource);
-        enterpriseGlobalSearchSession.initialize(executor, result -> {
-            if (result.isSuccess()) {
-                callback.accept(AppSearchResult.newSuccessfulResult(enterpriseGlobalSearchSession));
-            } else {
-                callback.accept(AppSearchResult.newFailedResult(result));
-            }
-        });
+        enterpriseGlobalSearchSession.initialize(
+                executor,
+                result -> {
+                    if (result.isSuccess()) {
+                        callback.accept(
+                                AppSearchResult.newSuccessfulResult(enterpriseGlobalSearchSession));
+                    } else {
+                        callback.accept(AppSearchResult.newFailedResult(result));
+                    }
+                });
     }
 
-    private EnterpriseGlobalSearchSession(@NonNull IAppSearchManager service,
+    private EnterpriseGlobalSearchSession(
+            @NonNull IAppSearchManager service,
             @NonNull UserHandle userHandle,
             @NonNull AppSearchAttributionSource callerAttributionSource) {
-        super(service, userHandle, callerAttributionSource, /*isForEnterprise=*/ true);
+        super(service, userHandle, callerAttributionSource, /* isForEnterprise= */ true);
     }
 }

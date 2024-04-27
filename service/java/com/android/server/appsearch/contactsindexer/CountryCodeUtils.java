@@ -17,7 +17,6 @@
 package com.android.server.appsearch.contactsindexer;
 
 import android.util.ArrayMap;
-import android.util.ArraySet;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,8 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class CountryCodeUtils {
-    private CountryCodeUtils() {
-    }
+    private CountryCodeUtils() {}
 
     // Maps dialing code starting with "+" to its primary corresponding ISO 3166-1 alpha-2
     // country code.

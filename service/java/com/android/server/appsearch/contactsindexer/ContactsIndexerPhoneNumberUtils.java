@@ -39,8 +39,7 @@ import java.util.Set;
 public class ContactsIndexerPhoneNumberUtils {
     // 3 digits international calling code and the leading "+". E.g. "+354" for Iceland.
     // So maximum 4 characters total.
-    @VisibleForTesting
-    static final int DIALING_CODE_WITH_PLUS_SIGN_MAX_DIGITS = 4;
+    @VisibleForTesting static final int DIALING_CODE_WITH_PLUS_SIGN_MAX_DIGITS = 4;
     private static final String TAG = "ContactsIndexerPhoneNumberUtils";
 
     /**
@@ -56,14 +55,16 @@ public class ContactsIndexerPhoneNumberUtils {
      * Depending on the format original phone number is using, and the locales on the system, it may
      * not be able to produce all the variants.
      *
-     * @param resources           the application's resource
+     * @param resources the application's resource
      * @param phoneNumberOriginal the phone number in the original form from CP2.
      * @param phoneNumberFromCP2InE164 the phone number in e164 from {@link Phone#NORMALIZED_NUMBER}
      * @return a set containing different phone variants created.
      */
     @NonNull
-    public static Set<String> createPhoneNumberVariants(@NonNull Resources resources,
-            @NonNull String phoneNumberOriginal, @Nullable String phoneNumberFromCP2InE164) {
+    public static Set<String> createPhoneNumberVariants(
+            @NonNull Resources resources,
+            @NonNull String phoneNumberOriginal,
+            @Nullable String phoneNumberFromCP2InE164) {
         Objects.requireNonNull(resources);
         Objects.requireNonNull(phoneNumberOriginal);
 
@@ -109,8 +110,8 @@ public class ContactsIndexerPhoneNumberUtils {
             String phoneNumberNormalizedWithoutCountryCode = result.second;
             phoneNumberVariants.add(phoneNumberNormalizedWithoutCountryCode);
             // create phone number in national format, and generate variants based on it.
-            String nationalFormat = createFormatNational(phoneNumberNormalizedWithoutCountryCode,
-                    isoCountryCode);
+            String nationalFormat =
+                    createFormatNational(phoneNumberNormalizedWithoutCountryCode, isoCountryCode);
             // lastly, we want to index a national format with a country dialing code:
             // E.g. for (202) 555-0111, we also want to index "1 (202) 555-0111". So when the query
             // is "1 202" or "1 (202)", a match can still be returned.
@@ -133,8 +134,8 @@ public class ContactsIndexerPhoneNumberUtils {
      * Parses a phone number in e164 format.
      *
      * @return a pair of dialing code and a normalized phone number without the dialing code. E.g.
-     * for +12025550111, this function returns "+1" and "2025550111". {@code null} if phone number
-     * is not in a valid e164 form.
+     *     for +12025550111, this function returns "+1" and "2025550111". {@code null} if phone
+     *     number is not in a valid e164 form.
      */
     @Nullable
     static Pair<String, String> parsePhoneNumberInE164(@NonNull String phoneNumberInE164) {
@@ -163,16 +164,16 @@ public class ContactsIndexerPhoneNumberUtils {
      * country code "US".
      *
      * @param phoneNumberNormalized normalized number. E.g. for phone number 202-555-0111, its
-     *                              normalized form would be 2025550111.
-     * @param countryCode           the country code to be used to format the phone number. If it is
-     *                              {@code null}, it will try the country codes from the locales in
-     *                              the configuration and return the first match.
+     *     normalized form would be 2025550111.
+     * @param countryCode the country code to be used to format the phone number. If it is {@code
+     *     null}, it will try the country codes from the locales in the configuration and return the
+     *     first match.
      * @return the national format of the phone number. {@code null} if {@code countryCode} is
-     * {@code null}.
+     *     {@code null}.
      */
     @Nullable
-    static String createFormatNational(@NonNull String phoneNumberNormalized,
-            @Nullable String countryCode) {
+    static String createFormatNational(
+            @NonNull String phoneNumberNormalized, @Nullable String countryCode) {
         Objects.requireNonNull(phoneNumberNormalized);
 
         if (TextUtils.isEmpty(countryCode)) {
@@ -182,8 +183,7 @@ public class ContactsIndexerPhoneNumberUtils {
     }
 
     /**
-     * Adds the variants generated from the phone number in national format into the given
-     * set.
+     * Adds the variants generated from the phone number in national format into the given set.
      *
      * <p>E.g. for national format (202) 555-0111, we will add itself as a variant, as well as (202)
      * 5550111 by removing the hyphen(last non-digit character).
@@ -191,8 +191,8 @@ public class ContactsIndexerPhoneNumberUtils {
      * @param phoneNumberNational phone number in national format. E.g. (202)-555-0111
      * @param phoneNumberVariants set to hold the generated variants.
      */
-    static void addVariantsFromFormatNational(@Nullable String phoneNumberNational,
-            @NonNull Set<String> phoneNumberVariants) {
+    static void addVariantsFromFormatNational(
+            @Nullable String phoneNumberNational, @NonNull Set<String> phoneNumberVariants) {
         Objects.requireNonNull(phoneNumberVariants);
 
         if (TextUtils.isEmpty(phoneNumberNational)) {

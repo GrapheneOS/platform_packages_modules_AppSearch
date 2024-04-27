@@ -21,9 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
-import android.app.appsearch.util.LogUtil;
 import android.net.Uri;
-import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -39,7 +37,7 @@ public class MobileApplication extends GenericDocument {
     private static final String TAG = "AppSearchMobileApplication";
 
     public static final String SCHEMA_TYPE = "builtin:MobileApplication";
-    public static final String APPS_NAMESPACE = "";
+    public static final String APPS_NAMESPACE = "apps";
 
     public static final String APP_PROPERTY_PACKAGE_NAME = "packageName";
     public static final String APP_PROPERTY_DISPLAY_NAME = "displayName";
@@ -49,43 +47,79 @@ public class MobileApplication extends GenericDocument {
     public static final String APP_PROPERTY_UPDATED_TIMESTAMP = "updatedTimestamp";
     public static final String APP_PROPERTY_CLASS_NAME = "className";
 
-    public static final AppSearchSchema APP_SCHEMA = new AppSearchSchema.Builder(SCHEMA_TYPE)
-            // It's possible the user knows the package name, or wants to search for all apps from a
-            // certain developer. They could search for "com.developer.*".
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_PACKAGE_NAME)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                    .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM)
-                    .build())
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_DISPLAY_NAME)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                    .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                    .build())
-            .addProperty(
-                    new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_ALTERNATE_NAMES)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                            .setIndexingType(
-                                    AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                            .setTokenizerType(
-                                    AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                            .build())
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_ICON_URI)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                    .build())
-            .addProperty(
-                    new AppSearchSchema.BytesPropertyConfig.Builder(APP_PROPERTY_SHA256_CERTIFICATE)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .build())
-            .addProperty(
-                    new AppSearchSchema.LongPropertyConfig.Builder(APP_PROPERTY_UPDATED_TIMESTAMP)
-                            .setIndexingType(AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .build())
-            .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_CLASS_NAME)
-                    .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                    .build())
-            .build();
+    /** Returns a per-app schema name. */
+    @VisibleForTesting
+    public static String getSchemaNameForPackage(@NonNull String pkg) {
+        return SCHEMA_TYPE + "-" + Objects.requireNonNull(pkg);
+    }
+
+    /**
+     * Returns a MobileApplication {@link AppSearchSchema} for the a package.
+     *
+     * <p>This is necessary as the base schema and the per-app schemas share all the same
+     * properties. However, we cannot easily modify the base schema to create a per-app schema. So
+     * instead, to create the base schema we call this method with a blank AppSearchSchema with a
+     * schema type of SCHEMA_TYPE. For per-app schemas, we set the schema type to a per-app schema
+     * type, add a parent type of SCHEMA_TYPE, then add the properties.
+     *
+     * @param packageName The package name to create a schema for. Will create the base schema if
+     *     called with null.
+     */
+    @NonNull
+    public static AppSearchSchema createMobileApplicationSchemaForPackage(
+            @NonNull String packageName) {
+        Objects.requireNonNull(packageName);
+        return new AppSearchSchema.Builder(getSchemaNameForPackage(packageName))
+                // It's possible the user knows the package name, or wants to search for all apps
+                // from a certain developer. They could search for "com.developer.*".
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_PACKAGE_NAME)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .setIndexingType(
+                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .setTokenizerType(
+                                        AppSearchSchema.StringPropertyConfig
+                                                .TOKENIZER_TYPE_VERBATIM)
+                                .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_DISPLAY_NAME)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .setIndexingType(
+                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .setTokenizerType(
+                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                        APP_PROPERTY_ALTERNATE_NAMES)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .setIndexingType(
+                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .setTokenizerType(
+                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_ICON_URI)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
+                .addProperty(
+                        new AppSearchSchema.BytesPropertyConfig.Builder(
+                                        APP_PROPERTY_SHA256_CERTIFICATE)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
+                .addProperty(
+                        new AppSearchSchema.LongPropertyConfig.Builder(
+                                        APP_PROPERTY_UPDATED_TIMESTAMP)
+                                .setIndexingType(
+                                        AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_CLASS_NAME)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
+                .build();
+    }
 
     /** Constructs a {@link MobileApplication}. */
     @VisibleForTesting
@@ -153,8 +187,7 @@ public class MobileApplication extends GenericDocument {
     /**
      * Returns the fully qualified name of the Application class for this mobile app. This would
      * look something like "com.android.vending.SearchActivity". Combined with the package name, a
-     * launch intent can be created with
-     * <code>
+     * launch intent can be created with <code>
      *     Intent launcher = new Intent(Intent.ACTION_MAIN);
      *     launcher.setComponent(new ComponentName(app.getPackageName(), app.getClassName()));
      *     launcher.setPackage(app.getPackageName());
@@ -162,7 +195,6 @@ public class MobileApplication extends GenericDocument {
      *     launcher.addCategory(Intent.CATEGORY_LAUNCHER);
      *     appListFragment.getActivity().startActivity(launcher);
      *  </code>
-     *
      */
     @Nullable
     public String getClassName() {
@@ -171,10 +203,14 @@ public class MobileApplication extends GenericDocument {
 
     public static final class Builder extends GenericDocument.Builder<Builder> {
         public Builder(@NonNull String packageName, @NonNull byte[] sha256Certificate) {
-            super(APPS_NAMESPACE, Objects.requireNonNull(packageName), SCHEMA_TYPE);
+            // Changing the schema type dynamically so that we can use separate schemas
+            super(
+                    APPS_NAMESPACE,
+                    Objects.requireNonNull(packageName),
+                    getSchemaNameForPackage(packageName));
             setPropertyString(APP_PROPERTY_PACKAGE_NAME, packageName);
-            setPropertyBytes(APP_PROPERTY_SHA256_CERTIFICATE,
-                    Objects.requireNonNull(sha256Certificate));
+            setPropertyBytes(
+                    APP_PROPERTY_SHA256_CERTIFICATE, Objects.requireNonNull(sha256Certificate));
         }
 
         /** Sets the display name. */
@@ -217,3 +253,4 @@ public class MobileApplication extends GenericDocument {
         }
     }
 }
+

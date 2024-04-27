@@ -36,32 +36,36 @@ public class FrameworkContactsIndexerConfig implements ContactsIndexerConfig {
     static final String KEY_CONTACTS_DELTA_UPDATE_LIMIT = "contacts_indexer_delta_update_limit";
     public static final String KEY_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES =
             "contacts_index_first_middle_and_last_names";
-    static final String KEY_CONTACTS_KEEP_UPDATING_ON_ERROR =
-            "contacts_keep_updating_on_error";
+    static final String KEY_CONTACTS_KEEP_UPDATING_ON_ERROR = "contacts_keep_updating_on_error";
 
     @Override
     public boolean isContactsIndexerEnabled() {
-        return DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_APPSEARCH,
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_INDEXER_ENABLED,
                 DEFAULT_CONTACTS_INDEXER_ENABLED);
     }
 
     @Override
     public int getContactsFirstRunIndexingLimit() {
-        return DeviceConfig.getInt(DeviceConfig.NAMESPACE_APPSEARCH,
-                KEY_CONTACTS_INSTANT_INDEXING_LIMIT, DEFAULT_CONTACTS_FIRST_RUN_INDEXING_LIMIT);
+        return DeviceConfig.getInt(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_CONTACTS_INSTANT_INDEXING_LIMIT,
+                DEFAULT_CONTACTS_FIRST_RUN_INDEXING_LIMIT);
     }
 
     @Override
     public long getContactsFullUpdateIntervalMillis() {
-        return DeviceConfig.getLong(DeviceConfig.NAMESPACE_APPSEARCH,
+        return DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS,
                 DEFAULT_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS);
     }
 
     @Override
     public int getContactsFullUpdateLimit() {
-        return DeviceConfig.getInt(DeviceConfig.NAMESPACE_APPSEARCH,
+        return DeviceConfig.getInt(
+                DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_FULL_UPDATE_LIMIT,
                 DEFAULT_CONTACTS_FULL_UPDATE_INDEXING_LIMIT);
     }
@@ -71,21 +75,24 @@ public class FrameworkContactsIndexerConfig implements ContactsIndexerConfig {
         // TODO(b/227419499) Based on the metrics, we can tweak this number. Right now it is same
         //  as the instant indexing limit, which is 1,000. From our stats in GMSCore, 95th
         //  percentile for number of contacts on the device is around 2000 contacts.
-        return DeviceConfig.getInt(DeviceConfig.NAMESPACE_APPSEARCH,
+        return DeviceConfig.getInt(
+                DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_DELTA_UPDATE_LIMIT,
                 DEFAULT_CONTACTS_DELTA_UPDATE_INDEXING_LIMIT);
     }
 
     @Override
     public boolean shouldIndexFirstMiddleAndLastNames() {
-        return DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_APPSEARCH,
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES,
                 DEFAULT_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES);
     }
 
     @Override
     public boolean shouldKeepUpdatingOnError() {
-        return DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_APPSEARCH,
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_KEEP_UPDATING_ON_ERROR,
                 DEFAULT_CONTACTS_KEEP_UPDATING_ON_ERROR);
     }

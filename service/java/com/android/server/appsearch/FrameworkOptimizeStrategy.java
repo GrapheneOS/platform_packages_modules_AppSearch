@@ -34,6 +34,7 @@ import java.util.Objects;
 public class FrameworkOptimizeStrategy implements OptimizeStrategy {
     private static final String TAG = "AppSearchOptimize";
     private final FrameworkAppSearchConfig mAppSearchConfig;
+
     FrameworkOptimizeStrategy(@NonNull FrameworkAppSearchConfig config) {
         mAppSearchConfig = Objects.requireNonNull(config);
     }
@@ -42,21 +43,25 @@ public class FrameworkOptimizeStrategy implements OptimizeStrategy {
     public boolean shouldOptimize(@NonNull GetOptimizeInfoResultProto optimizeInfo) {
         boolean wantsOptimize =
                 optimizeInfo.getOptimizableDocs()
-                        >= mAppSearchConfig.getCachedDocCountOptimizeThreshold()
+                                >= mAppSearchConfig.getCachedDocCountOptimizeThreshold()
                         || optimizeInfo.getEstimatedOptimizableBytes()
-                        >= mAppSearchConfig.getCachedBytesOptimizeThreshold()
+                                >= mAppSearchConfig.getCachedBytesOptimizeThreshold()
                         || optimizeInfo.getTimeSinceLastOptimizeMs()
-                        >= mAppSearchConfig.getCachedTimeOptimizeThresholdMs();
-        if (wantsOptimize &&
-                optimizeInfo.getTimeSinceLastOptimizeMs()
+                                >= mAppSearchConfig.getCachedTimeOptimizeThresholdMs();
+        if (wantsOptimize
+                && optimizeInfo.getTimeSinceLastOptimizeMs()
                         < mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()) {
             // TODO(b/271890504): Produce a log message for statsd when we skip a potential
             //  compaction because the time since the last compaction has not reached
             //  the minimum threshold.
-            Log.i(TAG, "Skipping optimization because time since last optimize ["
-                    + optimizeInfo.getTimeSinceLastOptimizeMs()
-                    + " ms] is lesser than the threshold for minimum time between optimizations ["
-                    + mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() + " ms]");
+            Log.i(
+                    TAG,
+                    "Skipping optimization because time since last optimize ["
+                            + optimizeInfo.getTimeSinceLastOptimizeMs()
+                            + " ms] is lesser than the threshold for minimum time between"
+                            + " optimizations ["
+                            + mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()
+                            + " ms]");
             return false;
         }
         return wantsOptimize;

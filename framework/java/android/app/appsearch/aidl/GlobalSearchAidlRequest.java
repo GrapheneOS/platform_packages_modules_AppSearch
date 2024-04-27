@@ -30,6 +30,7 @@ import java.util.Objects;
 /**
  * Encapsulates a request to make a binder call to search over all permitted databases in the
  * AppSearch index.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "GlobalSearchAidlRequestCreator")
@@ -41,17 +42,22 @@ public class GlobalSearchAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getSearchExpression")
     private final String mSearchExpression;
+
     @NonNull
     @Field(id = 3, getter = "getSearchSpec")
     private final SearchSpec mSearchSpec;
+
     @NonNull
     @Field(id = 4, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 5, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+
     @Field(id = 6, getter = "isForEnterprise")
     private final boolean mIsForEnterprise;
 

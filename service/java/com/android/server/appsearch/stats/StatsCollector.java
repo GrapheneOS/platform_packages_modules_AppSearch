@@ -61,8 +61,7 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
      * existing instance will be returned.
      */
     @NonNull
-    public static StatsCollector getInstance(@NonNull Context context,
-            @NonNull Executor executor) {
+    public static StatsCollector getInstance(@NonNull Context context, @NonNull Executor executor) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(executor);
         if (sStatsCollector == null) {
@@ -78,7 +77,7 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
     private StatsCollector(@NonNull Context context, @NonNull Executor executor) {
         mStatsManager = context.getSystemService(StatsManager.class);
         if (mStatsManager != null) {
-            registerAtom(AppSearchStatsLog.APP_SEARCH_STORAGE_INFO, /*policy=*/ null, executor);
+            registerAtom(AppSearchStatsLog.APP_SEARCH_STORAGE_INFO, /* policy= */ null, executor);
             if (LogUtil.DEBUG) {
                 Log.d(TAG, "atoms registered");
             }
@@ -91,8 +90,8 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
      * {@inheritDoc}
      *
      * @return {@link StatsManager#PULL_SUCCESS} with list of atoms (potentially empty) if pull
-     * succeeded, {@link StatsManager#PULL_SKIP} if pull was too frequent or atom ID is
-     * unexpected.
+     *     succeeded, {@link StatsManager#PULL_SKIP} if pull was too frequent or atom ID is
+     *     unexpected.
      */
     @Override
     public int onPullAtom(int atomTag, @NonNull List<StatsEvent> data) {
@@ -113,15 +112,13 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
         for (int i = 0; i < userHandles.size(); i++) {
             UserHandle userHandle = userHandles.get(i);
             try {
-                AppSearchUserInstance userInstance = userInstanceManager.getUserInstance(
-                        userHandle);
+                AppSearchUserInstance userInstance =
+                        userInstanceManager.getUserInstance(userHandle);
                 StorageInfoProto storageInfoProto =
                         userInstance.getAppSearchImpl().getRawStorageInfoProto();
                 data.add(buildStatsEvent(userHandle.getIdentifier(), storageInfoProto));
             } catch (AppSearchException | RuntimeException e) {
-                Log.e(TAG,
-                        "Failed to pull the storage info for user " + userHandle.toString(),
-                        e);
+                Log.e(TAG, "Failed to pull the storage info for user " + userHandle.toString(), e);
                 ExceptionUtil.handleException(e);
             }
         }
@@ -137,18 +134,20 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
     /**
      * Registers and configures the callback for the pulled atom.
      *
-     * @param atomId   The id of the atom
-     * @param policy   Optional metadata specifying the timeout, cool down time etc. statsD would
-     *                 use default values if it is null
+     * @param atomId The id of the atom
+     * @param policy Optional metadata specifying the timeout, cool down time etc. statsD would use
+     *     default values if it is null
      * @param executor The executor in which to run the callback
      */
-    private void registerAtom(int atomId, @Nullable StatsManager.PullAtomMetadata policy,
+    private void registerAtom(
+            int atomId,
+            @Nullable StatsManager.PullAtomMetadata policy,
             @NonNull Executor executor) {
-        mStatsManager.setPullAtomCallback(atomId, policy, executor, /*callback=*/this);
+        mStatsManager.setPullAtomCallback(atomId, policy, executor, /* callback= */ this);
     }
 
-    private static StatsEvent buildStatsEvent(@UserIdInt int userId,
-            @NonNull StorageInfoProto storageInfoProto) {
+    private static StatsEvent buildStatsEvent(
+            @UserIdInt int userId, @NonNull StorageInfoProto storageInfoProto) {
         return AppSearchStatsLog.buildStatsEvent(
                 AppSearchStatsLog.APP_SEARCH_STORAGE_INFO,
                 userId,
@@ -158,8 +157,7 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
                 getIndexStorageInfoBytes(storageInfoProto.getIndexStorageInfo()));
     }
 
-    private static byte[] getDocumentStorageInfoBytes(
-            @NonNull DocumentStorageInfoProto proto) {
+    private static byte[] getDocumentStorageInfoBytes(@NonNull DocumentStorageInfoProto proto) {
         // Make sure we only log the fields defined in the atom in case new fields are added in
         // IcingLib
         DocumentStorageInfoProto.Builder builder = DocumentStorageInfoProto.newBuilder();
@@ -191,8 +189,7 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
         return builder.build().toByteArray();
     }
 
-    private static byte[] getIndexStorageInfoBytes(
-            @NonNull IndexStorageInfoProto proto) {
+    private static byte[] getIndexStorageInfoBytes(@NonNull IndexStorageInfoProto proto) {
         // Make sure we only log the fields defined in the atom in case new fields are added in
         // IcingLib
         IndexStorageInfoProto.Builder builder = IndexStorageInfoProto.newBuilder();

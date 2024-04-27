@@ -22,8 +22,8 @@ import android.content.pm.PackageManager;
 import android.os.Process;
 
 /**
- * Utilities for interacting with {@link android.content.pm.PackageManager},
- * {@link android.os.UserHandle}, and other parts of dealing with apps and binder.
+ * Utilities for interacting with {@link android.content.pm.PackageManager}, {@link
+ * android.os.UserHandle}, and other parts of dealing with apps and binder.
  *
  * @hide
  */
@@ -31,12 +31,12 @@ public class PackageUtil {
     private PackageUtil() {}
 
     /**
-     * Finds the UID of the {@code packageName} in the given {@code context}. Returns
-     * {@link Process#INVALID_UID} if unable to find the UID.
+     * Finds the UID of the {@code packageName} in the given {@code context}. Returns {@link
+     * Process#INVALID_UID} if unable to find the UID.
      */
     public static int getPackageUid(@NonNull Context context, @NonNull String packageName) {
         try {
-            return context.getPackageManager().getPackageUid(packageName, /*flags=*/ 0);
+            return context.getPackageManager().getPackageUid(packageName, /* flags= */ 0);
         } catch (PackageManager.NameNotFoundException e) {
             return Process.INVALID_UID;
         }

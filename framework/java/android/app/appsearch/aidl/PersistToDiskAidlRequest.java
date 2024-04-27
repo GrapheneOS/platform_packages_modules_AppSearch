@@ -18,7 +18,6 @@ package android.app.appsearch.aidl;
 
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
-import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
@@ -29,6 +28,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to persist all update/delete requests to the disk.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "PersistToDiskAidlRequestCreator")
@@ -40,9 +40,11 @@ public class PersistToDiskAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @ElapsedRealtimeLong
     @Field(id = 3, getter = "getBinderCallStartTimeMillis")
     private final long mBinderCallStartTimeMillis;

@@ -30,14 +30,16 @@ import java.util.Objects;
 
 /**
  * Contacts indexer settings backed by a PersistableBundle.
- * <p>
- * Holds settings such as:
+ *
+ * <p>Holds settings such as:
+ *
  * <ul>
- * <li>the last time a full update was performed
- * <li>the last time a delta update was performed
- * <li>the time of the last CP2 contact update
- * <li>the time of the last CP2 contact deletion
+ *   <li>the last time a full update was performed
+ *   <li>the last time a delta update was performed
+ *   <li>the time of the last CP2 contact update
+ *   <li>the time of the last CP2 contact deletion
  * </ul>
+ *
  * <p>This class is NOT thread safe (similar to {@link PersistableBundle} which it wraps).
  *
  * @hide
@@ -73,58 +75,42 @@ public class ContactsIndexerSettings {
         writeBundle(mFile, mBundle);
     }
 
-    /**
-     * Returns the timestamp of when the last full update occurred in milliseconds.
-     */
+    /** Returns the timestamp of when the last full update occurred in milliseconds. */
     public long getLastFullUpdateTimestampMillis() {
         return mBundle.getLong(LAST_FULL_UPDATE_TIMESTAMP_KEY);
     }
 
-    /**
-     * Sets the timestamp of when the last full update occurred in milliseconds.
-     */
+    /** Sets the timestamp of when the last full update occurred in milliseconds. */
     public void setLastFullUpdateTimestampMillis(long timestampMillis) {
         mBundle.putLong(LAST_FULL_UPDATE_TIMESTAMP_KEY, timestampMillis);
     }
 
-    /**
-     * Returns the timestamp of when the last delta update occurred in milliseconds.
-     */
+    /** Returns the timestamp of when the last delta update occurred in milliseconds. */
     public long getLastDeltaUpdateTimestampMillis() {
         return mBundle.getLong(LAST_DELTA_UPDATE_TIMESTAMP_KEY);
     }
 
-    /**
-     * Sets the timestamp of when the last delta update occurred in milliseconds.
-     */
+    /** Sets the timestamp of when the last delta update occurred in milliseconds. */
     public void setLastDeltaUpdateTimestampMillis(long timestampMillis) {
         mBundle.putLong(LAST_DELTA_UPDATE_TIMESTAMP_KEY, timestampMillis);
     }
 
-    /**
-     * Returns the timestamp of when the last contact in CP2 was updated in milliseconds.
-     */
+    /** Returns the timestamp of when the last contact in CP2 was updated in milliseconds. */
     public long getLastContactUpdateTimestampMillis() {
         return mBundle.getLong(LAST_CONTACT_UPDATE_TIMESTAMP_KEY);
     }
 
-    /**
-     * Sets the timestamp of when the last contact in CP2 was updated in milliseconds.
-     */
+    /** Sets the timestamp of when the last contact in CP2 was updated in milliseconds. */
     public void setLastContactUpdateTimestampMillis(long timestampMillis) {
         mBundle.putLong(LAST_CONTACT_UPDATE_TIMESTAMP_KEY, timestampMillis);
     }
 
-    /**
-     * Returns the timestamp of when the last contact in CP2 was deleted in milliseconds.
-     */
+    /** Returns the timestamp of when the last contact in CP2 was deleted in milliseconds. */
     public long getLastContactDeleteTimestampMillis() {
         return mBundle.getLong(LAST_CONTACT_DELETE_TIMESTAMP_KEY);
     }
 
-    /**
-     * Sets the timestamp of when the last contact in CP2 was deleted in milliseconds.
-     */
+    /** Sets the timestamp of when the last contact in CP2 was deleted in milliseconds. */
     public void setLastContactDeleteTimestampMillis(long timestampMillis) {
         mBundle.putLong(LAST_CONTACT_DELETE_TIMESTAMP_KEY, timestampMillis);
     }

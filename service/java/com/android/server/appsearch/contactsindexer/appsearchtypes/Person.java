@@ -52,13 +52,12 @@ public class Person extends GenericDocument {
      */
     @IntDef(
             value = {
-                    TYPE_UNKNOWN,
-                    TYPE_NICKNAME,
-                    TYPE_PHONETIC_NAME,
+                TYPE_UNKNOWN,
+                TYPE_NICKNAME,
+                TYPE_PHONETIC_NAME,
             })
     @Retention(RetentionPolicy.SOURCE)
-    public @interface NameType {
-    }
+    public @interface NameType {}
 
     public static final int TYPE_UNKNOWN = 0;
     public static final int TYPE_NICKNAME = 1;
@@ -82,132 +81,168 @@ public class Person extends GenericDocument {
     public static final String PERSON_PROPERTY_FINGERPRINT = "fingerprint";
 
     private static AppSearchSchema createSchema(boolean indexFirstMiddleAndLastNames) {
-        AppSearchSchema.Builder builder = new AppSearchSchema.Builder(SCHEMA_TYPE)
-                // full display name
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(PERSON_PROPERTY_NAME)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                        .setIndexingType(
-                                AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                        .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                        .build());
+        AppSearchSchema.Builder builder =
+                new AppSearchSchema.Builder(SCHEMA_TYPE)
+                        // full display name
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                PERSON_PROPERTY_NAME)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build());
 
         if (indexFirstMiddleAndLastNames) {
             builder
                     // given name from CP2
-                    .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                            PERSON_PROPERTY_GIVEN_NAME)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .setIndexingType(AppSearchSchema.StringPropertyConfig
-                                    .INDEXING_TYPE_PREFIXES)
-                            .setTokenizerType(AppSearchSchema.StringPropertyConfig
-                                    .TOKENIZER_TYPE_PLAIN)
-                            .build())
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_GIVEN_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build())
                     // middle name from CP2
-                    .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                            PERSON_PROPERTY_MIDDLE_NAME)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .setIndexingType(AppSearchSchema.StringPropertyConfig
-                                    .INDEXING_TYPE_PREFIXES)
-                            .setTokenizerType(AppSearchSchema.StringPropertyConfig
-                                    .TOKENIZER_TYPE_PLAIN)
-                            .build())
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_MIDDLE_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build())
                     // family name from CP2
-                    .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                            PERSON_PROPERTY_FAMILY_NAME)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .setIndexingType(AppSearchSchema.StringPropertyConfig
-                                    .INDEXING_TYPE_PREFIXES)
-                            .setTokenizerType(AppSearchSchema.StringPropertyConfig
-                                    .TOKENIZER_TYPE_PLAIN)
-                            .build());
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_FAMILY_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_PLAIN)
+                                    .build());
         } else {
             builder
                     // given name from CP2
-                    .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                            PERSON_PROPERTY_GIVEN_NAME)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .build())
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_GIVEN_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build())
                     // middle name from CP2
-                    .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                            PERSON_PROPERTY_MIDDLE_NAME)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .build())
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_MIDDLE_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build())
                     // family name from CP2
-                    .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                            PERSON_PROPERTY_FAMILY_NAME)
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .build());
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_FAMILY_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build());
         }
 
         builder
                 // lookup uri from CP2
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                        PERSON_PROPERTY_EXTERNAL_URI)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                        PERSON_PROPERTY_EXTERNAL_URI)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
                 // corresponding name types for the names stored in additional names below.
-                .addProperty(new AppSearchSchema.LongPropertyConfig.Builder(
-                        PERSON_PROPERTY_ADDITIONAL_NAME_TYPES)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.LongPropertyConfig.Builder(
+                                        PERSON_PROPERTY_ADDITIONAL_NAME_TYPES)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .build())
                 // additional names e.g. nick names and phonetic names.
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                        PERSON_PROPERTY_ADDITIONAL_NAMES)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                        .setIndexingType(
-                                AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                        .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                        PERSON_PROPERTY_ADDITIONAL_NAMES)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .setIndexingType(
+                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .setTokenizerType(
+                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                .build())
                 // isImportant. It could be used to store isStarred from CP2.
-                .addProperty(new AppSearchSchema.BooleanPropertyConfig.Builder(
-                        PERSON_PROPERTY_IS_IMPORTANT)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.BooleanPropertyConfig.Builder(
+                                        PERSON_PROPERTY_IS_IMPORTANT)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
                 // isBot
-                .addProperty(new AppSearchSchema.BooleanPropertyConfig.Builder(
-                        PERSON_PROPERTY_IS_BOT)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.BooleanPropertyConfig.Builder(PERSON_PROPERTY_IS_BOT)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
                 // imageUri
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                        PERSON_PROPERTY_IMAGE_URI)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(PERSON_PROPERTY_IMAGE_URI)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
                 // ContactPoint
-                .addProperty(new AppSearchSchema.DocumentPropertyConfig.Builder(
-                        PERSON_PROPERTY_CONTACT_POINTS,
-                        ContactPoint.SCHEMA.getSchemaType())
-                        .setShouldIndexNestedProperties(true)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                        PERSON_PROPERTY_CONTACT_POINTS,
+                                        ContactPoint.SCHEMA.getSchemaType())
+                                .setShouldIndexNestedProperties(true)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .build())
                 // Affiliations
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                        PERSON_PROPERTY_AFFILIATIONS)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                        .setIndexingType(
-                                AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                        .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                        PERSON_PROPERTY_AFFILIATIONS)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .setIndexingType(
+                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .setTokenizerType(
+                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                .build())
                 // Relations
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                        PERSON_PROPERTY_RELATIONS)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(PERSON_PROPERTY_RELATIONS)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .build())
                 // Notes
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(PERSON_PROPERTY_NOTES)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                        .setIndexingType(
-                                AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                        .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                        .build())
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(PERSON_PROPERTY_NOTES)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .setIndexingType(
+                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .setTokenizerType(
+                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                .build())
                 //
                 // Following fields are internal to ContactsIndexer.
                 //
                 // Fingerprint for detecting significant changes
-                .addProperty(new AppSearchSchema.StringPropertyConfig.Builder(
-                        PERSON_PROPERTY_FINGERPRINT)
-                        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                        .build());
+                .addProperty(
+                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                        PERSON_PROPERTY_FINGERPRINT)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build());
         return builder.build();
     }
 
@@ -310,9 +345,7 @@ public class Person extends GenericDocument {
         return contactPoints;
     }
 
-    /**
-     * Gets a byte array for the fingerprint.
-     */
+    /** Gets a byte array for the fingerprint. */
     @NonNull
     public byte[] getFingerprint() {
         return getPropertyBytes(PERSON_PROPERTY_FINGERPRINT);
@@ -320,8 +353,7 @@ public class Person extends GenericDocument {
 
     /** Builder for {@link Person}. */
     public static final class Builder extends GenericDocument.Builder<Builder> {
-        @NameType
-        private final List<Long> mAdditionalNameTypes = new ArrayList<>();
+        @NameType private final List<Long> mAdditionalNameTypes = new ArrayList<>();
         private final List<String> mAdditionalNames = new ArrayList<>();
         private final List<String> mAffiliations = new ArrayList<>();
         private final List<String> mRelations = new ArrayList<>();
@@ -332,8 +364,8 @@ public class Person extends GenericDocument {
          * Creates a new {@link ContactPoint.Builder}
          *
          * @param namespace The namespace of the Email.
-         * @param id        The ID of the Email.
-         * @param name      The name of the {@link Person}.
+         * @param id The ID of the Email.
+         * @param name The name of the {@link Person}.
          */
         public Builder(@NonNull String namespace, @NonNull String id, @NonNull String name) {
             super(namespace, id, SCHEMA_TYPE);
@@ -367,15 +399,15 @@ public class Person extends GenericDocument {
 
         @NonNull
         public Builder setExternalUri(@NonNull Uri externalUri) {
-            setPropertyString(PERSON_PROPERTY_EXTERNAL_URI,
-                    Objects.requireNonNull(externalUri).toString());
+            setPropertyString(
+                    PERSON_PROPERTY_EXTERNAL_URI, Objects.requireNonNull(externalUri).toString());
             return this;
         }
 
         @NonNull
         public Builder setImageUri(@NonNull Uri imageUri) {
-            setPropertyString(PERSON_PROPERTY_IMAGE_URI,
-                    Objects.requireNonNull(imageUri).toString());
+            setPropertyString(
+                    PERSON_PROPERTY_IMAGE_URI, Objects.requireNonNull(imageUri).toString());
             return this;
         }
 
@@ -433,8 +465,7 @@ public class Person extends GenericDocument {
          * Sets the fingerprint for this {@link Person}
          *
          * @param fingerprint byte array for the fingerprint. The size depends on the algorithm
-         *                    being used. Right now we are using md5 and generating a 16-byte
-         *                    fingerprint.
+         *     being used. Right now we are using md5 and generating a 16-byte fingerprint.
          */
         @NonNull
         public Builder setFingerprint(@NonNull byte[] fingerprint) {
@@ -444,23 +475,19 @@ public class Person extends GenericDocument {
 
         @NonNull
         public Person build() {
-            Preconditions.checkState(
-                    mAdditionalNameTypes.size() == mAdditionalNames.size());
+            Preconditions.checkState(mAdditionalNameTypes.size() == mAdditionalNames.size());
             long[] primitiveNameTypes = new long[mAdditionalNameTypes.size()];
             for (int i = 0; i < mAdditionalNameTypes.size(); i++) {
                 primitiveNameTypes[i] = mAdditionalNameTypes.get(i).longValue();
             }
             setPropertyLong(PERSON_PROPERTY_ADDITIONAL_NAME_TYPES, primitiveNameTypes);
-            setPropertyString(PERSON_PROPERTY_ADDITIONAL_NAMES,
-                    mAdditionalNames.toArray(new String[0]));
-            setPropertyString(PERSON_PROPERTY_AFFILIATIONS,
-                    mAffiliations.toArray(new String[0]));
-            setPropertyString(PERSON_PROPERTY_RELATIONS,
-                    mRelations.toArray(new String[0]));
-            setPropertyString(PERSON_PROPERTY_NOTES,
-                    mNotes.toArray(new String[0]));
-            setPropertyDocument(PERSON_PROPERTY_CONTACT_POINTS,
-                    mContactPoints.toArray(new ContactPoint[0]));
+            setPropertyString(
+                    PERSON_PROPERTY_ADDITIONAL_NAMES, mAdditionalNames.toArray(new String[0]));
+            setPropertyString(PERSON_PROPERTY_AFFILIATIONS, mAffiliations.toArray(new String[0]));
+            setPropertyString(PERSON_PROPERTY_RELATIONS, mRelations.toArray(new String[0]));
+            setPropertyString(PERSON_PROPERTY_NOTES, mNotes.toArray(new String[0]));
+            setPropertyDocument(
+                    PERSON_PROPERTY_CONTACT_POINTS, mContactPoints.toArray(new ContactPoint[0]));
             // TODO(b/203605504) calculate score here.
             return new Person(super.build());
         }

@@ -23,8 +23,8 @@ import android.app.appsearch.exceptions.AppSearchException;
 import java.util.List;
 
 /**
- * A synchronous wrapper for {@link SearchResults}. This allows us to call getNextPage in a loop
- * if needed.
+ * A synchronous wrapper for {@link SearchResults}. This allows us to call getNextPage in a loop if
+ * needed.
  *
  * @see SearchResults
  */

@@ -16,43 +16,37 @@
 package android.app.appsearch.functions;
 
 import android.annotation.NonNull;
-import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.os.UserHandle;
 
-import java.util.concurrent.Executor;
-
 /**
- * Defines a contract for establishing temporary connections to services and executing
- * operations within a specified timeout. Implementations of this interface provide
- * mechanisms to ensure that services are properly unbound after the operation completes
- * or a timeout occurs.
+ * Defines a contract for establishing temporary connections to services and executing operations
+ * within a specified timeout. Implementations of this interface provide mechanisms to ensure that
+ * services are properly unbound after the operation completes or a timeout occurs.
  *
  * @hide
  */
 public interface ServiceCallHelper<T> {
 
     /**
-     * Initiates service binding and executes a provided method when the service connects.
-     * Unbinds the service after execution or upon timeout. Returns the result of the
-     * bindService API.
+     * Initiates service binding and executes a provided method when the service connects. Unbinds
+     * the service after execution or upon timeout. Returns the result of the bindService API.
      *
      * <p>When the service connection was made successfully, it's the caller responsibility to
-     * report the usage is completed and can be unbound by calling
-     * {@link ServiceUsageCompleteListener#onCompleted()}.
+     * report the usage is completed and can be unbound by calling {@link
+     * ServiceUsageCompleteListener#onCompleted()}.
      *
-     * <p>This method includes a timeout mechanism to prevent the system from being stuck in a
-     * state where a service is bound indefinitely (for example, if the binder method never
-     * returns). This helps ensure that the calling app does not remain alive unnecessarily.
+     * <p>This method includes a timeout mechanism to prevent the system from being stuck in a state
+     * where a service is bound indefinitely (for example, if the binder method never returns). This
+     * helps ensure that the calling app does not remain alive unnecessarily.
      *
-     * @param intent          An Intent object that describes the service that should be bound.
-     * @param bindFlags       Flags used to control the binding process See
-     *                        {@link android.content.Context#bindService}.
+     * @param intent An Intent object that describes the service that should be bound.
+     * @param bindFlags Flags used to control the binding process See {@link
+     *     android.content.Context#bindService}.
      * @param timeoutInMillis The maximum time in milliseconds to wait for the service connection.
-     * @param userHandle      The UserHandle of the user for which the service should be bound.
-     * @param callback        A callback to be invoked for various events. See
-     *                        {@link RunServiceCallCallback}.
+     * @param userHandle The UserHandle of the user for which the service should be bound.
+     * @param callback A callback to be invoked for various events. See {@link
+     *     RunServiceCallCallback}.
      */
     boolean runServiceCall(
             @NonNull Intent intent,
@@ -61,21 +55,19 @@ public interface ServiceCallHelper<T> {
             @NonNull UserHandle userHandle,
             @NonNull RunServiceCallCallback<T> callback);
 
-    /**
-     * An interface for clients to signal that they have finished using a bound service.
-     */
+    /** An interface for clients to signal that they have finished using a bound service. */
     interface ServiceUsageCompleteListener {
         /**
-         * Called when a client has finished using a bound service. This indicates that
-         * the service can be safely unbound.
+         * Called when a client has finished using a bound service. This indicates that the service
+         * can be safely unbound.
          */
         void onCompleted();
     }
 
     interface RunServiceCallCallback<T> {
         /**
-         * Called when the service connection has been established. Uses
-         * {@code serviceUsageCompleteListener} to report finish using the connected service.
+         * Called when the service connection has been established. Uses {@code
+         * serviceUsageCompleteListener} to report finish using the connected service.
          */
         void onServiceConnected(
                 @NonNull T service,

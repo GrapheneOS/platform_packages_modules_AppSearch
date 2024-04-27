@@ -41,11 +41,14 @@ public final class ExecuteAppFunctionAidlRequest extends AbstractSafeParcelable 
     @NonNull
     @Field(id = 1, getter = "getClientRequest")
     private final ExecuteAppFunctionRequest mClientRequest;
+
     @NonNull
     @Field(id = 2, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @Field(id = 3, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 

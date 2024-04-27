@@ -67,8 +67,7 @@ public class SearchResults implements Closeable {
     private final AppSearchAttributionSource mAttributionSource;
 
     // The database name to search over. If null, this will search over all database names.
-    @Nullable
-    private final String mDatabaseName;
+    @Nullable private final String mDatabaseName;
 
     private final String mQueryExpression;
 
@@ -125,13 +124,23 @@ public class SearchResults implements Closeable {
                 if (mDatabaseName == null) {
                     // Global search, there's no one package-database combination to check.
                     mService.globalSearch(
-                            new GlobalSearchAidlRequest(mAttributionSource, mQueryExpression,
-                                    mSearchSpec, mUserHandle, binderCallStartTimeMillis,
-                                    mIsForEnterprise), wrapCallback(executor, callback));
+                            new GlobalSearchAidlRequest(
+                                    mAttributionSource,
+                                    mQueryExpression,
+                                    mSearchSpec,
+                                    mUserHandle,
+                                    binderCallStartTimeMillis,
+                                    mIsForEnterprise),
+                            wrapCallback(executor, callback));
                 } else {
                     // Normal local search, pass in specified database.
-                    mService.search(new SearchAidlRequest(mAttributionSource, mDatabaseName,
-                                    mQueryExpression, mSearchSpec, mUserHandle,
+                    mService.search(
+                            new SearchAidlRequest(
+                                    mAttributionSource,
+                                    mDatabaseName,
+                                    mQueryExpression,
+                                    mSearchSpec,
+                                    mUserHandle,
                                     binderCallStartTimeMillis),
                             wrapCallback(executor, callback));
                 }
@@ -143,9 +152,16 @@ public class SearchResults implements Closeable {
                         && !mSearchSpec.getJoinSpec().getChildPropertyExpression().isEmpty()) {
                     joinType = JOINABLE_VALUE_TYPE_QUALIFIED_ID;
                 }
-                mService.getNextPage(new GetNextPageAidlRequest(mAttributionSource, mDatabaseName,
-                        mNextPageToken, joinType, mUserHandle, binderCallStartTimeMillis,
-                        mIsForEnterprise), wrapCallback(executor, callback));
+                mService.getNextPage(
+                        new GetNextPageAidlRequest(
+                                mAttributionSource,
+                                mDatabaseName,
+                                mNextPageToken,
+                                joinType,
+                                mUserHandle,
+                                binderCallStartTimeMillis,
+                                mIsForEnterprise),
+                        wrapCallback(executor, callback));
             }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -156,10 +172,13 @@ public class SearchResults implements Closeable {
     public void close() {
         if (!mIsClosed) {
             try {
-                mService.invalidateNextPageToken(new InvalidateNextPageTokenAidlRequest(
-                        mAttributionSource, mNextPageToken, mUserHandle,
-                        /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
-                        mIsForEnterprise));
+                mService.invalidateNextPageToken(
+                        new InvalidateNextPageTokenAidlRequest(
+                                mAttributionSource,
+                                mNextPageToken,
+                                mUserHandle,
+                                /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
+                                mIsForEnterprise));
                 mIsClosed = true;
             } catch (RemoteException e) {
                 Log.e(TAG, "Unable to close the SearchResults", e);
@@ -186,11 +205,10 @@ public class SearchResults implements Closeable {
             @NonNull Consumer<AppSearchResult<List<SearchResult>>> callback) {
         if (searchResultPageResult.isSuccess()) {
             try {
-                SearchResultPage searchResultPage = Objects.requireNonNull(
-                        searchResultPageResult.getResultValue());
+                SearchResultPage searchResultPage =
+                        Objects.requireNonNull(searchResultPageResult.getResultValue());
                 mNextPageToken = searchResultPage.getNextPageToken();
-                callback.accept(AppSearchResult.newSuccessfulResult(
-                        searchResultPage.getResults()));
+                callback.accept(AppSearchResult.newSuccessfulResult(searchResultPage.getResults()));
             } catch (RuntimeException e) {
                 callback.accept(AppSearchResult.throwableToFailedResult(e));
             }

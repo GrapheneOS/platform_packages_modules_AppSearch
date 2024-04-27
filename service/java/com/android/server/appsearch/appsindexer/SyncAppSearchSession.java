@@ -54,7 +54,7 @@ public interface SyncAppSearchSession {
     /**
      * Returns a synchronous version of {@link SearchResults}.
      *
-     * <p> While the underlying method is not asynchronous, this method allows for convenience while
+     * <p>While the underlying method is not asynchronous, this method allows for convenience while
      * synchronously searching AppSearch.
      *
      * @see AppSearchSession#search

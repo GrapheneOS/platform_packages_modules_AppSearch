@@ -28,6 +28,7 @@ import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSessionShim;
 import android.app.appsearch.GlobalSearchSessionShim;
+import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResultsShim;
 import android.app.appsearch.SearchSpec;
@@ -189,27 +190,23 @@ class TestUtils {
         when(pm.queryIntentActivities(any(), eq(0))).then(i -> activities);
     }
 
-    /**
-     * Removes multiple app documents.
-     *
-     * @param numFakePackages The limit of app documents to remove. All app documents corresponding
-     *                        from variant 0 to variant numFakePackages will be removed.
-     */
+    /** Wipes out the apps database. */
     public static void removeFakePackageDocuments(
-            int numFakePackages, @NonNull Context context, @NonNull ExecutorService executorService)
+            @NonNull Context context, @NonNull ExecutorService executorService)
             throws ExecutionException, InterruptedException {
         Objects.requireNonNull(context);
         Objects.requireNonNull(executorService);
-        for (int i = 0; i < numFakePackages; i++) {
-            // Each package is put into its own database. This allows us to keep the same schema
-            // type while having different visibility.
-            AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(context,
-                    new AppSearchManager.SearchContext.Builder("apps-" +  FAKE_PACKAGE_PREFIX + i)
-                            .build(), executorService).get();
 
-            SetSchemaResponse unused = db.setSchemaAsync(
-                    new SetSchemaRequest.Builder().setForceOverride(true).build()).get();
-        }
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(
+                                context,
+                                new AppSearchManager.SearchContext.Builder("apps-db").build(),
+                                executorService)
+                        .get();
+
+        SetSchemaResponse unused =
+                db.setSchemaAsync(new SetSchemaRequest.Builder().setForceOverride(true).build())
+                        .get();
     }
 
     /**
@@ -224,15 +221,18 @@ class TestUtils {
             throws ExecutionException, InterruptedException {
         GlobalSearchSessionShim globalSession =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync().get();
-        SearchSpec allDocumentIdsSpec = new SearchSpec.Builder()
-                .addFilterNamespaces("")
-                // We don't want to search over real indexed apps here, just the ones in the test
-                .addFilterPackageNames("com.android.appsearch.appsindexertests")
-                .addFilterSchemas(MobileApplication.SCHEMA_TYPE)
-                .addProjection(MobileApplication.SCHEMA_TYPE, Collections.singletonList(
-                        MobileApplication.APP_PROPERTY_UPDATED_TIMESTAMP))
-                .setResultCountPerPage(pageSize)
-                .build();
+        SearchSpec allDocumentIdsSpec =
+                new SearchSpec.Builder()
+                        .addFilterNamespaces(MobileApplication.APPS_NAMESPACE)
+                        // We don't want to search over real indexed apps here, just the ones in the
+                        // test
+                        .addFilterPackageNames("com.android.appsearch.appsindexertests")
+                        .addProjection(
+                                SearchSpec.SCHEMA_TYPE_WILDCARD,
+                                Collections.singletonList(
+                                        MobileApplication.APP_PROPERTY_UPDATED_TIMESTAMP))
+                        .setResultCountPerPage(pageSize)
+                        .build();
         // Don't want to get this confused with real indexed apps.
         SearchResultsShim results =
                 globalSession.search(/*queryExpression=*/ "com.fake.package", allDocumentIdsSpec);
@@ -240,21 +240,21 @@ class TestUtils {
     }
 
     /**
-     * Creates an {@link AppSearchSessionShim} for the same database the apps indexer interacts
-     * with for mock packages. This is useful for verifying indexed documents and directly adding
+     * Creates an {@link AppSearchSessionShim} for the same database the apps indexer interacts with
+     * for mock packages. This is useful for verifying indexed documents and directly adding
      * documents.
-     *
-     * @param variant specifies which mock package to create an AppSearchSession for.
      */
     @NonNull
-    public static AppSearchSessionShim createFakeAppIndexerSession(int variant,
+    public static AppSearchSessionShim createFakeAppIndexerSession(
             @NonNull Context context, @NonNull ExecutorService executorService)
             throws ExecutionException, InterruptedException {
         Objects.requireNonNull(context);
         Objects.requireNonNull(executorService);
-        return AppSearchSessionShimImpl.createSearchSessionAsync(context,
-                new AppSearchManager.SearchContext.Builder("apps-" +  FAKE_PACKAGE_PREFIX + variant)
-                        .build(), executorService).get();
+        return AppSearchSessionShimImpl.createSearchSessionAsync(
+                        context,
+                        new AppSearchManager.SearchContext.Builder("apps-db").build(),
+                        executorService)
+                .get();
     }
 
     /**
@@ -265,13 +265,14 @@ class TestUtils {
      */
     @NonNull
     public static MobileApplication createFakeMobileApplication(int variant) {
-        return new MobileApplication.Builder(FAKE_PACKAGE_PREFIX + variant,
-                FAKE_SIGNATURE.toByteArray())
+        return new MobileApplication.Builder(
+                        FAKE_PACKAGE_PREFIX + variant, FAKE_SIGNATURE.toByteArray())
                 .setDisplayName("Fake Application Name")
                 .setIconUri("https://cs.android.com")
                 .setClassName(".class")
-                .setUpdatedTimestampMs((long) variant)
-                .setAlternateNames(new String[]{"Mock"}).build();
+                .setUpdatedTimestampMs(variant)
+                .setAlternateNames(new String[] {"Mock"})
+                .build();
     }
 
     /**
@@ -287,4 +288,26 @@ class TestUtils {
         }
         return appList;
     }
+
+    /**
+     * Returns a package identifier representing some mock package.
+     *
+     * @param variant Provides variety in the package name in the same manner as {@link
+     *     #createFakePackageInfo} and {@link #createFakeMobileApplication}
+     */
+    @NonNull
+    public static PackageIdentifier createMockPackageIdentifier(int variant) {
+        return new PackageIdentifier(FAKE_PACKAGE_PREFIX + variant, FAKE_SIGNATURE.toByteArray());
+    }
+
+    /** Returns multiple package identifiers for use in testing. */
+    @NonNull
+    public static List<PackageIdentifier> createMockPackageIdentifiers(int numApps) {
+        List<PackageIdentifier> packageIdList = new ArrayList<>();
+        for (int i = 0; i < numApps; i++) {
+            packageIdList.add(createMockPackageIdentifier(i));
+        }
+        return packageIdList;
+    }
 }
+

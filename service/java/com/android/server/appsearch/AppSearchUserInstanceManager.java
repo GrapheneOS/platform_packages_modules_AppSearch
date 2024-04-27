@@ -50,6 +50,7 @@ public final class AppSearchUserInstanceManager {
 
     @GuardedBy("mInstancesLocked")
     private final Map<UserHandle, AppSearchUserInstance> mInstancesLocked = new ArrayMap<>();
+
     @GuardedBy("mStorageInfoLocked")
     private final Map<UserHandle, UserStorageInfo> mStorageInfoLocked = new ArrayMap<>();
 
@@ -133,7 +134,7 @@ public final class AppSearchUserInstanceManager {
      * @param userHandle The multi-user handle of the device user calling AppSearch
      * @return An initialized {@link AppSearchUserInstance} for this user
      * @throws IllegalStateException if {@link AppSearchUserInstance} haven't created for the given
-     *                               user.
+     *     user.
      */
     @NonNull
     public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle) {
@@ -174,15 +175,15 @@ public final class AppSearchUserInstanceManager {
      */
     @NonNull
     public UserStorageInfo getOrCreateUserStorageInfoInstance(
-        @NonNull Context userContext, @NonNull UserHandle userHandle) {
+            @NonNull Context userContext, @NonNull UserHandle userHandle) {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         synchronized (mStorageInfoLocked) {
             UserStorageInfo userStorageInfo = mStorageInfoLocked.get(userHandle);
             if (userStorageInfo == null) {
-                File appSearchDir = AppSearchEnvironmentFactory
-                    .getEnvironmentInstance()
-                    .getAppSearchDir(userContext, userHandle);
+                File appSearchDir =
+                        AppSearchEnvironmentFactory.getEnvironmentInstance()
+                                .getAppSearchDir(userContext, userHandle);
                 userStorageInfo = new UserStorageInfo(appSearchDir);
                 mStorageInfoLocked.put(userHandle, userStorageInfo);
             }
@@ -212,31 +213,31 @@ public final class AppSearchUserInstanceManager {
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
 
         // Initialize the classes that make up AppSearchUserInstance
-        InternalAppSearchLogger logger = AppSearchComponentFactory
-                .createLoggerInstance(userContext, config);
+        InternalAppSearchLogger logger =
+                AppSearchComponentFactory.createLoggerInstance(userContext, config);
 
-        File appSearchDir = AppSearchEnvironmentFactory
-            .getEnvironmentInstance()
-            .getAppSearchDir(userContext, userHandle);
+        File appSearchDir =
+                AppSearchEnvironmentFactory.getEnvironmentInstance()
+                        .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
         Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
-        VisibilityChecker visibilityCheckerImpl = AppSearchComponentFactory
-                .createVisibilityCheckerInstance(userContext);
-        AppSearchImpl appSearchImpl = AppSearchImpl.create(
-                icingDir,
-                config,
-                initStatsBuilder,
-                visibilityCheckerImpl,
-                new FrameworkOptimizeStrategy(config));
+        VisibilityChecker visibilityCheckerImpl =
+                AppSearchComponentFactory.createVisibilityCheckerInstance(userContext);
+        AppSearchImpl appSearchImpl =
+                AppSearchImpl.create(
+                        icingDir,
+                        config,
+                        initStatsBuilder,
+                        visibilityCheckerImpl,
+                        new FrameworkOptimizeStrategy(config));
 
         // Update storage info file
-        UserStorageInfo userStorageInfo = getOrCreateUserStorageInfoInstance(
-            userContext, userHandle);
+        UserStorageInfo userStorageInfo =
+                getOrCreateUserStorageInfoInstance(userContext, userHandle);
         userStorageInfo.updateStorageInfoFile(appSearchImpl);
 
-        initStatsBuilder
-                .setTotalLatencyMillis(
-                        (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis));
+        initStatsBuilder.setTotalLatencyMillis(
+                (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis));
         logger.logStats(initStatsBuilder.build());
 
         return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);

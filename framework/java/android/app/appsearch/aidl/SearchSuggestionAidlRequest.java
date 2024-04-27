@@ -29,6 +29,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to retrieve suggested search strings.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "SearchSuggestionAidlRequestCreator")
@@ -40,18 +41,23 @@ public class SearchSuggestionAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getSuggestionQueryExpression")
     private final String mSuggestionQueryExpression;
+
     @NonNull
     @Field(id = 4, getter = "getSearchSuggestionSpec")
     private final SearchSuggestionSpec mSearchSuggestionSpec;
+
     @NonNull
     @Field(id = 5, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 6, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 

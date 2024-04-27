@@ -45,6 +45,7 @@ public class AppSearchMaintenanceService extends JobService {
 
     private static final Executor EXECUTOR = Executors.newSingleThreadExecutor();
     private static final String EXTRA_USER_ID = "user_id";
+
     /**
      * Generate job ids in the range (MIN_APPSEARCH_MAINTENANCE_JOB_ID,
      * MIN_APPSEARCH_MAINTENANCE_JOB_ID + MAX_USER_ID) to avoid conflicts with other jobs scheduled
@@ -58,8 +59,8 @@ public class AppSearchMaintenanceService extends JobService {
     /**
      * A mapping of userId-to-CancellationSignal. Since we schedule a separate job for each user,
      * this JobService might be executing simultaneously for the various users, so we need to keep
-     * track of the cancellation signal for each user update so we stop the appropriate update
-     * when necessary.
+     * track of the cancellation signal for each user update so we stop the appropriate update when
+     * necessary.
      */
     @GuardedBy("mSignalsLocked")
     private final SparseArray<CancellationSignal> mSignalsLocked = new SparseArray<>();
@@ -69,22 +70,24 @@ public class AppSearchMaintenanceService extends JobService {
      *
      * <p>The job will persists all pending mutation operation to disk.
      */
-    static void scheduleFullyPersistJob(@NonNull Context context, @UserIdInt int userId,
-            long intervalMillis) {
+    static void scheduleFullyPersistJob(
+            @NonNull Context context, @UserIdInt int userId, long intervalMillis) {
         JobScheduler jobScheduler = context.getSystemService(JobScheduler.class);
 
         final PersistableBundle extras = new PersistableBundle();
         extras.putInt(EXTRA_USER_ID, userId);
-        JobInfo jobInfo = new JobInfo.Builder(
-                MIN_APPSEARCH_MAINTENANCE_JOB_ID + userId, // must be unique across uid
-                new ComponentName(context, AppSearchMaintenanceService.class))
-                .setPeriodic(intervalMillis) // run once a day, at most
-                .setExtras(extras)
-                .setPersisted(true) // persist across reboots
-                .setRequiresBatteryNotLow(true)
-                .setRequiresCharging(true)
-                .setRequiresDeviceIdle(true)
-                .build();
+        JobInfo jobInfo =
+                new JobInfo.Builder(
+                                MIN_APPSEARCH_MAINTENANCE_JOB_ID
+                                        + userId, // must be unique across uid
+                                new ComponentName(context, AppSearchMaintenanceService.class))
+                        .setPeriodic(intervalMillis) // run once a day, at most
+                        .setExtras(extras)
+                        .setPersisted(true) // persist across reboots
+                        .setRequiresBatteryNotLow(true)
+                        .setRequiresCharging(true)
+                        .setRequiresDeviceIdle(true)
+                        .build();
         jobScheduler.schedule(jobInfo);
         if (LogUtil.DEBUG) {
             Log.v(TAG, "Scheduling the daily AppSearch full persist job");
@@ -94,7 +97,7 @@ public class AppSearchMaintenanceService extends JobService {
     @Override
     public boolean onStartJob(JobParameters params) {
         try {
-            int userId = params.getExtras().getInt(EXTRA_USER_ID, /*defaultValue=*/ -1);
+            int userId = params.getExtras().getInt(EXTRA_USER_ID, /* defaultValue= */ -1);
             if (userId == -1) {
                 return false;
             }
@@ -123,14 +126,16 @@ public class AppSearchMaintenanceService extends JobService {
     /** Triggers full persist job for the given user directly. */
     @VisibleForTesting
     @CanIgnoreReturnValue
-    protected boolean doFullyPersistJobForUser(Context context, JobParameters params, int userId,
-            CancellationSignal signal) {
+    protected boolean doFullyPersistJobForUser(
+            Context context, JobParameters params, int userId, CancellationSignal signal) {
         try {
-            AppSearchManagerService.LocalService service = LocalManagerRegistry
-                    .getManager(AppSearchManagerService.LocalService.class);
+            AppSearchManagerService.LocalService service =
+                    LocalManagerRegistry.getManager(AppSearchManagerService.LocalService.class);
             if (service == null) {
-                Log.e(TAG, "Background job failed to trigger Full persist because "
-                        + "AppSearchManagerService.LocalService is not available.");
+                Log.e(
+                        TAG,
+                        "Background job failed to trigger Full persist because "
+                                + "AppSearchManagerService.LocalService is not available.");
                 // Cancel unnecessary background full persist job if AppSearch local service is not
                 // registered
                 cancelFullyPersistJobIfScheduled(context, userId);
@@ -139,10 +144,10 @@ public class AppSearchMaintenanceService extends JobService {
             service.doFullyPersistForUser(userId);
         } catch (Throwable t) {
             Log.e(TAG, "Run Daily optimize job failed.", t);
-            jobFinished(params, /*wantsReschedule=*/ true);
+            jobFinished(params, /* wantsReschedule= */ true);
             return false;
         } finally {
-            jobFinished(params, /*wantsReschedule=*/ false);
+            jobFinished(params, /* wantsReschedule= */ false);
             synchronized (mSignalsLocked) {
                 if (signal == mSignalsLocked.get(userId)) {
                     mSignalsLocked.remove(userId);
@@ -160,8 +165,12 @@ public class AppSearchMaintenanceService extends JobService {
                 return false;
             }
             if (LogUtil.DEBUG) {
-                Log.d(TAG, "AppSearch maintenance job is stopped; id=" + params.getJobId()
-                        + ", reason=" + params.getStopReason());
+                Log.d(
+                        TAG,
+                        "AppSearch maintenance job is stopped; id="
+                                + params.getJobId()
+                                + ", reason="
+                                + params.getStopReason());
             }
             synchronized (mSignalsLocked) {
                 final CancellationSignal signal = mSignalsLocked.get(userId);
@@ -185,8 +194,8 @@ public class AppSearchMaintenanceService extends JobService {
      *
      * @param userId The user id for whom the full persist job needs to be cancelled.
      */
-    public static void cancelFullyPersistJobIfScheduled(@NonNull Context context,
-            @UserIdInt int userId) {
+    public static void cancelFullyPersistJobIfScheduled(
+            @NonNull Context context, @UserIdInt int userId) {
         Objects.requireNonNull(context);
         int jobId = MIN_APPSEARCH_MAINTENANCE_JOB_ID + userId;
         JobScheduler jobScheduler = context.getSystemService(JobScheduler.class);

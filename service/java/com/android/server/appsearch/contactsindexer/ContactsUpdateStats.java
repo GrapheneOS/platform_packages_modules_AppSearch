@@ -29,8 +29,8 @@ import java.util.Set;
 /**
  * The class to hold stats for DeltaUpdate or FullUpdate.
  *
- * <p>This will be used to populate
- * {@link AppSearchStatsLog#CONTACTS_INDEXER_UPDATE_STATS_REPORTED}.
+ * <p>This will be used to populate {@link
+ * AppSearchStatsLog#CONTACTS_INDEXER_UPDATE_STATS_REPORTED}.
  *
  * <p>This class is not thread-safe.
  *
@@ -39,33 +39,33 @@ import java.util.Set;
 public class ContactsUpdateStats {
     @IntDef(
             value = {
-                    UNKNOWN_UPDATE_TYPE,
-                    DELTA_UPDATE,
-                    FULL_UPDATE,
+                UNKNOWN_UPDATE_TYPE,
+                DELTA_UPDATE,
+                FULL_UPDATE,
             })
     @Retention(RetentionPolicy.SOURCE)
-    public @interface UpdateType {
-    }
+    public @interface UpdateType {}
 
     public static final int UNKNOWN_UPDATE_TYPE =
             AppSearchStatsLog.CONTACTS_INDEXER_UPDATE_STATS_REPORTED__UPDATE_TYPE__UNKNOWN;
+
     /** Incremental update reacting to CP2 change notifications. */
     public static final int DELTA_UPDATE =
             AppSearchStatsLog.CONTACTS_INDEXER_UPDATE_STATS_REPORTED__UPDATE_TYPE__DELTA;
+
     /** Complete update to bring AppSearch in sync with CP2. */
     public static final int FULL_UPDATE =
             AppSearchStatsLog.CONTACTS_INDEXER_UPDATE_STATS_REPORTED__UPDATE_TYPE__FULL;
 
     @IntDef(
             value = {
-                    ERROR_CODE_CP2_RUNTIME_EXCEPTION,
-                    ERROR_CODE_CP2_NULL_CURSOR,
-                    ERROR_CODE_APP_SEARCH_SYSTEM_ERROR,
-                    ERROR_CODE_CONTACTS_INDEXER_UNKNOWN_ERROR,
+                ERROR_CODE_CP2_RUNTIME_EXCEPTION,
+                ERROR_CODE_CP2_NULL_CURSOR,
+                ERROR_CODE_APP_SEARCH_SYSTEM_ERROR,
+                ERROR_CODE_CONTACTS_INDEXER_UNKNOWN_ERROR,
             })
     @Retention(RetentionPolicy.SOURCE)
-    public @interface ErrorCode {
-    }
+    public @interface ErrorCode {}
 
     // Error code logged from CP2 runtime exceptions
     public static final int ERROR_CODE_CP2_RUNTIME_EXCEPTION = 10000;
@@ -77,8 +77,7 @@ public class ContactsUpdateStats {
     // Error code logged from ContactsIndexer for otherwise uncaught exceptions
     public static final int ERROR_CODE_CONTACTS_INDEXER_UNKNOWN_ERROR = 10200;
 
-    @UpdateType
-    int mUpdateType = UNKNOWN_UPDATE_TYPE;
+    @UpdateType int mUpdateType = UNKNOWN_UPDATE_TYPE;
     // Status for updates.
     // In case of success, we will just have one success status stored.
     // In case of Error,  we store the unique error codes during the update.
@@ -162,23 +161,41 @@ public class ContactsUpdateStats {
 
     @NonNull
     public String toString() {
-        return "UpdateType: " + mUpdateType
-                + ", UpdateStatus: " + mUpdateStatuses.toString()
-                + ", DeleteStatus: " + mDeleteStatuses.toString()
-                + ", UpdateAndDeleteStartTimeMillis: " + mUpdateAndDeleteStartTimeMillis
-                + ", LastFullUpdateStartTimeMillis: " + mLastFullUpdateStartTimeMillis
-                + ", LastDeltaUpdateStartTimeMillis: " + mLastDeltaUpdateStartTimeMillis
-                + ", LastContactUpdatedTimeMillis: " + mLastContactUpdatedTimeMillis
-                + ", LastContactDeletedTimeMillis: " + mLastContactDeletedTimeMillis
-                + ", PreviousLastContactUpdatedTimeMillis: " + mPreviousLastContactUpdatedTimeMillis
-                + ", ContactsUpdateFailedCount: " + mContactsUpdateFailedCount
-                + ", ContactsUpdateSucceededCount: " + mContactsUpdateSucceededCount
-                + ", NewContactsToBeUpdated: " + mNewContactsToBeUpdated
-                + ", ContactsUpdateSkippedCount: " + mContactsUpdateSkippedCount
-                + ", TotalContactsToBeUpdated: " + mTotalContactsToBeUpdated
-                + ", ContactsDeleteFailedCount: " + mContactsDeleteFailedCount
-                + ", ContactsDeleteSucceededCount: " + mContactsDeleteSucceededCount
-                + ", ContactsDeleteNotFoundCount: " + mContactsDeleteNotFoundCount
-                + ", TotalContactsToBeDeleted: " + mTotalContactsToBeDeleted;
+        return "UpdateType: "
+                + mUpdateType
+                + ", UpdateStatus: "
+                + mUpdateStatuses.toString()
+                + ", DeleteStatus: "
+                + mDeleteStatuses.toString()
+                + ", UpdateAndDeleteStartTimeMillis: "
+                + mUpdateAndDeleteStartTimeMillis
+                + ", LastFullUpdateStartTimeMillis: "
+                + mLastFullUpdateStartTimeMillis
+                + ", LastDeltaUpdateStartTimeMillis: "
+                + mLastDeltaUpdateStartTimeMillis
+                + ", LastContactUpdatedTimeMillis: "
+                + mLastContactUpdatedTimeMillis
+                + ", LastContactDeletedTimeMillis: "
+                + mLastContactDeletedTimeMillis
+                + ", PreviousLastContactUpdatedTimeMillis: "
+                + mPreviousLastContactUpdatedTimeMillis
+                + ", ContactsUpdateFailedCount: "
+                + mContactsUpdateFailedCount
+                + ", ContactsUpdateSucceededCount: "
+                + mContactsUpdateSucceededCount
+                + ", NewContactsToBeUpdated: "
+                + mNewContactsToBeUpdated
+                + ", ContactsUpdateSkippedCount: "
+                + mContactsUpdateSkippedCount
+                + ", TotalContactsToBeUpdated: "
+                + mTotalContactsToBeUpdated
+                + ", ContactsDeleteFailedCount: "
+                + mContactsDeleteFailedCount
+                + ", ContactsDeleteSucceededCount: "
+                + mContactsDeleteSucceededCount
+                + ", ContactsDeleteNotFoundCount: "
+                + mContactsDeleteNotFoundCount
+                + ", TotalContactsToBeDeleted: "
+                + mTotalContactsToBeDeleted;
     }
 }

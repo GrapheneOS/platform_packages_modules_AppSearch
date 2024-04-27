@@ -62,8 +62,7 @@ public final class UserStorageInfo {
     }
 
     /**
-     * Updates storage info file with the latest storage info queried through
-     * {@link AppSearchImpl}.
+     * Updates storage info file with the latest storage info queried through {@link AppSearchImpl}.
      */
     public void updateStorageInfoFile(@NonNull AppSearchImpl appSearchImpl) {
         Objects.requireNonNull(appSearchImpl);
@@ -81,7 +80,7 @@ public final class UserStorageInfo {
     /**
      * Gets storage usage byte size for a package with a given package name.
      *
-     * <p> Please note the storage info cached in file may be stale.
+     * <p>Please note the storage info cached in file may be stale.
      */
     public long getSizeBytesForPackage(@NonNull String packageName) {
         Objects.requireNonNull(packageName);
@@ -91,7 +90,7 @@ public final class UserStorageInfo {
     /**
      * Gets total storage usage byte size for all packages under the user.
      *
-     * <p> Please note the storage info cached in file may be stale.
+     * <p>Please note the storage info cached in file may be stale.
      */
     public long getTotalSizeBytes() {
         return mTotalStorageSizeBytes;
@@ -134,12 +133,13 @@ public final class UserStorageInfo {
             for (int i = 0; i < namespaceStorageInfoList.size(); i++) {
                 NamespaceStorageInfoProto namespaceStorageInfo = namespaceStorageInfoList.get(i);
                 String packageName = getPackageName(namespaceStorageInfo.getNamespace());
-                int namespaceDocuments = namespaceStorageInfo.getNumAliveDocuments()
-                        + namespaceStorageInfo.getNumExpiredDocuments();
+                int namespaceDocuments =
+                        namespaceStorageInfo.getNumAliveDocuments()
+                                + namespaceStorageInfo.getNumExpiredDocuments();
                 totalDocuments += namespaceDocuments;
-                packageDocumentCountMap.put(packageName,
-                        packageDocumentCountMap.getOrDefault(packageName, 0)
-                                + namespaceDocuments);
+                packageDocumentCountMap.put(
+                        packageName,
+                        packageDocumentCountMap.getOrDefault(packageName, 0) + namespaceDocuments);
             }
 
             long totalStorageSize = storageInfo.getTotalStorageSize();
@@ -148,7 +148,8 @@ public final class UserStorageInfo {
                 // Note that while the total storage takes into account schema, index, etc. in
                 // addition to documents, we'll only calculate the percentage based on number of
                 // documents under packages.
-                packageStorageInfoMap.put(entry.getKey(),
+                packageStorageInfoMap.put(
+                        entry.getKey(),
                         (long) (entry.getValue() * 1.0 / totalDocuments * totalStorageSize));
             }
         }

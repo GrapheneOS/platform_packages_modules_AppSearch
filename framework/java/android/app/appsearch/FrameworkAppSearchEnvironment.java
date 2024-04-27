@@ -32,64 +32,59 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Contains utility methods for Framework implementation of AppSearch.
+ *
  * @hide
  */
 public class FrameworkAppSearchEnvironment implements AppSearchEnvironment {
 
-  /**
-   * Returns AppSearch directory in the credential encrypted system directory for the given user.
-   *
-   * <p>This folder should only be accessed after unlock.
-   */
-  @Override
-  public File getAppSearchDir(@NonNull Context unused, @NonNull UserHandle userHandle) {
-    // Duplicates the implementation of Environment#getDataSystemCeDirectory
-    // TODO(b/191059409): Unhide Environment#getDataSystemCeDirectory and switch to it.
-    Objects.requireNonNull(userHandle);
-    File systemCeDir = new File(Environment.getDataDirectory(), "system_ce");
-    File systemCeUserDir = new File(systemCeDir, String.valueOf(userHandle.getIdentifier()));
-    return new File(systemCeUserDir, "appsearch");
-  }
+    /**
+     * Returns AppSearch directory in the credential encrypted system directory for the given user.
+     *
+     * <p>This folder should only be accessed after unlock.
+     */
+    @Override
+    public File getAppSearchDir(@NonNull Context unused, @NonNull UserHandle userHandle) {
+        // Duplicates the implementation of Environment#getDataSystemCeDirectory
+        // TODO(b/191059409): Unhide Environment#getDataSystemCeDirectory and switch to it.
+        Objects.requireNonNull(userHandle);
+        File systemCeDir = new File(Environment.getDataDirectory(), "system_ce");
+        File systemCeUserDir = new File(systemCeDir, String.valueOf(userHandle.getIdentifier()));
+        return new File(systemCeUserDir, "appsearch");
+    }
 
-  /** Creates context for the user based on the userHandle. */
-  @Override
-  public Context createContextAsUser(@NonNull Context context, @NonNull UserHandle userHandle) {
-    Objects.requireNonNull(context);
-    Objects.requireNonNull(userHandle);
-    return context.createContextAsUser(userHandle, /*flags=*/ 0);
-  }
+    /** Creates context for the user based on the userHandle. */
+    @Override
+    public Context createContextAsUser(@NonNull Context context, @NonNull UserHandle userHandle) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(userHandle);
+        return context.createContextAsUser(userHandle, /* flags= */ 0);
+    }
 
-  /** Creates and returns a ThreadPoolExecutor for given parameters. */
-  @Override
-  public ExecutorService createExecutorService(
-      int corePoolSize,
-      int maxConcurrency,
-      long keepAliveTime,
-      TimeUnit unit,
-      BlockingQueue<Runnable> workQueue,
-      int priority) {
-    return new ThreadPoolExecutor(
-        corePoolSize,
-        maxConcurrency,
-        keepAliveTime,
-        unit,
-        workQueue);
-  }
+    /** Creates and returns a ThreadPoolExecutor for given parameters. */
+    @Override
+    public ExecutorService createExecutorService(
+            int corePoolSize,
+            int maxConcurrency,
+            long keepAliveTime,
+            TimeUnit unit,
+            BlockingQueue<Runnable> workQueue,
+            int priority) {
+        return new ThreadPoolExecutor(corePoolSize, maxConcurrency, keepAliveTime, unit, workQueue);
+    }
 
-  /** Createsand returns an ExecutorService with a single thread. */
-  @Override
-  public ExecutorService createSingleThreadExecutor() {
-    return Executors.newSingleThreadExecutor();
-  }
+    /** Createsand returns an ExecutorService with a single thread. */
+    @Override
+    public ExecutorService createSingleThreadExecutor() {
+        return Executors.newSingleThreadExecutor();
+    }
 
-  /**
-   * Returns a cache directory for creating temporary files like in case of migrating documents.
-   */
-  @Override
-  @Nullable
-  public File getCacheDir(@NonNull Context context) {
-    // Framework/Android does not have app-specific cache directory.
-    return null;
-  }
+    /**
+     * Returns a cache directory for creating temporary files like in case of migrating documents.
+     */
+    @Override
+    @Nullable
+    public File getCacheDir(@NonNull Context context) {
+        // Framework/Android does not have app-specific cache directory.
+        return null;
+    }
 }
-

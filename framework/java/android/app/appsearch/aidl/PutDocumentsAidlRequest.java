@@ -28,6 +28,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to insert documents into the index.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "PutDocumentsAidlRequestCreator")
@@ -39,23 +40,27 @@ public class PutDocumentsAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getDocumentsParcel")
     private final DocumentsParcel mDocumentsParcel;
+
     @NonNull
     @Field(id = 4, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 5, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 
     /**
      * Inserts documents into the index.
      *
-     * @param callerAttributionSource The permission identity of the package that
-     *     owns this document.
+     * @param callerAttributionSource The permission identity of the package that owns this
+     *     document.
      * @param databaseName The name of the database where this document lives.
      * @param documentsParcel The Parcelable object contains a list of GenericDocument.
      * @param userHandle The Handle of the calling user.

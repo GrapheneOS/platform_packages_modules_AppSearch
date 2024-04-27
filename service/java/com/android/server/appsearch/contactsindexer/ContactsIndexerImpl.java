@@ -54,31 +54,32 @@ public final class ContactsIndexerImpl {
     static final int NUM_DELETED_CONTACTS_PER_BATCH_FOR_APPSEARCH = 500;
     // Common columns needed for all kinds of mime types
     static final String[] COMMON_NEEDED_COLUMNS = {
-            ContactsContract.Data.CONTACT_ID,
-            ContactsContract.Data.LOOKUP_KEY,
-            ContactsContract.Data.PHOTO_THUMBNAIL_URI,
-            ContactsContract.Data.DISPLAY_NAME_PRIMARY,
-            ContactsContract.Data.PHONETIC_NAME,
-            ContactsContract.Data.RAW_CONTACT_ID,
-            ContactsContract.Data.STARRED,
-            ContactsContract.Data.CONTACT_LAST_UPDATED_TIMESTAMP
+        ContactsContract.Data.CONTACT_ID,
+        ContactsContract.Data.LOOKUP_KEY,
+        ContactsContract.Data.PHOTO_THUMBNAIL_URI,
+        ContactsContract.Data.DISPLAY_NAME_PRIMARY,
+        ContactsContract.Data.PHONETIC_NAME,
+        ContactsContract.Data.RAW_CONTACT_ID,
+        ContactsContract.Data.STARRED,
+        ContactsContract.Data.CONTACT_LAST_UPDATED_TIMESTAMP
     };
     // The order for the results returned from CP2.
-    static final String ORDER_BY = ContactsContract.Data.CONTACT_ID
-            // MUST sort by CONTACT_ID first for our iteration to work
-            + ","
-            // Whether this is the primary entry of its kind for the aggregate
-            // contact it belongs to.
-            + ContactsContract.Data.IS_SUPER_PRIMARY
-            + " DESC"
-            // Then rank by importance.
-            + ","
-            // Whether this is the primary entry of its kind for the raw contact it
-            // belongs to.
-            + ContactsContract.Data.IS_PRIMARY
-            + " DESC"
-            + ","
-            + ContactsContract.Data.RAW_CONTACT_ID;
+    static final String ORDER_BY =
+            ContactsContract.Data.CONTACT_ID
+                    // MUST sort by CONTACT_ID first for our iteration to work
+                    + ","
+                    // Whether this is the primary entry of its kind for the aggregate
+                    // contact it belongs to.
+                    + ContactsContract.Data.IS_SUPER_PRIMARY
+                    + " DESC"
+                    // Then rank by importance.
+                    + ","
+                    // Whether this is the primary entry of its kind for the raw contact it
+                    // belongs to.
+                    + ContactsContract.Data.IS_PRIMARY
+                    + " DESC"
+                    + ","
+                    + ContactsContract.Data.RAW_CONTACT_ID;
 
     private final Context mContext;
     private final ContactDataHandler mContactDataHandler;
@@ -101,11 +102,11 @@ public final class ContactsIndexerImpl {
      * <p>It deletes removed contacts, inserts newly-added ones, and updates existing ones in the
      * Person corpus in AppSearch.
      *
-     * @param wantedContactIds      ids for contacts to be updated.
-     * @param unWantedIds           ids for contacts to be deleted.
-     * @param updateStats           to hold the counters for the update.
+     * @param wantedContactIds ids for contacts to be updated.
+     * @param unWantedIds ids for contacts to be deleted.
+     * @param updateStats to hold the counters for the update.
      * @param shouldKeepUpdatingOnError ContactsIndexer flag controlling whether or not updates
-     *                                  should continue after encountering errors.
+     *     should continue after encountering errors.
      */
     public CompletableFuture<Void> updatePersonCorpusAsync(
             @NonNull List<String> wantedContactIds,
@@ -116,16 +117,23 @@ public final class ContactsIndexerImpl {
         Objects.requireNonNull(unWantedIds);
         Objects.requireNonNull(updateStats);
 
-        return batchRemoveContactsAsync(unWantedIds, updateStats,
-                shouldKeepUpdatingOnError).exceptionally(t -> {
-            // Since we update the timestamps no matter the update succeeds or fails, we can
-            // always try to do the indexing. Updating lastDeltaUpdateTimestamps without doing
-            // indexing seems odd.
-            // So catch the exception here for deletion, and we can keep doing the indexing.
-            Log.w(TAG, "Error occurred during batch delete", t);
-            return null;
-        }).thenCompose(x -> batchUpdateContactsAsync(wantedContactIds, updateStats,
-                shouldKeepUpdatingOnError));
+        return batchRemoveContactsAsync(unWantedIds, updateStats, shouldKeepUpdatingOnError)
+                .exceptionally(
+                        t -> {
+                            // Since we update the timestamps no matter the update succeeds or
+                            // fails, we can
+                            // always try to do the indexing. Updating lastDeltaUpdateTimestamps
+                            // without doing
+                            // indexing seems odd.
+                            // So catch the exception here for deletion, and we can keep doing the
+                            // indexing.
+                            Log.w(TAG, "Error occurred during batch delete", t);
+                            return null;
+                        })
+                .thenCompose(
+                        x ->
+                                batchUpdateContactsAsync(
+                                        wantedContactIds, updateStats, shouldKeepUpdatingOnError));
     }
 
     /**
@@ -133,7 +141,7 @@ public final class ContactsIndexerImpl {
      *
      * @param updateStats to hold the counters for the remove.
      * @param shouldKeepUpdatingOnError ContactsIndexer flag controlling whether or not updates
-     *                                  should continue after encountering errors.
+     *     should continue after encountering errors.
      */
     @VisibleForTesting
     CompletableFuture<Void> batchRemoveContactsAsync(
@@ -145,16 +153,22 @@ public final class ContactsIndexerImpl {
         int unWantedSize = unWantedIds.size();
         updateStats.mTotalContactsToBeDeleted += unWantedSize;
         while (startIndex < unWantedSize) {
-            int endIndex = Math.min(startIndex + NUM_DELETED_CONTACTS_PER_BATCH_FOR_APPSEARCH,
-                    unWantedSize);
+            int endIndex =
+                    Math.min(
+                            startIndex + NUM_DELETED_CONTACTS_PER_BATCH_FOR_APPSEARCH,
+                            unWantedSize);
             Collection<String> currentContactIds = unWantedIds.subList(startIndex, endIndex);
             // If any removeContactsByIdAsync in the future-chain completes exceptionally, all
             // futures following it will not run and will instead complete exceptionally. However,
             // when shouldKeepUpdatingOnError is true, removeContactsByIdAsync avoids completing
             // exceptionally.
-            batchRemoveFuture = batchRemoveFuture.thenCompose(
-                    x -> mAppSearchHelper.removeContactsByIdAsync(currentContactIds, updateStats,
-                            shouldKeepUpdatingOnError));
+            batchRemoveFuture =
+                    batchRemoveFuture.thenCompose(
+                            x ->
+                                    mAppSearchHelper.removeContactsByIdAsync(
+                                            currentContactIds,
+                                            updateStats,
+                                            shouldKeepUpdatingOnError));
             startIndex = endIndex;
         }
         return batchRemoveFuture;
@@ -165,9 +179,8 @@ public final class ContactsIndexerImpl {
      *
      * @param updateStats to hold the counters for the update.
      * @param shouldKeepUpdatingOnError ContactsIndexer flag controlling whether or not updates
-     *                                  should continue after encountering errors. When enabled and
-     *                                  we fail to query CP@ for a batch of contacts, we continue
-     *                                  onto the next batch instead of stopping.
+     *     should continue after encountering errors. When enabled and we fail to query CP@ for a
+     *     batch of contacts, we continue onto the next batch instead of stopping.
      */
     CompletableFuture<Void> batchUpdateContactsAsync(
             @NonNull final List<String> wantedContactIds,
@@ -185,30 +198,41 @@ public final class ContactsIndexerImpl {
         // simultaneous updates would use the same ContactsBatcher, leading to updates sometimes
         // indexing each other's contacts and messing up the metrics/counts for the number of
         // succeeded/skipped contacts.
-        ContactsBatcher contactsBatcher = new ContactsBatcher(mAppSearchHelper,
-                NUM_UPDATED_CONTACTS_PER_BATCH_FOR_APPSEARCH, shouldKeepUpdatingOnError);
+        ContactsBatcher contactsBatcher =
+                new ContactsBatcher(
+                        mAppSearchHelper,
+                        NUM_UPDATED_CONTACTS_PER_BATCH_FOR_APPSEARCH,
+                        shouldKeepUpdatingOnError);
         while (startIndex < wantedIdListSize) {
-            int endIndex = Math.min(startIndex + NUM_CONTACTS_PER_BATCH_FOR_CP2,
-                    wantedIdListSize);
+            int endIndex = Math.min(startIndex + NUM_CONTACTS_PER_BATCH_FOR_CP2, wantedIdListSize);
             Collection<String> currentContactIds = wantedContactIds.subList(startIndex, endIndex);
             // Read NUM_CONTACTS_PER_BATCH contacts every time from CP2.
-            String selection = ContactsContract.Data.CONTACT_ID + " IN (" + TextUtils.join(
-                    /*delimiter=*/ ",", currentContactIds) + ")";
+            String selection =
+                    ContactsContract.Data.CONTACT_ID
+                            + " IN ("
+                            + TextUtils.join(/* delimiter= */ ",", currentContactIds)
+                            + ")";
             startIndex = endIndex;
             try {
                 // For our iteration work, we must sort the result by contact_id first.
-                Cursor cursor = mContext.getContentResolver().query(
-                        ContactsContract.Data.CONTENT_URI,
-                        mProjection,
-                        selection, /*selectionArgs=*/null,
-                        ORDER_BY);
+                Cursor cursor =
+                        mContext.getContentResolver()
+                                .query(
+                                        ContactsContract.Data.CONTENT_URI,
+                                        mProjection,
+                                        selection,
+                                        /* selectionArgs= */ null,
+                                        ORDER_BY);
                 if (cursor == null) {
                     updateStats.mUpdateStatuses.add(ContactsUpdateStats.ERROR_CODE_CP2_NULL_CURSOR);
                     Log.w(TAG, "Cursor was returned as null while querying CP2.");
                     if (!shouldKeepUpdatingOnError) {
-                        return future.thenCompose(x -> CompletableFuture.failedFuture(
-                                new IllegalStateException(
-                                        "Cursor was returned as null while querying CP2.")));
+                        return future.thenCompose(
+                                x ->
+                                        CompletableFuture.failedFuture(
+                                                new IllegalStateException(
+                                                        "Cursor was returned as null while querying"
+                                                                + " CP2.")));
                     }
                 } else {
                     // If any indexContactsFromCursorAsync in the future-chain completes
@@ -216,13 +240,20 @@ public final class ContactsIndexerImpl {
                     // complete exceptionally. However, when shouldKeepUpdatingOnError is true,
                     // indexContactsFromCursorAsync avoids completing exceptionally except for
                     // AppSearchResult#RESULT_OUT_OF_SPACE.
-                    future = future.thenCompose(
-                            x -> indexContactsFromCursorAsync(cursor, updateStats, contactsBatcher,
-                                    shouldKeepUpdatingOnError)
-                    ).whenComplete((x, t) -> {
-                        // ensure the cursor is closed even when the future-chain fails
-                        cursor.close();
-                    });
+                    future =
+                            future.thenCompose(
+                                            x ->
+                                                    indexContactsFromCursorAsync(
+                                                            cursor,
+                                                            updateStats,
+                                                            contactsBatcher,
+                                                            shouldKeepUpdatingOnError))
+                                    .whenComplete(
+                                            (x, t) -> {
+                                                // ensure the cursor is closed even when the
+                                                // future-chain fails
+                                                cursor.close();
+                                            });
                 }
             } catch (RuntimeException e) {
                 // The ContactsProvider sometimes propagates RuntimeExceptions to us
@@ -241,29 +272,30 @@ public final class ContactsIndexerImpl {
     }
 
     /**
-     * Reads through cursor, converts the contacts to AppSearch documents, and indexes the
-     * documents into AppSearch.
+     * Reads through cursor, converts the contacts to AppSearch documents, and indexes the documents
+     * into AppSearch.
      *
-     * @param cursor      pointing to the contacts read from CP2.
+     * @param cursor pointing to the contacts read from CP2.
      * @param updateStats to hold the counters for the update.
      * @param contactsBatcher the batcher that indexes the contacts for this update.
      * @param shouldKeepUpdatingOnError ContactsIndexer flag controlling whether or not updates
-     *                                  should continue after encountering errors. When enabled and
-     *                                  an exception is thrown, stops further indexing and flushes
-     *                                  the current batch of contacts but does not return a failed
-     *                                  future.
+     *     should continue after encountering errors. When enabled and an exception is thrown, stops
+     *     further indexing and flushes the current batch of contacts but does not return a failed
+     *     future.
      */
-    private CompletableFuture<Void> indexContactsFromCursorAsync(@NonNull Cursor cursor,
-            @NonNull ContactsUpdateStats updateStats, @NonNull ContactsBatcher contactsBatcher,
+    private CompletableFuture<Void> indexContactsFromCursorAsync(
+            @NonNull Cursor cursor,
+            @NonNull ContactsUpdateStats updateStats,
+            @NonNull ContactsBatcher contactsBatcher,
             boolean shouldKeepUpdatingOnError) {
         Objects.requireNonNull(cursor);
         try {
             int contactIdIndex = cursor.getColumnIndex(ContactsContract.Data.CONTACT_ID);
             int lookupKeyIndex = cursor.getColumnIndex(ContactsContract.Data.LOOKUP_KEY);
-            int thumbnailUriIndex = cursor.getColumnIndex(
-                    ContactsContract.Data.PHOTO_THUMBNAIL_URI);
-            int displayNameIndex = cursor.getColumnIndex(
-                    ContactsContract.Data.DISPLAY_NAME_PRIMARY);
+            int thumbnailUriIndex =
+                    cursor.getColumnIndex(ContactsContract.Data.PHOTO_THUMBNAIL_URI);
+            int displayNameIndex =
+                    cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME_PRIMARY);
             int starredIndex = cursor.getColumnIndex(ContactsContract.Data.STARRED);
             int phoneticNameIndex = cursor.getColumnIndex(ContactsContract.Data.PHONETIC_NAME);
             long currentContactId = -1;
@@ -289,14 +321,19 @@ public final class ContactsIndexerImpl {
                         // name is missing.
                         displayName = "";
                     }
-                    personBuilder = new Person.Builder(AppSearchHelper.NAMESPACE_NAME,
-                            String.valueOf(contactId), displayName);
+                    personBuilder =
+                            new Person.Builder(
+                                    AppSearchHelper.NAMESPACE_NAME,
+                                    String.valueOf(contactId),
+                                    displayName);
                     String imageUri = getStringFromCursor(cursor, thumbnailUriIndex);
                     String lookupKey = getStringFromCursor(cursor, lookupKeyIndex);
                     boolean starred = starredIndex != -1 && cursor.getInt(starredIndex) != 0;
-                    Uri lookupUri = lookupKey != null ?
-                            ContactsContract.Contacts.getLookupUri(currentContactId, lookupKey)
-                            : null;
+                    Uri lookupUri =
+                            lookupKey != null
+                                    ? ContactsContract.Contacts.getLookupUri(
+                                            currentContactId, lookupKey)
+                                    : null;
                     personBuilder.setIsImportant(starred);
                     if (lookupUri != null) {
                         personBuilder.setExternalUri(lookupUri);
@@ -311,9 +348,9 @@ public final class ContactsIndexerImpl {
                     // Always use current system timestamp first. If that contact already exists
                     // in AppSearch, the creationTimestamp for this doc will be reset with the
                     // original value stored in AppSearch during performDiffAsync.
-                    personBuilderHelper = new PersonBuilderHelper(String.valueOf(contactId),
-                            personBuilder)
-                            .setCreationTimestampMillis(System.currentTimeMillis());
+                    personBuilderHelper =
+                            new PersonBuilderHelper(String.valueOf(contactId), personBuilder)
+                                    .setCreationTimestampMillis(System.currentTimeMillis());
                 }
                 if (personBuilderHelper != null) {
                     mContactDataHandler.convertCursorToPerson(cursor, personBuilderHelper);
@@ -332,8 +369,9 @@ public final class ContactsIndexerImpl {
             // TODO(b/203605504) see if we could catch more specific exceptions/errors.
             Log.e(TAG, "Error while indexing documents from the cursor", e);
             if (!shouldKeepUpdatingOnError) {
-                return contactsBatcher.flushAsync(updateStats).thenCompose(
-                        x -> CompletableFuture.failedFuture(e));
+                return contactsBatcher
+                        .flushAsync(updateStats)
+                        .thenCompose(x -> CompletableFuture.failedFuture(e));
             }
         }
 
@@ -370,20 +408,22 @@ public final class ContactsIndexerImpl {
 
         /**
          * Batch size for both {@link #mPendingDiffContactBuilders} and {@link
-         * #mPendingIndexContacts}. It
-         * is strictly followed by {@link #mPendingDiffContactBuilders}. But for {@link
-         * #mPendingIndexContacts}, when we merge the former set into {@link
-         * #mPendingIndexContacts}, it could exceed this limit. At maximum it could hold 2 *
-         * {@link #mBatchSize} contacts before cleared.
+         * #mPendingIndexContacts}. It is strictly followed by {@link #mPendingDiffContactBuilders}.
+         * But for {@link #mPendingIndexContacts}, when we merge the former set into {@link
+         * #mPendingIndexContacts}, it could exceed this limit. At maximum it could hold 2 * {@link
+         * #mBatchSize} contacts before cleared.
          */
         private final int mBatchSize;
+
         private final AppSearchHelper mAppSearchHelper;
         private final boolean mShouldKeepUpdatingOnError;
 
         private CompletableFuture<Void> mIndexContactsCompositeFuture =
                 CompletableFuture.completedFuture(null);
 
-        ContactsBatcher(@NonNull AppSearchHelper appSearchHelper, int batchSize,
+        ContactsBatcher(
+                @NonNull AppSearchHelper appSearchHelper,
+                int batchSize,
                 boolean shouldKeepUpdatingOnError) {
             mAppSearchHelper = Objects.requireNonNull(appSearchHelper);
             mBatchSize = batchSize;
@@ -406,7 +446,8 @@ public final class ContactsIndexerImpl {
             return mPendingIndexContacts.size();
         }
 
-        public void add(@NonNull PersonBuilderHelper builderHelper,
+        public void add(
+                @NonNull PersonBuilderHelper builderHelper,
                 @NonNull ContactsUpdateStats updateStats) {
             Objects.requireNonNull(builderHelper);
             mPendingDiffContactBuilders.add(builderHelper);
@@ -415,14 +456,19 @@ public final class ContactsIndexerImpl {
                 // list for batching
                 List<PersonBuilderHelper> pendingDiffContactBuilders = mPendingDiffContactBuilders;
                 mPendingDiffContactBuilders = new ArrayList<>(mBatchSize);
-                mIndexContactsCompositeFuture = mIndexContactsCompositeFuture
-                        .thenCompose(x -> performDiffAsync(pendingDiffContactBuilders, updateStats))
-                        .thenCompose(y -> {
-                            if (mPendingIndexContacts.size() >= mBatchSize) {
-                                return flushPendingIndexAsync(updateStats);
-                            }
-                            return CompletableFuture.completedFuture(null);
-                        });
+                mIndexContactsCompositeFuture =
+                        mIndexContactsCompositeFuture
+                                .thenCompose(
+                                        x ->
+                                                performDiffAsync(
+                                                        pendingDiffContactBuilders, updateStats))
+                                .thenCompose(
+                                        y -> {
+                                            if (mPendingIndexContacts.size() >= mBatchSize) {
+                                                return flushPendingIndexAsync(updateStats);
+                                            }
+                                            return CompletableFuture.completedFuture(null);
+                                        });
             }
         }
 
@@ -432,9 +478,13 @@ public final class ContactsIndexerImpl {
                 // list for batching
                 List<PersonBuilderHelper> pendingDiffContactBuilders = mPendingDiffContactBuilders;
                 mPendingDiffContactBuilders = new ArrayList<>(mBatchSize);
-                mIndexContactsCompositeFuture = mIndexContactsCompositeFuture
-                        .thenCompose(x -> performDiffAsync(pendingDiffContactBuilders, updateStats))
-                        .thenCompose(y -> flushPendingIndexAsync(updateStats));
+                mIndexContactsCompositeFuture =
+                        mIndexContactsCompositeFuture
+                                .thenCompose(
+                                        x ->
+                                                performDiffAsync(
+                                                        pendingDiffContactBuilders, updateStats))
+                                .thenCompose(y -> flushPendingIndexAsync(updateStats));
             }
 
             CompletableFuture<Void> flushFuture = mIndexContactsCompositeFuture;
@@ -459,55 +509,58 @@ public final class ContactsIndexerImpl {
             // In this case, we may unnecessarily update some contacts in the following step, but
             // some unnecessary updates is better than no updates and should not cause a significant
             // impact on performance.
-            return mAppSearchHelper.getContactsWithFingerprintsAsync(ids,
-                            mShouldKeepUpdatingOnError, updateStats)
-                    .thenCompose(contactsWithFingerprints -> {
-                        List<Person> contactsToBeIndexed = new ArrayList<>(
-                                pendingDiffContactBuilders.size());
-                        // Before indexing a contact into AppSearch, we will check if the
-                        // contact with same id exists, and whether the fingerprint has
-                        // changed. If fingerprint has not been changed for the same
-                        // contact, we won't index it.
-                        for (int i = 0; i < pendingDiffContactBuilders.size(); ++i) {
-                            PersonBuilderHelper builderHelper =
-                                    pendingDiffContactBuilders.get(i);
-                            GenericDocument doc = contactsWithFingerprints.get(i);
-                            byte[] oldFingerprint =
-                                    doc != null ? doc.getPropertyBytes(
-                                            Person.PERSON_PROPERTY_FINGERPRINT) : null;
-                            long docCreationTimestampMillis =
-                                    doc != null ? doc.getCreationTimestampMillis()
-                                            : -1;
-                            if (oldFingerprint != null) {
-                                // We already have this contact in AppSearch. Reset the
-                                // creationTimestamp here with the original one.
-                                builderHelper.setCreationTimestampMillis(
-                                        docCreationTimestampMillis);
-                                Person person = builderHelper.buildPerson();
-                                if (!Arrays.equals(person.getFingerprint(),
-                                        oldFingerprint)) {
-                                    contactsToBeIndexed.add(person);
-                                } else {
-                                    // Fingerprint is same. So this update is skipped.
-                                    ++updateStats.mContactsUpdateSkippedCount;
+            return mAppSearchHelper
+                    .getContactsWithFingerprintsAsync(ids, mShouldKeepUpdatingOnError, updateStats)
+                    .thenCompose(
+                            contactsWithFingerprints -> {
+                                List<Person> contactsToBeIndexed =
+                                        new ArrayList<>(pendingDiffContactBuilders.size());
+                                // Before indexing a contact into AppSearch, we will check if the
+                                // contact with same id exists, and whether the fingerprint has
+                                // changed. If fingerprint has not been changed for the same
+                                // contact, we won't index it.
+                                for (int i = 0; i < pendingDiffContactBuilders.size(); ++i) {
+                                    PersonBuilderHelper builderHelper =
+                                            pendingDiffContactBuilders.get(i);
+                                    GenericDocument doc = contactsWithFingerprints.get(i);
+                                    byte[] oldFingerprint =
+                                            doc != null
+                                                    ? doc.getPropertyBytes(
+                                                            Person.PERSON_PROPERTY_FINGERPRINT)
+                                                    : null;
+                                    long docCreationTimestampMillis =
+                                            doc != null ? doc.getCreationTimestampMillis() : -1;
+                                    if (oldFingerprint != null) {
+                                        // We already have this contact in AppSearch. Reset the
+                                        // creationTimestamp here with the original one.
+                                        builderHelper.setCreationTimestampMillis(
+                                                docCreationTimestampMillis);
+                                        Person person = builderHelper.buildPerson();
+                                        if (!Arrays.equals(
+                                                person.getFingerprint(), oldFingerprint)) {
+                                            contactsToBeIndexed.add(person);
+                                        } else {
+                                            // Fingerprint is same. So this update is skipped.
+                                            ++updateStats.mContactsUpdateSkippedCount;
+                                        }
+                                    } else {
+                                        // New contact.
+                                        ++updateStats.mNewContactsToBeUpdated;
+                                        contactsToBeIndexed.add(builderHelper.buildPerson());
+                                    }
                                 }
-                            } else {
-                                // New contact.
-                                ++updateStats.mNewContactsToBeUpdated;
-                                contactsToBeIndexed.add(builderHelper.buildPerson());
-                            }
-                        }
-                        mPendingIndexContacts.addAll(contactsToBeIndexed);
-                        return CompletableFuture.completedFuture(null);
-                    });
+                                mPendingIndexContacts.addAll(contactsToBeIndexed);
+                                return CompletableFuture.completedFuture(null);
+                            });
         }
 
         /** Flushes the contacts batched in {@link #mPendingIndexContacts} to AppSearch. */
         private CompletableFuture<Void> flushPendingIndexAsync(
                 @NonNull ContactsUpdateStats updateStats) {
             if (mPendingIndexContacts.size() > 0) {
-                CompletableFuture<Void> future = mAppSearchHelper.indexContactsAsync(
-                        mPendingIndexContacts, updateStats, mShouldKeepUpdatingOnError);
+                CompletableFuture<Void> future =
+                        mAppSearchHelper.indexContactsAsync(
+                                mPendingIndexContacts, updateStats, mShouldKeepUpdatingOnError);
                 mPendingIndexContacts.clear();
                 return future;
             }

@@ -29,15 +29,18 @@ public class SyncGlobalSearchSessionImpl extends SyncAppSearchBase
 
     private final GlobalSearchSession mGlobalSession;
 
-    public SyncGlobalSearchSessionImpl(@NonNull AppSearchManager appSearchManager,
-            @NonNull Executor executor)
+    public SyncGlobalSearchSessionImpl(
+            @NonNull AppSearchManager appSearchManager, @NonNull Executor executor)
             throws AppSearchException {
         super(executor);
         Objects.requireNonNull(appSearchManager);
         Objects.requireNonNull(executor);
 
-        mGlobalSession = executeAppSearchResultOperation(resultHandler ->
-                appSearchManager.createGlobalSearchSession(executor, resultHandler));
+        mGlobalSession =
+                executeAppSearchResultOperation(
+                        resultHandler ->
+                                appSearchManager.createGlobalSearchSession(
+                                        executor, resultHandler));
     }
 
     // Not actually asynchronous but added for convenience

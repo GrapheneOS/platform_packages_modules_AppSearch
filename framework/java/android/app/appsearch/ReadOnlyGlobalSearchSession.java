@@ -57,10 +57,11 @@ public abstract class ReadOnlyGlobalSearchSession {
      * @param service The {@link IAppSearchManager} service from which to make api calls
      * @param userHandle The user for which the session should be created
      * @param callerAttributionSource The attribution source containing the caller's package name
-     *                                and uid
+     *     and uid
      * @param isForEnterprise Whether the session should query the user's enterprise profile
      */
-    ReadOnlyGlobalSearchSession(@NonNull IAppSearchManager service,
+    ReadOnlyGlobalSearchSession(
+            @NonNull IAppSearchManager service,
             @NonNull UserHandle userHandle,
             @NonNull AppSearchAttributionSource callerAttributionSource,
             boolean isForEnterprise) {
@@ -79,18 +80,23 @@ public abstract class ReadOnlyGlobalSearchSession {
                     new InitializeAidlRequest(
                             mCallerAttributionSource,
                             mUserHandle,
-                            /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()),
+                            /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
                         public void onResult(AppSearchResultParcel resultParcel) {
-                            safeExecute(executor, callback, () -> {
-                                AppSearchResult<Void> result = resultParcel.getResult();
-                                if (result.isSuccess()) {
-                                    callback.accept(AppSearchResult.newSuccessfulResult(null));
-                                } else {
-                                    callback.accept(AppSearchResult.newFailedResult(result));
-                                }
-                            });
+                            safeExecute(
+                                    executor,
+                                    callback,
+                                    () -> {
+                                        AppSearchResult<Void> result = resultParcel.getResult();
+                                        if (result.isSuccess()) {
+                                            callback.accept(
+                                                    AppSearchResult.newSuccessfulResult(null));
+                                        } else {
+                                            callback.accept(
+                                                    AppSearchResult.newFailedResult(result));
+                                        }
+                                    });
                         }
                     });
         } catch (RemoteException e) {
@@ -100,26 +106,24 @@ public abstract class ReadOnlyGlobalSearchSession {
 
     /**
      * Retrieves {@link GenericDocument} documents, belonging to the specified package name and
-     * database name and identified by the namespace and ids in the request, from the
-     * {@link GlobalSearchSession} database.
+     * database name and identified by the namespace and ids in the request, from the {@link
+     * GlobalSearchSession} database.
      *
      * <p>If the package or database doesn't exist or if the calling package doesn't have access,
      * the gets will be handled as failures in an {@link AppSearchBatchResult} object in the
      * callback.
      *
-     * @param packageName  the name of the package to get from
+     * @param packageName the name of the package to get from
      * @param databaseName the name of the database to get from
-     * @param request      a request containing a namespace and IDs to get documents for.
-     * @param executor     Executor on which to invoke the callback.
-     * @param callback     Callback to receive the pending result of performing this operation. The
-     *                     keys of the returned {@link AppSearchBatchResult} are the input IDs. The
-     *                     values are the returned {@link GenericDocument}s on success, or a failed
-     *                     {@link AppSearchResult} otherwise. IDs that are not found will return a
-     *                     failed {@link AppSearchResult} with a result code of
-     *                     {@link AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error
-     *                     occurs in the AppSearch service,
-     *                     {@link BatchResultCallback#onSystemError} will be invoked with a
-     *                     {@link Throwable}.
+     * @param request a request containing a namespace and IDs to get documents for.
+     * @param executor Executor on which to invoke the callback.
+     * @param callback Callback to receive the pending result of performing this operation. The keys
+     *     of the returned {@link AppSearchBatchResult} are the input IDs. The values are the
+     *     returned {@link GenericDocument}s on success, or a failed {@link AppSearchResult}
+     *     otherwise. IDs that are not found will return a failed {@link AppSearchResult} with a
+     *     result code of {@link AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error
+     *     occurs in the AppSearch service, {@link BatchResultCallback#onSystemError} will be
+     *     invoked with a {@link Throwable}.
      */
     public void getByDocumentId(
             @NonNull String packageName,
@@ -137,11 +141,11 @@ public abstract class ReadOnlyGlobalSearchSession {
             mService.getDocuments(
                     new GetDocumentsAidlRequest(
                             mCallerAttributionSource,
-                            /*targetPackageName=*/packageName,
+                            /* targetPackageName= */ packageName,
                             databaseName,
                             request,
                             mUserHandle,
-                            /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
+                            /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
                             mIsForEnterprise),
                     SearchSessionUtil.createGetDocumentCallback(executor, callback));
         } catch (RemoteException e) {
@@ -164,16 +168,22 @@ public abstract class ReadOnlyGlobalSearchSession {
      * SearchResults#getNextPage}.
      *
      * @param queryExpression query string to search.
-     * @param searchSpec      spec for setting document filters, adding projection, setting term
-     *                        match type, etc.
+     * @param searchSpec spec for setting document filters, adding projection, setting term match
+     *     type, etc.
      * @return a {@link SearchResults} object for retrieved matched documents.
      */
     @NonNull
     public SearchResults search(@NonNull String queryExpression, @NonNull SearchSpec searchSpec) {
         Objects.requireNonNull(queryExpression);
         Objects.requireNonNull(searchSpec);
-        return new SearchResults(mService, mCallerAttributionSource, /*databaseName=*/null,
-                queryExpression, searchSpec, mUserHandle, mIsForEnterprise);
+        return new SearchResults(
+                mService,
+                mCallerAttributionSource,
+                /* databaseName= */ null,
+                queryExpression,
+                searchSpec,
+                mUserHandle,
+                mIsForEnterprise);
     }
 
     /**
@@ -184,11 +194,11 @@ public abstract class ReadOnlyGlobalSearchSession {
      * <p>If the requested package/database combination does not exist or the caller has not been
      * granted access to it, then an empty GetSchemaResponse will be returned.
      *
-     * @param packageName  the package that owns the requested {@link AppSearchSchema} instances.
+     * @param packageName the package that owns the requested {@link AppSearchSchema} instances.
      * @param databaseName the database that owns the requested {@link AppSearchSchema} instances.
      * @return The pending {@link GetSchemaResponse} containing the schemas that the caller has
-     *         access to or an empty GetSchemaResponse if the request package and database does not
-     *         exist, has not set a schema or contains no schemas that are accessible to the caller.
+     *     access to or an empty GetSchemaResponse if the request package and database does not
+     *     exist, has not set a schema or contains no schemas that are accessible to the caller.
      */
     public void getSchema(
             @NonNull String packageName,
@@ -206,21 +216,26 @@ public abstract class ReadOnlyGlobalSearchSession {
                             packageName,
                             databaseName,
                             mUserHandle,
-                            /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime(),
+                            /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
                             mIsForEnterprise),
                     new IAppSearchResultCallback.Stub() {
                         @Override
                         public void onResult(AppSearchResultParcel resultParcel) {
-                            safeExecute(executor, callback, () -> {
-                                AppSearchResult<GetSchemaResponse> result =
-                                        resultParcel.getResult();
-                                if (result.isSuccess()) {
-                                    GetSchemaResponse response = result.getResultValue();
-                                    callback.accept(AppSearchResult.newSuccessfulResult(response));
-                                } else {
-                                    callback.accept(AppSearchResult.newFailedResult(result));
-                                }
-                            });
+                            safeExecute(
+                                    executor,
+                                    callback,
+                                    () -> {
+                                        AppSearchResult<GetSchemaResponse> result =
+                                                resultParcel.getResult();
+                                        if (result.isSuccess()) {
+                                            GetSchemaResponse response = result.getResultValue();
+                                            callback.accept(
+                                                    AppSearchResult.newSuccessfulResult(response));
+                                        } else {
+                                            callback.accept(
+                                                    AppSearchResult.newFailedResult(result));
+                                        }
+                                    });
                         }
                     });
         } catch (RemoteException e) {

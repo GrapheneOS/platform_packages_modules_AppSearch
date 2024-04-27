@@ -72,7 +72,7 @@ public abstract class AppFunctionService extends Service {
                         @NonNull IAppSearchResultCallback callback) {
                     // TODO(b/327134039): Replace this check with the new permission
                     if (Binder.getCallingUid() != Process.SYSTEM_UID) {
-                         throw new SecurityException("Can only be called by the system server");
+                        throw new SecurityException("Can only be called by the system server");
                     }
                     SafeOneTimeAppSearchResultCallback safeCallback =
                             new SafeOneTimeAppSearchResultCallback(callback);
@@ -84,12 +84,14 @@ public abstract class AppFunctionService extends Service {
                                     // Create result from value in success case and errorMessage in
                                     // failure case.
                                     if (appFunctionResult.isSuccess()) {
-                                        appSearchResultParcel = AppSearchResultParcel
-                                                .fromExecuteAppFunctionResponse(
-                                                        appFunctionResult.getResultValue());
+                                        appSearchResultParcel =
+                                                AppSearchResultParcel
+                                                        .fromExecuteAppFunctionResponse(
+                                                                appFunctionResult.getResultValue());
                                     } else {
-                                        appSearchResultParcel = AppSearchResultParcel
-                                                .fromFailedResult(appFunctionResult);
+                                        appSearchResultParcel =
+                                                AppSearchResultParcel.fromFailedResult(
+                                                        appFunctionResult);
                                     }
                                     safeCallback.onResult(appSearchResultParcel);
                                 });
@@ -97,8 +99,7 @@ public abstract class AppFunctionService extends Service {
                         // Apps should handle exceptions. But if they don't, report the error on
                         // behalf of them.
                         AppSearchResult failedResult = AppSearchResult.throwableToFailedResult(ex);
-                        safeCallback.onResult(AppSearchResultParcel.fromFailedResult(
-                                failedResult));
+                        safeCallback.onResult(AppSearchResultParcel.fromFailedResult(failedResult));
                     }
                 }
             };
@@ -116,10 +117,10 @@ public abstract class AppFunctionService extends Service {
      * particular function you have registered and made available.
      *
      * <p>To ensure proper routing of function requests, assign a unique identifier to each
-     * function. This identifier doesn't need to be globally unique, but it must be unique
-     * within your app. For example, a function to order food could be identified as
-     * "orderFood". You can determine the specific function to invoke by calling
-     * {@link ExecuteAppFunctionRequest#getFunctionIdentifier()}.
+     * function. This identifier doesn't need to be globally unique, but it must be unique within
+     * your app. For example, a function to order food could be identified as "orderFood". You can
+     * determine the specific function to invoke by calling {@link
+     * ExecuteAppFunctionRequest#getFunctionIdentifier()}.
      *
      * <p>This method is always triggered in the main thread. You should run heavy tasks on a worker
      * thread and dispatch the result with the given callback. You should always report back the

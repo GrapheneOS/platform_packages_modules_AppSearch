@@ -34,22 +34,21 @@ import java.util.function.Consumer;
 
 /**
  * Contains util methods used in both {@link GlobalSearchSession} and {@link AppSearchSession}.
+ *
  * @hide
  */
 public class SearchSessionUtil {
     private static final String TAG = "AppSearchSessionUtil";
 
-    /**
-     * Constructor for in case we create an instance
-     */
+    /** Constructor for in case we create an instance */
     private SearchSessionUtil() {}
 
     /**
      * Calls {@link BatchResultCallback#onSystemError} with a throwable derived from the given
      * failed {@link AppSearchResult}.
      *
-     * <p>The {@link AppSearchResult} generally comes from
-     * {@link IAppSearchBatchResultCallback#onSystemError}.
+     * <p>The {@link AppSearchResult} generally comes from {@link
+     * IAppSearchBatchResultCallback#onSystemError}.
      *
      * <p>This method should be called from the callback executor thread.
      *
@@ -59,8 +58,9 @@ public class SearchSessionUtil {
     public static void sendSystemErrorToCallback(
             @NonNull AppSearchResult<?> failedResult, @NonNull BatchResultCallback<?, ?> callback) {
         Preconditions.checkArgument(!failedResult.isSuccess());
-        Throwable throwable = new AppSearchException(
-                failedResult.getResultCode(), failedResult.getErrorMessage());
+        Throwable throwable =
+                new AppSearchException(
+                        failedResult.getResultCode(), failedResult.getErrorMessage());
         callback.onSystemError(throwable);
     }
 
@@ -75,8 +75,8 @@ public class SearchSessionUtil {
      * errorCallback synchronously on the calling thread.
      *
      * @param executor The executor on which to safely execute the lambda
-     * @param errorCallback The callback to trigger with a failed {@link AppSearchResult} if
-     *                      the {@link Executor#execute} call fails.
+     * @param errorCallback The callback to trigger with a failed {@link AppSearchResult} if the
+     *     {@link Executor#execute} call fails.
      * @param runnable The lambda to execute on the executor
      */
     public static <T> void safeExecute(
@@ -102,8 +102,8 @@ public class SearchSessionUtil {
      * errorCallback synchronously on the calling thread.
      *
      * @param executor The executor on which to safely execute the lambda
-     * @param errorCallback The callback to trigger with a failed {@link AppSearchResult} if
-     *                      the {@link Executor#execute} call fails.
+     * @param errorCallback The callback to trigger with a failed {@link AppSearchResult} if the
+     *     {@link Executor#execute} call fails.
      * @param runnable The lambda to execute on the executor
      */
     public static void safeExecute(
@@ -131,45 +131,46 @@ public class SearchSessionUtil {
         return new IAppSearchBatchResultCallback.Stub() {
             @Override
             public void onResult(AppSearchBatchResultParcel resultParcel) {
-                safeExecute(executor, callback, () -> {
-                    AppSearchBatchResult<String, GenericDocumentParcel> result =
-                            resultParcel.getResult();
-                    AppSearchBatchResult.Builder<String, GenericDocument>
-                            documentResultBuilder =
-                            new AppSearchBatchResult.Builder<>();
+                safeExecute(
+                        executor,
+                        callback,
+                        () -> {
+                            AppSearchBatchResult<String, GenericDocumentParcel> result =
+                                    resultParcel.getResult();
+                            AppSearchBatchResult.Builder<String, GenericDocument>
+                                    documentResultBuilder = new AppSearchBatchResult.Builder<>();
 
-                    for (Map.Entry<String, GenericDocumentParcel> entry :
-                            result.getSuccesses().entrySet()) {
-                        GenericDocument document;
-                        try {
-                            document = new GenericDocument(entry.getValue());
-                        } catch (RuntimeException e) {
-                            documentResultBuilder.setFailure(
-                                    entry.getKey(),
-                                    AppSearchResult.RESULT_INTERNAL_ERROR,
-                                    e.getMessage());
-                            continue;
-                        }
-                        documentResultBuilder.setSuccess(
-                                entry.getKey(), document);
-                    }
+                            for (Map.Entry<String, GenericDocumentParcel> entry :
+                                    result.getSuccesses().entrySet()) {
+                                GenericDocument document;
+                                try {
+                                    document = new GenericDocument(entry.getValue());
+                                } catch (RuntimeException e) {
+                                    documentResultBuilder.setFailure(
+                                            entry.getKey(),
+                                            AppSearchResult.RESULT_INTERNAL_ERROR,
+                                            e.getMessage());
+                                    continue;
+                                }
+                                documentResultBuilder.setSuccess(entry.getKey(), document);
+                            }
 
-                    for (Entry<String, AppSearchResult<GenericDocumentParcel>> entry :
-                            result.getFailures().entrySet()) {
-                        documentResultBuilder.setFailure(
-                                entry.getKey(),
-                                entry.getValue().getResultCode(),
-                                entry.getValue().getErrorMessage());
-                    }
-                    callback.onResult(documentResultBuilder.build());
-
-                });
+                            for (Entry<String, AppSearchResult<GenericDocumentParcel>> entry :
+                                    result.getFailures().entrySet()) {
+                                documentResultBuilder.setFailure(
+                                        entry.getKey(),
+                                        entry.getValue().getResultCode(),
+                                        entry.getValue().getErrorMessage());
+                            }
+                            callback.onResult(documentResultBuilder.build());
+                        });
             }
 
             @Override
             public void onSystemError(AppSearchResultParcel result) {
                 safeExecute(
-                        executor, callback,
+                        executor,
+                        callback,
                         () -> sendSystemErrorToCallback(result.getResult(), callback));
             }
         };

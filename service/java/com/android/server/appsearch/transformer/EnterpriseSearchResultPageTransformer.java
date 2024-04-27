@@ -27,13 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Transforms the retrieved documents in {@link SearchResult} for enterprise access.
- */
+/** Transforms the retrieved documents in {@link SearchResult} for enterprise access. */
 public final class EnterpriseSearchResultPageTransformer {
 
-    private EnterpriseSearchResultPageTransformer() {
-    }
+    private EnterpriseSearchResultPageTransformer() {}
 
     /**
      * Transforms a {@link SearchResultPage}, applying enterprise document transformations in the
@@ -62,10 +59,13 @@ public final class EnterpriseSearchResultPageTransformer {
     @NonNull
     static SearchResult transformSearchResult(@NonNull SearchResult originalResult) {
         Objects.requireNonNull(originalResult);
-        boolean shouldTransformDocument = shouldTransformDocument(originalResult.getPackageName(),
-                originalResult.getDatabaseName(), originalResult.getGenericDocument());
-        boolean shouldTransformJoinedResults = shouldTransformSearchResults(
-                originalResult.getJoinedResults());
+        boolean shouldTransformDocument =
+                shouldTransformDocument(
+                        originalResult.getPackageName(),
+                        originalResult.getDatabaseName(),
+                        originalResult.getGenericDocument());
+        boolean shouldTransformJoinedResults =
+                shouldTransformSearchResults(originalResult.getJoinedResults());
         // Split the transform check so we can avoid transforming both the original and joined
         // results when only one actually needs to be transformed.
         if (!shouldTransformDocument && !shouldTransformJoinedResults) {
@@ -73,8 +73,11 @@ public final class EnterpriseSearchResultPageTransformer {
         }
         SearchResult.Builder builder = new SearchResult.Builder(originalResult);
         if (shouldTransformDocument) {
-            GenericDocument transformedDocument = transformDocument(originalResult.getPackageName(),
-                    originalResult.getDatabaseName(), originalResult.getGenericDocument());
+            GenericDocument transformedDocument =
+                    transformDocument(
+                            originalResult.getPackageName(),
+                            originalResult.getDatabaseName(),
+                            originalResult.getGenericDocument());
             builder.setGenericDocument(transformedDocument);
         }
         if (shouldTransformJoinedResults) {
@@ -93,10 +96,12 @@ public final class EnterpriseSearchResultPageTransformer {
      * the original document if the combination is not recognized.
      */
     @NonNull
-    public static GenericDocument transformDocument(@NonNull String packageName,
-            @NonNull String databaseName, @NonNull GenericDocument originalDocument) {
-        if (PersonEnterpriseTransformer.shouldTransform(packageName, databaseName,
-                originalDocument.getSchemaType())) {
+    public static GenericDocument transformDocument(
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @NonNull GenericDocument originalDocument) {
+        if (PersonEnterpriseTransformer.shouldTransform(
+                packageName, databaseName, originalDocument.getSchemaType())) {
             return PersonEnterpriseTransformer.transformDocument(originalDocument);
         }
         return originalDocument;
@@ -116,8 +121,10 @@ public final class EnterpriseSearchResultPageTransformer {
 
     /** Checks if we need to transform the {@link SearchResult}. */
     private static boolean shouldTransformSearchResult(@NonNull SearchResult searchResult) {
-        return shouldTransformDocument(searchResult.getPackageName(),
-                searchResult.getDatabaseName(), searchResult.getGenericDocument())
+        return shouldTransformDocument(
+                        searchResult.getPackageName(),
+                        searchResult.getDatabaseName(),
+                        searchResult.getGenericDocument())
                 || shouldTransformSearchResults(searchResult.getJoinedResults());
     }
 
@@ -131,11 +138,12 @@ public final class EnterpriseSearchResultPageTransformer {
         return false;
     }
 
-
     /** Checks if we need to transform the {@link GenericDocument}. */
-    private static boolean shouldTransformDocument(@NonNull String packageName,
-            @NonNull String databaseName, @NonNull GenericDocument document) {
-        return PersonEnterpriseTransformer.shouldTransform(packageName, databaseName,
-                document.getSchemaType());
+    private static boolean shouldTransformDocument(
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @NonNull GenericDocument document) {
+        return PersonEnterpriseTransformer.shouldTransform(
+                packageName, databaseName, document.getSchemaType());
     }
 }

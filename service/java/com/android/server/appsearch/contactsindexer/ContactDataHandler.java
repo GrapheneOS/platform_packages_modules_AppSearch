@@ -84,16 +84,16 @@ public final class ContactDataHandler {
     }
 
     /**
-     * Adds the information of the current row from {@link ContactsContract.Data} table
-     * into the {@link PersonBuilderHelper}.
+     * Adds the information of the current row from {@link ContactsContract.Data} table into the
+     * {@link PersonBuilderHelper}.
      *
      * <p>By reading each row in the table, we will get the detailed information about a
      * Person(contact).
      *
      * @param builderHelper a helper to build the {@link Person}.
      */
-    public void convertCursorToPerson(@NonNull Cursor cursor,
-            @NonNull PersonBuilderHelper builderHelper) {
+    public void convertCursorToPerson(
+            @NonNull Cursor cursor, @NonNull PersonBuilderHelper builderHelper) {
         Objects.requireNonNull(cursor);
         Objects.requireNonNull(builderHelper);
 
@@ -155,8 +155,8 @@ public final class ContactDataHandler {
 
         /** Adds the data into {@link PersonBuilderHelper}. */
         @Override
-        public final void addData(@NonNull PersonBuilderHelper builderHelper,
-                @NonNull Cursor cursor) {
+        public final void addData(
+                @NonNull PersonBuilderHelper builderHelper, @NonNull Cursor cursor) {
             Objects.requireNonNull(builderHelper);
             Objects.requireNonNull(cursor);
 
@@ -166,8 +166,8 @@ public final class ContactDataHandler {
             }
         }
 
-        protected abstract void addSingleColumnStringData(PersonBuilderHelper builderHelper,
-                String data);
+        protected abstract void addSingleColumnStringData(
+                PersonBuilderHelper builderHelper, String data);
     }
 
     private abstract static class ContactPointDataHandler extends DataHandler {
@@ -177,8 +177,10 @@ public final class ContactDataHandler {
         private final String mLabelColumn;
 
         public ContactPointDataHandler(
-                @NonNull Resources resources, @NonNull String[] dataColumns,
-                @NonNull String typeColumn, @NonNull String labelColumn) {
+                @NonNull Resources resources,
+                @NonNull String[] dataColumns,
+                @NonNull String typeColumn,
+                @NonNull String labelColumn) {
             mResources = Objects.requireNonNull(resources);
             mDataColumns = Objects.requireNonNull(dataColumns);
             mTypeColumn = Objects.requireNonNull(typeColumn);
@@ -200,12 +202,12 @@ public final class ContactDataHandler {
         }
 
         /**
-         * Adds the data for ContactsPoint(email, telephone, postal addresses) into
-         * {@link Person.Builder}.
+         * Adds the data for ContactsPoint(email, telephone, postal addresses) into {@link
+         * Person.Builder}.
          */
         @Override
-        public final void addData(@NonNull PersonBuilderHelper builderHelper,
-                @NonNull Cursor cursor) {
+        public final void addData(
+                @NonNull PersonBuilderHelper builderHelper, @NonNull Cursor cursor) {
             Objects.requireNonNull(builderHelper);
             Objects.requireNonNull(cursor);
 
@@ -220,8 +222,8 @@ public final class ContactDataHandler {
             if (!data.isEmpty()) {
                 // get the corresponding label to the type.
                 int type = getColumnInt(cursor, mTypeColumn);
-                String label = getTypeLabel(mResources, type,
-                        getColumnString(cursor, mLabelColumn));
+                String label =
+                        getTypeLabel(mResources, type, getColumnString(cursor, mLabelColumn));
                 addContactPointData(builderHelper, label, data);
             }
         }
@@ -233,8 +235,8 @@ public final class ContactDataHandler {
          * Adds the information in the {@link Person.Builder}.
          *
          * @param builderHelper a helper to build the {@link Person}.
-         * @param label         the corresponding label to the {@code type} for the data.
-         * @param data          data read from the designed columns in the row.
+         * @param label the corresponding label to the {@code type} for the data.
+         * @param data data read from the designed columns in the row.
          */
         protected abstract void addContactPointData(
                 PersonBuilderHelper builderHelper, String label, Map<String, String> data);
@@ -242,7 +244,7 @@ public final class ContactDataHandler {
 
     private static final class EmailDataHandler extends ContactPointDataHandler {
         private static final String[] COLUMNS = {
-                Email.ADDRESS,
+            Email.ADDRESS,
         };
 
         public EmailDataHandler(@NonNull Resources resources) {
@@ -253,16 +255,15 @@ public final class ContactDataHandler {
          * Adds the Email information in the {@link Person.Builder}.
          *
          * @param builderHelper a builder to build the {@link Person}.
-         * @param label         The corresponding label to the {@code type}. E.g. {@link
-         *                      com.android.internal.R.string#emailTypeHome} to {@link
-         *                      Email#TYPE_HOME} or custom label for the data if {@code type} is
-         *                      {@link
-         *                      Email#TYPE_CUSTOM}.
-         * @param data          data read from the designed column {@code Email.ADDRESS} in the row.
+         * @param label The corresponding label to the {@code type}. E.g. {@link
+         *     com.android.internal.R.string#emailTypeHome} to {@link Email#TYPE_HOME} or custom
+         *     label for the data if {@code type} is {@link Email#TYPE_CUSTOM}.
+         * @param data data read from the designed column {@code Email.ADDRESS} in the row.
          */
         @Override
         protected void addContactPointData(
-                @NonNull PersonBuilderHelper builderHelper, @NonNull String label,
+                @NonNull PersonBuilderHelper builderHelper,
+                @NonNull String label,
                 @NonNull Map<String, String> data) {
             Objects.requireNonNull(builderHelper);
             Objects.requireNonNull(data);
@@ -275,8 +276,8 @@ public final class ContactDataHandler {
 
         @NonNull
         @Override
-        protected String getTypeLabel(@NonNull Resources resources, int type,
-                @Nullable String label) {
+        protected String getTypeLabel(
+                @NonNull Resources resources, int type, @Nullable String label) {
             Objects.requireNonNull(resources);
             return Email.getTypeLabel(resources, type, label).toString();
         }
@@ -284,8 +285,7 @@ public final class ContactDataHandler {
 
     private static final class PhoneHandler extends ContactPointDataHandler {
         private static final String[] COLUMNS = {
-                Phone.NUMBER,
-                Phone.NORMALIZED_NUMBER,
+            Phone.NUMBER, Phone.NORMALIZED_NUMBER,
         };
 
         private final Resources mResources;
@@ -299,15 +299,15 @@ public final class ContactDataHandler {
          * Adds the phone number information in the {@link Person.Builder}.
          *
          * @param builderHelper helper to build the {@link Person}.
-         * @param label         corresponding label to {@code type}. E.g. {@link
-         *                      com.android.internal.R.string#phoneTypeHome} to {@link
-         *                      Phone#TYPE_HOME}, or custom label for the data if {@code type} is
-         *                      {@link Phone#TYPE_CUSTOM}.
-         * @param data          data read from the designed columns {@link Phone#NUMBER} in the row.
+         * @param label corresponding label to {@code type}. E.g. {@link
+         *     com.android.internal.R.string#phoneTypeHome} to {@link Phone#TYPE_HOME}, or custom
+         *     label for the data if {@code type} is {@link Phone#TYPE_CUSTOM}.
+         * @param data data read from the designed columns {@link Phone#NUMBER} in the row.
          */
         @Override
         protected void addContactPointData(
-                @NonNull PersonBuilderHelper builderHelper, @NonNull String label,
+                @NonNull PersonBuilderHelper builderHelper,
+                @NonNull String label,
                 @NonNull Map<String, String> data) {
             Objects.requireNonNull(builderHelper);
             Objects.requireNonNull(data);
@@ -329,8 +329,8 @@ public final class ContactDataHandler {
             // efforts, depending on the locales available in the current configuration on the
             // system.
             Set<String> phoneNumberVariants =
-                    ContactsIndexerPhoneNumberUtils.createPhoneNumberVariants(mResources,
-                            phoneNumberOriginal, phoneNumberE164FromCP2);
+                    ContactsIndexerPhoneNumberUtils.createPhoneNumberVariants(
+                            mResources, phoneNumberOriginal, phoneNumberE164FromCP2);
 
             phoneNumberVariants.remove(phoneNumberOriginal);
             for (String variant : phoneNumberVariants) {
@@ -342,8 +342,8 @@ public final class ContactDataHandler {
 
         @NonNull
         @Override
-        protected String getTypeLabel(@NonNull Resources resources, int type,
-                @Nullable String label) {
+        protected String getTypeLabel(
+                @NonNull Resources resources, int type, @Nullable String label) {
             Objects.requireNonNull(resources);
             return Phone.getTypeLabel(resources, type, label).toString();
         }
@@ -351,31 +351,27 @@ public final class ContactDataHandler {
 
     private static final class StructuredPostalHandler extends ContactPointDataHandler {
         private static final String[] COLUMNS = {
-                StructuredPostal.FORMATTED_ADDRESS,
+            StructuredPostal.FORMATTED_ADDRESS,
         };
 
         public StructuredPostalHandler(@NonNull Resources resources) {
-            super(
-                    resources,
-                    COLUMNS,
-                    StructuredPostal.TYPE,
-                    StructuredPostal.LABEL);
+            super(resources, COLUMNS, StructuredPostal.TYPE, StructuredPostal.LABEL);
         }
 
         /**
          * Adds the postal address information in the {@link Person.Builder}.
          *
          * @param builderHelper helper to build the {@link Person}.
-         * @param label         corresponding label to {@code type}. E.g. {@link
-         *                      com.android.internal.R.string#postalTypeHome} to {@link
-         *                      StructuredPostal#TYPE_HOME}, or custom label for the data if {@code
-         *                      type} is {@link StructuredPostal#TYPE_CUSTOM}.
-         * @param data          data read from the designed column
-         *                      {@link StructuredPostal#FORMATTED_ADDRESS} in the row.
+         * @param label corresponding label to {@code type}. E.g. {@link
+         *     com.android.internal.R.string#postalTypeHome} to {@link StructuredPostal#TYPE_HOME},
+         *     or custom label for the data if {@code type} is {@link StructuredPostal#TYPE_CUSTOM}.
+         * @param data data read from the designed column {@link StructuredPostal#FORMATTED_ADDRESS}
+         *     in the row.
          */
         @Override
         protected void addContactPointData(
-                @NonNull PersonBuilderHelper builderHelper, @NonNull String label,
+                @NonNull PersonBuilderHelper builderHelper,
+                @NonNull String label,
                 @NonNull Map<String, String> data) {
             Objects.requireNonNull(builderHelper);
             Objects.requireNonNull(data);
@@ -388,8 +384,8 @@ public final class ContactDataHandler {
 
         @NonNull
         @Override
-        protected String getTypeLabel(@NonNull Resources resources, int type,
-                @Nullable String label) {
+        protected String getTypeLabel(
+                @NonNull Resources resources, int type, @Nullable String label) {
             Objects.requireNonNull(resources);
             return StructuredPostal.getTypeLabel(resources, type, label).toString();
         }
@@ -401,8 +397,8 @@ public final class ContactDataHandler {
         }
 
         @Override
-        protected void addSingleColumnStringData(@NonNull PersonBuilderHelper builder,
-                @NonNull String data) {
+        protected void addSingleColumnStringData(
+                @NonNull PersonBuilderHelper builder, @NonNull String data) {
             Objects.requireNonNull(builder);
             Objects.requireNonNull(data);
             builder.getPersonBuilder().addAdditionalName(Person.TYPE_NICKNAME, data);
@@ -411,12 +407,12 @@ public final class ContactDataHandler {
 
     private static final class StructuredNameHandler extends DataHandler {
         private static final String[] COLUMNS = {
-                Data.RAW_CONTACT_ID,
-                Data.NAME_RAW_CONTACT_ID,
-                // Only those three fields we need to set in the builder.
-                StructuredName.GIVEN_NAME,
-                StructuredName.MIDDLE_NAME,
-                StructuredName.FAMILY_NAME,
+            Data.RAW_CONTACT_ID,
+            Data.NAME_RAW_CONTACT_ID,
+            // Only those three fields we need to set in the builder.
+            StructuredName.GIVEN_NAME,
+            StructuredName.MIDDLE_NAME,
+            StructuredName.FAMILY_NAME,
         };
 
         /** Adds the columns needed for the {@code DataHandler}. */
@@ -456,9 +452,7 @@ public final class ContactDataHandler {
 
     private static final class OrganizationDataHandler extends DataHandler {
         private static final String[] COLUMNS = {
-                Organization.TITLE,
-                Organization.DEPARTMENT,
-                Organization.COMPANY,
+            Organization.TITLE, Organization.DEPARTMENT, Organization.COMPANY,
         };
 
         private final StringBuilder mStringBuilder = new StringBuilder();
@@ -490,9 +484,7 @@ public final class ContactDataHandler {
 
     private static final class RelationDataHandler extends DataHandler {
         private static final String[] COLUMNS = {
-                Relation.NAME,
-                Relation.TYPE,
-                Relation.LABEL,
+            Relation.NAME, Relation.TYPE, Relation.LABEL,
         };
 
         private final Resources mResources;
@@ -531,8 +523,8 @@ public final class ContactDataHandler {
         }
 
         @Override
-        protected void addSingleColumnStringData(@NonNull PersonBuilderHelper builder,
-                @NonNull String data) {
+        protected void addSingleColumnStringData(
+                @NonNull PersonBuilderHelper builder, @NonNull String data) {
             Objects.requireNonNull(builder);
             Objects.requireNonNull(data);
             builder.getPersonBuilder().addNote(data);

@@ -19,7 +19,6 @@ package android.app.appsearch.safeparcel;
 import android.annotation.FlaggedApi;
 import android.app.appsearch.flags.Flags;
 
-
 /**
  * Implements {@link SafeParcelable} and implements some default methods defined by {@link
  * android.os.Parcelable}.

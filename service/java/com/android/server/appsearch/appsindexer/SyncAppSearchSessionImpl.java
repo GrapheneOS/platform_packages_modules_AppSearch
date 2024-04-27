@@ -28,22 +28,24 @@ import android.app.appsearch.exceptions.AppSearchException;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
-/**
- * SyncAppSearchSessionImpl methods are a super set of SyncGlobalSearchSessionImpl methods.
- */
+/** SyncAppSearchSessionImpl methods are a super set of SyncGlobalSearchSessionImpl methods. */
 public class SyncAppSearchSessionImpl extends SyncAppSearchBase implements SyncAppSearchSession {
     private final AppSearchSession mSession;
 
-    public SyncAppSearchSessionImpl(@NonNull AppSearchManager appSearchManager,
-            @NonNull AppSearchManager.SearchContext searchContext, @NonNull Executor executor)
+    public SyncAppSearchSessionImpl(
+            @NonNull AppSearchManager appSearchManager,
+            @NonNull AppSearchManager.SearchContext searchContext,
+            @NonNull Executor executor)
             throws AppSearchException {
         super(executor);
         Objects.requireNonNull(appSearchManager);
         Objects.requireNonNull(searchContext);
         Objects.requireNonNull(executor);
-        mSession = executeAppSearchResultOperation(resultHandler ->
-                appSearchManager.createSearchSession(
-                        searchContext, executor, resultHandler));
+        mSession =
+                executeAppSearchResultOperation(
+                        resultHandler ->
+                                appSearchManager.createSearchSession(
+                                        searchContext, executor, resultHandler));
     }
 
     // Not actually asynchronous but added for convenience
@@ -61,10 +63,10 @@ public class SyncAppSearchSessionImpl extends SyncAppSearchBase implements SyncA
     public SetSchemaResponse setSchema(@NonNull SetSchemaRequest setSchemaRequest)
             throws AppSearchException {
         Objects.requireNonNull(setSchemaRequest);
-        return executeAppSearchResultOperation(resultHandler -> mSession.setSchema(
-                setSchemaRequest, mExecutor, mExecutor, resultHandler));
+        return executeAppSearchResultOperation(
+                resultHandler ->
+                        mSession.setSchema(setSchemaRequest, mExecutor, mExecutor, resultHandler));
     }
-
 
     // Put involves an AppSearchBatchResult, so it can't be simplified through
     // executeAppSearchResultOperation. Instead we use executeAppSearchBatchResultOperation.
@@ -73,7 +75,7 @@ public class SyncAppSearchSessionImpl extends SyncAppSearchBase implements SyncA
     public AppSearchBatchResult<String, Void> put(@NonNull PutDocumentsRequest request)
             throws AppSearchException {
         Objects.requireNonNull(request);
-        return executeAppSearchBatchResultOperation(resultHandler -> mSession.put(
-                request, mExecutor, resultHandler));
+        return executeAppSearchBatchResultOperation(
+                resultHandler -> mSession.put(request, mExecutor, resultHandler));
     }
 }

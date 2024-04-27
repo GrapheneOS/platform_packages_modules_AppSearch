@@ -26,24 +26,18 @@ import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 
 import java.util.Objects;
 
-/**
- * A class that wraps basic information of AppSearch API calls for dumpsys.
- */
+/** A class that wraps basic information of AppSearch API calls for dumpsys. */
 public class ApiCallRecord {
     // The time when the API call is logged, in the form of the milliseconds since boot.
     private final long mTimeMillis;
 
-    @CallStats.CallType
-    private final int mCallType;
+    @CallStats.CallType private final int mCallType;
 
-    @Nullable
-    private final String mPackageName;
+    @Nullable private final String mPackageName;
 
-    @Nullable
-    private final String mDatabaseName;
+    @Nullable private final String mDatabaseName;
 
-    @AppSearchResult.ResultCode
-    private final int mStatusCode;
+    @AppSearchResult.ResultCode private final int mStatusCode;
 
     private final int mTotalLatencyMillis;
 
@@ -152,8 +146,8 @@ public class ApiCallRecord {
             builder.append(", PackageName: ").append(mPackageName);
         }
         if (mDatabaseName != null) {
-            builder.append(", DatabaseName: ").append(
-                    AdbDumpUtil.generateFingerprintMd5(mDatabaseName));
+            builder.append(", DatabaseName: ")
+                    .append(AdbDumpUtil.generateFingerprintMd5(mDatabaseName));
         }
         builder.append(", StatusCode: ").append(mStatusCode);
         builder.append(", TotalLatencyMillis: ").append(mTotalLatencyMillis);

@@ -26,6 +26,7 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.util.ArrayMap;
 import android.widget.ImageView;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -37,7 +38,7 @@ import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Map;
 
 /** This tests that we can convert what comes from PackageManager to a MobileApplication */
 public class AppsUtilTest {
@@ -47,39 +48,53 @@ public class AppsUtilTest {
         // Populate fake PackageManager with 10 Packages.
         List<PackageInfo> fakePackages = new ArrayList<>();
         List<ResolveInfo> fakeActivities = new ArrayList<>();
+        Map<PackageInfo, ResolveInfo> packageActivityMapping = new ArrayMap<>();
 
         for (int i = 0; i < 10; i++) {
             fakePackages.add(createFakePackageInfo(i));
             fakeActivities.add(createFakeResolveInfo(i));
         }
 
-        setupMockPackageManager(pm, fakePackages, fakeActivities);
-        List<MobileApplication> resultApps =
-                AppsUtil.buildAppsFromPackageInfos(pm, fakePackages.subList(0, 5));
-
         // Package manager "has" 10 fake packages, but we're choosing just 5 of them to simulate the
         // case that not all the apps need to be synced. For example, 5 new apps were added and the
         // rest of the existing apps don't need to be re-indexed.
+        for (int i = 0; i < 5; i++) {
+            packageActivityMapping.put(fakePackages.get(i), fakeActivities.get(i));
+        }
+
+        setupMockPackageManager(pm, fakePackages, fakeActivities);
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(pm, packageActivityMapping);
+
         assertThat(resultApps).hasSize(5);
-        assertThat(resultApps.get(0).getPackageName()).isEqualTo("com.fake.package0");
-        assertThat(resultApps.get(1).getPackageName()).isEqualTo("com.fake.package1");
-        assertThat(resultApps.get(2).getPackageName()).isEqualTo("com.fake.package2");
-        assertThat(resultApps.get(3).getPackageName()).isEqualTo("com.fake.package3");
-        assertThat(resultApps.get(4).getPackageName()).isEqualTo("com.fake.package4");
+        List<String> packageNames = new ArrayList<>();
+        for (int i = 0; i < resultApps.size(); i++) {
+            packageNames.add(resultApps.get(i).getPackageName());
+        }
+        assertThat(packageNames)
+                .containsExactly(
+                        "com.fake.package0",
+                        "com.fake.package1",
+                        "com.fake.package2",
+                        "com.fake.package3",
+                        "com.fake.package4");
     }
 
     @Test
     public void testBuildRealApps() {
         // This shouldn't crash, and shouldn't be an empty list
         Context context = ApplicationProvider.getApplicationContext();
-        List<PackageInfo> pkgs = context.getPackageManager().getInstalledPackages(
-                PackageManager.GET_SIGNING_CERTIFICATES | PackageManager.GET_META_DATA);
+        Map<PackageInfo, ResolveInfo> packageActivityMapping =
+                AppsUtil.getLaunchablePackages(context.getPackageManager());
         List<MobileApplication> resultApps =
-                AppsUtil.buildAppsFromPackageInfos(context.getPackageManager(), pkgs);
+                AppsUtil.buildAppsFromPackageInfos(
+                        context.getPackageManager(), packageActivityMapping);
 
+        assertThat(resultApps).isNotEmpty();
         ImageView imageView = new ImageView(context);
         imageView.setImageURI(resultApps.get(0).getIconUri());
         assertThat(imageView.getDrawable().getIntrinsicWidth()).isGreaterThan(0);
         assertThat(imageView.getDrawable().getIntrinsicHeight()).isGreaterThan(0);
     }
 }
+

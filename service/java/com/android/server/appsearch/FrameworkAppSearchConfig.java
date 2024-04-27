@@ -32,19 +32,19 @@ import com.android.server.appsearch.external.localstorage.AppSearchConfig;
  */
 public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable {
     /**
-     * Default min time interval between samples in millis if there is no value set for
-     * {@link #getCachedMinTimeIntervalBetweenSamplesMillis()} in the flag system.
+     * Default min time interval between samples in millis if there is no value set for {@link
+     * #getCachedMinTimeIntervalBetweenSamplesMillis()} in the flag system.
      */
     long DEFAULT_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS = 50;
 
     /**
-     * Default sampling interval if there is no value set for
-     * {@link #getCachedSamplingIntervalDefault()} in the flag system.
+     * Default sampling interval if there is no value set for {@link
+     * #getCachedSamplingIntervalDefault()} in the flag system.
      */
     int DEFAULT_SAMPLING_INTERVAL = 10;
 
     int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES = 512 * 1024; // 512KiB
-    int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT = 20_000;
+    int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT = 80_000;
     int DEFAULT_LIMIT_CONFIG_MAX_SUGGESTION_COUNT = 20_000;
     int DEFAULT_BYTES_OPTIMIZE_THRESHOLD = 1 * 1024 * 1024; // 1 MiB
     int DEFAULT_TIME_OPTIMIZE_THRESHOLD_MILLIS = Integer.MAX_VALUE;
@@ -53,21 +53,22 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
     // Cached API Call Stats is disabled by default
     int DEFAULT_API_CALL_STATS_LIMIT = 0;
     boolean DEFAULT_RATE_LIMIT_ENABLED = false;
-    /**
-     * This defines the task queue's total capacity for rate limiting.
-     */
+
+    /** This defines the task queue's total capacity for rate limiting. */
     int DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY = Integer.MAX_VALUE;
+
     /**
      * This defines the per-package capacity for rate limiting as a percentage of the total
      * capacity.
      */
     float DEFAULT_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE = 1;
+
     /**
      * This defines API costs used for AppSearch's task queue rate limit.
      *
      * <p>Each entry in the string should follow the format 'api_name:integer_cost', and each entry
-     * should be separated by a semi-colon. API names should follow the string definitions in
-     * {@link com.android.server.appsearch.external.localstorage.stats.CallStats}.
+     * should be separated by a semi-colon. API names should follow the string definitions in {@link
+     * com.android.server.appsearch.external.localstorage.stats.CallStats}.
      *
      * <p>e.g. A valid string: "localPutDocuments:5;localSearch:1;localSetSchema:10"
      */
@@ -77,22 +78,18 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
     boolean DEFAULT_USE_FIXED_EXECUTOR_SERVICE = false;
     long DEFAULT_APP_FUNCTION_CALL_TIMEOUT_MILLIS = 30_000;
 
-    /**
-     * This flag value is true by default because the flag is intended as a kill-switch.
-     */
+    /** This flag value is true by default because the flag is intended as a kill-switch. */
     boolean DEFAULT_SHOULD_RETRIEVE_PARENT_INFO = true;
 
-    /**
-     * The default interval in millisecond to trigger fully persist job.
-     */
+    /** The default interval in millisecond to trigger fully persist job. */
     long DEFAULT_FULLY_PERSIST_JOB_INTERVAL = DAY_IN_MILLIS;
 
     /** Returns cached value for minTimeIntervalBetweenSamplesMillis. */
     long getCachedMinTimeIntervalBetweenSamplesMillis();
 
     /**
-     * Returns cached value for default sampling interval for all the stats NOT listed in
-     * the configuration.
+     * Returns cached value for default sampling interval for all the stats NOT listed in the
+     * configuration.
      *
      * <p>For example, sampling_interval=10 means that one out of every 10 stats was logged.
      */
@@ -143,7 +140,7 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
     /**
      * Returns the cached optimize byte size threshold.
      *
-     * An AppSearch Optimize job will be triggered if the bytes size of garbage resource exceeds
+     * <p>An AppSearch Optimize job will be triggered if the bytes size of garbage resource exceeds
      * this threshold.
      */
     int getCachedBytesOptimizeThreshold();
@@ -151,7 +148,7 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
     /**
      * Returns the cached optimize time interval threshold.
      *
-     * An AppSearch Optimize job will be triggered if the time since last optimize job exceeds
+     * <p>An AppSearch Optimize job will be triggered if the time since last optimize job exceeds
      * this threshold.
      */
     int getCachedTimeOptimizeThresholdMs();
@@ -159,7 +156,7 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
     /**
      * Returns the cached optimize document count threshold.
      *
-     * An AppSearch Optimize job will be triggered if the number of document of garbage resource
+     * <p>An AppSearch Optimize job will be triggered if the number of document of garbage resource
      * exceeds this threshold.
      */
     int getCachedDocCountOptimizeThreshold();
@@ -167,29 +164,21 @@ public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable
     /**
      * Returns the cached minimum optimize time interval threshold.
      *
-     * An AppSearch Optimize job will only be triggered if the time since last optimize job exceeds
-     * this threshold.
+     * <p>An AppSearch Optimize job will only be triggered if the time since last optimize job
+     * exceeds this threshold.
      */
     int getCachedMinTimeOptimizeThresholdMs();
 
-    /**
-     * Returns the maximum number of last API calls' statistics that can be included in dumpsys.
-     */
+    /** Returns the maximum number of last API calls' statistics that can be included in dumpsys. */
     int getCachedApiCallStatsLimit();
 
-    /**
-     * Returns the cached denylist.
-     */
+    /** Returns the cached denylist. */
     Denylist getCachedDenylist();
 
-    /**
-     * Returns whether to enable AppSearch rate limiting.
-     */
+    /** Returns whether to enable AppSearch rate limiting. */
     boolean getCachedRateLimitEnabled();
 
-    /**
-     * Returns the cached {@link AppSearchRateLimitConfig}.
-     */
+    /** Returns the cached {@link AppSearchRateLimitConfig}. */
     AppSearchRateLimitConfig getCachedRateLimitConfig();
 
     /**

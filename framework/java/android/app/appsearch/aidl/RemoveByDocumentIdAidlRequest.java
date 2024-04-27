@@ -29,6 +29,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to remove documents by id.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "RemoveByDocumentIdAidlRequestCreator")
@@ -40,15 +41,19 @@ public class RemoveByDocumentIdAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getRemoveByDocumentIdRequest")
     final RemoveByDocumentIdRequest mRemoveByDocumentIdRequest;
+
     @NonNull
     @Field(id = 4, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 5, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 

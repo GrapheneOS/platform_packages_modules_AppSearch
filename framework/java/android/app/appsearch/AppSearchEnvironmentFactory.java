@@ -20,6 +20,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 /**
  * This is a factory class for implementations needed based on environment for framework code.
+ *
  * @hide
  */
 public class AppSearchEnvironmentFactory {
@@ -31,8 +32,7 @@ public class AppSearchEnvironmentFactory {
             synchronized (AppSearchEnvironmentFactory.class) {
                 localRef = mEnvironmentInstance;
                 if (localRef == null) {
-                    mEnvironmentInstance = localRef =
-                            new FrameworkAppSearchEnvironment();
+                    mEnvironmentInstance = localRef = new FrameworkAppSearchEnvironment();
                 }
             }
         }
@@ -40,13 +40,11 @@ public class AppSearchEnvironmentFactory {
     }
 
     @VisibleForTesting
-    public static void setEnvironmentInstanceForTest(
-            AppSearchEnvironment appSearchEnvironment) {
+    public static void setEnvironmentInstanceForTest(AppSearchEnvironment appSearchEnvironment) {
         synchronized (AppSearchEnvironmentFactory.class) {
             mEnvironmentInstance = appSearchEnvironment;
         }
     }
 
-    private AppSearchEnvironmentFactory() {
-    }
+    private AppSearchEnvironmentFactory() {}
 }

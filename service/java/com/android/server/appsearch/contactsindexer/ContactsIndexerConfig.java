@@ -71,8 +71,6 @@ public interface ContactsIndexerConfig {
      */
     boolean shouldIndexFirstMiddleAndLastNames();
 
-    /**
-     * Returns whether full and delta updates should continue on error.
-     */
+    /** Returns whether full and delta updates should continue on error. */
     boolean shouldKeepUpdatingOnError();
 }

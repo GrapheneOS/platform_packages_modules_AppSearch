@@ -18,7 +18,6 @@ package android.app.appsearch.functions;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
@@ -39,7 +38,7 @@ import java.util.function.Consumer;
  */
 @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
 @SafeParcelable.Class(creator = "ExecuteAppFunctionRequestCreator")
-public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable implements Parcelable  {
+public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable implements Parcelable {
     @NonNull
     public static final Parcelable.Creator<ExecuteAppFunctionRequest> CREATOR =
             new ExecuteAppFunctionRequestCreator();
@@ -63,8 +62,7 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
     @NonNull
     private final Bundle mExtras;
 
-    @NonNull
-    private final GenericDocument mParametersCached;
+    @NonNull private final GenericDocument mParametersCached;
 
     /** Returns the package name of the app that hosts the function. */
     @NonNull
@@ -79,9 +77,9 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
     }
 
     /**
-     * Returns the parameters required to invoke this function. Within this
-     * {@link GenericDocument}, the property names are the names of the function parameters and
-     * the property values are the values of those parameters
+     * Returns the parameters required to invoke this function. Within this {@link GenericDocument},
+     * the property names are the names of the function parameters and the property values are the
+     * values of those parameters
      *
      * <p>The document may have missing parameters. Developers are advised to implement defensive
      * handling measures.
@@ -91,9 +89,7 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
         return mParametersCached;
     }
 
-    /**
-     * Returns additional metadata relevant to this function execution request.
-     */
+    /** Returns additional metadata relevant to this function execution request. */
     @NonNull
     public Bundle getExtras() {
         return mExtras;
@@ -132,22 +128,18 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
     /** The builder for creating {@link ExecuteAppFunctionRequest} instances. */
     @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
     public static final class Builder {
-        @NonNull
-        private final String mPackageName;
-        @NonNull
-        private final String mFunctionIdentifier;
-        @NonNull
-        private GenericDocument mParameters = GenericDocument.EMPTY;
-        @NonNull
-        private Bundle mExtras = Bundle.EMPTY;
+        @NonNull private final String mPackageName;
+        @NonNull private final String mFunctionIdentifier;
+        @NonNull private GenericDocument mParameters = GenericDocument.EMPTY;
+        @NonNull private Bundle mExtras = Bundle.EMPTY;
 
         /**
          * Creates a new instance of this builder class.
          *
-         * @param packageName        The package name of the target app providing the app
-         *                           function to invoke.
+         * @param packageName The package name of the target app providing the app function to
+         *     invoke.
          * @param functionIdentifier The identifier used by the {@link AppFunctionService} from the
-         *                           target app to uniquely identify the function to be invoked.
+         *     target app to uniquely identify the function to be invoked.
          */
         public Builder(@NonNull String packageName, @NonNull String functionIdentifier) {
             mPackageName = Objects.requireNonNull(packageName);
@@ -156,8 +148,8 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
 
         /**
          * Sets parameters for invoking the app function. Within this {@link GenericDocument}, the
-         * property names are the names of the function parameters and the property values are
-         * the values of those parameters. Defaults to an empty {@link GenericDocument} if not set.
+         * property names are the names of the function parameters and the property values are the
+         * values of those parameters. Defaults to an empty {@link GenericDocument} if not set.
          */
         @NonNull
         public Builder setParameters(@NonNull GenericDocument parameters) {
@@ -166,8 +158,8 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
         }
 
         /**
-         * Sets the additional metadata relevant to this function execution request. Defaults to
-         * an empty {@link Bundle} if not set.
+         * Sets the additional metadata relevant to this function execution request. Defaults to an
+         * empty {@link Bundle} if not set.
          */
         @NonNull
         public Builder setExtras(@NonNull Bundle extras) {
@@ -175,16 +167,11 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
             return this;
         }
 
-        /**
-         * Constructs a new {@link ExecuteAppFunctionRequest} from the contents of this builder.
-         */
+        /** Constructs a new {@link ExecuteAppFunctionRequest} from the contents of this builder. */
         @NonNull
         public ExecuteAppFunctionRequest build() {
             return new ExecuteAppFunctionRequest(
-                    mPackageName,
-                    mFunctionIdentifier,
-                    mParameters,
-                    mExtras);
+                    mPackageName, mFunctionIdentifier, mParameters, mExtras);
         }
     }
 }

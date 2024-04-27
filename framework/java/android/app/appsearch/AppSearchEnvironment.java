@@ -28,32 +28,32 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * An interface which exposes environment specific methods for AppSearch.
+ *
  * @hide
  */
 public interface AppSearchEnvironment {
 
-  /** Returns the directory to initialize appsearch based on the environment. */
-  public File getAppSearchDir(@NonNull Context context, @NonNull UserHandle userHandle);
+    /** Returns the directory to initialize appsearch based on the environment. */
+    File getAppSearchDir(@NonNull Context context, @NonNull UserHandle userHandle);
 
-  /** Returns the correct context for the user based on the environment. */
-  public Context createContextAsUser(@NonNull Context context, @NonNull UserHandle userHandle);
+    /** Returns the correct context for the user based on the environment. */
+    Context createContextAsUser(@NonNull Context context, @NonNull UserHandle userHandle);
 
-  /** Returns an ExecutorService based on given parameters. */
-  public ExecutorService createExecutorService(
-      int corePoolSize,
-      int maxConcurrency,
-      long keepAliveTime,
-      TimeUnit unit,
-      BlockingQueue<Runnable> workQueue,
-      int priority);
+    /** Returns an ExecutorService based on given parameters. */
+    ExecutorService createExecutorService(
+            int corePoolSize,
+            int maxConcurrency,
+            long keepAliveTime,
+            TimeUnit unit,
+            BlockingQueue<Runnable> workQueue,
+            int priority);
 
-  /** Returns an ExecutorService with a single thread. */
-  public ExecutorService createSingleThreadExecutor();
+    /** Returns an ExecutorService with a single thread. */
+    ExecutorService createSingleThreadExecutor();
 
-  /**
-   * Returns a cache directory for creating temporary files like in case of migrating documents.
-   */
-  @Nullable
-  File getCacheDir(@NonNull Context context);
+    /**
+     * Returns a cache directory for creating temporary files like in case of migrating documents.
+     */
+    @Nullable
+    File getCacheDir(@NonNull Context context);
 }
-

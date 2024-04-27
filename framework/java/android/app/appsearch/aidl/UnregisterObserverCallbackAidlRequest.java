@@ -29,6 +29,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to remove a previously registered observer.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "UnregisterObserverCallbackAidlRequestCreator")
@@ -40,12 +41,15 @@ public class UnregisterObserverCallbackAidlRequest extends AbstractSafeParcelabl
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getObservedPackage")
     private final String mObservedPackage;
+
     @NonNull
     @Field(id = 3, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 

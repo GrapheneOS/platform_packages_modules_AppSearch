@@ -45,7 +45,7 @@ public final class PackageManagerUtil {
      * @param packageName package whose signing certificates to check
      * @param sha256cert sha256 of the signing certificate for which to search
      * @return true if this package was or is signed by exactly the certificate with SHA-256 as
-     *         {@code sha256cert}
+     *     {@code sha256cert}
      */
     public static boolean hasSigningCertificate(
             Context context, String packageName, byte[] sha256cert) {
@@ -53,8 +53,7 @@ public final class PackageManagerUtil {
             return hasSigningCertificateBelowP(context, packageName, sha256cert);
         }
 
-        return context
-                .getPackageManager()
+        return context.getPackageManager()
                 .hasSigningCertificate(packageName, sha256cert, PackageManager.CERT_INPUT_SHA256);
     }
 
@@ -62,8 +61,9 @@ public final class PackageManagerUtil {
             Context context, String packageName, byte[] sha256cert) {
         PackageInfo packageInfo;
         try {
-            packageInfo = context.getPackageManager()
-                    .getPackageInfo(packageName, PackageManager.GET_SIGNATURES);
+            packageInfo =
+                    context.getPackageManager()
+                            .getPackageInfo(packageName, PackageManager.GET_SIGNATURES);
         } catch (NameNotFoundException e) {
             throw new IllegalArgumentException("Given package does not exist on device!");
         }
@@ -77,7 +77,8 @@ public final class PackageManagerUtil {
         try {
             Signature[] signatures = packageInfo.signatures;
             if (signatures != null && signatures.length == 1) {
-                byte[] certificate = MessageDigest.getInstance(/* algorithm= */ "SHA-256")
+                byte[] certificate =
+                        MessageDigest.getInstance(/* algorithm= */ "SHA-256")
                                 .digest(signatures[0].toByteArray());
                 return Arrays.equals(certificate, sha256cert);
             }

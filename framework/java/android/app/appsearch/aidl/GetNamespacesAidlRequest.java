@@ -27,6 +27,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to retrieve all namespaces in given database.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "GetNamespacesAidlRequestCreator")
@@ -38,12 +39,15 @@ public class GetNamespacesAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
     private final long mBinderCallStartTimeMillis;
 
@@ -51,7 +55,7 @@ public class GetNamespacesAidlRequest extends AbstractSafeParcelable {
      * Retrieves the set of all namespaces in the current database with at least one document.
      *
      * @param callerAttributionSource The permission identity of the package that owns the schema.
-     * @param databaseName  The name of the database to retrieve.
+     * @param databaseName The name of the database to retrieve.
      * @param userHandle Handle of the calling user
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis
      */

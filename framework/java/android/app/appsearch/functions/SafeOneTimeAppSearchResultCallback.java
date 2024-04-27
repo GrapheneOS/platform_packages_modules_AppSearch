@@ -29,8 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * A wrapper of IAppSearchResultCallback which swallows the {@link RemoteException}.
- * This callback is intended for one-time use only. Subsequent calls to onResult() will be ignored.
+ * A wrapper of IAppSearchResultCallback which swallows the {@link RemoteException}. This callback
+ * is intended for one-time use only. Subsequent calls to onResult() will be ignored.
  *
  * @hide
  */
@@ -39,21 +39,18 @@ public class SafeOneTimeAppSearchResultCallback {
 
     private final AtomicBoolean mOnResultCalled = new AtomicBoolean(false);
 
-    @NonNull
-    private final IAppSearchResultCallback mCallback;
+    @NonNull private final IAppSearchResultCallback mCallback;
 
-    @Nullable
-    private final Consumer<AppSearchResult<?>> mOnDispatchCallback;
+    @Nullable private final Consumer<AppSearchResult<?>> mOnDispatchCallback;
 
     public SafeOneTimeAppSearchResultCallback(@NonNull IAppSearchResultCallback callback) {
-        this(callback, /*onDispatchCallback=*/ null);
+        this(callback, /* onDispatchCallback= */ null);
     }
 
     /**
-     * @param callback           The callback to wrap.
+     * @param callback The callback to wrap.
      * @param onDispatchCallback An optional callback invoked after the wrapped callback has been
-     *                           dispatched with a result. This callback receives the result that
-     *                           has been dispatched.
+     *     dispatched with a result. This callback receives the result that has been dispatched.
      */
     public SafeOneTimeAppSearchResultCallback(
             @NonNull IAppSearchResultCallback callback,

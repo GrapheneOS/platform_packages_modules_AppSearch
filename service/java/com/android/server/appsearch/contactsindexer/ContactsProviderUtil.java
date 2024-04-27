@@ -44,18 +44,15 @@ public final class ContactsProviderUtil {
     // static final string for querying CP2
     private static final String UPDATE_SINCE = Contacts.CONTACT_LAST_UPDATED_TIMESTAMP + ">?";
     private static final String UPDATE_ORDER_BY = Contacts.CONTACT_LAST_UPDATED_TIMESTAMP + " DESC";
-    private static final String[] UPDATE_SELECTION = new String[]{
-            Contacts._ID,
-            Contacts.CONTACT_LAST_UPDATED_TIMESTAMP
-    };
+    private static final String[] UPDATE_SELECTION =
+            new String[] {Contacts._ID, Contacts.CONTACT_LAST_UPDATED_TIMESTAMP};
     private static final String DELETION_SINCE = DeletedContacts.CONTACT_DELETED_TIMESTAMP + ">?";
-    private static final String[] DELETION_SELECTION = new String[]{
-            DeletedContacts.CONTACT_ID,
-            DeletedContacts.CONTACT_DELETED_TIMESTAMP,
-    };
+    private static final String[] DELETION_SELECTION =
+            new String[] {
+                DeletedContacts.CONTACT_ID, DeletedContacts.CONTACT_DELETED_TIMESTAMP,
+            };
 
-    private ContactsProviderUtil() {
-    }
+    private ContactsProviderUtil() {}
 
     static long getLastUpdatedTimestamp(@NonNull Cursor cursor) {
         Objects.requireNonNull(cursor);
@@ -67,16 +64,19 @@ public final class ContactsProviderUtil {
      * Gets the ids for deleted contacts from certain timestamp.
      *
      * @param sinceFilter timestamp (milliseconds since epoch) from which ids of deleted contacts
-     *                    should be returned.
-     * @param contactIds  the Set passed in to hold the deleted contacts.
+     *     should be returned.
+     * @param contactIds the Set passed in to hold the deleted contacts.
      * @return the timestamp for the contact most recently deleted.
      */
-    static public long getDeletedContactIds(@NonNull Context context, long sinceFilter,
-            @NonNull List<String> contactIds, @Nullable ContactsUpdateStats updateStats) {
+    public static long getDeletedContactIds(
+            @NonNull Context context,
+            long sinceFilter,
+            @NonNull List<String> contactIds,
+            @Nullable ContactsUpdateStats updateStats) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(contactIds);
 
-        String[] selectionArgs = new String[]{Long.toString(sinceFilter)};
+        String[] selectionArgs = new String[] {Long.toString(sinceFilter)};
         long newTimestamp = sinceFilter;
         Cursor cursor = null;
         try {
@@ -84,19 +84,18 @@ public final class ContactsProviderUtil {
             //  LAST_DELETED_TIMESTAMP DESC. This way the 1st contact would have the last deleted
             //  timestamp.
             cursor =
-                    context.getContentResolver().query(
-                            DeletedContacts.CONTENT_URI,
-                            DELETION_SELECTION,
-                            DELETION_SINCE,
-                            selectionArgs,
-                            /*sortOrder=*/ null);
+                    context.getContentResolver()
+                            .query(
+                                    DeletedContacts.CONTENT_URI,
+                                    DELETION_SELECTION,
+                                    DELETION_SINCE,
+                                    selectionArgs,
+                                    /* sortOrder= */ null);
 
             if (cursor == null) {
-                Log.e(TAG,
-                        "Could not fetch deleted contacts - no contacts provider present?");
+                Log.e(TAG, "Could not fetch deleted contacts - no contacts provider present?");
                 if (updateStats != null) {
-                    updateStats.mDeleteStatuses.add(
-                            ContactsUpdateStats.ERROR_CODE_CP2_NULL_CURSOR);
+                    updateStats.mDeleteStatuses.add(ContactsUpdateStats.ERROR_CODE_CP2_NULL_CURSOR);
                 }
                 return newTimestamp;
             }
@@ -115,10 +114,10 @@ public final class ContactsProviderUtil {
             if (LogUtil.DEBUG) {
                 Log.d(TAG, "Got " + rows + " deleted contacts since " + sinceFilter);
             }
-        } catch (SecurityException |
-                 SQLiteException |
-                 NullPointerException |
-                 NoClassDefFoundError e) {
+        } catch (SecurityException
+                | SQLiteException
+                | NullPointerException
+                | NoClassDefFoundError e) {
             Log.e(TAG, "ContentResolver.query failed to get latest deleted contacts.", e);
             if (updateStats != null) {
                 updateStats.mDeleteStatuses.add(
@@ -137,46 +136,54 @@ public final class ContactsProviderUtil {
      * Returns a list of IDs, within given limit, of contacts updated since given timestamp.
      *
      * @param sinceFilter timestamp (milliseconds since epoch) from which ids of recently updated
-     *                    contacts should be returned.
-     * @param contactIds  the Set passed in to hold the recently updated contacts.
-     * @param limit       the maximum number of contacts fetched from CP2. No limit will be set if
-     *                    the value is {@link ContactsIndexerConfig#UPDATE_LIMIT_NONE}.
+     *     contacts should be returned.
+     * @param contactIds the Set passed in to hold the recently updated contacts.
+     * @param limit the maximum number of contacts fetched from CP2. No limit will be set if the
+     *     value is {@link ContactsIndexerConfig#UPDATE_LIMIT_NONE}.
      * @return the timestamp for the contact most recently updated.
      */
-    public static long getUpdatedContactIds(@NonNull Context context, long sinceFilter, int limit,
-            @NonNull List<String> contactIds, @Nullable ContactsUpdateStats updateStats) {
+    public static long getUpdatedContactIds(
+            @NonNull Context context,
+            long sinceFilter,
+            int limit,
+            @NonNull List<String> contactIds,
+            @Nullable ContactsUpdateStats updateStats) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(contactIds);
 
         long newTimestamp = sinceFilter;
-        String[] selectionArgs = new String[]{Long.toString(sinceFilter)};
+        String[] selectionArgs = new String[] {Long.toString(sinceFilter)};
         // We only get the contacts from the default directory, e.g. the non-invisibles.
-        Uri.Builder contactsUriBuilder = Contacts.CONTENT_URI.buildUpon().appendQueryParameter(
-                ContactsContract.DIRECTORY_PARAM_KEY,
-                String.valueOf(ContactsContract.Directory.DEFAULT));
+        Uri.Builder contactsUriBuilder =
+                Contacts.CONTENT_URI
+                        .buildUpon()
+                        .appendQueryParameter(
+                                ContactsContract.DIRECTORY_PARAM_KEY,
+                                String.valueOf(ContactsContract.Directory.DEFAULT));
         String orderBy = null;
         if (limit >= 0) {
-            contactsUriBuilder.appendQueryParameter(ContactsContract.LIMIT_PARAM_KEY,
-                    String.valueOf(limit));
+            contactsUriBuilder.appendQueryParameter(
+                    ContactsContract.LIMIT_PARAM_KEY, String.valueOf(limit));
             orderBy = UPDATE_ORDER_BY;
         }
-        try (Cursor cursor = context.getContentResolver().query(
-                contactsUriBuilder.build(),
-                UPDATE_SELECTION,
-                UPDATE_SINCE, selectionArgs,
-                orderBy)) {
+        try (Cursor cursor =
+                context.getContentResolver()
+                        .query(
+                                contactsUriBuilder.build(),
+                                UPDATE_SELECTION,
+                                UPDATE_SINCE,
+                                selectionArgs,
+                                orderBy)) {
             if (cursor == null) {
                 Log.w(TAG, "Failed to get a list of contacts updated since " + sinceFilter);
                 if (updateStats != null) {
-                    updateStats.mUpdateStatuses.add(
-                            ContactsUpdateStats.ERROR_CODE_CP2_NULL_CURSOR);
+                    updateStats.mUpdateStatuses.add(ContactsUpdateStats.ERROR_CODE_CP2_NULL_CURSOR);
                 }
                 return newTimestamp;
             }
 
             int contactIdIndex = cursor.getColumnIndex(Contacts._ID);
-            int timestampIndex = cursor.getColumnIndex(
-                    Contacts.CONTACT_LAST_UPDATED_TIMESTAMP);
+            int timestampIndex = cursor.getColumnIndex(Contacts.CONTACT_LAST_UPDATED_TIMESTAMP);
             int numContacts = 0;
             while (cursor.moveToNext()) {
                 // Just in case the LIMIT parameter doesn't work in the query to CP2.
@@ -193,10 +200,10 @@ public final class ContactsProviderUtil {
             if (LogUtil.DEBUG) {
                 Log.v(TAG, "Returning " + numContacts + " updated contacts since " + sinceFilter);
             }
-        } catch (SecurityException |
-                 SQLiteException |
-                 NullPointerException |
-                 NoClassDefFoundError e) {
+        } catch (SecurityException
+                | SQLiteException
+                | NullPointerException
+                | NoClassDefFoundError e) {
             Log.e(TAG, "ContentResolver.query failed to get latest updated contacts.", e);
             // TODO(b/222126568) consider throwing an exception here. And in the caller it can
             //  still catch the exception, and based on the states(e.g. whether we query CP2

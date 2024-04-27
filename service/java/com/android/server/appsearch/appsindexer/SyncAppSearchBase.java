@@ -22,16 +22,13 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.BatchResultCallback;
 import android.app.appsearch.exceptions.AppSearchException;
 
-
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
-/**
- * Contains common methods for converting async methods to sync
- */
+/** Contains common methods for converting async methods to sync */
 public class SyncAppSearchBase {
     protected final Executor mExecutor;
 
@@ -43,9 +40,10 @@ public class SyncAppSearchBase {
             Consumer<Consumer<AppSearchResult<T>>> operation) throws AppSearchException {
         final CompletableFuture<AppSearchResult<T>> futureResult = new CompletableFuture<>();
 
-        mExecutor.execute(() -> {
-            operation.accept(futureResult::complete);
-        });
+        mExecutor.execute(
+                () -> {
+                    operation.accept(futureResult::complete);
+                });
 
         try {
             // TODO(b/275592563): Change to get timeout value from config
@@ -58,41 +56,49 @@ public class SyncAppSearchBase {
             return result.getResultValue();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new AppSearchException(AppSearchResult.RESULT_INTERNAL_ERROR,
-                    "Operation was interrupted.", e);
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_INTERNAL_ERROR, "Operation was interrupted.", e);
         } catch (ExecutionException e) {
-            throw new AppSearchException(AppSearchResult.RESULT_UNKNOWN_ERROR,
-                    "Error executing operation.", e.getCause());
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_UNKNOWN_ERROR,
+                    "Error executing operation.",
+                    e.getCause());
         }
     }
 
-    protected <T, V> AppSearchBatchResult<T,V> executeAppSearchBatchResultOperation(
+    protected <T, V> AppSearchBatchResult<T, V> executeAppSearchBatchResultOperation(
             Consumer<BatchResultCallback<T, V>> operation) throws AppSearchException {
         final CompletableFuture<AppSearchBatchResult<T, V>> futureResult =
                 new CompletableFuture<>();
 
-        mExecutor.execute(() -> operation.accept(new BatchResultCallback<>() {
-            @Override
-            public void onResult(@NonNull AppSearchBatchResult<T, V> value) {
-                futureResult.complete(value);
-            }
+        mExecutor.execute(
+                () ->
+                        operation.accept(
+                                new BatchResultCallback<>() {
+                                    @Override
+                                    public void onResult(
+                                            @NonNull AppSearchBatchResult<T, V> value) {
+                                        futureResult.complete(value);
+                                    }
 
-            @Override
-            public void onSystemError(@Nullable Throwable throwable) {
-                futureResult.completeExceptionally(throwable);
-            }
-        }));
+                                    @Override
+                                    public void onSystemError(@Nullable Throwable throwable) {
+                                        futureResult.completeExceptionally(throwable);
+                                    }
+                                }));
 
         try {
             // TODO(b/275592563): Change to get timeout value from config
             return futureResult.get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new AppSearchException(AppSearchResult.RESULT_INTERNAL_ERROR,
-                    "Operation was interrupted.", e);
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_INTERNAL_ERROR, "Operation was interrupted.", e);
         } catch (ExecutionException e) {
-            throw new AppSearchException(AppSearchResult.RESULT_UNKNOWN_ERROR,
-                    "Error executing operation.", e.getCause());
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_UNKNOWN_ERROR,
+                    "Error executing operation.",
+                    e.getCause());
         }
     }
 }

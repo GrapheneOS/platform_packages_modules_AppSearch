@@ -29,6 +29,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to reports usage of a particular document.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "ReportUsageAidlRequestCreator")
@@ -40,20 +41,26 @@ public class ReportUsageAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getTargetPackageName")
     private final String mTargetPackageName;
+
     @NonNull
     @Field(id = 3, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 4, getter = "getReportUsageRequest")
     private final ReportUsageRequest mReportUsageRequest;
+
     @Field(id = 5, getter = "isSystemUsage")
     private final boolean mSystemUsage;
+
     @NonNull
     @Field(id = 6, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 7, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 
@@ -63,8 +70,8 @@ public class ReportUsageAidlRequest extends AbstractSafeParcelable {
      * @param callerAttributionSource The permission identity of the package that owns this
      *     document.
      * @param targetPackageName The name of the package that owns this document.
-     * @param databaseName  The name of the database to report usage against.
-     * @param reportUsageRequest  The {@link ReportUsageRequest} to report usage for document.
+     * @param databaseName The name of the database to report usage against.
+     * @param reportUsageRequest The {@link ReportUsageRequest} to report usage for document.
      * @param systemUsage Whether the usage was reported by a system app against another app's doc.
      * @param userHandle Handle of the calling user
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis

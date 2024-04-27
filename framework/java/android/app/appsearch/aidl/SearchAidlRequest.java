@@ -30,6 +30,7 @@ import java.util.Objects;
 /**
  * Encapsulates a request to make a binder call to search for documents based on given
  * specifications.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "SearchAidlRequestCreator")
@@ -41,18 +42,23 @@ public class SearchAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getSearchExpression")
     private final String mSearchExpression;
+
     @NonNull
     @Field(id = 4, getter = "getSearchSpec")
     private final SearchSpec mSearchSpec;
+
     @NonNull
     @Field(id = 5, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 6, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 

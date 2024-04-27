@@ -28,6 +28,7 @@ import java.util.Objects;
 
 /**
  * Encapsulates a request to make a binder call to get the storage info.
+ *
  * @hide
  */
 @SafeParcelable.Class(creator = "GetStorageInfoAidlRequestCreator")
@@ -39,20 +40,23 @@ public class GetStorageInfoAidlRequest extends AbstractSafeParcelable {
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
     private final AppSearchAttributionSource mCallerAttributionSource;
+
     @NonNull
     @Field(id = 2, getter = "getDatabaseName")
     private final String mDatabaseName;
+
     @NonNull
     @Field(id = 3, getter = "getUserHandle")
     private final UserHandle mUserHandle;
+
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
     private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
 
     /**
      * Gets the storage info.
      *
-     * @param callerAttributionSource The permission identity of the package to get the storage
-     *     info for.
+     * @param callerAttributionSource The permission identity of the package to get the storage info
+     *     for.
      * @param databaseName The databaseName to get the storage info for.
      * @param userHandle Handle of the calling user
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis

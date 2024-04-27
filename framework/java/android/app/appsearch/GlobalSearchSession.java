@@ -71,8 +71,8 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
     private boolean mIsClosed = false;
 
     /**
-     * Creates a search session for the client, defined by the {@code userHandle} and
-     * {@code packageName}.
+     * Creates a search session for the client, defined by the {@code userHandle} and {@code
+     * packageName}.
      */
     static void createGlobalSearchSession(
             @NonNull IAppSearchManager service,
@@ -80,44 +80,46 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
             @NonNull AppSearchAttributionSource attributionSource,
             @NonNull @CallbackExecutor Executor executor,
             @NonNull Consumer<AppSearchResult<GlobalSearchSession>> callback) {
-        GlobalSearchSession globalSearchSession = new GlobalSearchSession(service, userHandle,
-                attributionSource);
-        globalSearchSession.initialize(executor, result -> {
-            if (result.isSuccess()) {
-                callback.accept(AppSearchResult.newSuccessfulResult(globalSearchSession));
-            } else {
-                callback.accept(AppSearchResult.newFailedResult(result));
-            }
-        });
+        GlobalSearchSession globalSearchSession =
+                new GlobalSearchSession(service, userHandle, attributionSource);
+        globalSearchSession.initialize(
+                executor,
+                result -> {
+                    if (result.isSuccess()) {
+                        callback.accept(AppSearchResult.newSuccessfulResult(globalSearchSession));
+                    } else {
+                        callback.accept(AppSearchResult.newFailedResult(result));
+                    }
+                });
     }
 
-    private GlobalSearchSession(@NonNull IAppSearchManager service, @NonNull UserHandle userHandle,
+    private GlobalSearchSession(
+            @NonNull IAppSearchManager service,
+            @NonNull UserHandle userHandle,
             @NonNull AppSearchAttributionSource callerAttributionSource) {
-        super(service, userHandle, callerAttributionSource, /*isForEnterprise=*/ false);
+        super(service, userHandle, callerAttributionSource, /* isForEnterprise= */ false);
     }
 
     /**
      * Retrieves {@link GenericDocument} documents, belonging to the specified package name and
-     * database name and identified by the namespace and ids in the request, from the
-     * {@link GlobalSearchSession} database.
+     * database name and identified by the namespace and ids in the request, from the {@link
+     * GlobalSearchSession} database.
      *
      * <p>If the package or database doesn't exist or if the calling package doesn't have access,
      * the gets will be handled as failures in an {@link AppSearchBatchResult} object in the
      * callback.
      *
-     * @param packageName  the name of the package to get from
+     * @param packageName the name of the package to get from
      * @param databaseName the name of the database to get from
-     * @param request      a request containing a namespace and IDs to get documents for.
-     * @param executor     Executor on which to invoke the callback.
-     * @param callback     Callback to receive the pending result of performing this operation. The
-     *                     keys of the returned {@link AppSearchBatchResult} are the input IDs. The
-     *                     values are the returned {@link GenericDocument}s on success, or a failed
-     *                     {@link AppSearchResult} otherwise. IDs that are not found will return a
-     *                     failed {@link AppSearchResult} with a result code of
-     *                     {@link AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error
-     *                     occurs in the AppSearch service,
-     *                     {@link BatchResultCallback#onSystemError} will be invoked with a
-     *                     {@link Throwable}.
+     * @param request a request containing a namespace and IDs to get documents for.
+     * @param executor Executor on which to invoke the callback.
+     * @param callback Callback to receive the pending result of performing this operation. The keys
+     *     of the returned {@link AppSearchBatchResult} are the input IDs. The values are the
+     *     returned {@link GenericDocument}s on success, or a failed {@link AppSearchResult}
+     *     otherwise. IDs that are not found will return a failed {@link AppSearchResult} with a
+     *     result code of {@link AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error
+     *     occurs in the AppSearch service, {@link BatchResultCallback#onSystemError} will be
+     *     invoked with a {@link Throwable}.
      */
     @Override
     public void getByDocumentId(
@@ -145,8 +147,8 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * SearchResults#getNextPage}.
      *
      * @param queryExpression query string to search.
-     * @param searchSpec      spec for setting document filters, adding projection, setting term
-     *                        match type, etc.
+     * @param searchSpec spec for setting document filters, adding projection, setting term match
+     *     type, etc.
      * @return a {@link SearchResults} object for retrieved matched documents.
      */
     @NonNull
@@ -164,11 +166,11 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * <p>If the requested package/database combination does not exist or the caller has not been
      * granted access to it, then an empty GetSchemaResponse will be returned.
      *
-     * @param packageName  the package that owns the requested {@link AppSearchSchema} instances.
+     * @param packageName the package that owns the requested {@link AppSearchSchema} instances.
      * @param databaseName the database that owns the requested {@link AppSearchSchema} instances.
      * @return The pending {@link GetSchemaResponse} containing the schemas that the caller has
-     *         access to or an empty GetSchemaResponse if the request package and database does not
-     *         exist, has not set a schema or contains no schemas that are accessible to the caller.
+     *     access to or an empty GetSchemaResponse if the request package and database does not
+     *     exist, has not set a schema or contains no schemas that are accessible to the caller.
      */
     @Override
     public void getSchema(
@@ -186,18 +188,17 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * <p>See {@link AppSearchSession#reportUsage} for a general description of document usage, as
      * well as an API that can be used by the app itself.
      *
-     * <p>Usage reported via this method is accounted separately from usage reported via
-     * {@link AppSearchSession#reportUsage} and may be accessed using the constants
-     * {@link SearchSpec#RANKING_STRATEGY_SYSTEM_USAGE_COUNT} and
-     * {@link SearchSpec#RANKING_STRATEGY_SYSTEM_USAGE_LAST_USED_TIMESTAMP}.
+     * <p>Usage reported via this method is accounted separately from usage reported via {@link
+     * AppSearchSession#reportUsage} and may be accessed using the constants {@link
+     * SearchSpec#RANKING_STRATEGY_SYSTEM_USAGE_COUNT} and {@link
+     * SearchSpec#RANKING_STRATEGY_SYSTEM_USAGE_LAST_USED_TIMESTAMP}.
      *
-     * @param request  The usage reporting request.
+     * @param request The usage reporting request.
      * @param executor Executor on which to invoke the callback.
      * @param callback Callback to receive errors. If the operation succeeds, the callback will be
-     *                 invoked with an {@link AppSearchResult} whose value is {@code null}. The
-     *                 callback will be invoked with an {@link AppSearchResult} of
-     *                 {@link AppSearchResult#RESULT_SECURITY_ERROR} if this API is invoked by an
-     *                 app which is not part of the system.
+     *     invoked with an {@link AppSearchResult} whose value is {@code null}. The callback will be
+     *     invoked with an {@link AppSearchResult} of {@link AppSearchResult#RESULT_SECURITY_ERROR}
+     *     if this API is invoked by an app which is not part of the system.
      */
     public void reportSystemUsage(
             @NonNull ReportSystemUsageRequest request,
@@ -217,9 +218,9 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
                                     request.getNamespace(),
                                     request.getDocumentId(),
                                     request.getUsageTimestampMillis()),
-                    /*systemUsage=*/ true,
-                    mUserHandle,
-                    /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()),
+                            /* systemUsage= */ true,
+                            mUserHandle,
+                            /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
                         public void onResult(AppSearchResultParcel resultParcel) {
@@ -236,9 +237,9 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
     }
 
     /**
-     * Adds an {@link ObserverCallback} to monitor changes within the databases owned by
-     * {@code targetPackageName} if they match the given
-     * {@link android.app.appsearch.observer.ObserverSpec}.
+     * Adds an {@link ObserverCallback} to monitor changes within the databases owned by {@code
+     * targetPackageName} if they match the given {@link
+     * android.app.appsearch.observer.ObserverSpec}.
      *
      * <p>The observer callback is only triggered for data that changes after it is registered. No
      * notification about existing data is sent as a result of registering an observer. To find out
@@ -253,16 +254,17 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * later if {@code targetPackageName} is installed and starts indexing data.
      *
      * @param targetPackageName Package whose changes to monitor
-     * @param spec              Specification of what types of changes to listen for
-     * @param executor          Executor on which to call the {@code observer} callback methods.
-     * @param observer          Callback to trigger when a schema or document changes
+     * @param spec Specification of what types of changes to listen for
+     * @param executor Executor on which to call the {@code observer} callback methods.
+     * @param observer Callback to trigger when a schema or document changes
      * @throws AppSearchException If an unexpected error occurs when trying to register an observer.
      */
     public void registerObserverCallback(
             @NonNull String targetPackageName,
             @NonNull ObserverSpec spec,
             @NonNull Executor executor,
-            @NonNull ObserverCallback observer) throws AppSearchException {
+            @NonNull ObserverCallback observer)
+            throws AppSearchException {
         Objects.requireNonNull(targetPackageName);
         Objects.requireNonNull(spec);
         Objects.requireNonNull(executor);
@@ -278,62 +280,76 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
             }
             if (stub == null) {
                 // No stub is associated with this package and observer, so we must create one.
-                stub = new IAppSearchObserverProxy.Stub() {
-                    @Override
-                    public void onSchemaChanged(
-                            @NonNull String packageName,
-                            @NonNull String databaseName,
-                            @NonNull List<String> changedSchemaNames) {
-                        safeExecute(executor, this::suppressingErrorCallback, () -> {
-                            SchemaChangeInfo changeInfo = new SchemaChangeInfo(
-                                    packageName, databaseName, new ArraySet<>(changedSchemaNames));
-                            observer.onSchemaChanged(changeInfo);
-                        });
-                    }
+                stub =
+                        new IAppSearchObserverProxy.Stub() {
+                            @Override
+                            public void onSchemaChanged(
+                                    @NonNull String packageName,
+                                    @NonNull String databaseName,
+                                    @NonNull List<String> changedSchemaNames) {
+                                safeExecute(
+                                        executor,
+                                        this::suppressingErrorCallback,
+                                        () -> {
+                                            SchemaChangeInfo changeInfo =
+                                                    new SchemaChangeInfo(
+                                                            packageName,
+                                                            databaseName,
+                                                            new ArraySet<>(changedSchemaNames));
+                                            observer.onSchemaChanged(changeInfo);
+                                        });
+                            }
 
-                    @Override
-                    public void onDocumentChanged(
-                            @NonNull String packageName,
-                            @NonNull String databaseName,
-                            @NonNull String namespace,
-                            @NonNull String schemaName,
-                            @NonNull List<String> changedDocumentIds) {
-                        safeExecute(executor, this::suppressingErrorCallback, () -> {
-                            DocumentChangeInfo changeInfo = new DocumentChangeInfo(
-                                    packageName,
-                                    databaseName,
-                                    namespace,
-                                    schemaName,
-                                    new ArraySet<>(changedDocumentIds));
-                            observer.onDocumentChanged(changeInfo);
-                        });
-                    }
+                            @Override
+                            public void onDocumentChanged(
+                                    @NonNull String packageName,
+                                    @NonNull String databaseName,
+                                    @NonNull String namespace,
+                                    @NonNull String schemaName,
+                                    @NonNull List<String> changedDocumentIds) {
+                                safeExecute(
+                                        executor,
+                                        this::suppressingErrorCallback,
+                                        () -> {
+                                            DocumentChangeInfo changeInfo =
+                                                    new DocumentChangeInfo(
+                                                            packageName,
+                                                            databaseName,
+                                                            namespace,
+                                                            schemaName,
+                                                            new ArraySet<>(changedDocumentIds));
+                                            observer.onDocumentChanged(changeInfo);
+                                        });
+                            }
 
-                    /**
-                     * Error-handling callback that simply drops errors.
-                     *
-                     * <p>If we fail to deliver change notifications, there isn't much we can do.
-                     * The API doesn't allow the user to provide a callback to invoke on failure of
-                     * change notification delivery. {@link SearchSessionUtil#safeExecute} already
-                     * includes a log message. So we just do nothing.
-                     */
-                    private void suppressingErrorCallback(@NonNull AppSearchResult<?> unused) {
-                    }
-                };
+                            /**
+                             * Error-handling callback that simply drops errors.
+                             *
+                             * <p>If we fail to deliver change notifications, there isn't much we
+                             * can do. The API doesn't allow the user to provide a callback to
+                             * invoke on failure of change notification delivery. {@link
+                             * SearchSessionUtil#safeExecute} already includes a log message. So we
+                             * just do nothing.
+                             */
+                            private void suppressingErrorCallback(
+                                    @NonNull AppSearchResult<?> unused) {}
+                        };
             }
 
             // Regardless of whether this stub was fresh or not, we have to register it again
             // because the user might be supplying a different spec.
             AppSearchResultParcel<Void> resultParcel;
             try {
-                resultParcel = mService.registerObserverCallback(
-                        new RegisterObserverCallbackAidlRequest(
-                                mCallerAttributionSource,
-                                targetPackageName,
-                                spec,
-                                mUserHandle,
-                                /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()),
-                        stub);
+                resultParcel =
+                        mService.registerObserverCallback(
+                                new RegisterObserverCallbackAidlRequest(
+                                        mCallerAttributionSource,
+                                        targetPackageName,
+                                        spec,
+                                        mUserHandle,
+                                        /* binderCallStartTimeMillis= */ SystemClock
+                                                .elapsedRealtime()),
+                                stub);
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -358,23 +374,22 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
     /**
      * Removes previously registered {@link ObserverCallback} instances from the system.
      *
-     * <p>All instances of {@link ObserverCallback} which are registered to observe
-     * {@code targetPackageName} and compare equal to the provided callback using the provided
-     * argument's {@code ObserverCallback#equals} will be removed.
+     * <p>All instances of {@link ObserverCallback} which are registered to observe {@code
+     * targetPackageName} and compare equal to the provided callback using the provided argument's
+     * {@code ObserverCallback#equals} will be removed.
      *
      * <p>If no matching observers have been registered, this method has no effect. If multiple
      * matching observers have been registered, all will be removed.
      *
      * @param targetPackageName Package which the observers to be removed are listening to.
-     * @param observer          Callback to unregister.
+     * @param observer Callback to unregister.
      * @throws AppSearchException if an error occurs trying to remove the observer, such as a
-     *                            failure to communicate with the system service. Note that no error
-     *                            will be thrown if the provided observer doesn't match any
-     *                            registered observer.
+     *     failure to communicate with the system service. Note that no error will be thrown if the
+     *     provided observer doesn't match any registered observer.
      */
     public void unregisterObserverCallback(
-            @NonNull String targetPackageName,
-            @NonNull ObserverCallback observer) throws AppSearchException {
+            @NonNull String targetPackageName, @NonNull ObserverCallback observer)
+            throws AppSearchException {
         Objects.requireNonNull(targetPackageName);
         Objects.requireNonNull(observer);
         Preconditions.checkState(!mIsClosed, "GlobalSearchSession has already been closed");
@@ -384,22 +399,24 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
             Map<ObserverCallback, IAppSearchObserverProxy> observersForPackage =
                     mObserverCallbacksLocked.get(targetPackageName);
             if (observersForPackage == null) {
-                return;  // No observers registered for this package. Nothing to do.
+                return; // No observers registered for this package. Nothing to do.
             }
             stub = observersForPackage.get(observer);
             if (stub == null) {
-                return;  // No such observer registered. Nothing to do.
+                return; // No such observer registered. Nothing to do.
             }
 
             AppSearchResultParcel<Void> resultParcel;
             try {
-                resultParcel = mService.unregisterObserverCallback(
-                        new UnregisterObserverCallbackAidlRequest(
-                                mCallerAttributionSource,
-                                targetPackageName,
-                                mUserHandle,
-                                /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()),
-                        stub);
+                resultParcel =
+                        mService.unregisterObserverCallback(
+                                new UnregisterObserverCallbackAidlRequest(
+                                        mCallerAttributionSource,
+                                        targetPackageName,
+                                        mUserHandle,
+                                        /* binderCallStartTimeMillis= */ SystemClock
+                                                .elapsedRealtime()),
+                                stub);
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -429,7 +446,7 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
                         new PersistToDiskAidlRequest(
                                 mCallerAttributionSource,
                                 mUserHandle,
-                                /*binderCallStartTimeMillis=*/ SystemClock.elapsedRealtime()));
+                                /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()));
                 mIsClosed = true;
             } catch (RemoteException e) {
                 Log.e(TAG, "Unable to close the GlobalSearchSession", e);

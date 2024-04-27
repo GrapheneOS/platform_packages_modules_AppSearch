@@ -35,7 +35,7 @@ public class SyncSearchResultsImpl extends SyncAppSearchBase implements SyncSear
     @NonNull
     @Override
     public List<SearchResult> getNextPage() throws AppSearchException {
-        return executeAppSearchResultOperation(resultHandler -> mSearchResults.getNextPage(
-                mExecutor, resultHandler));
+        return executeAppSearchResultOperation(
+                resultHandler -> mSearchResults.getNextPage(mExecutor, resultHandler));
     }
 }
