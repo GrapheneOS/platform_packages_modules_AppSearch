@@ -56,7 +56,8 @@ public class GlobalSearchAidlRequest extends AbstractSafeParcelable {
     private final UserHandle mUserHandle;
 
     @Field(id = 5, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     @Field(id = 6, getter = "isForEnterprise")
     private final boolean mIsForEnterprise;

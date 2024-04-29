@@ -56,7 +56,7 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
                         int size = unmarshallParcel.dataSize();
                         Bundle inputBundle = new Bundle();
                         while (unmarshallParcel.dataPosition() < size) {
-                            String key = unmarshallParcel.readString();
+                            String key = Objects.requireNonNull(unmarshallParcel.readString());
                             AppSearchResultParcel appSearchResultParcel =
                                     AppSearchResultParcel.directlyReadFromParcel(unmarshallParcel);
                             inputBundle.putParcelable(key, appSearchResultParcel);
@@ -94,9 +94,10 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
             // Create result from value in success case and errorMessage in
             // failure case.
             if (entry.getValue().isSuccess()) {
+                GenericDocumentParcel genericDocumentParcel =
+                        Objects.requireNonNull(entry.getValue().getResultValue());
                 appSearchResultParcel =
-                        AppSearchResultParcel.fromGenericDocumentParcel(
-                                entry.getValue().getResultValue());
+                        AppSearchResultParcel.fromGenericDocumentParcel(genericDocumentParcel);
             } else {
                 appSearchResultParcel = AppSearchResultParcel.fromFailedResult(entry.getValue());
             }

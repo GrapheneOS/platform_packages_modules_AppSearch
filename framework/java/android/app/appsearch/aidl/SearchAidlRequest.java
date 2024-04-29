@@ -60,7 +60,8 @@ public class SearchAidlRequest extends AbstractSafeParcelable {
     private final UserHandle mUserHandle;
 
     @Field(id = 6, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     /**
      * Searches a document based on a given specifications.

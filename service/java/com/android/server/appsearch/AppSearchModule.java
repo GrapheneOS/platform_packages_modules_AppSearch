@@ -19,6 +19,7 @@ package com.android.server.appsearch;
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.ExceptionUtil;
 import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
@@ -28,7 +29,6 @@ import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerService;
 import com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerConfig;
-import com.android.server.appsearch.util.ExceptionUtil;
 
 import java.io.PrintWriter;
 

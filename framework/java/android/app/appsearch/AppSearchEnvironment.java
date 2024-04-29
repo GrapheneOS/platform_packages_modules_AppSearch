@@ -56,4 +56,7 @@ public interface AppSearchEnvironment {
      */
     @Nullable
     File getCacheDir(@NonNull Context context);
+
+    /** Invalid UID constant duplicated for code-sync with GMSCore */
+    int getInvalidUid();
 }

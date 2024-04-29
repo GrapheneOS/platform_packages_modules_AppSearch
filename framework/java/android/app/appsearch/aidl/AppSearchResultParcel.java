@@ -35,6 +35,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Parcelable wrapper around {@link AppSearchResult}.
@@ -57,7 +58,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
                 public AppSearchResultParcel createFromParcel(Parcel in) {
                     // We pass the result we get from ParcelableUtil#readBlob to
                     // AppSearchResultParcelCreator to decode.
-                    byte[] dataBlob = ParcelableUtil.readBlob(in);
+                    byte[] dataBlob = Objects.requireNonNull(ParcelableUtil.readBlob(in));
                     // Create a parcel object to un-serialize the byte array we are reading from
                     // Parcel.readBlob(). Parcel.WriteBlob() could take care of whether to pass
                     // data via binder directly or Android shared memory if the data is large.
@@ -378,7 +379,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
         }
 
         @CanIgnoreReturnValue
-        Builder<ValueType> setErrorMessage(String errorMessage) {
+        Builder<ValueType> setErrorMessage(@Nullable String errorMessage) {
             mErrorMessage = errorMessage;
             return this;
         }

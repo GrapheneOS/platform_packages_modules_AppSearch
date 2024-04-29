@@ -59,7 +59,8 @@ public class GetNextPageAidlRequest extends AbstractSafeParcelable {
     private final UserHandle mUserHandle;
 
     @Field(id = 6, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     @Field(id = 7, getter = "isForEnterprise")
     private final boolean mIsForEnterprise;

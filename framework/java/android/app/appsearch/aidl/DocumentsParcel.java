@@ -26,6 +26,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The Parcelable object contains a List of {@link GenericDocument}.
@@ -42,7 +43,7 @@ public final class DocumentsParcel extends AbstractSafeParcelable {
             new DocumentsParcelCreator() {
                 @Override
                 public DocumentsParcel createFromParcel(Parcel in) {
-                    byte[] dataBlob = ParcelableUtil.readBlob(in);
+                    byte[] dataBlob = Objects.requireNonNull(ParcelableUtil.readBlob(in));
                     // Create a parcel object to un-serialize the byte array we are reading from
                     // Parcel.readBlob(). Parcel.WriteBlob() could take care of whether to pass data
                     // via

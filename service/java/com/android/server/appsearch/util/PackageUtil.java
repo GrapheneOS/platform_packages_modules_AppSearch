@@ -17,9 +17,11 @@
 package com.android.server.appsearch.util;
 
 import android.annotation.NonNull;
+import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Process;
+
 
 /**
  * Utilities for interacting with {@link android.content.pm.PackageManager}, {@link
@@ -28,6 +30,10 @@ import android.os.Process;
  * @hide
  */
 public class PackageUtil {
+
+    public static final int INVALID_UID =
+            AppSearchEnvironmentFactory.getEnvironmentInstance().getInvalidUid();
+
     private PackageUtil() {}
 
     /**
@@ -38,7 +44,7 @@ public class PackageUtil {
         try {
             return context.getPackageManager().getPackageUid(packageName, /* flags= */ 0);
         } catch (PackageManager.NameNotFoundException e) {
-            return Process.INVALID_UID;
+            return INVALID_UID;
         }
     }
 }

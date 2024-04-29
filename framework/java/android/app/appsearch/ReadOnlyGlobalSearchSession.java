@@ -100,7 +100,7 @@ public abstract class ReadOnlyGlobalSearchSession {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -149,7 +149,7 @@ public abstract class ReadOnlyGlobalSearchSession {
                             mIsForEnterprise),
                     SearchSessionUtil.createGetDocumentCallback(executor, callback));
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -239,7 +239,7 @@ public abstract class ReadOnlyGlobalSearchSession {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 

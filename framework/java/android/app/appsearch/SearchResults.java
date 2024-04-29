@@ -164,7 +164,7 @@ public class SearchResults implements Closeable {
                         wrapCallback(executor, callback));
             }
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 

@@ -50,7 +50,8 @@ public class InvalidateNextPageTokenAidlRequest extends AbstractSafeParcelable {
     private final UserHandle mUserHandle;
 
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     @Field(id = 5, getter = "isForEnterprise")
     private final boolean mIsForEnterprise;

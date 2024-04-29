@@ -54,7 +54,8 @@ public class PutDocumentsAidlRequest extends AbstractSafeParcelable {
     private final UserHandle mUserHandle;
 
     @Field(id = 5, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     /**
      * Inserts documents into the index.

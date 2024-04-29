@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.os.Environment;
+import android.os.Process;
 import android.os.UserHandle;
 
 import java.io.File;
@@ -86,5 +87,11 @@ public class FrameworkAppSearchEnvironment implements AppSearchEnvironment {
     public File getCacheDir(@NonNull Context context) {
         // Framework/Android does not have app-specific cache directory.
         return null;
+    }
+
+    /** Returns an INVALID UID, this is duplicated to maintain code-sync with GMSCore. */
+    @Override
+    public int getInvalidUid() {
+        return Process.INVALID_UID;
     }
 }

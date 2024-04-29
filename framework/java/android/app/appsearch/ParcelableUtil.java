@@ -17,6 +17,7 @@
 package android.app.appsearch;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Parcel;
@@ -69,7 +70,8 @@ public class ParcelableUtil {
         }
     }
 
-    @NonNull
+    /** Calls parcel#readBlob on T+ and uses byte array or PFD on lower API levels. */
+    @Nullable
     // TODO(b/232805516): Update SDK_INT in Android.bp to safeguard from unexpected compiler issues.
     @SuppressLint("ObsoleteSdkInt")
     public static byte[] readBlob(Parcel parcel) {
@@ -82,6 +84,7 @@ public class ParcelableUtil {
         }
     }
 
+    @Nullable
     private static byte[] readFromParcelForSAndBelow(Parcel parcel) {
         try {
             int length = parcel.readInt();

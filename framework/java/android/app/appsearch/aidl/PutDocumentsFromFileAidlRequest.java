@@ -61,10 +61,12 @@ public class PutDocumentsFromFileAidlRequest extends AbstractSafeParcelable {
     private final SchemaMigrationStats mSchemaMigrationStats;
 
     @Field(id = 6, getter = "getTotalLatencyStartTimeMillis")
-    private final @ElapsedRealtimeLong long mTotalLatencyStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mTotalLatencyStartTimeMillis;
 
     @Field(id = 7, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     /**
      * Inserts documents from the given file into the index.

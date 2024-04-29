@@ -66,7 +66,8 @@ public class GetDocumentsAidlRequest extends AbstractSafeParcelable {
 
     // The start timestamp of binder call in Millis.
     @Field(id = 6, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     // Whether to query the user's enterprise profile AppSearch instance
     @Field(id = 7, getter = "isForEnterprise")

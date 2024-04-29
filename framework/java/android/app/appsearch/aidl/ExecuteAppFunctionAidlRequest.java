@@ -50,7 +50,8 @@ public final class ExecuteAppFunctionAidlRequest extends AbstractSafeParcelable 
     private final UserHandle mUserHandle;
 
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     @Constructor
     public ExecuteAppFunctionAidlRequest(

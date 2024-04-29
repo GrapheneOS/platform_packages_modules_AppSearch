@@ -170,7 +170,7 @@ public class AppSearchMigrationHelper implements Closeable {
             readAndTransform(
                     queryFile, migrator, currentVersion, finalVersion, schemaMigrationStatsBuilder);
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         } finally {
             queryFile.delete();
         }
@@ -229,7 +229,7 @@ public class AppSearchMigrationHelper implements Closeable {
                     Objects.requireNonNull(result.getResultValue());
             responseBuilder.addMigrationFailures(migrationFailures);
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         } catch (InterruptedException | IOException | RuntimeException e) {
             return AppSearchResult.throwableToFailedResult(e);
         } finally {

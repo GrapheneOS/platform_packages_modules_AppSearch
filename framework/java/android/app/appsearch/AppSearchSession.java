@@ -155,7 +155,7 @@ public final class AppSearchSession implements Closeable {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -272,7 +272,7 @@ public final class AppSearchSession implements Closeable {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -318,7 +318,7 @@ public final class AppSearchSession implements Closeable {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -378,7 +378,7 @@ public final class AppSearchSession implements Closeable {
                     });
             mIsMutated = true;
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -418,7 +418,7 @@ public final class AppSearchSession implements Closeable {
                             /* isForEnterprise= */ false),
                     SearchSessionUtil.createGetDocumentCallback(executor, callback));
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -653,7 +653,7 @@ public final class AppSearchSession implements Closeable {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -705,7 +705,7 @@ public final class AppSearchSession implements Closeable {
                     });
             mIsMutated = true;
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -767,7 +767,7 @@ public final class AppSearchSession implements Closeable {
                     });
             mIsMutated = true;
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -823,7 +823,7 @@ public final class AppSearchSession implements Closeable {
                     });
             mIsMutated = true;
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -870,7 +870,7 @@ public final class AppSearchSession implements Closeable {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 
@@ -965,7 +965,7 @@ public final class AppSearchSession implements Closeable {
                         }
                     });
         } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
+            ExceptionUtil.handleRemoteException(e);
         }
     }
 

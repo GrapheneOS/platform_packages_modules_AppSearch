@@ -19,13 +19,13 @@ package com.android.server.appsearch;
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getPackageName;
 
 import android.annotation.NonNull;
+import android.app.appsearch.ExceptionUtil;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
-import com.android.server.appsearch.util.ExceptionUtil;
 
 import com.google.android.icing.proto.DocumentStorageInfoProto;
 import com.google.android.icing.proto.NamespaceStorageInfoProto;

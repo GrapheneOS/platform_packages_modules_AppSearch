@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.StatsManager;
+import android.app.appsearch.ExceptionUtil;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.LogUtil;
 import android.content.Context;
@@ -29,7 +30,6 @@ import android.util.StatsEvent;
 
 import com.android.server.appsearch.AppSearchUserInstance;
 import com.android.server.appsearch.AppSearchUserInstanceManager;
-import com.android.server.appsearch.util.ExceptionUtil;
 
 import com.google.android.icing.proto.DocumentStorageInfoProto;
 import com.google.android.icing.proto.IndexStorageInfoProto;

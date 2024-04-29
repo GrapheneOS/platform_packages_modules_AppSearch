@@ -51,7 +51,8 @@ public class UnregisterObserverCallbackAidlRequest extends AbstractSafeParcelabl
     private final UserHandle mUserHandle;
 
     @Field(id = 4, getter = "getBinderCallStartTimeMillis")
-    private final @ElapsedRealtimeLong long mBinderCallStartTimeMillis;
+    @ElapsedRealtimeLong
+    private final long mBinderCallStartTimeMillis;
 
     /**
      * Removes previously registered {@link ObserverCallback} instances from the system.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.server.appsearch.util;
+package android.app.appsearch;
+
+import android.os.RemoteException;
 
 /**
  * Utilities for handling exceptions.
@@ -36,6 +38,11 @@ public final class ExceptionUtil {
     /** Returns whether it is OK to rethrow exceptions from this entrypoint. */
     private static boolean isItOkayToRethrowException() {
         return false;
+    }
+
+    /** Rethrow exception from SystemServer in Framework code. */
+    public static void handleRemoteException(RemoteException e) {
+        e.rethrowFromSystemServer();
     }
 
     /**
