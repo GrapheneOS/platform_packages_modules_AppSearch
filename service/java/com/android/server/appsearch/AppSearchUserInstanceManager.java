@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.util.LogUtil;
 import android.content.Context;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -220,7 +221,9 @@ public final class AppSearchUserInstanceManager {
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
-        Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
+        if (LogUtil.INFO) {
+            Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
+        }
         VisibilityChecker visibilityCheckerImpl =
                 AppSearchComponentFactory.createVisibilityCheckerInstance(userContext);
         AppSearchImpl appSearchImpl =

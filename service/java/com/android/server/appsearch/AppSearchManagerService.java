@@ -393,14 +393,18 @@ public class AppSearchManagerService extends SystemService {
 
     private void onUserStopping(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
-        Log.i(TAG, "Shutting down AppSearch for user " + userHandle);
+        if (LogUtil.INFO) {
+            Log.i(TAG, "Shutting down AppSearch for user " + userHandle);
+        }
         try {
             mServiceImplHelper.setUserIsLocked(userHandle, true);
             mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
             mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
             AppSearchMaintenanceService.cancelFullyPersistJobIfScheduled(
                     mContext, userHandle.getIdentifier());
-            Log.i(TAG, "Removed AppSearchImpl instance for: " + userHandle);
+            if (LogUtil.INFO) {
+                Log.i(TAG, "Removed AppSearchImpl instance for: " + userHandle);
+            }
         } catch (InterruptedException | RuntimeException e) {
             Log.e(TAG, "Unable to remove data for: " + userHandle, e);
             ExceptionUtil.handleException(e);

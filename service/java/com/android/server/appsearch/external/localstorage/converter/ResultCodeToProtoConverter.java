@@ -34,8 +34,8 @@ public final class ResultCodeToProtoConverter {
     private ResultCodeToProtoConverter() {}
 
     /** Converts an {@link StatusProto.Code} into a {@link AppSearchResult.ResultCode}. */
-    public static @AppSearchResult.ResultCode int toResultCode(
-            @NonNull StatusProto.Code statusCode) {
+    @AppSearchResult.ResultCode
+    public static int toResultCode(@NonNull StatusProto.Code statusCode) {
         switch (statusCode) {
             case OK:
                 return AppSearchResult.RESULT_OK;

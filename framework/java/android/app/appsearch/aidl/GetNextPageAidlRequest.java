@@ -52,7 +52,8 @@ public class GetNextPageAidlRequest extends AbstractSafeParcelable {
     private final long mNextPageToken;
 
     @Field(id = 4, getter = "getJoinType")
-    private final @AppSearchSchema.StringPropertyConfig.JoinableValueType int mJoinType;
+    @AppSearchSchema.StringPropertyConfig.JoinableValueType
+    private final int mJoinType;
 
     @NonNull
     @Field(id = 5, getter = "getUserHandle")

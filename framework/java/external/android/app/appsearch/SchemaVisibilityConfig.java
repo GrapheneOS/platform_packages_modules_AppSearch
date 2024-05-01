@@ -98,12 +98,14 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
             for (int i = 0; i < mRequiredPermissions.size(); i++) {
                 VisibilityPermissionConfig permissionConfig = mRequiredPermissions.get(i);
                 Set<Integer> requiredPermissions = permissionConfig.getAllRequiredPermissions();
-                if (requiredPermissions != null) {
+                if (mRequiredPermissionsCached != null && requiredPermissions != null) {
                     mRequiredPermissionsCached.add(requiredPermissions);
                 }
             }
         }
-        return mRequiredPermissionsCached;
+
+        // Added for nullness checker, we initialize it above if it is null.
+        return Objects.requireNonNull(mRequiredPermissionsCached);
     }
 
     /**
@@ -126,9 +128,16 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof SchemaVisibilityConfig)) return false;
+    public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null) {
+            return false;
+        }
+        if (!(o instanceof SchemaVisibilityConfig)) {
+            return false;
+        }
         SchemaVisibilityConfig that = (SchemaVisibilityConfig) o;
         return Objects.equals(mAllowedPackages, that.mAllowedPackages)
                 && Objects.equals(mRequiredPermissions, that.mRequiredPermissions)
@@ -151,7 +160,7 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
     public static final class Builder {
         private List<PackageIdentifierParcel> mAllowedPackages = new ArrayList<>();
         private List<VisibilityPermissionConfig> mRequiredPermissions = new ArrayList<>();
-        private PackageIdentifierParcel mPubliclyVisibleTargetPackage;
+        @Nullable private PackageIdentifierParcel mPubliclyVisibleTargetPackage;
         private boolean mBuilt;
 
         /** Creates a {@link Builder} for a {@link SchemaVisibilityConfig}. */

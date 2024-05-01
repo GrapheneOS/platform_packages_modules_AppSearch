@@ -1473,16 +1473,12 @@ public final class AppSearchImpl implements Closeable {
             // SearchSpec that wants to query every visible package.
             Set<String> packageFilters = new ArraySet<>();
             if (!searchSpec.getFilterPackageNames().isEmpty()) {
-                if (searchSpec.getJoinSpec() == null) {
+                JoinSpec joinSpec = searchSpec.getJoinSpec();
+                if (joinSpec == null) {
                     packageFilters.addAll(searchSpec.getFilterPackageNames());
-                } else if (!searchSpec
-                        .getJoinSpec()
-                        .getNestedSearchSpec()
-                        .getFilterPackageNames()
-                        .isEmpty()) {
+                } else if (!joinSpec.getNestedSearchSpec().getFilterPackageNames().isEmpty()) {
                     packageFilters.addAll(searchSpec.getFilterPackageNames());
-                    packageFilters.addAll(
-                            searchSpec.getJoinSpec().getNestedSearchSpec().getFilterPackageNames());
+                    packageFilters.addAll(joinSpec.getNestedSearchSpec().getFilterPackageNames());
                 }
             }
 
@@ -2853,9 +2849,13 @@ public final class AppSearchImpl implements Closeable {
                 return;
             }
         }
-        if (Log.isLoggable(icingTag, Log.INFO)) {
-            boolean unused = IcingSearchEngine.setLoggingLevel(LogSeverity.Code.INFO);
-        } else if (Log.isLoggable(icingTag, Log.WARN)) {
+        if (LogUtil.INFO) {
+            if (Log.isLoggable(icingTag, Log.INFO)) {
+                boolean unused = IcingSearchEngine.setLoggingLevel(LogSeverity.Code.INFO);
+                return;
+            }
+        }
+        if (Log.isLoggable(icingTag, Log.WARN)) {
             boolean unused = IcingSearchEngine.setLoggingLevel(LogSeverity.Code.WARNING);
         } else if (Log.isLoggable(icingTag, Log.ERROR)) {
             boolean unused = IcingSearchEngine.setLoggingLevel(LogSeverity.Code.ERROR);
@@ -2901,8 +2901,8 @@ public final class AppSearchImpl implements Closeable {
      *     code.
      * @return {@link AppSearchResult} error code
      */
-    private static @AppSearchResult.ResultCode int statusProtoToResultCode(
-            @NonNull StatusProto statusProto) {
+    @AppSearchResult.ResultCode
+    private static int statusProtoToResultCode(@NonNull StatusProto statusProto) {
         return ResultCodeToProtoConverter.toResultCode(statusProto.getCode());
     }
 }

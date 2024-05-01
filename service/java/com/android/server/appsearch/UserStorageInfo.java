@@ -20,6 +20,9 @@ import static com.android.server.appsearch.external.localstorage.util.PrefixUtil
 
 import android.annotation.NonNull;
 import android.app.appsearch.ExceptionUtil;
+import android.app.appsearch.checker.initialization.qual.UnderInitialization;
+import android.app.appsearch.checker.initialization.qual.UnknownInitialization;
+import android.app.appsearch.checker.nullness.qual.RequiresNonNull;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -96,8 +99,9 @@ public final class UserStorageInfo {
         return mTotalStorageSizeBytes;
     }
 
+    @RequiresNonNull("mStorageInfoFile")
     @VisibleForTesting
-    void readStorageInfoFromFile() {
+    void readStorageInfoFromFile(@UnderInitialization UserStorageInfo this) {
         if (mStorageInfoFile.exists()) {
             mReadWriteLock.readLock().lock();
             try (InputStream in = new FileInputStream(mStorageInfoFile)) {
@@ -121,7 +125,8 @@ public final class UserStorageInfo {
     // calculation/interpolation logic.
     @NonNull
     @VisibleForTesting
-    Map<String, Long> calculatePackageStorageInfoMap(@NonNull StorageInfoProto storageInfo) {
+    Map<String, Long> calculatePackageStorageInfoMap(
+            @UnknownInitialization UserStorageInfo this, @NonNull StorageInfoProto storageInfo) {
         Map<String, Long> packageStorageInfoMap = new ArrayMap<>();
         if (storageInfo.hasDocumentStorageInfo()) {
             DocumentStorageInfoProto documentStorageInfo = storageInfo.getDocumentStorageInfo();

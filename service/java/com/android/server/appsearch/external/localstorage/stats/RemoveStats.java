@@ -35,6 +35,7 @@ import java.util.Objects;
  * @hide
  */
 public final class RemoveStats {
+    /** Types of remove stats. */
     @IntDef(
             value = {
                 // It needs to be sync with DeleteType.Code in

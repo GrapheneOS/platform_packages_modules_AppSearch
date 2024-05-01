@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 public interface AppSearchEnvironment {
 
     /** Returns the directory to initialize appsearch based on the environment. */
-    File getAppSearchDir(@NonNull Context context, @NonNull UserHandle userHandle);
+    File getAppSearchDir(@NonNull Context context, @Nullable UserHandle userHandle);
 
     /** Returns the correct context for the user based on the environment. */
     Context createContextAsUser(@NonNull Context context, @NonNull UserHandle userHandle);
@@ -59,4 +59,11 @@ public interface AppSearchEnvironment {
 
     /** Invalid UID constant duplicated for code-sync with GMSCore */
     int getInvalidUid();
+
+    /** Creates and returns an Executor with cached thread pools. */
+    @NonNull
+    ExecutorService createCachedThreadPoolExecutor();
+
+    /** Returns if we can log INFO level logs. */
+    boolean isInfoLoggingEnabled();
 }

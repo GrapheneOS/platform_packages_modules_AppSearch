@@ -44,6 +44,7 @@ import java.util.Set;
  * @hide
  */
 public class CallStats {
+    /** Call types. */
     @IntDef(
             value = {
                 CALL_TYPE_UNKNOWN,

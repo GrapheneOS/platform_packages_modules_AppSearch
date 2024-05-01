@@ -33,6 +33,7 @@
             value="com.android.bedstead.harrier.annotations.RequireRunOnWorkProfile" />
         <option name="exclude-annotation"
             value="com.android.bedstead.harrier.annotations.RequireRunOnSecondaryUser" />
+        <option name="hidden-api-checks" value="false" />
     </test>
 
     <object type="module_controller"

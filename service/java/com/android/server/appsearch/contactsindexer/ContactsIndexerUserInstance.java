@@ -353,13 +353,15 @@ public final class ContactsIndexerUserInstance {
                             // 1) during startup, full update has never been run.
                             // 2) or we get OUT_OF_SPACE from AppSearch.
                             // So print a message once in 15-30 days should be acceptable.
-                            Log.i(
-                                    TAG,
-                                    "Performing a full sync (updated:"
-                                            + cp2ContactIds.size()
-                                            + ", deleted:"
-                                            + appsearchContactIds.size()
-                                            + ") of CP2 contacts in AppSearch");
+                            if (LogUtil.INFO) {
+                                Log.i(
+                                        TAG,
+                                        "Performing a full sync (updated:"
+                                                + cp2ContactIds.size()
+                                                + ", deleted:"
+                                                + appsearchContactIds.size()
+                                                + ") of CP2 contacts in AppSearch");
+                            }
                             return mContactsIndexerImpl.updatePersonCorpusAsync(
                                     /* wantedContactIds= */ cp2ContactIds,
                                     /* unwantedContactIds= */ appsearchContactIds,

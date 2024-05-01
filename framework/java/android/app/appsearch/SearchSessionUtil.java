@@ -144,7 +144,16 @@ public class SearchSessionUtil {
                                     result.getSuccesses().entrySet()) {
                                 GenericDocument document;
                                 try {
-                                    document = new GenericDocument(entry.getValue());
+                                    GenericDocumentParcel genericDocumentParcel = entry.getValue();
+                                    if (genericDocumentParcel == null) {
+                                        documentResultBuilder.setFailure(
+                                                entry.getKey(),
+                                                AppSearchResult.RESULT_INTERNAL_ERROR,
+                                                "Received null GenericDocumentParcel in"
+                                                        + " getByDocumentId API");
+                                        continue;
+                                    }
+                                    document = new GenericDocument(genericDocumentParcel);
                                 } catch (RuntimeException e) {
                                     documentResultBuilder.setFailure(
                                             entry.getKey(),

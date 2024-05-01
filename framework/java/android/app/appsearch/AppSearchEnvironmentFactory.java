@@ -16,6 +16,8 @@
 
 package android.app.appsearch;
 
+import android.annotation.NonNull;
+
 import com.android.internal.annotations.VisibleForTesting;
 
 /**
@@ -26,6 +28,8 @@ import com.android.internal.annotations.VisibleForTesting;
 public class AppSearchEnvironmentFactory {
     private static volatile AppSearchEnvironment mEnvironmentInstance;
 
+    /** Returns the singleton instance of {@link AppSearchEnvironment}. */
+    @NonNull
     public static AppSearchEnvironment getEnvironmentInstance() {
         AppSearchEnvironment localRef = mEnvironmentInstance;
         if (localRef == null) {
@@ -39,8 +43,10 @@ public class AppSearchEnvironmentFactory {
         return localRef;
     }
 
+    /** Sets an instance of {@link AppSearchEnvironment}. for testing. */
     @VisibleForTesting
-    public static void setEnvironmentInstanceForTest(AppSearchEnvironment appSearchEnvironment) {
+    public static void setEnvironmentInstanceForTest(
+            @NonNull AppSearchEnvironment appSearchEnvironment) {
         synchronized (AppSearchEnvironmentFactory.class) {
             mEnvironmentInstance = appSearchEnvironment;
         }

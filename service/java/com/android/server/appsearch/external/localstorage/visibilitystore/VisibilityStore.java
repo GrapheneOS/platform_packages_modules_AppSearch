@@ -26,6 +26,9 @@ import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.VisibilityPermissionConfig;
+import android.app.appsearch.checker.initialization.qual.UnderInitialization;
+import android.app.appsearch.checker.initialization.qual.UnknownInitialization;
+import android.app.appsearch.checker.nullness.qual.RequiresNonNull;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.LogUtil;
 import android.util.ArrayMap;
@@ -256,7 +259,9 @@ public class VisibilityStore {
      * Loads all stored latest {@link InternalVisibilityConfig} from Icing, and put them into {@link
      * #mVisibilityConfigMap}.
      */
-    private void loadVisibilityConfigMap() throws AppSearchException {
+    @RequiresNonNull("mAppSearchImpl")
+    private void loadVisibilityConfigMap(@UnderInitialization VisibilityStore this)
+            throws AppSearchException {
         // Populate visibility settings set
         List<String> cachedSchemaTypes = mAppSearchImpl.getAllPrefixedSchemaTypes();
         for (int i = 0; i < cachedSchemaTypes.size(); i++) {
@@ -312,8 +317,11 @@ public class VisibilityStore {
     }
 
     /** Set the latest version of {@link InternalVisibilityConfig} and its schema to AppSearch. */
+    @RequiresNonNull("mAppSearchImpl")
     private void setLatestSchemaAndDocuments(
-            @NonNull List<InternalVisibilityConfig> migratedDocuments) throws AppSearchException {
+            @UnderInitialization VisibilityStore this,
+            @NonNull List<InternalVisibilityConfig> migratedDocuments)
+            throws AppSearchException {
         // The latest schema type doesn't exist yet. Add it. Set forceOverride true to
         // delete old schema.
         InternalSetSchemaResponse internalSetSchemaResponse =
@@ -368,7 +376,9 @@ public class VisibilityStore {
      * Check and migrate visibility schemas in {@link #ANDROID_V_OVERLAY_DATABASE_NAME} to {@link
      * VisibilityToDocumentConverter#ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST}.
      */
-    private void migrateVisibilityOverlayDatabase() throws AppSearchException {
+    @RequiresNonNull("mAppSearchImpl")
+    private void migrateVisibilityOverlayDatabase(@UnderInitialization VisibilityStore this)
+            throws AppSearchException {
         GetSchemaResponse getSchemaResponse =
                 mAppSearchImpl.getSchema(
                         VISIBILITY_PACKAGE_NAME,
@@ -412,7 +422,9 @@ public class VisibilityStore {
     /**
      * Verify the existing visibility schema, set the latest visibilility schema if it's missing.
      */
-    private void verifyOrSetLatestVisibilitySchema(@NonNull GetSchemaResponse getSchemaResponse)
+    @RequiresNonNull("mAppSearchImpl")
+    private void verifyOrSetLatestVisibilitySchema(
+            @UnderInitialization VisibilityStore this, @NonNull GetSchemaResponse getSchemaResponse)
             throws AppSearchException {
         // We cannot change the schema version past 2 as detecting version "3" would hit the
         // default block and throw an AppSearchException. This is why we added
@@ -480,8 +492,11 @@ public class VisibilityStore {
     /**
      * Verify the existing visibility overlay schema, set the latest overlay schema if it's missing.
      */
+    @RequiresNonNull("mAppSearchImpl")
     private void verifyOrSetLatestVisibilityOverlaySchema(
-            @NonNull GetSchemaResponse getAndroidVOverlaySchemaResponse) throws AppSearchException {
+            @UnknownInitialization VisibilityStore this,
+            @NonNull GetSchemaResponse getAndroidVOverlaySchemaResponse)
+            throws AppSearchException {
         // Check Android V overlay schema.
         Set<AppSearchSchema> existingAndroidVOverlaySchema =
                 getAndroidVOverlaySchemaResponse.getSchemas();

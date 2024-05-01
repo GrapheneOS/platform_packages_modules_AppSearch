@@ -94,4 +94,17 @@ public class FrameworkAppSearchEnvironment implements AppSearchEnvironment {
     public int getInvalidUid() {
         return Process.INVALID_UID;
     }
+
+    /** Creates and returns an Executor with cached thread pools. */
+    @NonNull
+    @Override
+    public ExecutorService createCachedThreadPoolExecutor() {
+        return Executors.newCachedThreadPool();
+    }
+
+    /** Returns if we can log INFO level logs. */
+    @Override
+    public boolean isInfoLoggingEnabled() {
+        return true;
+    }
 }

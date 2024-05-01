@@ -160,7 +160,12 @@ public final class Denylist {
                 Log.e(TAG, "The parameter 'apis' was missing for this entry: " + entry);
                 continue;
             }
-            String[] apis = uri.getQueryParameter(KEY_APIS).split(VALUE_DELIMITER);
+            String queryParameter = uri.getQueryParameter(KEY_APIS);
+            if (queryParameter == null) {
+                Log.e(TAG, "There were no valid api types for this entry: " + entry);
+                continue;
+            }
+            String[] apis = queryParameter.split(VALUE_DELIMITER);
             Set<Integer> apiTypes = retrieveApiTypes(apis);
             if (apiTypes.isEmpty()) {
                 Log.e(TAG, "There were no valid api types for this entry: " + entry);

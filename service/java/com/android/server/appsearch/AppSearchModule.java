@@ -20,6 +20,7 @@ import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.ExceptionUtil;
+import android.app.appsearch.util.LogUtil;
 import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
@@ -74,7 +75,7 @@ public class AppSearchModule {
                     // system_server restart on a device reboot.
                     mContactsIndexerManagerService = null;
                 }
-            } else {
+            } else if (LogUtil.INFO) {
                 Log.i(TAG, "ContactsIndexer service is disabled.");
             }
         }

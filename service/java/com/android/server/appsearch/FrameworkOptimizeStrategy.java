@@ -16,6 +16,7 @@
 package com.android.server.appsearch;
 
 import android.annotation.NonNull;
+import android.app.appsearch.util.LogUtil;
 import android.util.Log;
 
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
@@ -54,14 +55,16 @@ public class FrameworkOptimizeStrategy implements OptimizeStrategy {
             // TODO(b/271890504): Produce a log message for statsd when we skip a potential
             //  compaction because the time since the last compaction has not reached
             //  the minimum threshold.
-            Log.i(
-                    TAG,
-                    "Skipping optimization because time since last optimize ["
-                            + optimizeInfo.getTimeSinceLastOptimizeMs()
-                            + " ms] is lesser than the threshold for minimum time between"
-                            + " optimizations ["
-                            + mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()
-                            + " ms]");
+            if (LogUtil.INFO) {
+                Log.i(
+                        TAG,
+                        "Skipping optimization because time since last optimize ["
+                                + optimizeInfo.getTimeSinceLastOptimizeMs()
+                                + " ms] is lesser than the threshold for minimum time between"
+                                + " optimizations ["
+                                + mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()
+                                + " ms]");
+            }
             return false;
         }
         return wantsOptimize;

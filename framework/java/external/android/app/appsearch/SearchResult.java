@@ -238,12 +238,12 @@ public final class SearchResult extends AbstractSafeParcelable {
             Objects.requireNonNull(searchResult);
             mPackageName = searchResult.getPackageName();
             mDatabaseName = searchResult.getDatabaseName();
+            mGenericDocument = searchResult.getGenericDocument();
+            mRankingSignal = searchResult.getRankingSignal();
             List<MatchInfo> matchInfos = searchResult.getMatchInfos();
             for (int i = 0; i < matchInfos.size(); i++) {
                 addMatchInfo(new MatchInfo.Builder(matchInfos.get(i)).build());
             }
-            mGenericDocument = searchResult.getGenericDocument();
-            mRankingSignal = searchResult.getRankingSignal();
             List<SearchResult> joinedResults = searchResult.getJoinedResults();
             for (int i = 0; i < joinedResults.size(); i++) {
                 addJoinedResult(joinedResults.get(i));
