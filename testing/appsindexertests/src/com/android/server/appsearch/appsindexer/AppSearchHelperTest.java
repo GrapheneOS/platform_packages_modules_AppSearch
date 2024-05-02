@@ -45,7 +45,6 @@ import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 
-import androidx.annotation.NonNull;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
@@ -75,12 +74,13 @@ public class AppSearchHelperTest {
     @Before
     public void setUp() throws Exception {
         mContext = ApplicationProvider.getApplicationContext();
-        mAppSearchHelper = new AppSearchHelper(mContext);
+        mAppSearchHelper = AppSearchHelper.createAppSearchHelper(mContext);
     }
 
     @After
     public void tearDown() throws Exception {
         removeFakePackageDocuments(mContext, mSingleThreadedExecutor);
+        mAppSearchHelper.close();
     }
 
     @Test
@@ -130,7 +130,7 @@ public class AppSearchHelperTest {
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         session.setSchemaAsync(setSchemaRequest).get();
 
-        AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
+        AppSearchHelper appSearchHelper = AppSearchHelper.createAppSearchHelper(mContext);
         appSearchHelper.setSchemasForPackages(
                 ImmutableList.of(createMockPackageIdentifier(variant)));
         appSearchHelper.indexApps(ImmutableList.of(createFakeMobileApplication(variant)));
@@ -171,14 +171,8 @@ public class AppSearchHelperTest {
                                 .setFailure(
                                         "id", AppSearchResult.RESULT_OUT_OF_SPACE, "errorMessage")
                                 .build());
-        AppSearchHelper mocked =
-                new AppSearchHelper(mContext) {
-                    @Override
-                    @NonNull
-                    public SyncAppSearchSession createAppSearchSession() {
-                        return fullSession;
-                    }
-                };
+        AppSearchHelper mocked = AppSearchHelper.createAppSearchHelper(mContext);
+        mocked.setAppSearchSession(fullSession);
 
         mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1));
         // It should throw if it's out of space

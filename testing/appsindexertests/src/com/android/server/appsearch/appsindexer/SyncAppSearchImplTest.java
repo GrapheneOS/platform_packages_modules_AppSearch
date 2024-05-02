@@ -137,6 +137,22 @@ public class SyncAppSearchImplTest {
         // We get all documents, and it shouldn't fail if we keep calling getNextPage().
         results = searchResults.getNextPage();
         assertThat(results).isEmpty();
+
+        // Check that we can keep using the global session
+        searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(TERM_MATCH_PREFIX)
+                        .addFilterPackageNames(mContext.getPackageName())
+                        .setResultCountPerPage(3)
+                        .build();
+        searchResults = globalSession.search("", searchSpec);
+        results = searchResults.getNextPage();
+
+        outDocs.clear();
+        outDocs.add(results.get(0).getGenericDocument());
+        outDocs.add(results.get(1).getGenericDocument());
+        outDocs.add(results.get(2).getGenericDocument());
+        assertThat(outDocs).containsExactly(document1, document2, document3);
     }
 
     @Test

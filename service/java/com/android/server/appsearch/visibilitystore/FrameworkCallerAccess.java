@@ -51,7 +51,7 @@ public class FrameworkCallerAccess extends CallerAccess {
             @NonNull AppSearchAttributionSource callerAttributionSource,
             boolean callerHasSystemAccess,
             boolean isForEnterprise) {
-        super(Objects.requireNonNull(callerAttributionSource.getPackageName()));
+        super(callerAttributionSource.getPackageName());
         mAttributionSource = callerAttributionSource;
         mCallerHasSystemAccess = callerHasSystemAccess;
         mIsForEnterprise = isForEnterprise;

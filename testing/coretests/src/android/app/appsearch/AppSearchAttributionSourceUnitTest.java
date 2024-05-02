@@ -18,6 +18,8 @@ package android.app.appsearch;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertThrows;
+
 import android.app.appsearch.aidl.AppSearchAttributionSource;
 
 import androidx.test.filters.SdkSuppress;
@@ -55,16 +57,16 @@ public class AppSearchAttributionSourceUnitTest {
     }
 
     @Test
+    // Ideally this should never happen, but if AttributionSource does not have a package name we
+    // get a NullPointerException due to Objects.requireNonNull.
     public void testPackageNamesNull() {
-        AppSearchAttributionSource appSearchAttributionSource1 =
-                new AppSearchAttributionSource(/* callingPackageName= */ null, /* callingUid= */ 1,
-                        /* callingPid= */ 1);
-        AppSearchAttributionSource appSearchAttributionSource2 =
-                new AppSearchAttributionSource(/* callingPackageName= */ null, /* callingUid= */ 1,
-                        /* callingPid= */ 1);
-        assertThat(appSearchAttributionSource1.equals(appSearchAttributionSource2)).isTrue();
-        assertThat(appSearchAttributionSource1.hashCode())
-                .isEqualTo(appSearchAttributionSource2.hashCode());
+        assertThrows(
+                NullPointerException.class,
+                () ->
+                        new AppSearchAttributionSource(
+                                /* callingPackageName= */ null,
+                                /* callingUid= */ 1,
+                                /* callingPid= */ 1));
     }
 
     @Test

@@ -26,13 +26,15 @@ import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.SetSchemaResponse;
 import android.app.appsearch.exceptions.AppSearchException;
 
+import java.io.Closeable;
+
 /**
  * A synchronous wrapper around {@link AppSearchSession}. This allows us to perform operations in
  * AppSearch without needing to handle async calls.
  *
  * @see AppSearchSession
  */
-public interface SyncAppSearchSession {
+public interface SyncAppSearchSession extends Closeable {
     /**
      * Synchronously sets an {@link AppSearchSchema}.
      *
@@ -60,8 +62,15 @@ public interface SyncAppSearchSession {
      * @see AppSearchSession#search
      */
     @NonNull
-    SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec)
-            throws AppSearchException;
+    SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec);
+
+    /**
+     * Closes the session.
+     *
+     * @see AppSearchSession#close
+     */
+    @Override
+    void close();
 
     // TODO(b/275592563): Bring in additional methods such as getByDocumentId as needed
 }

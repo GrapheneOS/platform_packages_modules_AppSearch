@@ -51,8 +51,7 @@ public class SyncAppSearchSessionImpl extends SyncAppSearchBase implements SyncA
     // Not actually asynchronous but added for convenience
     @Override
     @NonNull
-    public SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec)
-            throws AppSearchException {
+    public SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec) {
         Objects.requireNonNull(query);
         Objects.requireNonNull(searchSpec);
         return new SyncSearchResultsImpl(mSession.search(query, searchSpec), mExecutor);
@@ -77,5 +76,11 @@ public class SyncAppSearchSessionImpl extends SyncAppSearchBase implements SyncA
         Objects.requireNonNull(request);
         return executeAppSearchBatchResultOperation(
                 resultHandler -> mSession.put(request, mExecutor, resultHandler));
+    }
+
+    // Also not asynchronous but it's necessary to be able to close the session
+    @Override
+    public void close() {
+        mSession.close();
     }
 }

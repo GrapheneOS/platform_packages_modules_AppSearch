@@ -22,6 +22,7 @@ import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.BatchResultCallback;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.PutDocumentsRequest;
 import android.app.appsearch.SearchResult;
@@ -36,6 +37,7 @@ import android.util.Log;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
+import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +59,7 @@ import java.util.concurrent.ExecutorService;
  *
  * @hide
  */
-public class AppSearchHelper {
+public class AppSearchHelper implements Closeable {
     private static final String TAG = "AppSearchAppsIndexerAppSearchHelper";
 
     // The apps indexer uses one database, and in that database we have one schema for every app
@@ -71,11 +73,23 @@ public class AppSearchHelper {
     private final Context mContext;
     private final ExecutorService mExecutor;
     private final AppSearchManager mAppSearchManager;
-    private final SyncAppSearchSession mSyncAppSearchSession;
+    private SyncAppSearchSession mSyncAppSearchSession;
+    private SyncGlobalSearchSession mSyncGlobalSearchSession;
+
+    /** Creates and initializes an {@link AppSearchHelper} */
+    @NonNull
+    public static AppSearchHelper createAppSearchHelper(@NonNull Context context)
+            throws AppSearchException {
+        Objects.requireNonNull(context);
+
+        AppSearchHelper appSearchHelper = new AppSearchHelper(context);
+        appSearchHelper.initializeAppSearchSessions();
+        return appSearchHelper;
+    }
 
     /** Creates an initialized {@link AppSearchHelper}. */
     @VisibleForTesting
-    public AppSearchHelper(@NonNull Context context) {
+    private AppSearchHelper(@NonNull Context context) {
         mContext = Objects.requireNonNull(context);
 
         mAppSearchManager = context.getSystemService(AppSearchManager.class);
@@ -85,20 +99,28 @@ public class AppSearchHelper {
         }
         mExecutor =
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
-        try {
-            mSyncAppSearchSession = createAppSearchSession();
-        } catch (AppSearchException e) {
-            throw new AndroidRuntimeException("Can't initialize AppSearchHelper.", e);
-        }
     }
 
-    /** This is primarily used for mocking the session in tests. */
-    @VisibleForTesting
-    @NonNull
-    public SyncAppSearchSession createAppSearchSession() throws AppSearchException {
+    /**
+     * Sets up the search session.
+     *
+     * @throws AppSearchException if unable to initialize the {@link SyncAppSearchSession} or the
+     *     {@link SyncGlobalSearchSession}.
+     */
+    private void initializeAppSearchSessions() throws AppSearchException {
         AppSearchManager.SearchContext searchContext =
                 new AppSearchManager.SearchContext.Builder(APP_DATABASE).build();
-        return new SyncAppSearchSessionImpl(mAppSearchManager, searchContext, mExecutor);
+        mSyncAppSearchSession =
+                new SyncAppSearchSessionImpl(mAppSearchManager, searchContext, mExecutor);
+        mSyncGlobalSearchSession = new SyncGlobalSearchSessionImpl(mAppSearchManager, mExecutor);
+    }
+
+    /** Just for testing, allows us to test various scenarios involving SyncAppSearchSession. */
+    @VisibleForTesting
+    /* package */ void setAppSearchSession(@NonNull SyncAppSearchSession session) {
+        // Close the old one
+        mSyncAppSearchSession.close();
+        mSyncAppSearchSession = Objects.requireNonNull(session);
     }
 
     /**
@@ -126,18 +148,20 @@ public class AppSearchHelper {
             schemaBuilder.setPubliclyVisibleSchema(schemaVariant.getSchemaType(), pkg);
         }
 
-        try {
-            mSyncAppSearchSession.setSchema(schemaBuilder.build());
-        } catch (AppSearchException e) {
-            // TODO(b/275592563): Log app removal in metrics
-            Log.e(TAG, "Error while settings schema", e);
-        }
+        // TODO(b/275592563): Log app removal in metrics
+        mSyncAppSearchSession.setSchema(schemaBuilder.build());
     }
 
     /**
      * Indexes a collection of apps into AppSearch. This requires that the corresponding
      * MobileApplication schemas are already set by a previous call to {@link
      * #setSchemasForPackages}. The call doesn't necessarily have to happen in the current sync.
+     *
+     * @throws AppSearchException if indexing results in a {@link
+     *     AppSearchResult#RESULT_OUT_OF_SPACE} result code. It will also throw this if the put call
+     *     results in a system error as in {@link BatchResultCallback#onSystemError}. This may
+     *     happen if the AppSearch service unexpectedly fails to initialize and can't be recovered,
+     *     for instance.
      */
     public void indexApps(@NonNull List<MobileApplication> apps) throws AppSearchException {
         Objects.requireNonNull(apps);
@@ -156,7 +180,7 @@ public class AppSearchHelper {
                     throw new AppSearchException(
                             failure.getResultCode(), failure.getErrorMessage());
                 } else {
-                    Log.e(TAG, "Ran into error while indexing apps: " + failure.toString());
+                    Log.e(TAG, "Ran into error while indexing apps: " + failure);
                 }
             }
         }
@@ -178,15 +202,8 @@ public class AppSearchHelper {
                         .addFilterPackageNames(mContext.getPackageName())
                         .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE)
                         .build();
-        try {
-            SyncGlobalSearchSession globalSearchSession =
-                    new SyncGlobalSearchSessionImpl(mAppSearchManager, mExecutor);
-            SyncSearchResults results = globalSearchSession.search(/* query= */ "", allAppsSpec);
-            return collectUpdatedTimestampFromAllPages(results);
-        } catch (AppSearchException e) {
-            Log.e(TAG, "Error while searching for all app documents", e);
-        }
-        return Collections.emptyMap();
+        SyncSearchResults results = mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec);
+        return collectUpdatedTimestampFromAllPages(results);
     }
 
     /** Iterates through result pages to get the last updated times */
@@ -212,8 +229,18 @@ public class AppSearchHelper {
                 resultList = results.getNextPage();
             }
         } catch (AppSearchException e) {
-            Log.e(TAG, "Error while iterating through all app documents", e);
+            Log.e(TAG, "Error while searching for all app documents", e);
         }
+        // Return what we have so far. Even if this doesn't fetch all documents, that is fine as we
+        // can continue with indexing. The documents that aren't fetched will be detected as new
+        // apps and re-indexed.
         return appUpdatedMap;
+    }
+
+    /** Closes the AppSearch sessions. */
+    @Override
+    public void close() {
+        mSyncAppSearchSession.close();
+        mSyncGlobalSearchSession.close();
     }
 }

@@ -57,7 +57,7 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
     @Field(id = 1, getter = "getAttributionSource")
     private final AttributionSource mAttributionSource;
 
-    @Nullable
+    @NonNull
     @Field(id = 2, getter = "getPackageName")
     private final String mCallingPackageName;
 
@@ -79,11 +79,11 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
     @Constructor
     AppSearchAttributionSource(
             @Param(id = 1) @Nullable AttributionSource attributionSource,
-            @Param(id = 2) @Nullable String callingPackageName,
+            @Param(id = 2) @NonNull String callingPackageName,
             @Param(id = 3) int callingUid,
             @Param(id = 4) int callingPid) {
         mAttributionSource = attributionSource;
-        mCallingPackageName = callingPackageName;
+        mCallingPackageName = Objects.requireNonNull(callingPackageName);
         mCallingUid = callingUid;
         mCallingPid = callingPid;
         if (VERSION.SDK_INT >= Build.VERSION_CODES.S && mAttributionSource != null) {
@@ -125,8 +125,8 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
      */
     @VisibleForTesting
     public AppSearchAttributionSource(
-            @Nullable String callingPackageName, int callingUid, int callingPid) {
-        mCallingPackageName = callingPackageName;
+            @NonNull String callingPackageName, int callingUid, int callingPid) {
+        mCallingPackageName = Objects.requireNonNull(callingPackageName);
         mCallingUid = callingUid;
         mCallingPid = callingPid;
 
@@ -173,7 +173,7 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
      * @return wrapped class
      */
     private static AppSearchAttributionSource toAppSearchAttributionSource(
-            @Nullable String packageName, int uid, int pid) {
+            @NonNull String packageName, int uid, int pid) {
         return new AppSearchAttributionSource(new Api19Impl(packageName, uid, pid));
     }
 
@@ -197,7 +197,7 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
         return mCompat.getAttributionSource();
     }
 
-    @Nullable
+    @NonNull
     public String getPackageName() {
         return mCompat.getPackageName();
     }
@@ -250,7 +250,7 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
     /** Compat class for AttributionSource to provide implementation for lower API levels. */
     private interface Compat {
         /** The package that is accessing the permission protected data. */
-        @Nullable
+        @NonNull
         String getPackageName();
 
         /** The attribution source of the app accessing the permission protected data. */
@@ -282,9 +282,16 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
         }
 
         @Override
-        @Nullable
+        @NonNull
         public String getPackageName() {
-            return mAttributionSource.getPackageName();
+            // The {@link AttributionSource} in the constructor is set using
+            // {@link Context#getAttributionSource} and not using the Builder. The
+            // packageName returned from {@link AttributionSource#getPackageName} can be null as
+            // AttributionSource can use either uid and package name to determine who has access
+            // to the data, so either one of them can be null but not both. It is a common practice
+            // to use {@link AttributionSource#getPackageName} without any known issues/bugs. If
+            // we ever receive a null here we will throw a NullPointerException.
+            return Objects.requireNonNull(mAttributionSource.getPackageName());
         }
 
         @Nullable
@@ -306,7 +313,7 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
 
     private static class Api19Impl implements Compat {
 
-        @Nullable private final String mPackageName;
+        @NonNull private final String mPackageName;
         private final int mUid;
         private final int mPid;
 
@@ -316,14 +323,14 @@ public final class AppSearchAttributionSource extends AbstractSafeParcelable {
          * @param packageName The package name that is accessing permission protected data.
          * @param uid The uid that is accessing permission protected data.
          */
-        Api19Impl(@Nullable String packageName, int uid, int pid) {
-            mPackageName = packageName;
+        Api19Impl(@NonNull String packageName, int uid, int pid) {
+            mPackageName = Objects.requireNonNull(packageName);
             mUid = uid;
             mPid = pid;
         }
 
         @Override
-        @Nullable
+        @NonNull
         public String getPackageName() {
             return mPackageName;
         }

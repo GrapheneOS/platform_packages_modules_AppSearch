@@ -212,8 +212,7 @@ public class ServiceImplHelper {
         long callingIdentity = Binder.clearCallingIdentity();
         try {
             verifyCaller(callingUid, callerAttributionSource);
-            String callingPackageName =
-                    Objects.requireNonNull(callerAttributionSource.getPackageName());
+            String callingPackageName = callerAttributionSource.getPackageName();
             UserHandle targetUser =
                     handleIncomingUser(callingPackageName, userHandle, callingPid, callingUid);
             verifyUserUnlocked(targetUser);
@@ -238,8 +237,7 @@ public class ServiceImplHelper {
         Context callingUserContext =
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .createContextAsUser(mContext, callingUserHandle);
-        String callingPackageName =
-                Objects.requireNonNull(callerAttributionSource.getPackageName());
+        String callingPackageName = callerAttributionSource.getPackageName();
         verifyCallingPackage(callingUserContext, callingUid, callingPackageName);
         verifyNotInstantApp(callingUserContext, callingPackageName);
     }

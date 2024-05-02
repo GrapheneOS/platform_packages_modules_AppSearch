@@ -16,6 +16,7 @@
 
 package android.app.appsearch;
 
+import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
 import static android.app.appsearch.SearchSessionUtil.safeExecute;
 
 import android.annotation.CallbackExecutor;
@@ -238,8 +239,7 @@ public final class AppSearchSession implements Closeable {
             @NonNull Consumer<AppSearchResult<GetSchemaResponse>> callback) {
         Objects.requireNonNull(executor);
         Objects.requireNonNull(callback);
-        String targetPackageName =
-                Objects.requireNonNull(mCallerAttributionSource.getPackageName());
+        String targetPackageName = mCallerAttributionSource.getPackageName();
         Preconditions.checkState(!mIsClosed, "AppSearchSession has already been closed");
         try {
             mService.getSchema(
@@ -403,8 +403,7 @@ public final class AppSearchSession implements Closeable {
         Objects.requireNonNull(request);
         Objects.requireNonNull(executor);
         Objects.requireNonNull(callback);
-        String targetPackageName =
-                Objects.requireNonNull(mCallerAttributionSource.getPackageName());
+        String targetPackageName = mCallerAttributionSource.getPackageName();
         Preconditions.checkState(!mIsClosed, "AppSearchSession has already been closed");
         try {
             mService.getDocuments(
@@ -681,8 +680,7 @@ public final class AppSearchSession implements Closeable {
         Objects.requireNonNull(request);
         Objects.requireNonNull(executor);
         Objects.requireNonNull(callback);
-        String targetPackageName =
-                Objects.requireNonNull(mCallerAttributionSource.getPackageName());
+        String targetPackageName = mCallerAttributionSource.getPackageName();
         Preconditions.checkState(!mIsClosed, "AppSearchSession has already been closed");
         try {
             mService.reportUsage(
@@ -934,10 +932,30 @@ public final class AppSearchSession implements Closeable {
                                                 InternalSetSchemaResponse
                                                         internalSetSchemaResponse =
                                                                 result.getResultValue();
+                                                if (internalSetSchemaResponse == null) {
+                                                    // Ideally internalSetSchemaResponse should
+                                                    // always be non-null as result is success. In
+                                                    // other cases we directly put result in
+                                                    // AppSearchResult.newSuccessfulResult which
+                                                    // accepts a Nullable value, here we need to
+                                                    // get response by
+                                                    // internalSetSchemaResponse
+                                                    // .getSetSchemaResponse().
+                                                    callback.accept(
+                                                            AppSearchResult.newFailedResult(
+                                                                    RESULT_INTERNAL_ERROR,
+                                                                    "Received null"
+                                                                            + " InternalSetSchema"
+                                                                            + "Response"
+                                                                            + " during setSchema"
+                                                                            + " call"));
+                                                    return;
+                                                }
                                                 if (!internalSetSchemaResponse.isSuccess()) {
-                                                    // check is the set schema call failed because
-                                                    // incompatible changes. That's the only case we
-                                                    // swallowed in the AppSearchImpl#setSchema().
+                                                    // check is the set schema call failed
+                                                    // because incompatible changes. That's the only
+                                                    // case we swallowed in the
+                                                    // AppSearchImpl#setSchema().
                                                     callback.accept(
                                                             AppSearchResult.newFailedResult(
                                                                     AppSearchResult
@@ -991,9 +1009,9 @@ public final class AppSearchSession implements Closeable {
                 () -> {
                     try {
                         long waitExecutorEndLatencyMillis = SystemClock.elapsedRealtime();
+                        String packageName = mCallerAttributionSource.getPackageName();
                         SchemaMigrationStats.Builder statsBuilder =
-                                new SchemaMigrationStats.Builder(
-                                        mCallerAttributionSource.getPackageName(), mDatabaseName);
+                                new SchemaMigrationStats.Builder(packageName, mDatabaseName);
 
                         // Migration process
                         // 1. Validate and retrieve all active migrators.
@@ -1090,6 +1108,19 @@ public final class AppSearchSession implements Closeable {
                         }
                         InternalSetSchemaResponse internalSetSchemaResponse1 =
                                 setSchemaResult.getResultValue();
+                        if (internalSetSchemaResponse1 == null) {
+                            safeExecute(
+                                    callbackExecutor,
+                                    callback,
+                                    () ->
+                                            callback.accept(
+                                                    AppSearchResult.newFailedResult(
+                                                            RESULT_INTERNAL_ERROR,
+                                                            "Received null"
+                                                                    + " InternalSetSchemaResponse"
+                                                                    + " during setSchema call")));
+                            return;
+                        }
                         long firstSetSchemaLatencyEndTimeMillis = SystemClock.elapsedRealtime();
 
                         // 3. If forceOverride is false, check that all incompatible types will be
@@ -1166,8 +1197,7 @@ public final class AppSearchSession implements Closeable {
                                     // the incompatible error in the first setSchema call, all other
                                     // errors will be thrown at the first time.
                                     // TODO(b/261897334) save SDK errors/crashes and send to server
-                                    // for
-                                    //  logging.
+                                    //  for logging.
                                     safeExecute(
                                             callbackExecutor,
                                             callback,
@@ -1179,23 +1209,32 @@ public final class AppSearchSession implements Closeable {
                                 }
                                 InternalSetSchemaResponse internalSetSchemaResponse2 =
                                         setSchema2Result.getResultValue();
-                                if (!internalSetSchemaResponse2.isSuccess()) {
-                                    // Impossible case, we just set forceOverride to be true, we
-                                    // should
-                                    // never fail in incompatible changes. And all other cases
-                                    // should failed
-                                    // during the first call.
-                                    // TODO(b/261897334) save SDK errors/crashes and send to server
-                                    // for
-                                    //  logging.
+                                if (internalSetSchemaResponse2 == null) {
                                     safeExecute(
                                             callbackExecutor,
                                             callback,
                                             () ->
                                                     callback.accept(
                                                             AppSearchResult.newFailedResult(
-                                                                    AppSearchResult
-                                                                            .RESULT_INTERNAL_ERROR,
+                                                                    RESULT_INTERNAL_ERROR,
+                                                                    "Received null response"
+                                                                            + " during setSchema"
+                                                                            + " call")));
+                                    return;
+                                }
+                                if (!internalSetSchemaResponse2.isSuccess()) {
+                                    // Impossible case, we just set forceOverride to be true, we
+                                    // should never fail in incompatible changes. And all other
+                                    // cases should failed during the first call.
+                                    // TODO(b/261897334) save SDK errors/crashes and send to server
+                                    //  for logging.
+                                    safeExecute(
+                                            callbackExecutor,
+                                            callback,
+                                            () ->
+                                                    callback.accept(
+                                                            AppSearchResult.newFailedResult(
+                                                                    RESULT_INTERNAL_ERROR,
                                                                     internalSetSchemaResponse2
                                                                             .getErrorMessage())));
                                     return;

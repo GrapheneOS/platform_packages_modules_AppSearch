@@ -148,8 +148,8 @@ public class SearchResults implements Closeable {
                 // TODO(b/276349029): Log different join types when they get added.
                 @AppSearchSchema.StringPropertyConfig.JoinableValueType
                 int joinType = JOINABLE_VALUE_TYPE_NONE;
-                if (mSearchSpec.getJoinSpec() != null
-                        && !mSearchSpec.getJoinSpec().getChildPropertyExpression().isEmpty()) {
+                JoinSpec joinSpec = mSearchSpec.getJoinSpec();
+                if (joinSpec != null && !joinSpec.getChildPropertyExpression().isEmpty()) {
                     joinType = JOINABLE_VALUE_TYPE_QUALIFIED_ID;
                 }
                 mService.getNextPage(
