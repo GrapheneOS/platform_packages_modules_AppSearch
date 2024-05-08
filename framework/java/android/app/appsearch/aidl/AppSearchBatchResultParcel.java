@@ -26,6 +26,7 @@ import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Bundle;
 import android.os.Parcel;
+import android.os.Parcelable;
 
 import java.util.Map;
 import java.util.Objects;
@@ -43,8 +44,10 @@ import java.util.Objects;
  */
 @SafeParcelable.Class(creator = "AppSearchBatchResultParcelCreator", creatorIsFinal = false)
 public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafeParcelable {
+
     @NonNull
-    public static final AppSearchBatchResultParcelCreator CREATOR =
+    @SuppressWarnings("rawtypes")
+    public static final Parcelable.Creator<AppSearchBatchResultParcel> CREATOR =
             new AppSearchBatchResultParcelCreator() {
                 @Override
                 public AppSearchBatchResultParcel createFromParcel(Parcel in) {

@@ -44,7 +44,6 @@ import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -1508,6 +1507,19 @@ public class SafeParcelProcessor extends AbstractProcessor {
                                         (TypeElement) mTypes.asElement(mParcelableCreatorType),
                                         parcelableClass.asType())
                                 .toString();
+                TypeMirror parcelableType = parcelableClass.asType();
+                if (parcelableType instanceof DeclaredType) {
+                    DeclaredType declaredType = (DeclaredType) parcelableType; // Parcel<T>
+                    if (!declaredType.getTypeArguments().isEmpty()) {
+                        // If the ParcelableType is generic (ex: Parcelable.Creator<Parcel<T>>),
+                        // then expectedAlternativeCreatorTypeName needs to trim <T> part as
+                        // detectedAlternativeCreatorTypeName would only return Parcel resulting
+                        // in an incorrect ParcelCreatorType failure.
+                        String type = declaredType.getTypeArguments().get(0).toString(); // T
+                        expectedAlternativeCreatorTypeName =
+                                expectedAlternativeCreatorTypeName.replace("<" + type + ">", "");
+                    }
+                }
                 if (generatedClassName.equals(detectedCreatorTypeName)
                         || expectedAlternativeCreatorTypeName.equals(
                                 detectedAlternativeCreatorTypeName)) {

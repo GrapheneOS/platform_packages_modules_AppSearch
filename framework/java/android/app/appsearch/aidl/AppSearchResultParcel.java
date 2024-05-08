@@ -52,7 +52,8 @@ import java.util.Objects;
 public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelable {
 
     @NonNull
-    public static final AppSearchResultParcelCreator CREATOR =
+    @SuppressWarnings("rawtypes")
+    public static final Parcelable.Creator<AppSearchResultParcel> CREATOR =
             new AppSearchResultParcelCreator() {
                 @Override
                 public AppSearchResultParcel createFromParcel(Parcel in) {
