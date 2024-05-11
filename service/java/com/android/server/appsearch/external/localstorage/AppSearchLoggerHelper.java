@@ -197,7 +197,7 @@ public final class AppSearchLoggerHelper {
                 .setTimeSinceLastOptimizeMillis(fromNativeStats.getTimeSinceLastOptimizeMs());
     }
 
-    /*
+    /**
      * Copy SetSchema result stats to builder.
      *
      * @param fromProto Stats copied from.

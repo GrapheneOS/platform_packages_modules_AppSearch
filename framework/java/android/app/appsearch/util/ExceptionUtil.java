@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package android.app.appsearch;
+package android.app.appsearch.util;
 
+import android.annotation.NonNull;
 import android.os.RemoteException;
 
 /**
@@ -29,7 +30,7 @@ public final class ExceptionUtil {
      * {@link RuntimeException} will be rethrown if {@link #isItOkayToRethrowException()} returns
      * true.
      */
-    public static void handleException(Exception e) {
+    public static void handleException(@NonNull Exception e) {
         if (isItOkayToRethrowException() && e instanceof RuntimeException) {
             rethrowRuntimeException((RuntimeException) e);
         }
@@ -41,7 +42,7 @@ public final class ExceptionUtil {
     }
 
     /** Rethrow exception from SystemServer in Framework code. */
-    public static void handleRemoteException(RemoteException e) {
+    public static void handleRemoteException(@NonNull RemoteException e) {
         e.rethrowFromSystemServer();
     }
 

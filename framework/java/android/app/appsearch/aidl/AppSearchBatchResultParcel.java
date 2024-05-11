@@ -87,6 +87,7 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
      * Creates a new {@link AppSearchBatchResultParcel} from the given {@link GenericDocumentParcel}
      * results.
      */
+    @SuppressWarnings("unchecked")
     public static AppSearchBatchResultParcel<GenericDocumentParcel>
             fromStringToGenericDocumentParcel(
                     @NonNull AppSearchBatchResult<String, GenericDocumentParcel> result) {
@@ -110,6 +111,7 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
     }
 
     /** Creates a new {@link AppSearchBatchResultParcel} from the given {@link Void} results. */
+    @SuppressWarnings("unchecked")
     public static AppSearchBatchResultParcel<Void> fromStringToVoid(
             @NonNull AppSearchBatchResult<String, Void> result) {
         Bundle appSearchResultBundle = new Bundle();
@@ -128,6 +130,7 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
     }
 
     @NonNull
+    @SuppressWarnings("unchecked")
     public AppSearchBatchResult<String, ValueType> getResult() {
         if (mResultCached == null) {
             AppSearchBatchResult.Builder<String, ValueType> builder =
@@ -146,6 +149,7 @@ public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafePar
 
     /** @hide */
     @Override
+    @SuppressWarnings("unchecked")
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         byte[] bytes;
         // Create a parcel object to serialize results. So that we can use Parcel.writeBlob() to

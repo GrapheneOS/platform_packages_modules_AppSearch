@@ -27,6 +27,7 @@ import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.aidl.InitializeAidlRequest;
+import android.app.appsearch.util.ExceptionUtil;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -83,6 +84,7 @@ public abstract class ReadOnlyGlobalSearchSession {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -196,8 +198,9 @@ public abstract class ReadOnlyGlobalSearchSession {
      *
      * @param packageName the package that owns the requested {@link AppSearchSchema} instances.
      * @param databaseName the database that owns the requested {@link AppSearchSchema} instances.
-     * @return The pending {@link GetSchemaResponse} containing the schemas that the caller has
-     *     access to or an empty GetSchemaResponse if the request package and database does not
+     * @param executor Executor on which to invoke the callback.
+     * @param callback The pending {@link GetSchemaResponse} containing the schemas that the caller
+     *     has access to or an empty GetSchemaResponse if the request package and database does not
      *     exist, has not set a schema or contains no schemas that are accessible to the caller.
      */
     public void getSchema(
@@ -219,6 +222,7 @@ public abstract class ReadOnlyGlobalSearchSession {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
                             mIsForEnterprise),
                     new IAppSearchResultCallback.Stub() {
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         @Override
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
@@ -243,13 +247,21 @@ public abstract class ReadOnlyGlobalSearchSession {
         }
     }
 
-    /** @hide */
+    /**
+     * Returns the service instance to make IPC calls.
+     *
+     * @hide
+     */
     @VisibleForTesting
     public IAppSearchManager getService() {
         return mService;
     }
 
-    /** @hide */
+    /**
+     * Returns if session supports Enterprise flow.
+     *
+     * @hide
+     */
     @VisibleForTesting
     public boolean isForEnterprise() {
         return mIsForEnterprise;

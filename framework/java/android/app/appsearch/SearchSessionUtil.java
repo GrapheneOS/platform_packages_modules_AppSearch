@@ -130,6 +130,7 @@ public class SearchSessionUtil {
             @NonNull BatchResultCallback<String, GenericDocument> callback) {
         return new IAppSearchBatchResultCallback.Stub() {
             @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
             public void onResult(AppSearchBatchResultParcel resultParcel) {
                 safeExecute(
                         executor,
@@ -176,6 +177,7 @@ public class SearchSessionUtil {
             }
 
             @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
             public void onSystemError(AppSearchResultParcel result) {
                 safeExecute(
                         executor,

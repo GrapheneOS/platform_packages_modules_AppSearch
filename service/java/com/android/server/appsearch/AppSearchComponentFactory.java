@@ -28,15 +28,15 @@ import java.util.concurrent.Executor;
 
 /** This is a factory class for implementations needed based on environment for service code. */
 public final class AppSearchComponentFactory {
-    private static volatile FrameworkAppSearchConfig mConfigInstance;
+    private static volatile FrameworkAppSearchConfig sConfigInstance;
 
     public static FrameworkAppSearchConfig getConfigInstance(@NonNull Executor executor) {
-        FrameworkAppSearchConfig localRef = mConfigInstance;
+        FrameworkAppSearchConfig localRef = sConfigInstance;
         if (localRef == null) {
             synchronized (AppSearchComponentFactory.class) {
-                localRef = mConfigInstance;
+                localRef = sConfigInstance;
                 if (localRef == null) {
-                    mConfigInstance = localRef = FrameworkAppSearchConfigImpl.getInstance(executor);
+                    sConfigInstance = localRef = FrameworkAppSearchConfigImpl.getInstance(executor);
                 }
             }
         }
@@ -46,7 +46,7 @@ public final class AppSearchComponentFactory {
     @VisibleForTesting
     static void setConfigInstanceForTest(@NonNull FrameworkAppSearchConfig appSearchConfig) {
         synchronized (AppSearchComponentFactory.class) {
-            mConfigInstance = appSearchConfig;
+            sConfigInstance = appSearchConfig;
         }
     }
 

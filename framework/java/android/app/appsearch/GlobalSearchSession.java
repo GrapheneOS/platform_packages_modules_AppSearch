@@ -223,6 +223,7 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -259,6 +260,7 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * @param observer Callback to trigger when a schema or document changes
      * @throws AppSearchException If an unexpected error occurs when trying to register an observer.
      */
+    @SuppressWarnings("unchecked")
     public void registerObserverCallback(
             @NonNull String targetPackageName,
             @NonNull ObserverSpec spec,
@@ -387,6 +389,7 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      *     failure to communicate with the system service. Note that no error will be thrown if the
      *     provided observer doesn't match any registered observer.
      */
+    @SuppressWarnings("unchecked")
     public void unregisterObserverCallback(
             @NonNull String targetPackageName, @NonNull ObserverCallback observer)
             throws AppSearchException {

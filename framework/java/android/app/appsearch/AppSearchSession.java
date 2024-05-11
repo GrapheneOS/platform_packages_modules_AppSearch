@@ -44,6 +44,7 @@ import android.app.appsearch.aidl.SetSchemaAidlRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.stats.SchemaMigrationStats;
+import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.SchemaMigrationUtil;
 import android.os.Build;
 import android.os.RemoteException;
@@ -138,6 +139,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -252,6 +254,7 @@ public final class AppSearchSession implements Closeable {
                             /* isForEnterprise= */ false),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -297,6 +300,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -359,6 +363,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchBatchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchBatchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -627,6 +632,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -694,6 +700,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -746,6 +753,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchBatchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchBatchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -754,6 +762,7 @@ public final class AppSearchSession implements Closeable {
                         }
 
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onSystemError(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -812,6 +821,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -849,6 +859,7 @@ public final class AppSearchSession implements Closeable {
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -920,6 +931,7 @@ public final class AppSearchSession implements Closeable {
                     setSchemaAidlRequest,
                     new IAppSearchResultCallback.Stub() {
                         @Override
+                        @SuppressWarnings({"rawtypes", "unchecked"})
                         public void onResult(AppSearchResultParcel resultParcel) {
                             safeExecute(
                                     executor,
@@ -1086,6 +1098,7 @@ public final class AppSearchSession implements Closeable {
                                 setSchemaAidlRequest,
                                 new IAppSearchResultCallback.Stub() {
                                     @Override
+                                    @SuppressWarnings({"rawtypes", "unchecked"})
                                     public void onResult(AppSearchResultParcel resultParcel) {
                                         setSchemaResultRef.set(resultParcel.getResult());
                                         setSchemaLatch.countDown();
@@ -1182,6 +1195,7 @@ public final class AppSearchSession implements Closeable {
                                         setSchemaAidlRequest1,
                                         new IAppSearchResultCallback.Stub() {
                                             @Override
+                                            @SuppressWarnings({"rawtypes", "unchecked"})
                                             public void onResult(
                                                     AppSearchResultParcel resultParcel) {
                                                 setSchema2ResultRef.set(resultParcel.getResult());

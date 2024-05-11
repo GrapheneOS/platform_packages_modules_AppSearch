@@ -42,7 +42,6 @@ import android.app.appsearch.AppSearchEnvironment;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchMigrationHelper;
 import android.app.appsearch.AppSearchResult;
-import android.app.appsearch.ExceptionUtil;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
@@ -89,6 +88,7 @@ import android.app.appsearch.functions.ServiceCallHelper.ServiceUsageCompleteLis
 import android.app.appsearch.functions.ServiceCallHelperImpl;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.stats.SchemaMigrationStats;
+import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.app.role.RoleManager;
 import android.content.BroadcastReceiver;
@@ -2536,13 +2536,13 @@ public class AppSearchManagerService extends SystemService {
             if (args != null) {
                 for (int i = 0; i < args.length; i++) {
                     String arg = args[i];
-                    if ("-h".equals(arg)) {
+                    if (Objects.equals(arg, "-h")) {
                         pw.println(
                                 "Dumps the internal state of AppSearch platform storage and "
                                         + "AppSearch Contacts Indexer for the current user.");
                         pw.println("-v, verbose mode");
                         return;
-                    } else if ("-v".equals(arg) || "-a".equals(arg)) {
+                    } else if (Objects.equals(arg, "-v") || Objects.equals(arg, "-a")) {
                         // "-a" is included when adb dumps all services e.g. in adb bugreport so we
                         // want to run in verbose mode when this happens
                         verbose = true;

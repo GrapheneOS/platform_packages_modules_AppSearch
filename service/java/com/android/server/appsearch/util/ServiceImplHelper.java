@@ -294,6 +294,7 @@ public class ServiceImplHelper {
      * @throws SecurityException if caller trying to interact across user without {@link
      *     Manifest.permission#INTERACT_ACROSS_USERS_FULL}
      */
+    @CanIgnoreReturnValue
     @NonNull
     private UserHandle handleIncomingUser(
             @NonNull String callingPackageName,

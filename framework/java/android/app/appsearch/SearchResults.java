@@ -31,6 +31,7 @@ import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.aidl.InvalidateNextPageTokenAidlRequest;
 import android.app.appsearch.aidl.SearchAidlRequest;
+import android.app.appsearch.util.ExceptionUtil;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;

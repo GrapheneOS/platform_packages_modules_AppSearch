@@ -19,11 +19,11 @@ package com.android.server.appsearch;
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getPackageName;
 
 import android.annotation.NonNull;
-import android.app.appsearch.ExceptionUtil;
 import android.app.appsearch.checker.initialization.qual.UnderInitialization;
 import android.app.appsearch.checker.initialization.qual.UnknownInitialization;
 import android.app.appsearch.checker.nullness.qual.RequiresNonNull;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.util.ExceptionUtil;
 import android.util.ArrayMap;
 import android.util.Log;
 

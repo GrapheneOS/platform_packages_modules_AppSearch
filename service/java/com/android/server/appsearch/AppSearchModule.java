@@ -19,7 +19,7 @@ package com.android.server.appsearch;
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.appsearch.ExceptionUtil;
+import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.content.Context;
 import android.os.UserHandle;
