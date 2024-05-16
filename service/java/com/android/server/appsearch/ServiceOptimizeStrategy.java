@@ -28,15 +28,16 @@ import java.util.Objects;
 
 /**
  * An implementation of {@link OptimizeStrategy} will determine when to trigger {@link
- * AppSearchImpl#optimize()} in Jetpack environment.
+ * AppSearchImpl#optimize()} based on last time optimize ran and number of bytes to optimize. This
+ * implementation is used by environments with AppSearch service running like Framework and GMSCore.
  *
  * @hide
  */
-public class FrameworkOptimizeStrategy implements OptimizeStrategy {
+public class ServiceOptimizeStrategy implements OptimizeStrategy {
     private static final String TAG = "AppSearchOptimize";
     private final FrameworkAppSearchConfig mAppSearchConfig;
 
-    FrameworkOptimizeStrategy(@NonNull FrameworkAppSearchConfig config) {
+    ServiceOptimizeStrategy(@NonNull FrameworkAppSearchConfig config) {
         mAppSearchConfig = Objects.requireNonNull(config);
     }
 

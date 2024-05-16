@@ -232,7 +232,7 @@ public final class AppSearchUserInstanceManager {
                         config,
                         initStatsBuilder,
                         visibilityCheckerImpl,
-                        new FrameworkOptimizeStrategy(config));
+                        new ServiceOptimizeStrategy(config));
 
         // Update storage info file
         UserStorageInfo userStorageInfo =

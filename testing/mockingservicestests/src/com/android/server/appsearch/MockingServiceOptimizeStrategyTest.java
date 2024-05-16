@@ -29,9 +29,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 // This class tests the scenario time_optimize_threshold < min_time_optimize_threshold (which
-// shouldn't be the case in an ideal world) as opposed to FrameworkOptimizeStrategyTest which tests
+// shouldn't be the case in an ideal world) as opposed to ServiceOptimizeStrategyTest which tests
 // the scenario time_optimize_threshold > min_time_optimize_threshold.
-public class MockingFrameworkOptimizeStrategyTest {
+public class MockingServiceOptimizeStrategyTest {
     @Rule
     public final TestableDeviceConfig.TestableDeviceConfigRule
             mDeviceConfigRule = new TestableDeviceConfig.TestableDeviceConfigRule();
@@ -57,25 +57,25 @@ public class MockingFrameworkOptimizeStrategyTest {
                 Integer.toString(0),
                 false);
         FrameworkAppSearchConfig appSearchConfig =
-            FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
-        FrameworkOptimizeStrategy mFrameworkOptimizeStrategy =
-                new FrameworkOptimizeStrategy(appSearchConfig);
+                FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
+        ServiceOptimizeStrategy mServiceOptimizeStrategy =
+                new ServiceOptimizeStrategy(appSearchConfig);
         // Create optimizeInfo with all values above respective thresholds.
         GetOptimizeInfoResultProto optimizeInfo =
                 GetOptimizeInfoResultProto.newBuilder()
                         .setTimeSinceLastOptimizeMs(
-                                appSearchConfig.getCachedTimeOptimizeThresholdMs()+1)
+                                appSearchConfig.getCachedTimeOptimizeThresholdMs() + 1)
                         .setEstimatedOptimizableBytes(
-                                appSearchConfig.getCachedBytesOptimizeThreshold()+1)
+                                appSearchConfig.getCachedBytesOptimizeThreshold() + 1)
                         .setOptimizableDocs(
-                                appSearchConfig.getCachedDocCountOptimizeThreshold()+1)
+                                appSearchConfig.getCachedDocCountOptimizeThreshold() + 1)
                         .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
                         .build();
 
         // Verify shouldOptimize() returns true when
         // min_time_optimize_threshold(0) < time_optimize_threshold(900)
         // < timeSinceLastOptimize(901)
-        assertThat(mFrameworkOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
 
         // Set min_time_optimize_threshold to a value greater than time_optimize_threshold
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
@@ -86,6 +86,6 @@ public class MockingFrameworkOptimizeStrategyTest {
         // Verify shouldOptimize() returns false when
         // min_time_optimize_threshold(1000) > timeSinceLastOptimize(901)
         // > time_optimize_threshold(900)
-        assertThat(mFrameworkOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
     }
 }

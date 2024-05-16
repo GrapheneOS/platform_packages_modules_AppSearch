@@ -123,7 +123,7 @@ public final class AppsIndexerImpl implements Closeable {
             if (!packagesToBeAddedOrUpdated.isEmpty()) {
                 mAppSearchHelper.indexApps(
                         AppsUtil.buildAppsFromPackageInfos(
-                                mContext.getPackageManager(), packagesToBeAddedOrUpdated));
+                                packageManager, packagesToBeAddedOrUpdated));
             }
 
             settings.setLastAppUpdateTimestampMillis(mostRecentAppUpdatedTimestampMillis);
