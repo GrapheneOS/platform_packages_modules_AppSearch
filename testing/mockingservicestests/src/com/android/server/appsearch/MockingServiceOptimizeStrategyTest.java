@@ -38,26 +38,30 @@ public class MockingServiceOptimizeStrategyTest {
 
     @Test
     public void testShouldNotOptimize_overOtherThresholds_underMinTimeThreshold() {
-        // Create FrameworkAppSearchConfig with min_time_optimize_threshold <
+        // Create ServiceAppSearchConfig with min_time_optimize_threshold <
         // time_optimize_threshold
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_BYTES_OPTIMIZE_THRESHOLD,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_BYTES_OPTIMIZE_THRESHOLD,
                 Integer.toString(147147),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_TIME_OPTIMIZE_THRESHOLD_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_TIME_OPTIMIZE_THRESHOLD_MILLIS,
                 Integer.toString(900),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_DOC_COUNT_OPTIMIZE_THRESHOLD,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_DOC_COUNT_OPTIMIZE_THRESHOLD,
                 Integer.toString(369369),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
                 Integer.toString(0),
                 false);
-        FrameworkAppSearchConfig appSearchConfig =
-                FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
         ServiceOptimizeStrategy mServiceOptimizeStrategy =
                 new ServiceOptimizeStrategy(appSearchConfig);
         // Create optimizeInfo with all values above respective thresholds.
@@ -78,8 +82,9 @@ public class MockingServiceOptimizeStrategyTest {
         assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
 
         // Set min_time_optimize_threshold to a value greater than time_optimize_threshold
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
                 Integer.toString(1000),
                 false);
 

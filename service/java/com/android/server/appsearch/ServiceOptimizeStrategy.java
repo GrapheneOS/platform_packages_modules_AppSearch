@@ -35,9 +35,9 @@ import java.util.Objects;
  */
 public class ServiceOptimizeStrategy implements OptimizeStrategy {
     private static final String TAG = "AppSearchOptimize";
-    private final FrameworkAppSearchConfig mAppSearchConfig;
+    private final ServiceAppSearchConfig mAppSearchConfig;
 
-    ServiceOptimizeStrategy(@NonNull FrameworkAppSearchConfig config) {
+    ServiceOptimizeStrategy(@NonNull ServiceAppSearchConfig config) {
         mAppSearchConfig = Objects.requireNonNull(config);
     }
 

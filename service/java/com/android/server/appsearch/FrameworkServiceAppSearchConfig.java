@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
- * Implementation of {@link FrameworkAppSearchConfig} using {@link DeviceConfig}.
+ * Implementation of {@link ServiceAppSearchConfig} using {@link DeviceConfig}.
  *
  * <p>Though the latest flag values can always be retrieved by calling {@link
  * DeviceConfig#getProperty}, we want to cache some of those values. For example, the sampling
@@ -43,8 +43,8 @@ import java.util.concurrent.Executor;
  *
  * @hide
  */
-public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchConfig {
-    private static volatile FrameworkAppSearchConfigImpl sConfig;
+public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchConfig {
+    private static volatile FrameworkServiceAppSearchConfig sConfig;
 
     /*
      * Keys for ALL the flags stored in DeviceConfig.
@@ -111,8 +111,8 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
     public static final String KEY_FULLY_PERSIST_JOB_INTERVAL = "fully_persist_job_interval";
 
     /**
-     * This config does not need to be cached in FrameworkAppSearchConfigImpl as it is only accessed
-     * statically. AppSearch retrieves this directly from DeviceConfig when needed.
+     * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
+     * accessed statically. AppSearch retrieves this directly from DeviceConfig when needed.
      */
     public static final String KEY_USE_FIXED_EXECUTOR_SERVICE = "use_fixed_executor_service";
 
@@ -163,7 +163,7 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
 
     /**
      * Bundle to hold all the cached flag values corresponding to {@link
-     * FrameworkAppSearchConfigImpl#KEYS_TO_ALL_CACHED_VALUES}.
+     * FrameworkServiceAppSearchConfig#KEYS_TO_ALL_CACHED_VALUES}.
      */
     @GuardedBy("mLock")
     private final Bundle mBundleLocked = new Bundle();
@@ -191,34 +191,34 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
                 updateCachedValues(properties);
             };
 
-    private FrameworkAppSearchConfigImpl() {}
+    private FrameworkServiceAppSearchConfig() {}
 
     /**
-     * Creates an instance of {@link FrameworkAppSearchConfigImpl}.
+     * Creates an instance of {@link FrameworkServiceAppSearchConfig}.
      *
      * @param executor used to fetch and cache the flag values from DeviceConfig during creation or
      *     config change.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     @NonNull
-    public static FrameworkAppSearchConfigImpl create(@NonNull Executor executor) {
+    public static FrameworkServiceAppSearchConfig create(@NonNull Executor executor) {
         Objects.requireNonNull(executor);
-        FrameworkAppSearchConfigImpl configManager = new FrameworkAppSearchConfigImpl();
+        FrameworkServiceAppSearchConfig configManager = new FrameworkServiceAppSearchConfig();
         configManager.initialize(executor);
         return configManager;
     }
 
     /**
-     * Gets an instance of {@link FrameworkAppSearchConfigImpl} to be used.
+     * Gets an instance of {@link FrameworkServiceAppSearchConfig} to be used.
      *
      * <p>If no instance has been initialized yet, a new one will be created. Otherwise, the
      * existing instance will be returned.
      */
     @NonNull
-    public static FrameworkAppSearchConfigImpl getInstance(@NonNull Executor executor) {
+    public static FrameworkServiceAppSearchConfig getInstance(@NonNull Executor executor) {
         Objects.requireNonNull(executor);
         if (sConfig == null) {
-            synchronized (FrameworkAppSearchConfigImpl.class) {
+            synchronized (FrameworkServiceAppSearchConfig.class) {
                 if (sConfig == null) {
                     sConfig = create(executor);
                 }
@@ -239,7 +239,7 @@ public final class FrameworkAppSearchConfigImpl implements FrameworkAppSearchCon
     }
 
     /**
-     * Initializes the {@link FrameworkAppSearchConfigImpl}
+     * Initializes the {@link FrameworkServiceAppSearchConfig}
      *
      * <p>It fetches the custom properties from DeviceConfig if available.
      *

@@ -16,9 +16,9 @@
 
 package com.android.server.appsearch;
 
-import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
-import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
-import static com.android.server.appsearch.FrameworkAppSearchConfig.DEFAULT_RATE_LIMIT_API_COSTS_STRING;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_API_COSTS_STRING;
 
 import static com.google.common.truth.Truth.assertThat;
 

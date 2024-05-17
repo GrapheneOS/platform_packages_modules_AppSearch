@@ -28,15 +28,17 @@ import java.util.concurrent.Executor;
 
 /** This is a factory class for implementations needed based on environment for service code. */
 public final class AppSearchComponentFactory {
-    private static volatile FrameworkAppSearchConfig sConfigInstance;
+    private static volatile ServiceAppSearchConfig sConfigInstance;
 
-    public static FrameworkAppSearchConfig getConfigInstance(@NonNull Executor executor) {
-        FrameworkAppSearchConfig localRef = sConfigInstance;
+    /** Gets an instance of ServiceAppSearchConfig for the given executor. */
+    public static ServiceAppSearchConfig getConfigInstance(@NonNull Executor executor) {
+        ServiceAppSearchConfig localRef = sConfigInstance;
         if (localRef == null) {
             synchronized (AppSearchComponentFactory.class) {
                 localRef = sConfigInstance;
                 if (localRef == null) {
-                    sConfigInstance = localRef = FrameworkAppSearchConfigImpl.getInstance(executor);
+                    sConfigInstance =
+                            localRef = FrameworkServiceAppSearchConfig.getInstance(executor);
                 }
             }
         }
@@ -44,14 +46,14 @@ public final class AppSearchComponentFactory {
     }
 
     @VisibleForTesting
-    static void setConfigInstanceForTest(@NonNull FrameworkAppSearchConfig appSearchConfig) {
+    static void setConfigInstanceForTest(@NonNull ServiceAppSearchConfig appSearchConfig) {
         synchronized (AppSearchComponentFactory.class) {
             sConfigInstance = appSearchConfig;
         }
     }
 
     public static InternalAppSearchLogger createLoggerInstance(
-            @NonNull Context context, @NonNull FrameworkAppSearchConfig config) {
+            @NonNull Context context, @NonNull ServiceAppSearchConfig config) {
         return new PlatformLogger(context, config);
     }
 

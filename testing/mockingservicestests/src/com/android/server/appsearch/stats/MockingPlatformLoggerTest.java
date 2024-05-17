@@ -26,8 +26,8 @@ import android.provider.DeviceConfig;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.modules.utils.testing.TestableDeviceConfig;
-import com.android.server.appsearch.FrameworkAppSearchConfig;
-import com.android.server.appsearch.FrameworkAppSearchConfigImpl;
+import com.android.server.appsearch.FrameworkServiceAppSearchConfig;
+import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.util.ApiCallRecord;
 
@@ -50,7 +50,7 @@ public class MockingPlatformLoggerTest {
     private static final int TEST_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS = 100;
     private static final int TEST_DEFAULT_SAMPLING_INTERVAL = 10;
     private static final String TEST_PACKAGE_NAME = "packageName";
-    private FrameworkAppSearchConfig mAppSearchConfig;
+    private ServiceAppSearchConfig mAppSearchConfig;
 
     @Rule
     public final TestableDeviceConfig.TestableDeviceConfigRule
@@ -58,7 +58,7 @@ public class MockingPlatformLoggerTest {
 
     @Before
     public void setUp() throws Exception {
-        mAppSearchConfig = FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
+        mAppSearchConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
     }
 
     @Test
@@ -67,12 +67,14 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
                 Long.toString(TEST_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_DEFAULT,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_DEFAULT,
                 Integer.toString(TEST_DEFAULT_SAMPLING_INTERVAL),
                 false);
 
@@ -99,20 +101,24 @@ public class MockingPlatformLoggerTest {
         PlatformLogger logger = new PlatformLogger(
                 ApplicationProvider.getApplicationContext(), mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
                 Long.toString(TEST_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_DEFAULT,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_DEFAULT,
                 Integer.toString(TEST_DEFAULT_SAMPLING_INTERVAL),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_FOR_PUT_DOCUMENT_STATS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_FOR_PUT_DOCUMENT_STATS,
                 Integer.toString(putDocumentSamplingInterval),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_FOR_BATCH_CALL_STATS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_FOR_BATCH_CALL_STATS,
                 Integer.toString(batchCallSamplingInterval),
                 false);
 
@@ -145,8 +151,9 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_DEFAULT,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_DEFAULT,
                 Long.toString(1),
                 false);
 
@@ -163,8 +170,9 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_DEFAULT,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_DEFAULT,
                 Long.toString(-1),
                 false);
 
@@ -186,12 +194,14 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_DEFAULT,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_DEFAULT,
                 Long.toString(samplingInterval),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
                 Long.toString(minTimeIntervalBetweenSamplesMillis),
                 false);
         logger.setLastPushTimeMillisLocked(SystemClock.elapsedRealtime());
@@ -213,12 +223,14 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_SAMPLING_INTERVAL_DEFAULT,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_DEFAULT,
                 Long.toString(samplingInterval),
                 false);
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
                 Long.toString(minTimeIntervalBetweenSamplesMillis),
                 false);
         logger.setLastPushTimeMillisLocked(SystemClock.elapsedRealtime());
@@ -235,8 +247,11 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_API_CALL_STATS_LIMIT, "0", false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT,
+                "0",
+                false);
 
         logger.addStatsToQueueLocked(
                 new ApiCallRecord(new CallStats.Builder()
@@ -258,8 +273,11 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_API_CALL_STATS_LIMIT, "-1", false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT,
+                "-1",
+                false);
 
         logger.addStatsToQueueLocked(
                 new ApiCallRecord(new CallStats.Builder()
@@ -281,8 +299,11 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_API_CALL_STATS_LIMIT, "1", false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT,
+                "1",
+                false);
 
         logger.addStatsToQueueLocked(
                 new ApiCallRecord(new CallStats.Builder()
@@ -321,8 +342,11 @@ public class MockingPlatformLoggerTest {
                 ApplicationProvider.getApplicationContext(),
                 mAppSearchConfig);
 
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_API_CALL_STATS_LIMIT, "2", false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT,
+                "2",
+                false);
 
         logger.addStatsToQueueLocked(
                 new ApiCallRecord(new CallStats.Builder()
@@ -346,8 +370,11 @@ public class MockingPlatformLoggerTest {
         assertThat(logger.getLastCalledApis()).hasSize(2);
 
         // Changing the capacity to 1 will drop the earliest stats.
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
-                FrameworkAppSearchConfigImpl.KEY_API_CALL_STATS_LIMIT, "1", false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT,
+                "1",
+                false);
         assertThat(logger.getLastCalledApis()).hasSize(1);
         ApiCallRecord apiCallRecord = logger.getLastCalledApis().get(0);
         assertThat(apiCallRecord.toString()).contains("test_package2");

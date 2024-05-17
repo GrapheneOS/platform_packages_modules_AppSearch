@@ -22,11 +22,11 @@ import static android.system.OsConstants.O_RDONLY;
 import static android.system.OsConstants.O_WRONLY;
 
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
-import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_DENYLIST;
-import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_RATE_LIMIT_API_COSTS;
-import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_RATE_LIMIT_ENABLED;
-import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
-import static com.android.server.appsearch.FrameworkAppSearchConfigImpl.KEY_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DENYLIST;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_API_COSTS;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_ENABLED;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -108,7 +108,6 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
-import android.os.Build;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
@@ -132,9 +131,9 @@ import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.usage.StorageStatsManagerLocal;
 
-import libcore.io.IoBridge;
-
 import com.google.common.util.concurrent.SettableFuture;
+
+import libcore.io.IoBridge;
 
 import org.junit.After;
 import org.junit.Before;
@@ -247,11 +246,11 @@ public class AppSearchManagerServiceTest {
         setUpEnvironmentForAppFunction();
         mServiceCallHelper = new TestableServiceCallHelper();
 
-        // In AppSearchManagerService, FrameworkAppSearchConfig is a singleton. During tearDown for
+        // In AppSearchManagerService, ServiceAppSearchConfig is a singleton. During tearDown for
         // TestableDeviceConfig, the propertyChangedListeners are removed. Therefore we have to set
         // a fresh config with listeners in setUp in order to set new properties.
-        FrameworkAppSearchConfig appSearchConfig =
-            FrameworkAppSearchConfigImpl.create(DIRECT_EXECUTOR);
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
         AppSearchComponentFactory.setConfigInstanceForTest(appSearchConfig);
 
         // Create the user instance and add a spy to its logger to verify logging

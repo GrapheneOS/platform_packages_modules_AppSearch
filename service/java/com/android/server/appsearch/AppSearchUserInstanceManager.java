@@ -90,7 +90,7 @@ public final class AppSearchUserInstanceManager {
     public AppSearchUserInstance getOrCreateUserInstance(
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
-            @NonNull FrameworkAppSearchConfig config)
+            @NonNull ServiceAppSearchConfig config)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
@@ -208,7 +208,7 @@ public final class AppSearchUserInstanceManager {
     private AppSearchUserInstance createUserInstance(
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
-            @NonNull FrameworkAppSearchConfig config)
+            @NonNull ServiceAppSearchConfig config)
             throws AppSearchException {
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();

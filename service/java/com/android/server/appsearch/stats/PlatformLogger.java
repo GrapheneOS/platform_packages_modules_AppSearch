@@ -30,8 +30,8 @@ import android.util.SparseIntArray;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.appsearch.FrameworkAppSearchConfig;
 import com.android.server.appsearch.InternalAppSearchLogger;
+import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
@@ -66,14 +66,14 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     private final Context mUserContext;
 
     // Manager holding the configuration flags
-    private final FrameworkAppSearchConfig mConfig;
+    private final ServiceAppSearchConfig mConfig;
 
     private final Random mRng = new Random();
     private final Object mLock = new Object();
 
     /**
      * SparseArray to track how many stats we skipped due to {@link
-     * FrameworkAppSearchConfig#getCachedMinTimeIntervalBetweenSamplesMillis()}.
+     * ServiceAppSearchConfig#getCachedMinTimeIntervalBetweenSamplesMillis()}.
      *
      * <p>We can have correct extrapolated number by adding those counts back when we log the same
      * type of stats next time. E.g. the true count of an event could be estimated as:
@@ -101,7 +101,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     /**
      * Record the last n API calls used by dumpsys to print debugging information about the sequence
      * of the API calls, where n is specified by {@link
-     * FrameworkAppSearchConfig#getCachedApiCallStatsLimit()}.
+     * ServiceAppSearchConfig#getCachedApiCallStatsLimit()}.
      */
     @GuardedBy("mLock")
     private ArrayDeque<ApiCallRecord> mLastNCalls = new ArrayDeque<>();
@@ -123,7 +123,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     }
 
     /** Constructor */
-    public PlatformLogger(@NonNull Context userContext, @NonNull FrameworkAppSearchConfig config) {
+    public PlatformLogger(@NonNull Context userContext, @NonNull ServiceAppSearchConfig config) {
         mUserContext = Objects.requireNonNull(userContext);
         mConfig = Objects.requireNonNull(config);
     }
@@ -528,7 +528,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
 
     /**
      * This method will drop the earliest stats in the queue when the number of calls is at the
-     * capacity specified by {@link FrameworkAppSearchConfig#getCachedApiCallStatsLimit()}.
+     * capacity specified by {@link ServiceAppSearchConfig#getCachedApiCallStatsLimit()}.
      */
     @GuardedBy("mLock")
     private void trimExcessStatsQueueLocked() {
@@ -546,7 +546,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
      * Record {@link ApiCallRecord} to {@link #mLastNCalls} for dumpsys.
      *
      * <p>This method will automatically drop the earliest stats when the number of calls is at the
-     * capacity specified by {@link FrameworkAppSearchConfig#getCachedApiCallStatsLimit()}.
+     * capacity specified by {@link ServiceAppSearchConfig#getCachedApiCallStatsLimit()}.
      */
     @GuardedBy("mLock")
     @VisibleForTesting
@@ -679,7 +679,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
         return packageUid;
     }
 
-    /** Returns sampling ratio for stats type specified form {@link FrameworkAppSearchConfig}. */
+    /** Returns sampling ratio for stats type specified form {@link ServiceAppSearchConfig}. */
     private int getSamplingIntervalFromConfig(@CallStats.CallType int statsType) {
         switch (statsType) {
             case CallStats.CALL_TYPE_PUT_DOCUMENTS:

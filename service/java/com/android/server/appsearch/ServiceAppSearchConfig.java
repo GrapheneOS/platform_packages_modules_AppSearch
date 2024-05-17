@@ -23,14 +23,16 @@ import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 /**
  * An interface which exposes config flags to AppSearch.
  *
- * <p>This interface provides an abstraction for the platform's flag mechanism and implements
- * caching to avoid expensive lookups.
+ * <p>This interface provides an abstraction for the AppSearch's flag mechanism and implements
+ * caching to avoid expensive lookups. This interface is only used by environments which have a
+ * running AppSearch service like Framework and GMSCore. JetPack uses {@link AppSearchConfig}
+ * directly instead.
  *
  * <p>Implementations of this interface must be thread-safe.
  *
  * @hide
  */
-public interface FrameworkAppSearchConfig extends AppSearchConfig, AutoCloseable {
+public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     /**
      * Default min time interval between samples in millis if there is no value set for {@link
      * #getCachedMinTimeIntervalBetweenSamplesMillis()} in the flag system.
