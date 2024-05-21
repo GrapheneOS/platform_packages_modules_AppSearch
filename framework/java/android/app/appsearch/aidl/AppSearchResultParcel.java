@@ -75,7 +75,6 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
             };
 
     @NonNull
-    @SuppressWarnings("rawtypes")
     private static final Parcelable.Creator<AppSearchResultParcel> CREATOR_WITHOUT_BLOB =
             new AppSearchResultParcelCreator();
 
@@ -141,7 +140,6 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
      * @param storageInfo {@link StorageInfo} type response.
      */
     @Constructor
-    @SuppressWarnings("unchecked")
     AppSearchResultParcel(
             @Param(id = 1) @AppSearchResult.ResultCode int resultCode,
             @Param(id = 2) @Nullable String errorMessage,
@@ -214,8 +212,8 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
      * Creates a new {@link AppSearchResultParcel} from the given result in case a successful Void
      * response.
      */
-    public static AppSearchResultParcel<Void> fromVoid() {
-        return new AppSearchResultParcel.Builder<Void>(AppSearchResult.RESULT_OK).build();
+    public static AppSearchResultParcel fromVoid() {
+        return new AppSearchResultParcel.Builder<>(AppSearchResult.RESULT_OK).build();
     }
 
     /** Creates a new failed {@link AppSearchResultParcel} from result code and error message. */

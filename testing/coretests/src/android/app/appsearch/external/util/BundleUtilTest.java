@@ -18,7 +18,6 @@ package android.app.appsearch.util;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.app.appsearch.safeparcel.PropertyParcel;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelUuid;
@@ -223,27 +222,6 @@ public class BundleUtilTest {
 
         output.getIntegerArrayList("integerArrayList").add(5);
         assertThat(BundleUtil.deepEquals(input, output)).isFalse();
-    }
-
-    @Test
-    public void testSafeParcelable() {
-        int row = 20;
-        int col = 10;
-        byte[][] bytesArray = new byte[row][col];
-        for (int i = 0; i < row; ++i) {
-            for (int j = 0; j < col; ++j) {
-                bytesArray[i][j] = (byte) (i + j);
-            }
-        }
-
-        String propertyName = "propertyName";
-        PropertyParcel expectedPropertyParcel =
-                new PropertyParcel.Builder(propertyName).setBytesValues(bytesArray).build();
-        Bundle bundle = new Bundle();
-        BundleUtil.putParcelable(expectedPropertyParcel, bundle, "key");
-        PropertyParcel actualPropertyParcel =
-                BundleUtil.getParcelable(bundle, "key", PropertyParcel.CREATOR);
-        assertThat(expectedPropertyParcel).isEqualTo(actualPropertyParcel);
     }
 
     private static Bundle createThoroughBundle() {

@@ -187,6 +187,7 @@ class TestUtils {
         when(res.getResourcePackageName(anyInt())).thenReturn("idk");
         when(res.getResourceTypeName(anyInt())).thenReturn("type");
         when(pm.getResourcesForApplication((ApplicationInfo) any())).thenReturn(res);
+        when(pm.getApplicationLabel(any())).thenReturn("label");
         when(pm.queryIntentActivities(any(), eq(0))).then(i -> activities);
     }
 
@@ -271,7 +272,7 @@ class TestUtils {
                 .setIconUri("https://cs.android.com")
                 .setClassName(".class")
                 .setUpdatedTimestampMs(variant)
-                .setAlternateNames(new String[] {"Mock"})
+                .setAlternateNames("Mock")
                 .build();
     }
 

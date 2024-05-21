@@ -240,6 +240,13 @@ public final class AppsUtil {
                         .setCreationTimestampMillis(packageInfo.firstInstallTime)
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
+        String applicationLabel =
+                packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
+        if (!applicationDisplayName.equals(applicationLabel)) {
+            // This can be different from applicationDisplayName, and should be indexed
+            builder.setAlternateNames(applicationLabel);
+        }
+
         if (iconUri != null) {
             builder.setIconUri(iconUri);
         }

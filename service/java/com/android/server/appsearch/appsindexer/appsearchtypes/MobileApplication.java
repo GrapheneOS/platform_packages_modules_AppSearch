@@ -222,7 +222,7 @@ public class MobileApplication extends GenericDocument {
 
         /** Sets the alternate names. An empty array will erase the list. */
         @NonNull
-        public Builder setAlternateNames(@NonNull String[] alternateNames) {
+        public Builder setAlternateNames(@NonNull String... alternateNames) {
             setPropertyString(APP_PROPERTY_ALTERNATE_NAMES, Objects.requireNonNull(alternateNames));
             return this;
         }

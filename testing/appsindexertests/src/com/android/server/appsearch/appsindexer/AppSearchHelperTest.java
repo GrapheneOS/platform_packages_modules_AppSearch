@@ -238,7 +238,7 @@ public class AppSearchHelperTest {
                         .setIconUri("https://cs.android.com")
                         .setClassName(".class")
                         .setUpdatedTimestampMs(300)
-                        .setAlternateNames(new String[] {"Joe"})
+                        .setAlternateNames("Joe")
                         .build();
 
         // Should update the app, not add a new one

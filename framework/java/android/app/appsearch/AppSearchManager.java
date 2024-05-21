@@ -80,7 +80,7 @@ import java.util.function.Consumer;
  * SetSchemaRequest request = new SetSchemaRequest.Builder().addSchema(emailSchemaType).build();
  * mAppSearchSession.set(request, mExecutor, appSearchResult -&gt; {
  *      if (appSearchResult.isSuccess()) {
- *           //Schema has been successfully set.
+ *           // Schema has been successfully set.
  *      }
  * });</pre>
  *
@@ -107,7 +107,7 @@ import java.util.function.Consumer;
  *     .build();
  * mAppSearchSession.put(request, mExecutor, appSearchBatchResult -&gt; {
  *      if (appSearchBatchResult.isSuccess()) {
- *           //All documents have been successfully indexed.
+ *           // All documents have been successfully indexed.
  *      }
  * });</pre>
  *
