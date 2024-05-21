@@ -125,6 +125,7 @@ import com.android.server.appsearch.transformer.EnterpriseSearchSpecTransformer;
 import com.android.server.appsearch.util.AdbDumpUtil;
 import com.android.server.appsearch.util.ApiCallRecord;
 import com.android.server.appsearch.util.ExecutorManager;
+import com.android.server.appsearch.util.PackageManagerUtil;
 import com.android.server.appsearch.util.ServiceImplHelper;
 import com.android.server.appsearch.visibilitystore.FrameworkCallerAccess;
 import com.android.server.usage.StorageStatsManagerLocal;
@@ -2378,7 +2379,17 @@ public class AppSearchManagerService extends SystemService {
             }
             serviceIntent.setComponent(
                     new ComponentName(serviceInfo.packageName, serviceInfo.name));
-            // TODO(b/327134039): Verify the certificate if given.
+
+            if (request.getSha256Certificate() != null) {
+                if (!PackageManagerUtil.hasSigningCertificate(
+                        mContext, request.getTargetPackageName(), request.getSha256Certificate())) {
+                    safeCallback.onFailedResult(
+                            AppSearchResult.newFailedResult(
+                                    RESULT_NOT_FOUND, "Cannot find the target service"));
+                    return;
+                }
+            }
+
             boolean bindServiceResult = mAppFunctionServiceCallHelper.runServiceCall(
                     serviceIntent,
                     Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS | Context.BIND_AUTO_CREATE,

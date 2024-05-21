@@ -18,6 +18,7 @@ package android.app.appsearch.functions;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
@@ -62,6 +63,10 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
     @NonNull
     private final Bundle mExtras;
 
+    @Field(id = 5, getter = "getSha256Certificate")
+    @Nullable
+    private final byte[] mSha256Certificate;
+
     @NonNull private final GenericDocument mParametersCached;
 
     /** Returns the package name of the app that hosts the function. */
@@ -89,6 +94,17 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
         return mParametersCached;
     }
 
+    /**
+     * Returns the expected certificate SHA-256 digests of the target package. Returns {@code null}
+     * if no certificate digest checking is configured.
+     *
+     * @see Builder#getSha256Certificate()
+     */
+    @Nullable
+    public byte[] getSha256Certificate() {
+        return mSha256Certificate;
+    }
+
     /** Returns additional metadata relevant to this function execution request. */
     @NonNull
     public Bundle getExtras() {
@@ -99,12 +115,14 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
             @NonNull String targetPackageName,
             @NonNull String functionIdentifier,
             @NonNull GenericDocument document,
-            @NonNull Bundle extras) {
+            @NonNull Bundle extras,
+            @Nullable byte[] sha256Certificate) {
         mTargetPackageName = Objects.requireNonNull(targetPackageName);
         mFunctionIdentifier = Objects.requireNonNull(functionIdentifier);
         mParametersCached = Objects.requireNonNull(document);
         mParameters = mParametersCached.getDocumentParcel();
         mExtras = Objects.requireNonNull(extras);
+        mSha256Certificate = sha256Certificate;
     }
 
     @Constructor
@@ -112,12 +130,14 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
             @Param(id = 1) @NonNull String targetPackageName,
             @Param(id = 2) @NonNull String functionIdentifier,
             @Param(id = 3) @NonNull GenericDocumentParcel parameters,
-            @Param(id = 4) @NonNull Bundle extras) {
+            @Param(id = 4) @NonNull Bundle extras,
+            @Param(id = 5) @Nullable byte[] sha256Certificate) {
         mTargetPackageName = Objects.requireNonNull(targetPackageName);
         mFunctionIdentifier = Objects.requireNonNull(functionIdentifier);
         mParameters = Objects.requireNonNull(parameters);
         mParametersCached = new GenericDocument(mParameters);
         mExtras = Objects.requireNonNull(extras);
+        mSha256Certificate = sha256Certificate;
     }
 
     @Override
@@ -132,6 +152,7 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
         @NonNull private final String mFunctionIdentifier;
         @NonNull private GenericDocument mParameters = GenericDocument.EMPTY;
         @NonNull private Bundle mExtras = Bundle.EMPTY;
+        @Nullable private byte[] mSha256Certificate;
 
         /**
          * Creates a new instance of this builder class.
@@ -158,6 +179,27 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
         }
 
         /**
+         * Sets the expected certificate SHA-256 digests for the target package. Setting this to
+         * {@code null} indicates that no certificate digest check will be performed.
+         *
+         * <p>SHA-256 certificate digests for a signed application can be retrieved with the <a
+         * href="{@docRoot}studio/command-line/apksigner/">apksigner tool</a> that is part of the
+         * Android SDK build tools. Use {@code apksigner verify --print-certs path/to/apk.apk} to
+         * retrieve the SHA-256 certificate digest for the target application. Once retrieved, the
+         * SHA-256 certificate digest should be converted to a {@code byte[]} by decoding it in
+         * base16:
+         *
+         * <pre>
+         * new android.content.pm.Signature(outputDigest).toByteArray();
+         * </pre>
+         */
+        @NonNull
+        public Builder setSha256Certificate(@Nullable byte[] sha256Certificate) {
+            mSha256Certificate = sha256Certificate;
+            return this;
+        }
+
+        /**
          * Sets the additional metadata relevant to this function execution request. Defaults to an
          * empty {@link Bundle} if not set.
          */
@@ -171,7 +213,7 @@ public final class ExecuteAppFunctionRequest extends AbstractSafeParcelable impl
         @NonNull
         public ExecuteAppFunctionRequest build() {
             return new ExecuteAppFunctionRequest(
-                    mPackageName, mFunctionIdentifier, mParameters, mExtras);
+                    mPackageName, mFunctionIdentifier, mParameters, mExtras, mSha256Certificate);
         }
     }
 }

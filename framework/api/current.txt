@@ -721,6 +721,7 @@ package android.app.appsearch.functions {
     method @NonNull public android.os.Bundle getExtras();
     method @NonNull public String getFunctionIdentifier();
     method @NonNull public android.app.appsearch.GenericDocument getParameters();
+    method @Nullable public byte[] getSha256Certificate();
     method @NonNull public String getTargetPackageName();
     method public void writeToParcel(@NonNull android.os.Parcel, int);
     field @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.functions.ExecuteAppFunctionRequest> CREATOR;
@@ -731,6 +732,7 @@ package android.app.appsearch.functions {
     method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest build();
     method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setExtras(@NonNull android.os.Bundle);
     method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setParameters(@NonNull android.app.appsearch.GenericDocument);
+    method @NonNull public android.app.appsearch.functions.ExecuteAppFunctionRequest.Builder setSha256Certificate(@Nullable byte[]);
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_app_functions") public final class ExecuteAppFunctionResponse implements android.os.Parcelable {
