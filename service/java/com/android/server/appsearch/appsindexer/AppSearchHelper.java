@@ -145,6 +145,9 @@ public class AppSearchHelper implements Closeable {
             AppSearchSchema schemaVariant =
                     MobileApplication.createMobileApplicationSchemaForPackage(packageName);
             schemaBuilder.addSchemas(schemaVariant);
+            // Since the Android package of the underlying apps are different from the package name
+            // that "owns" the builtin:MobileApplication corpus in AppSearch, we needed to add the
+            // PackageIdentifier parameter to setPubliclyVisibleSchema.
             schemaBuilder.setPubliclyVisibleSchema(schemaVariant.getSchemaType(), pkg);
         }
 
