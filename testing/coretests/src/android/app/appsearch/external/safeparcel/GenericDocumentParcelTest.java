@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
+import android.app.appsearch.EmbeddingVector;
 import android.os.Parcel;
 
 import org.junit.Test;
@@ -38,6 +39,7 @@ public class GenericDocumentParcelTest {
         double[] doubleValues = {1.0, 2.0};
         boolean[] booleanValues = {true, false};
         byte[][] bytesValues = {new byte[1]};
+        EmbeddingVector[] embeddingValues = {new EmbeddingVector(new float[1], "my_model")};
         GenericDocumentParcel[] docValues = {
             (new GenericDocumentParcel.Builder("namespace", "id", "schemaType")).build()
         };
@@ -72,6 +74,12 @@ public class GenericDocumentParcelTest {
                                 .build()
                                 .getBytesValues())
                 .isEqualTo(Arrays.copyOf(bytesValues, bytesValues.length));
+        assertThat(
+                        new PropertyParcel.Builder("name")
+                                .setEmbeddingValues(embeddingValues)
+                                .build()
+                                .getEmbeddingValues())
+                .isEqualTo(Arrays.copyOf(embeddingValues, embeddingValues.length));
         assertThat(
                         new PropertyParcel.Builder("name")
                                 .setDocumentValues(docValues)

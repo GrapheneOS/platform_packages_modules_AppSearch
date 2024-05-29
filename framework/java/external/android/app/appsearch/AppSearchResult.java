@@ -20,10 +20,10 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.util.LogUtil;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.io.IOException;

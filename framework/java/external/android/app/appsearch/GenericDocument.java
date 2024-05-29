@@ -23,11 +23,12 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.safeparcel.PropertyParcel;
 import android.app.appsearch.util.IndentingStringBuilder;
 import android.util.Log;
+
+import com.android.appsearch.flags.Flags;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -56,7 +57,11 @@ public class GenericDocument {
     /** The maximum number of indexed properties a document can have. */
     private static final int MAX_INDEXED_PROPERTIES = 16;
 
-    /** @hide */
+    /**
+     * Fixed constant synthetic property for parent types.
+     *
+     * @hide
+     */
     public static final String PARENT_TYPES_SYNTHETIC_PROPERTY = "$$__AppSearch__parentTypes";
 
     /**
@@ -364,6 +369,11 @@ public class GenericDocument {
                     if (docValues != null && index < docValues.length) {
                         extractedValue = docValues[index];
                     }
+                } else if (propertyParcel.getEmbeddingValues() != null) {
+                    EmbeddingVector[] embeddingValues = propertyParcel.getEmbeddingValues();
+                    if (embeddingValues != null && index < embeddingValues.length) {
+                        extractedValue = Arrays.copyOfRange(embeddingValues, index, index + 1);
+                    }
                 } else {
                     throw new IllegalStateException(
                             "Unsupported value type: " + currentElementValue);
@@ -662,6 +672,27 @@ public class GenericDocument {
         return propertyArray[0];
     }
 
+    /**
+     * Retrieves an {@code EmbeddingVector} property by path.
+     *
+     * <p>See {@link #getProperty} for a detailed description of the path syntax.
+     *
+     * @param path The path to look for.
+     * @return The first {@code EmbeddingVector[]} associated with the given path or {@code null} if
+     *     there is no such value or the value is of a different type.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public EmbeddingVector getPropertyEmbedding(@NonNull String path) {
+        Objects.requireNonNull(path);
+        EmbeddingVector[] propertyArray = getPropertyEmbeddingArray(path);
+        if (propertyArray == null || propertyArray.length == 0) {
+            return null;
+        }
+        warnIfSinglePropertyTooLong("Embedding", path, propertyArray.length);
+        return propertyArray[0];
+    }
+
     /** Prints a warning to logcat if the given propertyLength is greater than 1. */
     private static void warnIfSinglePropertyTooLong(
             @NonNull String propertyType, @NonNull String path, int propertyLength) {
@@ -817,6 +848,30 @@ public class GenericDocument {
         Objects.requireNonNull(path);
         Object value = getProperty(path);
         return safeCastProperty(path, value, GenericDocument[].class);
+    }
+
+    /**
+     * Retrieves a repeated {@code EmbeddingVector[]} property by path.
+     *
+     * <p>See {@link #getProperty} for a detailed description of the path syntax.
+     *
+     * <p>If the property has not been set via {@link Builder#setPropertyEmbedding}, this method
+     * returns {@code null}.
+     *
+     * <p>If it has been set via {@link Builder#setPropertyEmbedding} to an empty {@code
+     * EmbeddingVector[]}, this method returns an empty {@code EmbeddingVector[]}.
+     *
+     * @param path The path to look for.
+     * @return The {@code EmbeddingVector[]} associated with the given path, or {@code null} if no
+     *     value is set or the value is of a different type.
+     */
+    @SuppressLint({"ArrayReturn", "NullableCollection"})
+    @Nullable
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public EmbeddingVector[] getPropertyEmbeddingArray(@NonNull String path) {
+        Objects.requireNonNull(path);
+        Object value = getProperty(path);
+        return safeCastProperty(path, value, EmbeddingVector[].class);
     }
 
     /**
@@ -985,8 +1040,9 @@ public class GenericDocument {
     // This builder is specifically designed to be extended by classes deriving from
     // GenericDocument.
     @SuppressLint("StaticFinalBuilder")
+    @SuppressWarnings("rawtypes")
     public static class Builder<BuilderType extends Builder> {
-        private GenericDocumentParcel.Builder mDocumentParcelBuilder;
+        private final GenericDocumentParcel.Builder mDocumentParcelBuilder;
         private final BuilderType mBuilderTypeInstance;
 
         /**
@@ -1030,8 +1086,8 @@ public class GenericDocument {
         /**
          * Creates a new {@link GenericDocument.Builder} from the given GenericDocument.
          *
-         * <p>The GenericDocument is deep copied, i.e. changes to the new GenericDocument returned
-         * by this function will NOT affect the original GenericDocument.
+         * <p>The GenericDocument is deep copied, that is, it changes to a new GenericDocument
+         * returned by this function and will NOT affect the original GenericDocument.
          */
         @FlaggedApi(Flags.FLAG_ENABLE_GENERIC_DOCUMENT_COPY_CONSTRUCTOR)
         public Builder(@NonNull GenericDocument document) {
@@ -1296,6 +1352,32 @@ public class GenericDocument {
                 documentParcels[i] = values[i].getDocumentParcel();
             }
             mDocumentParcelBuilder.putInPropertyMap(name, documentParcels);
+            return mBuilderTypeInstance;
+        }
+
+        /**
+         * Sets one or multiple {@code EmbeddingVector} values for a property, replacing its
+         * previous values.
+         *
+         * @param name the name associated with the {@code values}. Must match the name for this
+         *     property as given in {@link AppSearchSchema.PropertyConfig#getName}.
+         * @param values the {@code EmbeddingVector} values of the property.
+         * @throws IllegalArgumentException if the name is empty or {@code null}.
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+        public BuilderType setPropertyEmbedding(
+                @NonNull String name, @NonNull EmbeddingVector... values) {
+            Objects.requireNonNull(name);
+            Objects.requireNonNull(values);
+            validatePropertyName(name);
+            for (int i = 0; i < values.length; i++) {
+                if (values[i] == null) {
+                    throw new IllegalArgumentException("The EmbeddingVector at " + i + " is null.");
+                }
+            }
+            mDocumentParcelBuilder.putInPropertyMap(name, values);
             return mBuilderTypeInstance;
         }
 

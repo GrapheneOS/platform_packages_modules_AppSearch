@@ -1301,6 +1301,8 @@ public final class AppSearchImpl implements Closeable {
      */
     @NonNull
     @GuardedBy("mReadWriteLock")
+    // We only log getResultProto.toString() in fullPii trace for debugging.
+    @SuppressWarnings("LiteProtoToString")
     private DocumentProto getDocumentProtoByIdLocked(
             @NonNull String packageName,
             @NonNull String databaseName,
@@ -1568,6 +1570,8 @@ public final class AppSearchImpl implements Closeable {
     }
 
     @GuardedBy("mReadWriteLock")
+    // We only log searchSpec, scoringSpec and resultSpec in fullPii trace for debugging.
+    @SuppressWarnings("LiteProtoToString")
     private SearchResultProto searchInIcingLocked(
             @NonNull SearchSpecProto searchSpec,
             @NonNull ResultSpecProto resultSpec,

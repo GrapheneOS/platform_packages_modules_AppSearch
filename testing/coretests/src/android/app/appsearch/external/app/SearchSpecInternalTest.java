@@ -121,6 +121,47 @@ public class SearchSpecInternalTest {
                 .isEqualTo(searchSpec.getSearchSourceLogTag());
     }
 
+    @Test
+    public void testSearchSpecBuilderCopyConstructor_embeddingSearch() {
+        EmbeddingVector embedding1 =
+                new EmbeddingVector(new float[] {1.1f, 2.2f, 3.3f}, "my_model_v1");
+        EmbeddingVector embedding2 =
+                new EmbeddingVector(new float[] {4.4f, 5.5f, 6.6f, 7.7f}, "my_model_v2");
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setListFilterQueryLanguageEnabled(true)
+                        .setEmbeddingSearchEnabled(true)
+                        .setDefaultEmbeddingSearchMetricType(
+                                SearchSpec.EMBEDDING_SEARCH_METRIC_TYPE_DOT_PRODUCT)
+                        .addSearchEmbeddings(embedding1, embedding2)
+                        .build();
+
+        // Check that copy constructor works.
+        SearchSpec searchSpecCopy = new SearchSpec.Builder(searchSpec).build();
+        assertThat(searchSpecCopy.getEnabledFeatures())
+                .containsExactlyElementsIn(searchSpec.getEnabledFeatures());
+        assertThat(searchSpecCopy.getDefaultEmbeddingSearchMetricType())
+                .isEqualTo(searchSpec.getDefaultEmbeddingSearchMetricType());
+        assertThat(searchSpecCopy.getSearchEmbeddings())
+                .containsExactlyElementsIn(searchSpec.getSearchEmbeddings());
+    }
+
+    @Test
+    public void testSearchSpecBuilderCopyConstructor_informationalRankingExpressions() {
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setRankingStrategy("advancedExpression")
+                        .addInformationalRankingExpressions("this.relevanceScore()")
+                        .build();
+
+        SearchSpec searchSpecCopy = new SearchSpec.Builder(searchSpec).build();
+        assertThat(searchSpecCopy.getRankingStrategy()).isEqualTo(searchSpec.getRankingStrategy());
+        assertThat(searchSpecCopy.getAdvancedRankingExpression())
+                .isEqualTo(searchSpec.getAdvancedRankingExpression());
+        assertThat(searchSpecCopy.getInformationalRankingExpressions())
+                .isEqualTo(searchSpec.getInformationalRankingExpressions());
+    }
+
     // TODO(b/309826655): Flag guard this test.
     @Test
     public void testGetBundle_hasProperty() {
@@ -157,5 +198,60 @@ public class SearchSpecInternalTest {
                         .build();
         assertThat(searchSpec3.getEnabledFeatures())
                 .containsExactly(Features.VERBATIM_SEARCH, Features.LIST_FILTER_QUERY_LANGUAGE);
+    }
+
+    @Test
+    public void testGetEnabledFeatures_embeddingSearch() {
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setNumericSearchEnabled(true)
+                        .setVerbatimSearchEnabled(true)
+                        .setListFilterQueryLanguageEnabled(true)
+                        .setListFilterHasPropertyFunctionEnabled(true)
+                        .setEmbeddingSearchEnabled(true)
+                        .build();
+        assertThat(searchSpec.getEnabledFeatures())
+                .containsExactly(
+                        Features.NUMERIC_SEARCH,
+                        Features.VERBATIM_SEARCH,
+                        Features.LIST_FILTER_QUERY_LANGUAGE,
+                        Features.LIST_FILTER_HAS_PROPERTY_FUNCTION,
+                        FeatureConstants.EMBEDDING_SEARCH);
+
+        // Check that copy constructor works.
+        SearchSpec searchSpecCopy = new SearchSpec.Builder(searchSpec).build();
+        assertThat(searchSpecCopy.getEnabledFeatures())
+                .containsExactly(
+                        Features.NUMERIC_SEARCH,
+                        Features.VERBATIM_SEARCH,
+                        Features.LIST_FILTER_QUERY_LANGUAGE,
+                        Features.LIST_FILTER_HAS_PROPERTY_FUNCTION,
+                        FeatureConstants.EMBEDDING_SEARCH);
+    }
+
+    @Test
+    public void testGetEnabledFeatures_tokenize() {
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setNumericSearchEnabled(true)
+                        .setVerbatimSearchEnabled(true)
+                        .setListFilterQueryLanguageEnabled(true)
+                        .setListFilterTokenizeFunctionEnabled(true)
+                        .build();
+        assertThat(searchSpec.getEnabledFeatures())
+                .containsExactly(
+                        Features.NUMERIC_SEARCH,
+                        Features.VERBATIM_SEARCH,
+                        Features.LIST_FILTER_QUERY_LANGUAGE,
+                        FeatureConstants.LIST_FILTER_TOKENIZE_FUNCTION);
+
+        // Check that copy constructor works.
+        SearchSpec searchSpecCopy = new SearchSpec.Builder(searchSpec).build();
+        assertThat(searchSpecCopy.getEnabledFeatures())
+                .containsExactly(
+                        Features.NUMERIC_SEARCH,
+                        Features.VERBATIM_SEARCH,
+                        Features.LIST_FILTER_QUERY_LANGUAGE,
+                        FeatureConstants.LIST_FILTER_TOKENIZE_FUNCTION);
     }
 }

@@ -119,6 +119,20 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.DoublePropertyConfig.Builder setDescription(@NonNull String);
   }
 
+  @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public static final class AppSearchSchema.EmbeddingPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
+    method public int getIndexingType();
+    field public static final int INDEXING_TYPE_NONE = 0; // 0x0
+    field public static final int INDEXING_TYPE_SIMILARITY = 1; // 0x1
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public static final class AppSearchSchema.EmbeddingPropertyConfig.Builder {
+    ctor public AppSearchSchema.EmbeddingPropertyConfig.Builder(@NonNull String);
+    method @NonNull public android.app.appsearch.AppSearchSchema.EmbeddingPropertyConfig build();
+    method @NonNull public android.app.appsearch.AppSearchSchema.EmbeddingPropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.EmbeddingPropertyConfig.Builder setDescription(@NonNull String);
+    method @NonNull public android.app.appsearch.AppSearchSchema.EmbeddingPropertyConfig.Builder setIndexingType(int);
+  }
+
   public static final class AppSearchSchema.LongPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
     method public int getIndexingType();
     field public static final int INDEXING_TYPE_NONE = 0; // 0x0
@@ -187,6 +201,15 @@ package android.app.appsearch {
     method public default void onSystemError(@Nullable Throwable);
   }
 
+  @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public final class EmbeddingVector implements android.os.Parcelable {
+    ctor public EmbeddingVector(@NonNull float[], @NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @NonNull public String getModelSignature();
+    method @NonNull public float[] getValues();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.EmbeddingVector> CREATOR;
+  }
+
   @FlaggedApi("com.android.appsearch.flags.enable_enterprise_global_search_session") public class EnterpriseGlobalSearchSession {
     method public void getByDocumentId(@NonNull String, @NonNull String, @NonNull android.app.appsearch.GetByDocumentIdRequest, @NonNull java.util.concurrent.Executor, @NonNull android.app.appsearch.BatchResultCallback<java.lang.String,android.app.appsearch.GenericDocument>);
     method public void getSchema(@NonNull String, @NonNull String, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.GetSchemaResponse>>);
@@ -208,6 +231,8 @@ package android.app.appsearch {
     method @Nullable public android.app.appsearch.GenericDocument[] getPropertyDocumentArray(@NonNull String);
     method public double getPropertyDouble(@NonNull String);
     method @Nullable public double[] getPropertyDoubleArray(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @Nullable public android.app.appsearch.EmbeddingVector getPropertyEmbedding(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @Nullable public android.app.appsearch.EmbeddingVector[] getPropertyEmbeddingArray(@NonNull String);
     method public long getPropertyLong(@NonNull String);
     method @Nullable public long[] getPropertyLongArray(@NonNull String);
     method @NonNull public java.util.Set<java.lang.String> getPropertyNames();
@@ -230,6 +255,7 @@ package android.app.appsearch {
     method @NonNull public BuilderType setPropertyBytes(@NonNull String, @NonNull byte[]...);
     method @NonNull public BuilderType setPropertyDocument(@NonNull String, @NonNull android.app.appsearch.GenericDocument...);
     method @NonNull public BuilderType setPropertyDouble(@NonNull String, @NonNull double...);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @NonNull public BuilderType setPropertyEmbedding(@NonNull String, @NonNull android.app.appsearch.EmbeddingVector...);
     method @NonNull public BuilderType setPropertyLong(@NonNull String, @NonNull long...);
     method @NonNull public BuilderType setPropertyString(@NonNull String, @NonNull java.lang.String...);
     method @FlaggedApi("com.android.appsearch.flags.enable_generic_document_builder_hidden_methods") @NonNull public BuilderType setSchemaType(@NonNull String);
@@ -427,6 +453,7 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @NonNull public String getDatabaseName();
     method @NonNull public android.app.appsearch.GenericDocument getGenericDocument();
+    method @FlaggedApi("com.android.appsearch.flags.enable_informational_ranking_expressions") @NonNull public java.util.List<java.lang.Double> getInformationalRankingSignals();
     method @NonNull public java.util.List<android.app.appsearch.SearchResult> getJoinedResults();
     method @NonNull public java.util.List<android.app.appsearch.SearchResult.MatchInfo> getMatchInfos();
     method @NonNull public String getPackageName();
@@ -437,6 +464,7 @@ package android.app.appsearch {
 
   public static final class SearchResult.Builder {
     ctor public SearchResult.Builder(@NonNull String, @NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_informational_ranking_expressions") @NonNull public android.app.appsearch.SearchResult.Builder addInformationalRankingSignal(double);
     method @NonNull public android.app.appsearch.SearchResult.Builder addJoinedResult(@NonNull android.app.appsearch.SearchResult);
     method @NonNull public android.app.appsearch.SearchResult.Builder addMatchInfo(@NonNull android.app.appsearch.SearchResult.MatchInfo);
     method @NonNull public android.app.appsearch.SearchResult build();
@@ -481,10 +509,12 @@ package android.app.appsearch {
   public final class SearchSpec implements android.os.Parcelable {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @NonNull public String getAdvancedRankingExpression();
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public int getDefaultEmbeddingSearchMetricType();
     method @NonNull public java.util.List<java.lang.String> getFilterNamespaces();
     method @NonNull public java.util.List<java.lang.String> getFilterPackageNames();
     method @FlaggedApi("com.android.appsearch.flags.enable_search_spec_filter_properties") @NonNull public java.util.Map<java.lang.String,java.util.List<java.lang.String>> getFilterProperties();
     method @NonNull public java.util.List<java.lang.String> getFilterSchemas();
+    method @FlaggedApi("com.android.appsearch.flags.enable_informational_ranking_expressions") @NonNull public java.util.List<java.lang.String> getInformationalRankingExpressions();
     method @Nullable public android.app.appsearch.JoinSpec getJoinSpec();
     method public int getMaxSnippetSize();
     method public int getOrder();
@@ -496,16 +526,22 @@ package android.app.appsearch {
     method public int getResultCountPerPage();
     method public int getResultGroupingLimit();
     method public int getResultGroupingTypeFlags();
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @NonNull public java.util.List<android.app.appsearch.EmbeddingVector> getSearchEmbeddings();
     method @FlaggedApi("com.android.appsearch.flags.enable_search_spec_set_search_source_log_tag") @Nullable public String getSearchSourceLogTag();
     method public int getSnippetCount();
     method public int getSnippetCountPerProperty();
     method public int getTermMatch();
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public boolean isEmbeddingSearchEnabled();
     method @FlaggedApi("com.android.appsearch.flags.enable_list_filter_has_property_function") public boolean isListFilterHasPropertyFunctionEnabled();
     method public boolean isListFilterQueryLanguageEnabled();
+    method @FlaggedApi("com.android.appsearch.flags.enable_list_filter_tokenize_function") public boolean isListFilterTokenizeFunctionEnabled();
     method public boolean isNumericSearchEnabled();
     method public boolean isVerbatimSearchEnabled();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.SearchSpec> CREATOR;
+    field @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public static final int EMBEDDING_SEARCH_METRIC_TYPE_COSINE = 1; // 0x1
+    field @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public static final int EMBEDDING_SEARCH_METRIC_TYPE_DOT_PRODUCT = 2; // 0x2
+    field @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public static final int EMBEDDING_SEARCH_METRIC_TYPE_EUCLIDEAN = 3; // 0x3
     field public static final int GROUPING_TYPE_PER_NAMESPACE = 2; // 0x2
     field public static final int GROUPING_TYPE_PER_PACKAGE = 1; // 0x1
     field @FlaggedApi("com.android.appsearch.flags.enable_grouping_type_per_schema") public static final int GROUPING_TYPE_PER_SCHEMA = 4; // 0x4
@@ -537,12 +573,19 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_search_spec_filter_properties") @NonNull public android.app.appsearch.SearchSpec.Builder addFilterPropertyPaths(@NonNull String, @NonNull java.util.Collection<android.app.appsearch.PropertyPath>);
     method @NonNull public android.app.appsearch.SearchSpec.Builder addFilterSchemas(@NonNull java.lang.String...);
     method @NonNull public android.app.appsearch.SearchSpec.Builder addFilterSchemas(@NonNull java.util.Collection<java.lang.String>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_informational_ranking_expressions") @NonNull public android.app.appsearch.SearchSpec.Builder addInformationalRankingExpressions(@NonNull java.lang.String...);
+    method @FlaggedApi("com.android.appsearch.flags.enable_informational_ranking_expressions") @NonNull public android.app.appsearch.SearchSpec.Builder addInformationalRankingExpressions(@NonNull java.util.Collection<java.lang.String>);
     method @NonNull public android.app.appsearch.SearchSpec.Builder addProjection(@NonNull String, @NonNull java.util.Collection<java.lang.String>);
     method @NonNull public android.app.appsearch.SearchSpec.Builder addProjectionPaths(@NonNull String, @NonNull java.util.Collection<android.app.appsearch.PropertyPath>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @NonNull public android.app.appsearch.SearchSpec.Builder addSearchEmbeddings(@NonNull android.app.appsearch.EmbeddingVector...);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @NonNull public android.app.appsearch.SearchSpec.Builder addSearchEmbeddings(@NonNull java.util.Collection<android.app.appsearch.EmbeddingVector>);
     method @NonNull public android.app.appsearch.SearchSpec build();
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @NonNull public android.app.appsearch.SearchSpec.Builder setDefaultEmbeddingSearchMetricType(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") @NonNull public android.app.appsearch.SearchSpec.Builder setEmbeddingSearchEnabled(boolean);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setJoinSpec(@NonNull android.app.appsearch.JoinSpec);
     method @FlaggedApi("com.android.appsearch.flags.enable_list_filter_has_property_function") @NonNull public android.app.appsearch.SearchSpec.Builder setListFilterHasPropertyFunctionEnabled(boolean);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setListFilterQueryLanguageEnabled(boolean);
+    method @FlaggedApi("com.android.appsearch.flags.enable_list_filter_tokenize_function") @NonNull public android.app.appsearch.SearchSpec.Builder setListFilterTokenizeFunctionEnabled(boolean);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setMaxSnippetSize(@IntRange(from=0, to=0x2710) int);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setNumericSearchEnabled(boolean);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setOrder(int);

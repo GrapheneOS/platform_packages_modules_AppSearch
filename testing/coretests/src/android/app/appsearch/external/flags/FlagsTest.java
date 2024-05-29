@@ -18,6 +18,8 @@ package android.app.appsearch.flags;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.android.appsearch.flags.Flags;
+
 import org.junit.Test;
 
 public class FlagsTest {
@@ -105,5 +107,23 @@ public class FlagsTest {
                 .isEqualTo(
                         "com.android.appsearch.flags"
                                 + ".enable_get_parent_types_and_indexable_nested_properties");
+    }
+
+    @Test
+    public void testFlagValue_enableSchemaEmbeddingPropertyConfig() {
+        assertThat(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+                .isEqualTo("com.android.appsearch.flags.enable_schema_embedding_property_config");
+    }
+
+    @Test
+    public void testFlagValue_enableListFilterTokenizeFunction() {
+        assertThat(Flags.FLAG_ENABLE_LIST_FILTER_TOKENIZE_FUNCTION)
+                .isEqualTo("com.android.appsearch.flags.enable_list_filter_tokenize_function");
+    }
+
+    @Test
+    public void testFlagValue_enableInformationalRankingExpressions() {
+        assertThat(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS)
+                .isEqualTo("com.android.appsearch.flags.enable_informational_ranking_expressions");
     }
 }

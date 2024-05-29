@@ -27,7 +27,7 @@ import android.app.appsearch.AppSearchResult;
  * client.
  */
 public class AppSearchException extends Exception {
-    private final @AppSearchResult.ResultCode int mResultCode;
+    @AppSearchResult.ResultCode private final int mResultCode;
 
     /**
      * Initializes an {@link AppSearchException} with no message.

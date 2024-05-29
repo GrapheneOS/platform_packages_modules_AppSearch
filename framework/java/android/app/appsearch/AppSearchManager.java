@@ -22,11 +22,11 @@ import android.annotation.SystemService;
 import android.annotation.UserHandleAware;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.IAppSearchManager;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.functions.AppFunctionManager;
 import android.content.Context;
 import android.os.Process;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.util.Objects;

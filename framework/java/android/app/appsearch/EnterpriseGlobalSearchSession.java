@@ -21,8 +21,9 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.IAppSearchManager;
-import android.app.appsearch.flags.Flags;
 import android.os.UserHandle;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;

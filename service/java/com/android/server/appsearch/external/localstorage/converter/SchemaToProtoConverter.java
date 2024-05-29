@@ -21,6 +21,7 @@ import android.app.appsearch.AppSearchSchema;
 import android.util.Log;
 
 import com.google.android.icing.proto.DocumentIndexingConfig;
+import com.google.android.icing.proto.EmbeddingIndexingConfig;
 import com.google.android.icing.proto.IntegerIndexingConfig;
 import com.google.android.icing.proto.JoinableConfig;
 import com.google.android.icing.proto.PropertyConfigProto;
@@ -141,6 +142,22 @@ public final class SchemaToProtoConverter {
                                 .build();
                 builder.setIntegerIndexingConfig(integerIndexingConfig);
             }
+        } else if (property instanceof AppSearchSchema.EmbeddingPropertyConfig) {
+            AppSearchSchema.EmbeddingPropertyConfig embeddingProperty =
+                    (AppSearchSchema.EmbeddingPropertyConfig) property;
+            // Set embedding indexing config only if it is indexable (i.e. not INDEXING_TYPE_NONE).
+            // Non-indexable embedding property only requires to builder.setDataType, without the
+            // need to set an EmbeddingIndexingConfig.
+            if (embeddingProperty.getIndexingType()
+                    != AppSearchSchema.EmbeddingPropertyConfig.INDEXING_TYPE_NONE) {
+                EmbeddingIndexingConfig embeddingIndexingConfig =
+                        EmbeddingIndexingConfig.newBuilder()
+                                .setEmbeddingIndexingType(
+                                        convertEmbeddingIndexingTypeToProto(
+                                                embeddingProperty.getIndexingType()))
+                                .build();
+                builder.setEmbeddingIndexingConfig(embeddingIndexingConfig);
+            }
         }
         return builder.build();
     }
@@ -193,8 +210,11 @@ public final class SchemaToProtoConverter {
                         .build();
             case DOCUMENT:
                 return toDocumentPropertyConfig(proto);
+            case VECTOR:
+                return toEmbeddingPropertyConfig(proto);
             default:
-                throw new IllegalArgumentException("Invalid dataType: " + proto.getDataType());
+                throw new IllegalArgumentException(
+                        "Invalid dataType code: " + proto.getDataType().getNumber());
         }
     }
 
@@ -250,6 +270,21 @@ public final class SchemaToProtoConverter {
     }
 
     @NonNull
+    private static AppSearchSchema.EmbeddingPropertyConfig toEmbeddingPropertyConfig(
+            @NonNull PropertyConfigProto proto) {
+        AppSearchSchema.EmbeddingPropertyConfig.Builder builder =
+                new AppSearchSchema.EmbeddingPropertyConfig.Builder(proto.getPropertyName())
+                        .setCardinality(proto.getCardinality().getNumber());
+
+        // Set indexingType
+        EmbeddingIndexingConfig.EmbeddingIndexingType.Code embeddingIndexingType =
+                proto.getEmbeddingIndexingConfig().getEmbeddingIndexingType();
+        builder.setIndexingType(convertEmbeddingIndexingTypeFromProto(embeddingIndexingType));
+
+        return builder.build();
+    }
+
+    @NonNull
     private static JoinableConfig.ValueType.Code convertJoinableValueTypeToProto(
             @AppSearchSchema.StringPropertyConfig.JoinableValueType int joinableValueType) {
         switch (joinableValueType) {
@@ -271,12 +306,11 @@ public final class SchemaToProtoConverter {
                 return AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_NONE;
             case QUALIFIED_ID:
                 return AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID;
-            default:
-                // Avoid crashing in the 'read' path; we should try to interpret the document to the
-                // extent possible.
-                Log.w(TAG, "Invalid joinableValueType: " + joinableValueType.getNumber());
-                return AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_NONE;
         }
+        // Avoid crashing in the 'read' path; we should try to interpret the document to the
+        // extent possible.
+        Log.w(TAG, "Invalid joinableValueType: " + joinableValueType.getNumber());
+        return AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_NONE;
     }
 
     @NonNull
@@ -303,12 +337,11 @@ public final class SchemaToProtoConverter {
                 return AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS;
             case PREFIX:
                 return AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES;
-            default:
-                // Avoid crashing in the 'read' path; we should try to interpret the document to the
-                // extent possible.
-                Log.w(TAG, "Invalid indexingType: " + termMatchType.getNumber());
-                return AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_NONE;
         }
+        // Avoid crashing in the 'read' path; we should try to interpret the document to the
+        // extent possible.
+        Log.w(TAG, "Invalid indexingType: " + termMatchType.getNumber());
+        return AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_NONE;
     }
 
     @NonNull
@@ -343,11 +376,39 @@ public final class SchemaToProtoConverter {
                 return AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_NONE;
             case RANGE:
                 return AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE;
-            default:
-                // Avoid crashing in the 'read' path; we should try to interpret the document to the
-                // extent possible.
-                Log.w(TAG, "Invalid indexingType: " + numericMatchType.getNumber());
-                return AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_NONE;
         }
+        // Avoid crashing in the 'read' path; we should try to interpret the document to the
+        // extent possible.
+        Log.w(TAG, "Invalid indexingType: " + numericMatchType.getNumber());
+        return AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_NONE;
+    }
+
+    @NonNull
+    private static EmbeddingIndexingConfig.EmbeddingIndexingType.Code
+            convertEmbeddingIndexingTypeToProto(
+                    @AppSearchSchema.EmbeddingPropertyConfig.IndexingType int indexingType) {
+        switch (indexingType) {
+            case AppSearchSchema.EmbeddingPropertyConfig.INDEXING_TYPE_NONE:
+                return EmbeddingIndexingConfig.EmbeddingIndexingType.Code.UNKNOWN;
+            case AppSearchSchema.EmbeddingPropertyConfig.INDEXING_TYPE_SIMILARITY:
+                return EmbeddingIndexingConfig.EmbeddingIndexingType.Code.LINEAR_SEARCH;
+            default:
+                throw new IllegalArgumentException("Invalid indexingType: " + indexingType);
+        }
+    }
+
+    @AppSearchSchema.EmbeddingPropertyConfig.IndexingType
+    private static int convertEmbeddingIndexingTypeFromProto(
+            @NonNull EmbeddingIndexingConfig.EmbeddingIndexingType.Code indexingType) {
+        switch (indexingType) {
+            case UNKNOWN:
+                return AppSearchSchema.EmbeddingPropertyConfig.INDEXING_TYPE_NONE;
+            case LINEAR_SEARCH:
+                return AppSearchSchema.EmbeddingPropertyConfig.INDEXING_TYPE_SIMILARITY;
+        }
+        // Avoid crashing in the 'read' path; we should try to interpret the document to the
+        // extent possible.
+        Log.w(TAG, "Invalid indexingType: " + indexingType.getNumber());
+        return AppSearchSchema.EmbeddingPropertyConfig.INDEXING_TYPE_NONE;
     }
 }

@@ -25,11 +25,12 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.IAppFunctionService;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
-import android.app.appsearch.flags.Flags;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.Process;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.function.Consumer;
 

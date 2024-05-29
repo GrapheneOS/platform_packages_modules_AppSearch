@@ -20,7 +20,6 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.app.appsearch.util.BundleUtil;
@@ -29,6 +28,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Arrays;

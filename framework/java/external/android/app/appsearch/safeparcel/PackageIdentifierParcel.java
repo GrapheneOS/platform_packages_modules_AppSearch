@@ -21,9 +21,10 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.appsearch.PackageIdentifier;
-import android.app.appsearch.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.Arrays;
 import java.util.Objects;

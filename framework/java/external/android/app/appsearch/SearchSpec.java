@@ -24,7 +24,6 @@ import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.app.appsearch.util.BundleUtil;
@@ -34,6 +33,7 @@ import android.os.Parcelable;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.Retention;
@@ -138,7 +138,22 @@ public final class SearchSpec extends AbstractSafeParcelable {
     @Nullable
     private final String mSearchSourceLogTag;
 
-    /** @hide */
+    @NonNull
+    @Field(id = 20, getter = "getSearchEmbeddings")
+    private final List<EmbeddingVector> mSearchEmbeddings;
+
+    @Field(id = 21, getter = "getDefaultEmbeddingSearchMetricType")
+    private final int mDefaultEmbeddingSearchMetricType;
+
+    @NonNull
+    @Field(id = 22, getter = "getInformationalRankingExpressions")
+    private final List<String> mInformationalRankingExpressions;
+
+    /**
+     * Default number of documents per page.
+     *
+     * @hide
+     */
     public static final int DEFAULT_NUM_PER_PAGE = 10;
 
     // TODO(b/170371356): In framework, we may want these limits to be flag controlled.
@@ -290,6 +305,36 @@ public final class SearchSpec extends AbstractSafeParcelable {
     @FlaggedApi(Flags.FLAG_ENABLE_GROUPING_TYPE_PER_SCHEMA)
     public static final int GROUPING_TYPE_PER_SCHEMA = 1 << 2;
 
+    /**
+     * Type of scoring used to calculate similarity for embedding vectors. For details of each, see
+     * comments above each value.
+     *
+     * @hide
+     */
+    // NOTE: The integer values of these constants must match the proto enum constants in
+    // {@link SearchSpecProto.EmbeddingQueryMetricType.Code}
+
+    @IntDef(
+            value = {
+                EMBEDDING_SEARCH_METRIC_TYPE_COSINE,
+                EMBEDDING_SEARCH_METRIC_TYPE_DOT_PRODUCT,
+                EMBEDDING_SEARCH_METRIC_TYPE_EUCLIDEAN,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface EmbeddingSearchMetricType {}
+
+    /** Cosine similarity as metric for embedding search and ranking. */
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public static final int EMBEDDING_SEARCH_METRIC_TYPE_COSINE = 1;
+
+    /** Dot product similarity as metric for embedding search and ranking. */
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public static final int EMBEDDING_SEARCH_METRIC_TYPE_DOT_PRODUCT = 2;
+
+    /** Euclidean distance as metric for embedding search and ranking. */
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public static final int EMBEDDING_SEARCH_METRIC_TYPE_EUCLIDEAN = 3;
+
     @Constructor
     SearchSpec(
             @Param(id = 1) int termMatchType,
@@ -310,12 +355,15 @@ public final class SearchSpec extends AbstractSafeParcelable {
             @Param(id = 16) @Nullable JoinSpec joinSpec,
             @Param(id = 17) @NonNull String advancedRankingExpression,
             @Param(id = 18) @NonNull List<String> enabledFeatures,
-            @Param(id = 19) @Nullable String searchSourceLogTag) {
+            @Param(id = 19) @Nullable String searchSourceLogTag,
+            @Param(id = 20) @Nullable List<EmbeddingVector> searchEmbeddings,
+            @Param(id = 21) int defaultEmbeddingSearchMetricType,
+            @Param(id = 22) @Nullable List<String> informationalRankingExpressions) {
         mTermMatchType = termMatchType;
-        mSchemas = Objects.requireNonNull(schemas);
-        mNamespaces = Objects.requireNonNull(namespaces);
+        mSchemas = Collections.unmodifiableList(Objects.requireNonNull(schemas));
+        mNamespaces = Collections.unmodifiableList(Objects.requireNonNull(namespaces));
         mTypePropertyFilters = Objects.requireNonNull(properties);
-        mPackageNames = Objects.requireNonNull(packageNames);
+        mPackageNames = Collections.unmodifiableList(Objects.requireNonNull(packageNames));
         mResultCountPerPage = resultCountPerPage;
         mRankingStrategy = rankingStrategy;
         mOrder = order;
@@ -328,8 +376,20 @@ public final class SearchSpec extends AbstractSafeParcelable {
         mTypePropertyWeightsField = Objects.requireNonNull(typePropertyWeightsField);
         mJoinSpec = joinSpec;
         mAdvancedRankingExpression = Objects.requireNonNull(advancedRankingExpression);
-        mEnabledFeatures = Objects.requireNonNull(enabledFeatures);
+        mEnabledFeatures = Collections.unmodifiableList(Objects.requireNonNull(enabledFeatures));
         mSearchSourceLogTag = searchSourceLogTag;
+        if (searchEmbeddings != null) {
+            mSearchEmbeddings = Collections.unmodifiableList(searchEmbeddings);
+        } else {
+            mSearchEmbeddings = Collections.emptyList();
+        }
+        mDefaultEmbeddingSearchMetricType = defaultEmbeddingSearchMetricType;
+        if (informationalRankingExpressions != null) {
+            mInformationalRankingExpressions =
+                    Collections.unmodifiableList(informationalRankingExpressions);
+        } else {
+            mInformationalRankingExpressions = Collections.emptyList();
+        }
     }
 
     /** Returns how the query terms should match terms in the index. */
@@ -348,7 +408,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
         if (mSchemas == null) {
             return Collections.emptyList();
         }
-        return Collections.unmodifiableList(mSchemas);
+        return mSchemas;
     }
 
     /**
@@ -382,7 +442,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
         if (mNamespaces == null) {
             return Collections.emptyList();
         }
-        return Collections.unmodifiableList(mNamespaces);
+        return mNamespaces;
     }
 
     /**
@@ -397,7 +457,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
         if (mPackageNames == null) {
             return Collections.emptyList();
         }
-        return Collections.unmodifiableList(mPackageNames);
+        return mPackageNames;
     }
 
     /** Returns the number of results per page in the result set. */
@@ -600,6 +660,35 @@ public final class SearchSpec extends AbstractSafeParcelable {
         return mSearchSourceLogTag;
     }
 
+    /** Returns the list of {@link EmbeddingVector} for embedding search. */
+    @NonNull
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public List<EmbeddingVector> getSearchEmbeddings() {
+        return mSearchEmbeddings;
+    }
+
+    /**
+     * Returns the default embedding metric type used for embedding search (see {@link
+     * AppSearchSession#search}) and ranking (see {@link
+     * SearchSpec.Builder#setRankingStrategy(String)}).
+     */
+    @EmbeddingSearchMetricType
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public int getDefaultEmbeddingSearchMetricType() {
+        return mDefaultEmbeddingSearchMetricType;
+    }
+
+    /**
+     * Returns the informational ranking expressions.
+     *
+     * @see Builder#addInformationalRankingExpressions
+     */
+    @NonNull
+    @FlaggedApi(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS)
+    public List<String> getInformationalRankingExpressions() {
+        return mInformationalRankingExpressions;
+    }
+
     /** Returns whether the NUMERIC_SEARCH feature is enabled. */
     public boolean isNumericSearchEnabled() {
         return mEnabledFeatures.contains(FeatureConstants.NUMERIC_SEARCH);
@@ -621,6 +710,18 @@ public final class SearchSpec extends AbstractSafeParcelable {
         return mEnabledFeatures.contains(FeatureConstants.LIST_FILTER_HAS_PROPERTY_FUNCTION);
     }
 
+    /** Returns whether the embedding search feature is enabled. */
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public boolean isEmbeddingSearchEnabled() {
+        return mEnabledFeatures.contains(FeatureConstants.EMBEDDING_SEARCH);
+    }
+
+    /** Returns whether the LIST_FILTER_TOKENIZE_FUNCTION feature is enabled. */
+    @FlaggedApi(Flags.FLAG_ENABLE_LIST_FILTER_TOKENIZE_FUNCTION)
+    public boolean isListFilterTokenizeFunctionEnabled() {
+        return mEnabledFeatures.contains(FeatureConstants.LIST_FILTER_TOKENIZE_FUNCTION);
+    }
+
     /**
      * Get the list of enabled features that the caller is intending to use in this search call.
      *
@@ -640,16 +741,21 @@ public final class SearchSpec extends AbstractSafeParcelable {
 
     /** Builder for {@link SearchSpec objects}. */
     public static final class Builder {
-        private ArrayList<String> mSchemas = new ArrayList<>();
-        private ArrayList<String> mNamespaces = new ArrayList<>();
+        private List<String> mSchemas = new ArrayList<>();
+        private List<String> mNamespaces = new ArrayList<>();
         private Bundle mTypePropertyFilters = new Bundle();
-        private ArrayList<String> mPackageNames = new ArrayList<>();
+        private List<String> mPackageNames = new ArrayList<>();
         private ArraySet<String> mEnabledFeatures = new ArraySet<>();
         private Bundle mProjectionTypePropertyMasks = new Bundle();
         private Bundle mTypePropertyWeights = new Bundle();
+        private List<EmbeddingVector> mSearchEmbeddings = new ArrayList<>();
 
         private int mResultCountPerPage = DEFAULT_NUM_PER_PAGE;
         @TermMatch private int mTermMatchType = TERM_MATCH_PREFIX;
+
+        @EmbeddingSearchMetricType
+        private int mDefaultEmbeddingSearchMetricType = EMBEDDING_SEARCH_METRIC_TYPE_COSINE;
+
         private int mSnippetCount = 0;
         private int mSnippetCountPerProperty = MAX_SNIPPET_PER_PROPERTY_COUNT;
         private int mMaxSnippetSize = 0;
@@ -659,6 +765,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
         private int mGroupingLimit = 0;
         @Nullable private JoinSpec mJoinSpec;
         private String mAdvancedRankingExpression = "";
+        private List<String> mInformationalRankingExpressions = new ArrayList<>();
         @Nullable private String mSearchSourceLogTag;
         private boolean mBuilt = false;
 
@@ -683,8 +790,10 @@ public final class SearchSpec extends AbstractSafeParcelable {
                     searchSpec.getPropertyWeights().entrySet()) {
                 setPropertyWeights(entry.getKey(), entry.getValue());
             }
+            mSearchEmbeddings = new ArrayList<>(searchSpec.getSearchEmbeddings());
             mResultCountPerPage = searchSpec.getResultCountPerPage();
             mTermMatchType = searchSpec.getTermMatch();
+            mDefaultEmbeddingSearchMetricType = searchSpec.getDefaultEmbeddingSearchMetricType();
             mSnippetCount = searchSpec.getSnippetCount();
             mSnippetCountPerProperty = searchSpec.getSnippetCountPerProperty();
             mMaxSnippetSize = searchSpec.getMaxSnippetSize();
@@ -694,6 +803,8 @@ public final class SearchSpec extends AbstractSafeParcelable {
             mGroupingLimit = searchSpec.getResultGroupingLimit();
             mJoinSpec = searchSpec.getJoinSpec();
             mAdvancedRankingExpression = searchSpec.getAdvancedRankingExpression();
+            mInformationalRankingExpressions =
+                    new ArrayList<>(searchSpec.getInformationalRankingExpressions());
             mSearchSourceLogTag = searchSpec.getSearchSourceLogTag();
         }
 
@@ -979,6 +1090,19 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *       current document being scored. Property weights come from what's specified in
          *       {@link SearchSpec}. After normalizing, each provided weight will be divided by the
          *       maximum weight, so that each of them will be <= 1.
+         *   <li>this.matchedSemanticScores(getSearchSpecEmbedding({embedding_index}), {metric})
+         *       <p>Returns a list of the matched similarity scores from "semanticSearch" in the
+         *       query expression (see also {@link AppSearchSession#search}) based on
+         *       embedding_index and metric. If metric is omitted, it defaults to the metric
+         *       specified in {@link SearchSpec.Builder#setDefaultEmbeddingSearchMetricType(int)}.
+         *       If no "semanticSearch" is called for embedding_index and metric in the query, this
+         *       function will return an empty list. If multiple "semanticSearch"s are called for
+         *       the same embedding_index and metric, this function will return a list of their
+         *       merged scores.
+         *       <p>Example: `this.matchedSemanticScores(getSearchSpecEmbedding(0), "COSINE")` will
+         *       return a list of matched scores within the range of [0.5, 1], if
+         *       `semanticSearch(getSearchSpecEmbedding(0), 0.5, 1, "COSINE")` is called in the
+         *       query expression.
          * </ul>
          *
          * <p>Some errors may occur when using advanced ranking.
@@ -1036,6 +1160,46 @@ public final class SearchSpec extends AbstractSafeParcelable {
         }
 
         /**
+         * Adds informational ranking expressions to be evaluated for each document in the search
+         * result. The values of these expressions will be returned to the caller via {@link
+         * SearchResult#getInformationalRankingSignals()}. These expressions are purely for the
+         * caller to retrieve additional information about the result and have no effect on ranking.
+         *
+         * <p>The syntax is exactly the same as specified in {@link
+         * SearchSpec.Builder#setRankingStrategy(String)}.
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS)
+        public Builder addInformationalRankingExpressions(
+                @NonNull String... informationalRankingExpressions) {
+            Objects.requireNonNull(informationalRankingExpressions);
+            resetIfBuilt();
+            return addInformationalRankingExpressions(
+                    Arrays.asList(informationalRankingExpressions));
+        }
+
+        /**
+         * Adds informational ranking expressions to be evaluated for each document in the search
+         * result. The values of these expressions will be returned to the caller via {@link
+         * SearchResult#getInformationalRankingSignals()}. These expressions are purely for the
+         * caller to retrieve additional information about the result and have no effect on ranking.
+         *
+         * <p>The syntax is exactly the same as specified in {@link
+         * SearchSpec.Builder#setRankingStrategy(String)}.
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS)
+        public Builder addInformationalRankingExpressions(
+                @NonNull Collection<String> informationalRankingExpressions) {
+            Objects.requireNonNull(informationalRankingExpressions);
+            resetIfBuilt();
+            mInformationalRankingExpressions.addAll(informationalRankingExpressions);
+            return this;
+        }
+
+        /**
          * Sets an optional log tag to indicate the source of this search.
          *
          * <p>Some AppSearch implementations may log a hash of this tag using statsd. This tag may
@@ -1052,6 +1216,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *     used to label the search statsd for performance analysis. It is not the tag we are
          *     using in {@link android.util.Log}. The length of the teg should between 1 and 100.
          */
+        @CanIgnoreReturnValue
         @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_SET_SEARCH_SOURCE_LOG_TAG)
         public Builder setSearchSourceLogTag(@NonNull String searchSourceLogTag) {
@@ -1394,6 +1559,64 @@ public final class SearchSpec extends AbstractSafeParcelable {
         }
 
         /**
+         * Adds an embedding search to {@link SearchSpec} Entry, which will be referred in the query
+         * expression and the ranking expression for embedding search.
+         *
+         * @see AppSearchSession#search
+         * @see SearchSpec.Builder#setRankingStrategy(String)
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+        public Builder addSearchEmbeddings(@NonNull EmbeddingVector... searchEmbeddings) {
+            Objects.requireNonNull(searchEmbeddings);
+            resetIfBuilt();
+            return addSearchEmbeddings(Arrays.asList(searchEmbeddings));
+        }
+
+        /**
+         * Adds an embedding search to {@link SearchSpec} Entry, which will be referred in the query
+         * expression and the ranking expression for embedding search.
+         *
+         * @see AppSearchSession#search
+         * @see SearchSpec.Builder#setRankingStrategy(String)
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+        public Builder addSearchEmbeddings(@NonNull Collection<EmbeddingVector> searchEmbeddings) {
+            Objects.requireNonNull(searchEmbeddings);
+            resetIfBuilt();
+            mSearchEmbeddings.addAll(searchEmbeddings);
+            return this;
+        }
+
+        /**
+         * Sets the default embedding metric type used for embedding search (see {@link
+         * AppSearchSession#search}) and ranking (see {@link
+         * SearchSpec.Builder#setRankingStrategy(String)}).
+         *
+         * <p>If this method is not called, the default embedding search metric type is {@link
+         * SearchSpec#EMBEDDING_SEARCH_METRIC_TYPE_COSINE}. Metrics specified within
+         * "semanticSearch" or "matchedSemanticScores" functions in search/ranking expressions will
+         * override this default.
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+        public Builder setDefaultEmbeddingSearchMetricType(
+                @EmbeddingSearchMetricType int defaultEmbeddingSearchMetricType) {
+            Preconditions.checkArgumentInRange(
+                    defaultEmbeddingSearchMetricType,
+                    EMBEDDING_SEARCH_METRIC_TYPE_COSINE,
+                    EMBEDDING_SEARCH_METRIC_TYPE_EUCLIDEAN,
+                    "Embedding search metric type");
+            resetIfBuilt();
+            mDefaultEmbeddingSearchMetricType = defaultEmbeddingSearchMetricType;
+            return this;
+        }
+
+        /**
          * Sets the NUMERIC_SEARCH feature as enabled/disabled according to the enabled parameter.
          *
          * @param enabled Enables the feature if true, otherwise disables it.
@@ -1401,6 +1624,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *     AppSearchSchema.LongPropertyConfig#INDEXING_TYPE_RANGE} and all other numeric
          *     querying features.
          */
+        @CanIgnoreReturnValue
         @NonNull
         public Builder setNumericSearchEnabled(boolean enabled) {
             modifyEnabledFeature(FeatureConstants.NUMERIC_SEARCH, enabled);
@@ -1418,6 +1642,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *     <p>For example, The verbatim string operator '"foo/bar" OR baz' will ensure that
          *     'foo/bar' is treated as a single 'verbatim' token.
          */
+        @CanIgnoreReturnValue
         @NonNull
         public Builder setVerbatimSearchEnabled(boolean enabled) {
             modifyEnabledFeature(FeatureConstants.VERBATIM_SEARCH, enabled);
@@ -1439,7 +1664,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *     <p>The newly added custom functions covered by this feature are:
          *     <ul>
          *       <li>createList(String...)
-         *       <li>termSearch(String, List<String>)
+         *       <li>termSearch(String, {@code List<String>})
          *     </ul>
          *     <p>createList takes a variable number of strings and returns a list of strings. It is
          *     for use with termSearch.
@@ -1449,6 +1674,7 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *     example, the query "(subject:foo OR body:foo) (subject:bar OR body:bar)" could be
          *     rewritten as "termSearch(\"foo bar\", createList(\"subject\", \"bar\"))"
          */
+        @CanIgnoreReturnValue
         @NonNull
         public Builder setListFilterQueryLanguageEnabled(boolean enabled) {
             modifyEnabledFeature(FeatureConstants.LIST_FILTER_QUERY_LANGUAGE, enabled);
@@ -1463,10 +1689,43 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *     <p>If disabled, disallows the use of the "hasProperty" function. See {@link
          *     AppSearchSession#search} for more details about the function.
          */
+        @CanIgnoreReturnValue
         @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_LIST_FILTER_HAS_PROPERTY_FUNCTION)
         public Builder setListFilterHasPropertyFunctionEnabled(boolean enabled) {
             modifyEnabledFeature(FeatureConstants.LIST_FILTER_HAS_PROPERTY_FUNCTION, enabled);
+            return this;
+        }
+
+        /**
+         * Sets the embedding search feature as enabled/disabled according to the enabled parameter.
+         *
+         * <p>If disabled, disallows the use of the "semanticSearch" function. See {@link
+         * AppSearchSession#search} for more details about the function.
+         *
+         * @param enabled Enables the feature if true, otherwise disables it
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+        public Builder setEmbeddingSearchEnabled(boolean enabled) {
+            modifyEnabledFeature(FeatureConstants.EMBEDDING_SEARCH, enabled);
+            return this;
+        }
+
+        /**
+         * Sets the LIST_FILTER_TOKENIZE_FUNCTION feature as enabled/disabled according to the
+         * enabled parameter.
+         *
+         * @param enabled Enables the feature if true, otherwise disables it
+         *     <p>If disabled, disallows the use of the "tokenize" function. See {@link
+         *     AppSearchSession#search} for more details about the function.
+         */
+        @CanIgnoreReturnValue
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_LIST_FILTER_TOKENIZE_FUNCTION)
+        public Builder setListFilterTokenizeFunctionEnabled(boolean enabled) {
+            modifyEnabledFeature(FeatureConstants.LIST_FILTER_TOKENIZE_FUNCTION, enabled);
             return this;
         }
 
@@ -1499,38 +1758,12 @@ public final class SearchSpec extends AbstractSafeParcelable {
                                 + "no JoinSpec provided");
             }
             if (!mTypePropertyWeights.isEmpty()
-                    && RANKING_STRATEGY_RELEVANCE_SCORE != mRankingStrategy
-                    && RANKING_STRATEGY_ADVANCED_RANKING_EXPRESSION != mRankingStrategy) {
+                    && mRankingStrategy != RANKING_STRATEGY_RELEVANCE_SCORE
+                    && mRankingStrategy != RANKING_STRATEGY_ADVANCED_RANKING_EXPRESSION) {
                 throw new IllegalArgumentException(
                         "Property weights are only compatible with the"
                             + " RANKING_STRATEGY_RELEVANCE_SCORE and"
                             + " RANKING_STRATEGY_ADVANCED_RANKING_EXPRESSION ranking strategies.");
-            }
-
-            // If the schema filter isn't empty, and there is a schema with a projection but not
-            // in the filter, that is a SearchSpec user error.
-            if (!mSchemas.isEmpty()) {
-                for (String schema : mProjectionTypePropertyMasks.keySet()) {
-                    if (!mSchemas.contains(schema)) {
-                        throw new IllegalArgumentException(
-                                "Projection requested for schema not "
-                                        + "in schemas filters: "
-                                        + schema);
-                    }
-                }
-            }
-
-            Set<String> schemaFilter = new ArraySet<>(mSchemas);
-            if (!mSchemas.isEmpty()) {
-                for (String schema : mTypePropertyFilters.keySet()) {
-                    if (!schemaFilter.contains(schema)) {
-                        throw new IllegalStateException(
-                                "The schema: "
-                                        + schema
-                                        + " exists in the property filter but "
-                                        + "doesn't exist in the schema filter.");
-                    }
-                }
             }
 
             mBuilt = true;
@@ -1553,7 +1786,10 @@ public final class SearchSpec extends AbstractSafeParcelable {
                     mJoinSpec,
                     mAdvancedRankingExpression,
                     new ArrayList<>(mEnabledFeatures),
-                    mSearchSourceLogTag);
+                    mSearchSourceLogTag,
+                    mSearchEmbeddings,
+                    mDefaultEmbeddingSearchMetricType,
+                    mInformationalRankingExpressions);
         }
 
         private void resetIfBuilt() {
@@ -1564,6 +1800,9 @@ public final class SearchSpec extends AbstractSafeParcelable {
                 mPackageNames = new ArrayList<>(mPackageNames);
                 mProjectionTypePropertyMasks = BundleUtil.deepCopy(mProjectionTypePropertyMasks);
                 mTypePropertyWeights = BundleUtil.deepCopy(mTypePropertyWeights);
+                mSearchEmbeddings = new ArrayList<>(mSearchEmbeddings);
+                mInformationalRankingExpressions =
+                        new ArrayList<>(mInformationalRankingExpressions);
                 mBuilt = false;
             }
         }

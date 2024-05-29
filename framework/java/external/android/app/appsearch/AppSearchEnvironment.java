@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,35 +34,36 @@ import java.util.concurrent.TimeUnit;
 public interface AppSearchEnvironment {
 
     /** Returns the directory to initialize appsearch based on the environment. */
+    @NonNull
     File getAppSearchDir(@NonNull Context context, @Nullable UserHandle userHandle);
 
     /** Returns the correct context for the user based on the environment. */
+    @NonNull
     Context createContextAsUser(@NonNull Context context, @NonNull UserHandle userHandle);
 
     /** Returns an ExecutorService based on given parameters. */
+    @NonNull
     ExecutorService createExecutorService(
             int corePoolSize,
             int maxConcurrency,
             long keepAliveTime,
-            TimeUnit unit,
-            BlockingQueue<Runnable> workQueue,
+            @NonNull TimeUnit unit,
+            @NonNull BlockingQueue<Runnable> workQueue,
             int priority);
 
     /** Returns an ExecutorService with a single thread. */
+    @NonNull
     ExecutorService createSingleThreadExecutor();
+
+    /** Creates and returns an Executor with cached thread pools. */
+    @NonNull
+    ExecutorService createCachedThreadPoolExecutor();
 
     /**
      * Returns a cache directory for creating temporary files like in case of migrating documents.
      */
     @Nullable
     File getCacheDir(@NonNull Context context);
-
-    /** Invalid UID constant duplicated for code-sync with GMSCore */
-    int getInvalidUid();
-
-    /** Creates and returns an Executor with cached thread pools. */
-    @NonNull
-    ExecutorService createCachedThreadPoolExecutor();
 
     /** Returns if we can log INFO level logs. */
     boolean isInfoLoggingEnabled();

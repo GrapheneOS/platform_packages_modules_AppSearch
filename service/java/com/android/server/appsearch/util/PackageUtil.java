@@ -17,7 +17,6 @@
 package com.android.server.appsearch.util;
 
 import android.annotation.NonNull;
-import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Process;
@@ -31,8 +30,7 @@ import android.os.Process;
  */
 public class PackageUtil {
 
-    public static final int INVALID_UID =
-            AppSearchEnvironmentFactory.getEnvironmentInstance().getInvalidUid();
+    public static final int INVALID_UID = Process.INVALID_UID;
 
     private PackageUtil() {}
 

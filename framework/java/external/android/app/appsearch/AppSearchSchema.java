@@ -24,7 +24,6 @@ import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.exceptions.IllegalSchemaException;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.PropertyConfigParcel;
 import android.app.appsearch.safeparcel.PropertyConfigParcel.DocumentIndexingConfigParcel;
@@ -37,6 +36,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.ArraySet;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.Retention;
@@ -368,20 +368,37 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     DATA_TYPE_BOOLEAN,
                     DATA_TYPE_BYTES,
                     DATA_TYPE_DOCUMENT,
+                    DATA_TYPE_EMBEDDING,
                 })
         @Retention(RetentionPolicy.SOURCE)
         public @interface DataType {}
 
-        /** @hide */
+        /**
+         * Constant value for String data type.
+         *
+         * @hide
+         */
         public static final int DATA_TYPE_STRING = 1;
 
-        /** @hide */
+        /**
+         * Constant value for Long data type.
+         *
+         * @hide
+         */
         public static final int DATA_TYPE_LONG = 2;
 
-        /** @hide */
+        /**
+         * Constant value for Double data type.
+         *
+         * @hide
+         */
         public static final int DATA_TYPE_DOUBLE = 3;
 
-        /** @hide */
+        /**
+         * Constant value for Boolean data type.
+         *
+         * @hide
+         */
         public static final int DATA_TYPE_BOOLEAN = 4;
 
         /**
@@ -399,6 +416,13 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * @hide
          */
         public static final int DATA_TYPE_DOCUMENT = 6;
+
+        /**
+         * Indicates that the property is an {@link EmbeddingVector}.
+         *
+         * @hide
+         */
+        public static final int DATA_TYPE_EMBEDDING = 7;
 
         /**
          * The cardinality of the property (whether it is required, optional or repeated).
@@ -495,6 +519,9 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 case AppSearchSchema.PropertyConfig.DATA_TYPE_DOCUMENT:
                     builder.append("dataType: DATA_TYPE_DOCUMENT,\n");
                     break;
+                case PropertyConfig.DATA_TYPE_EMBEDDING:
+                    builder.append("dataType: DATA_TYPE_EMBEDDING,\n");
+                    break;
                 default:
                     builder.append("dataType: DATA_TYPE_UNKNOWN,\n");
             }
@@ -587,6 +614,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     return new BytesPropertyConfig(propertyConfigParcel);
                 case PropertyConfig.DATA_TYPE_DOCUMENT:
                     return new DocumentPropertyConfig(propertyConfigParcel);
+                case PropertyConfig.DATA_TYPE_EMBEDDING:
+                    return new EmbeddingPropertyConfig(propertyConfigParcel);
                 default:
                     throw new IllegalArgumentException(
                             "Unsupported property bundle of type "
@@ -736,7 +765,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
         }
 
         /** Returns how the property is indexed. */
-        @IndexingType
+        @StringPropertyConfig.IndexingType
         public int getIndexingType() {
             StringIndexingConfigParcel indexingConfigParcel =
                     mPropertyConfigParcel.getStringIndexingConfigParcel();
@@ -778,7 +807,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
             private final String mPropertyName;
             private String mDescription = "";
             @Cardinality private int mCardinality = CARDINALITY_OPTIONAL;
-            @IndexingType private int mIndexingType = INDEXING_TYPE_NONE;
+            @StringPropertyConfig.IndexingType private int mIndexingType = INDEXING_TYPE_NONE;
             @TokenizerType private int mTokenizerType = TOKENIZER_TYPE_NONE;
             @JoinableValueType private int mJoinableValueType = JOINABLE_VALUE_TYPE_NONE;
             private boolean mDeletionPropagation = false;
@@ -794,6 +823,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * <p>For more details about the description field, see {@link
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
+            @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -826,7 +856,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              */
             @CanIgnoreReturnValue
             @NonNull
-            public StringPropertyConfig.Builder setIndexingType(@IndexingType int indexingType) {
+            public StringPropertyConfig.Builder setIndexingType(
+                    @StringPropertyConfig.IndexingType int indexingType) {
                 Preconditions.checkArgumentInRange(
                         indexingType, INDEXING_TYPE_NONE, INDEXING_TYPE_PREFIXES, "indexingType");
                 mIndexingType = indexingType;
@@ -994,7 +1025,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
         }
 
         /** Returns how the property is indexed. */
-        @IndexingType
+        @LongPropertyConfig.IndexingType
         public int getIndexingType() {
             PropertyConfigParcel.IntegerIndexingConfigParcel indexingConfigParcel =
                     mPropertyConfigParcel.getIntegerIndexingConfigParcel();
@@ -1009,7 +1040,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
             private final String mPropertyName;
             private String mDescription = "";
             @Cardinality private int mCardinality = CARDINALITY_OPTIONAL;
-            @IndexingType private int mIndexingType = INDEXING_TYPE_NONE;
+            @LongPropertyConfig.IndexingType private int mIndexingType = INDEXING_TYPE_NONE;
 
             /** Creates a new {@link LongPropertyConfig.Builder}. */
             public Builder(@NonNull String propertyName) {
@@ -1022,6 +1053,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * <p>For more details about the description field, see {@link
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
+            @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1055,7 +1087,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              */
             @CanIgnoreReturnValue
             @NonNull
-            public LongPropertyConfig.Builder setIndexingType(@IndexingType int indexingType) {
+            public LongPropertyConfig.Builder setIndexingType(
+                    @LongPropertyConfig.IndexingType int indexingType) {
                 Preconditions.checkArgumentInRange(
                         indexingType, INDEXING_TYPE_NONE, INDEXING_TYPE_RANGE, "indexingType");
                 mIndexingType = indexingType;
@@ -1116,6 +1149,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * <p>For more details about the description field, see {@link
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
+            @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1173,6 +1207,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * <p>For more details about the description field, see {@link
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
+            @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1230,6 +1265,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * <p>For more details about the description field, see {@link
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
+            @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1344,6 +1380,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * <p>For more details about the description field, see {@link
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
+            @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             @NonNull
@@ -1518,6 +1555,118 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     .append(",\n");
 
             builder.append("schemaType: \"").append(getSchemaType()).append("\",\n");
+        }
+    }
+
+    /** Configuration for a property of type {@link EmbeddingVector} in a Document. */
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public static final class EmbeddingPropertyConfig extends PropertyConfig {
+        /**
+         * Encapsulates the configurations on how AppSearch should query/index these embedding
+         * vectors.
+         *
+         * @hide
+         */
+        @IntDef(value = {INDEXING_TYPE_NONE, INDEXING_TYPE_SIMILARITY})
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface IndexingType {}
+
+        /** Content in this property will not be indexed. */
+        public static final int INDEXING_TYPE_NONE = 0;
+
+        /**
+         * Embedding vectors in this property will be indexed.
+         *
+         * <p>The index offers 100% accuracy, but has linear time complexity based on the number of
+         * embedding vectors within the index.
+         */
+        public static final int INDEXING_TYPE_SIMILARITY = 1;
+
+        EmbeddingPropertyConfig(@NonNull PropertyConfigParcel propertyConfigParcel) {
+            super(propertyConfigParcel);
+        }
+
+        /** Returns how the property is indexed. */
+        @EmbeddingPropertyConfig.IndexingType
+        public int getIndexingType() {
+            PropertyConfigParcel.EmbeddingIndexingConfigParcel indexingConfigParcel =
+                    mPropertyConfigParcel.getEmbeddingIndexingConfigParcel();
+            if (indexingConfigParcel == null) {
+                return INDEXING_TYPE_NONE;
+            }
+            return indexingConfigParcel.getIndexingType();
+        }
+
+        /** Builder for {@link EmbeddingPropertyConfig}. */
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+        public static final class Builder {
+            private final String mPropertyName;
+            private String mDescription = "";
+            @Cardinality private int mCardinality = CARDINALITY_OPTIONAL;
+            @EmbeddingPropertyConfig.IndexingType private int mIndexingType = INDEXING_TYPE_NONE;
+
+            /** Creates a new {@link EmbeddingPropertyConfig.Builder}. */
+            public Builder(@NonNull String propertyName) {
+                mPropertyName = Objects.requireNonNull(propertyName);
+            }
+
+            /**
+             * Sets a natural language description of this property.
+             *
+             * <p>For more details about the description field, see {@link
+             * AppSearchSchema.PropertyConfig#getDescription}.
+             */
+            @CanIgnoreReturnValue
+            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
+            @NonNull
+            public EmbeddingPropertyConfig.Builder setDescription(@NonNull String description) {
+                mDescription = Objects.requireNonNull(description);
+                return this;
+            }
+
+            /**
+             * Sets the cardinality of the property (whether it is optional, required or repeated).
+             *
+             * <p>If this method is not called, the default cardinality is {@link
+             * PropertyConfig#CARDINALITY_OPTIONAL}.
+             */
+            @CanIgnoreReturnValue
+            @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
+            @NonNull
+            public EmbeddingPropertyConfig.Builder setCardinality(@Cardinality int cardinality) {
+                Preconditions.checkArgumentInRange(
+                        cardinality, CARDINALITY_REPEATED, CARDINALITY_REQUIRED, "cardinality");
+                mCardinality = cardinality;
+                return this;
+            }
+
+            /**
+             * Configures how a property should be indexed so that it can be retrieved by queries.
+             *
+             * <p>If this method is not called, the default indexing type is {@link
+             * EmbeddingPropertyConfig#INDEXING_TYPE_NONE}, so that it will not be indexed and
+             * cannot be matched by queries.
+             */
+            @CanIgnoreReturnValue
+            @NonNull
+            public EmbeddingPropertyConfig.Builder setIndexingType(
+                    @EmbeddingPropertyConfig.IndexingType int indexingType) {
+                Preconditions.checkArgumentInRange(
+                        indexingType, INDEXING_TYPE_NONE, INDEXING_TYPE_SIMILARITY, "indexingType");
+                mIndexingType = indexingType;
+                return this;
+            }
+
+            /**
+             * Constructs a new {@link EmbeddingPropertyConfig} from the contents of this builder.
+             */
+            @NonNull
+            public EmbeddingPropertyConfig build() {
+                return new EmbeddingPropertyConfig(
+                        PropertyConfigParcel.createForEmbedding(
+                                mPropertyName, mDescription, mCardinality, mIndexingType));
+            }
         }
     }
 }

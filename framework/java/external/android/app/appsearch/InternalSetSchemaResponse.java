@@ -19,11 +19,12 @@ package android.app.appsearch;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.Objects;
 

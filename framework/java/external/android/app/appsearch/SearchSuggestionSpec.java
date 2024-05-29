@@ -22,7 +22,6 @@ import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.app.appsearch.util.BundleUtil;
@@ -32,6 +31,7 @@ import android.os.Parcelable;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.Retention;
@@ -387,6 +387,7 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * @param schema the {@link AppSearchSchema} that contains the target properties
          * @param propertyPaths The {@link PropertyPath} to search suggestion over
          */
+        @CanIgnoreReturnValue
         @NonNull
         // Getter method is getFilterProperties
         @SuppressLint("MissingGetterMatchingBuilder")

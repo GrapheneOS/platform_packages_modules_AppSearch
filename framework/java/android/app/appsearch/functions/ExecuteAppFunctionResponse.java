@@ -19,13 +19,14 @@ package android.app.appsearch.functions;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.appsearch.GenericDocument;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;

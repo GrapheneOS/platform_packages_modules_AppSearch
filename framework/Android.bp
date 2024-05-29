@@ -25,8 +25,8 @@ filegroup {
     name: "framework-appsearch-sources",
     defaults: ["framework-sources-module-defaults"],
     srcs: [
-        ":framework-appsearch-internal-sources",
         ":framework-appsearch-external-sources",
+        ":framework-appsearch-internal-sources",
     ],
     visibility: ["//packages/modules/AppSearch:__subpackages__"],
 }
@@ -34,8 +34,8 @@ filegroup {
 filegroup {
     name: "framework-appsearch-internal-sources",
     srcs: [
-        "java/**/*.java",
         "java/**/*.aidl",
+        "java/**/*.java",
     ],
     exclude_srcs: [
         ":framework-appsearch-external-sources",
@@ -46,8 +46,8 @@ filegroup {
 filegroup {
     name: "framework-appsearch-external-sources",
     srcs: [
-        "java/external/**/*.java",
         "java/external/**/*.aidl",
+        "java/external/**/*.java",
     ],
     path: "java/external",
 }
@@ -62,19 +62,23 @@ java_sdk_library {
     ],
     static_libs: [
         // This list must be kept in sync with jarjar.txt
+        "appsearch_flags_java_lib",
         "modules-utils-preconditions",
     ],
     optimize: {
-      enabled: true,
-      optimize: true,
-      shrink: true,
-      proguard_flags_files: ["proguard.flags"],
+        enabled: true,
+        optimize: true,
+        shrink: true,
+        proguard_flags_files: ["proguard.flags"],
     },
     plugins: [
         "safeparcel-annotation-processor",
     ],
     defaults: ["framework-module-defaults"],
-    permitted_packages: ["android.app.appsearch"],
+    permitted_packages: [
+        "android.app.appsearch",
+        "com.android.appsearch.flags",
+    ],
     jarjar_rules: "jarjar-rules.txt",
     apex_available: ["com.android.appsearch"],
     impl_library_visibility: [

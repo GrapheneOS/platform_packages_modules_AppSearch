@@ -23,10 +23,10 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.flags.Flags;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.Retention;

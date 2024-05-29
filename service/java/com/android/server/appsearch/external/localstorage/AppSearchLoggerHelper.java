@@ -165,11 +165,9 @@ public final class AppSearchLoggerHelper {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
 
-        @SuppressWarnings("deprecation")
-        int deleteType = DeleteStatsProto.DeleteType.Code.DEPRECATED_QUERY.getNumber();
         toStatsBuilder
                 .setNativeLatencyMillis(fromNativeStats.getLatencyMs())
-                .setDeleteType(deleteType)
+                .setDeleteType(RemoveStats.QUERY)
                 .setDeletedDocumentCount(fromNativeStats.getNumDocumentsDeleted());
     }
 
@@ -197,7 +195,7 @@ public final class AppSearchLoggerHelper {
                 .setTimeSinceLastOptimizeMillis(fromNativeStats.getTimeSinceLastOptimizeMs());
     }
 
-    /**
+    /*
      * Copy SetSchema result stats to builder.
      *
      * @param fromProto Stats copied from.

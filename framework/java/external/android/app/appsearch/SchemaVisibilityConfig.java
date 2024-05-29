@@ -20,13 +20,14 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.PackageIdentifierParcel;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.ArraySet;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,9 +88,10 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
     }
 
     /**
-     * Returns an array of Integers representing Android Permissions as defined in {@link
-     * SetSchemaRequest.AppSearchSupportedPermission} that the caller must hold to access the schema
-     * this {@link SchemaVisibilityConfig} represents.
+     * Returns an array of Integers representing Android Permissions that the caller must hold to
+     * access the schema this {@link SchemaVisibilityConfig} represents.
+     *
+     * @see SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility(String, Set)
      */
     @NonNull
     public Set<Set<Integer>> getRequiredPermissions() {
@@ -103,8 +105,7 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
                 }
             }
         }
-
-        // Added for nullness checker, we initialize it above if it is null.
+        // Added for nullness checker as it is @Nullable, we initialize it above if it is null.
         return Objects.requireNonNull(mRequiredPermissionsCached);
     }
 

@@ -64,6 +64,23 @@ public class SearchResultInternalTest {
     }
 
     @Test
+    public void testSearchResultBuilderCopyConstructor_informationalRankingSignal() {
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id", "schemaType").build();
+        SearchResult searchResult =
+                new SearchResult.Builder("package", "database")
+                        .setGenericDocument(document)
+                        .setRankingSignal(1.23)
+                        .addInformationalRankingSignal(2)
+                        .addInformationalRankingSignal(3)
+                        .build();
+        SearchResult searchResultCopy = new SearchResult.Builder(searchResult).build();
+        assertThat(searchResultCopy.getRankingSignal()).isEqualTo(searchResult.getRankingSignal());
+        assertThat(searchResultCopy.getInformationalRankingSignals())
+                .isEqualTo(searchResult.getInformationalRankingSignals());
+    }
+
+    @Test
     public void testSearchResultBuilder_clearJoinedResults() {
         GenericDocument document =
                 new GenericDocument.Builder<>("namespace", "id", "schemaType").build();

@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import android.app.appsearch.AppSearchSchema;
 
 import com.android.server.appsearch.icing.proto.DocumentIndexingConfig;
+import com.android.server.appsearch.icing.proto.EmbeddingIndexingConfig;
 import com.android.server.appsearch.icing.proto.JoinableConfig;
 import com.android.server.appsearch.icing.proto.PropertyConfigProto;
 import com.android.server.appsearch.icing.proto.SchemaTypeConfigProto;
@@ -420,5 +421,113 @@ public class SchemaToProtoConverterTest {
                 .isEqualTo(expectedPersonProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedPersonProto))
                 .isEqualTo(personSchema);
+    }
+
+    @Test
+    public void testGetProto_EmbeddingProperty() {
+        AppSearchSchema emailSchema =
+                new AppSearchSchema.Builder("Email")
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder("subject")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.EmbeddingPropertyConfig.Builder("embedding")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.EmbeddingPropertyConfig
+                                                        .INDEXING_TYPE_NONE)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.EmbeddingPropertyConfig.Builder(
+                                                "indexableEmbedding")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.EmbeddingPropertyConfig
+                                                        .INDEXING_TYPE_SIMILARITY)
+                                        .build())
+                        .build();
+
+        SchemaTypeConfigProto expectedEmailProto =
+                SchemaTypeConfigProto.newBuilder()
+                        .setSchemaType("Email")
+                        .setDescription("")
+                        .setVersion(12345)
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("subject")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.STRING)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setStringIndexingConfig(
+                                                StringIndexingConfig.newBuilder()
+                                                        .setTokenizerType(
+                                                                StringIndexingConfig.TokenizerType
+                                                                        .Code.PLAIN)
+                                                        .setTermMatchType(
+                                                                TermMatchType.Code.PREFIX)))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("body")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.STRING)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setStringIndexingConfig(
+                                                StringIndexingConfig.newBuilder()
+                                                        .setTokenizerType(
+                                                                StringIndexingConfig.TokenizerType
+                                                                        .Code.PLAIN)
+                                                        .setTermMatchType(
+                                                                TermMatchType.Code.PREFIX)))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("embedding")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.VECTOR)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("indexableEmbedding")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.VECTOR)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setEmbeddingIndexingConfig(
+                                                EmbeddingIndexingConfig.newBuilder()
+                                                        .setEmbeddingIndexingType(
+                                                                EmbeddingIndexingConfig
+                                                                        .EmbeddingIndexingType.Code
+                                                                        .LINEAR_SEARCH)))
+                        .build();
+
+        assertThat(
+                        SchemaToProtoConverter.toSchemaTypeConfigProto(
+                                emailSchema, /* version= */ 12345))
+                .isEqualTo(expectedEmailProto);
+        assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedEmailProto))
+                .isEqualTo(emailSchema);
     }
 }

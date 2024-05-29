@@ -22,13 +22,14 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.flags.Flags;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -87,8 +88,9 @@ public final class GetSchemaResponse extends AbstractSafeParcelable {
      * access the schema. All keys in the map are prefixed with the package-database prefix. We do
      * lazy fetch, the object will be created when you first time fetch it. The Map is constructed
      * in ANY-ALL cases. The querier could read the {@link GenericDocument} objects under the {@code
-     * schemaType} if they holds ALL required permissions of ANY combinations. The value set
-     * represents {@link android.app.appsearch.SetSchemaRequest.AppSearchSupportedPermission}.
+     * schemaType} if they hold ALL required permissions of ANY combinations.
+     *
+     * @see SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility(String, Set)
      */
     @Nullable private Map<String, Set<Set<Integer>>> mSchemasVisibleToPermissionsCached;
 

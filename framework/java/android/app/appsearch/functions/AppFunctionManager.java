@@ -29,11 +29,12 @@ import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
-import android.app.appsearch.flags.Flags;
 import android.content.Context;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;

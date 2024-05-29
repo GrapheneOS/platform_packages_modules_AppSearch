@@ -119,6 +119,7 @@ flag {
     description: "Enable previously hidden constants in AppSearchResult."
     bug: "279047435"
     is_fixed_read_only: true
+    is_exported: true
 }
 
 flag {
@@ -127,4 +128,33 @@ flag {
     description: "Enable previously hidden APIs in AppSearchSchema."
     bug: "291122592"
     is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_schema_embedding_property_config"
+    namespace: "appsearch"
+    description: "Enables embedding vectors to be used for searches in AppSearch"
+    bug: "326656531"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_informational_ranking_expressions"
+    namespace: "appsearch"
+    description: "Enables the additional informational ranking expression API"
+    bug: "332642571"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+
+flag {
+    name: "enable_list_filter_tokenize_function"
+    namespace: "appsearch"
+    description: "Enables the tokenize function in the list filter language"
+    bug: "332620561"
+    is_fixed_read_only: true
+    is_exported: true
 }
