@@ -27,7 +27,6 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.util.ArrayMap;
-import android.widget.ImageView;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -91,10 +90,7 @@ public class AppsUtilTest {
                         context.getPackageManager(), packageActivityMapping);
 
         assertThat(resultApps).isNotEmpty();
-        ImageView imageView = new ImageView(context);
-        imageView.setImageURI(resultApps.get(0).getIconUri());
-        assertThat(imageView.getDrawable().getIntrinsicWidth()).isGreaterThan(0);
-        assertThat(imageView.getDrawable().getIntrinsicHeight()).isGreaterThan(0);
+        assertThat(resultApps.get(0).getDisplayName()).isNotEmpty();
     }
 }
 

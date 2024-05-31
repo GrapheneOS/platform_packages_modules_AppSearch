@@ -40,10 +40,6 @@ import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResultsShim;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
-import android.app.appsearch.observer.DocumentChangeInfo;
-import android.app.appsearch.observer.ObserverCallback;
-import android.app.appsearch.observer.ObserverSpec;
-import android.app.appsearch.observer.SchemaChangeInfo;
 import android.app.appsearch.testutil.GlobalSearchSessionShimImpl;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -75,27 +71,26 @@ import org.mockito.Mockito;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class AppsIndexerManagerServiceTest {
+public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private AppsIndexerManagerService mAppsIndexerManagerService;
     private UiAutomation mUiAutomation;
-    private Context mContext;
     private BroadcastReceiver mCapturedReceiver;
     // Saving to class so we can unregister the callback
-    private ObserverCallback mObserverCallback;
     private final PackageManager mPackageManager = Mockito.mock(PackageManager.class);
     private GlobalSearchSessionShim mShim;
 
     @Before
+    @Override
     public void setUp() throws Exception {
+        super.setUp();
         Context context = ApplicationProvider.getApplicationContext();
         mContext =
                 new ContextWrapper(context) {
@@ -147,10 +142,10 @@ public class AppsIndexerManagerServiceTest {
         } catch (Exception e) {
             // This might fail due to LocalService already being registered. Ignore it for the test
         }
-        mShim = GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
     }
 
     @After
+    @Override
     public void tearDown() throws Exception {
         // Wipe the data in AppSearchHelper.DATABASE_NAME.
         AppSearchSessionShim db = createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
@@ -158,6 +153,7 @@ public class AppsIndexerManagerServiceTest {
         db.setSchemaAsync(new SetSchemaRequest.Builder().setForceOverride(true).build()).get();
 
         mUiAutomation.dropShellPermissionIdentity();
+        super.tearDown();
     }
 
     @Test
@@ -177,16 +173,13 @@ public class AppsIndexerManagerServiceTest {
         // Apps indexer schedules a full-update job for bootstrapping from PackageManager,
         // and JobScheduler API requires BOOT_COMPLETED permission for persisting the job.
         mUiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-        CountDownLatch bootstrapLatch = null;
         try {
-            bootstrapLatch = setupLatch(numFakePackages, /* listenForSchemaChanges= */ false);
+            CountDownLatch bootstrapLatch =
+                    setupLatch(numFakePackages, /* listenForSchemaChanges= */ false);
             mAppsIndexerManagerService.onUserUnlocking(new SystemService.TargetUser(userInfo));
             assertTrue(bootstrapLatch.await(10000L, TimeUnit.MILLISECONDS));
         } finally {
             mUiAutomation.dropShellPermissionIdentity();
-            if (bootstrapLatch != null) {
-                mShim.unregisterObserverCallback(mContext.getPackageName(), mObserverCallback);
-            }
         }
 
         // Ensure that we can query the package documents added to AppSearch
@@ -249,12 +242,9 @@ public class AppsIndexerManagerServiceTest {
         fakePackages.add(createFakePackageInfo(numFakePackages));
         fakeActivities.add(createFakeResolveInfo(numFakePackages));
         CountDownLatch latch = setupLatch(1, /* listenForSchemaChanges= */ false);
-        try {
-            mCapturedReceiver.onReceive(mContext, fakeIntent);
-            assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
-        } finally {
-            mShim.unregisterObserverCallback(mContext.getPackageName(), mObserverCallback);
-        }
+
+        mCapturedReceiver.onReceive(mContext, fakeIntent);
+        assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
 
         // Wait for the change then Check AppSearch
         SearchResultsShim results =
@@ -309,12 +299,9 @@ public class AppsIndexerManagerServiceTest {
         int updateIndex = 1;
         fakePackages.get(updateIndex).lastUpdateTime = 1000;
         CountDownLatch latch = setupLatch(1, /* listenForSchemaChanges= */ false);
-        try {
-            mCapturedReceiver.onReceive(mContext, fakeIntent);
-            assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
-        } finally {
-            mShim.unregisterObserverCallback(mContext.getPackageName(), mObserverCallback);
-        }
+
+        mCapturedReceiver.onReceive(mContext, fakeIntent);
+        assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
 
         // Check AppSearch
         SearchResultsShim results =
@@ -373,12 +360,9 @@ public class AppsIndexerManagerServiceTest {
         fakePackages.remove(0);
         fakeActivities.remove(0);
         CountDownLatch latch = setupLatch(1, /* listenForSchemaChanges= */ true);
-        try {
-            mCapturedReceiver.onReceive(mContext, fakeIntent);
-            assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
-        } finally {
-            mShim.unregisterObserverCallback(mContext.getPackageName(), mObserverCallback);
-        }
+
+        mCapturedReceiver.onReceive(mContext, fakeIntent);
+        assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
 
         // Check AppSearch
         SearchResultsShim results =
@@ -393,58 +377,5 @@ public class AppsIndexerManagerServiceTest {
         assertThat(page).hasSize(numFakePackages - 1);
 
         mAppsIndexerManagerService.onUserStopping(new SystemService.TargetUser(userInfo));
-    }
-
-    /**
-     * Sets up or resets the latch for observing changes, and registers a universal observer
-     * callback if it hasn't been registered before. The method configures the callback to listen
-     * for either schema or document changes based on the boolean parameter.
-     *
-     * @param numChanges the number of changes to count down
-     * @param listenForSchemaChanges if true, listens for schema changes; if false, listens for
-     *     document changes
-     */
-    private CountDownLatch setupLatch(int numChanges, boolean listenForSchemaChanges)
-            throws Exception {
-        CountDownLatch latch = new CountDownLatch(numChanges);
-        // Unregister existing callback if any
-        if (mObserverCallback != null) {
-            mShim.unregisterObserverCallback(mContext.getPackageName(), mObserverCallback);
-        }
-        mObserverCallback =
-                new ObserverCallback() {
-                    @Override
-                    public void onSchemaChanged(@NonNull SchemaChangeInfo changeInfo) {
-                        if (!listenForSchemaChanges) {
-                            return;
-                        }
-                        // When we delete apps, we delete the schema.
-                        Set<String> changedSchemas = changeInfo.getChangedSchemaNames();
-                        for (String changedSchema : changedSchemas) {
-                            if (changedSchema.startsWith(MobileApplication.SCHEMA_TYPE)) {
-                                latch.countDown();
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onDocumentChanged(@NonNull DocumentChangeInfo changeInfo) {
-                        if (listenForSchemaChanges) {
-                            return;
-                        }
-                        if (!changeInfo.getSchemaName().startsWith(MobileApplication.SCHEMA_TYPE)) {
-                            return;
-                        }
-                        for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
-                            latch.countDown();
-                        }
-                    }
-                };
-        mShim.registerObserverCallback(
-                mContext.getPackageName(),
-                new ObserverSpec.Builder().build(),
-                mSingleThreadedExecutor,
-                mObserverCallback);
-        return latch;
     }
 }

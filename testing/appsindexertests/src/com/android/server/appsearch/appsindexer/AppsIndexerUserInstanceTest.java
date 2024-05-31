@@ -24,13 +24,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.mock;
 
-import android.annotation.NonNull;
-import android.app.appsearch.GlobalSearchSessionShim;
-import android.app.appsearch.observer.DocumentChangeInfo;
-import android.app.appsearch.observer.ObserverCallback;
-import android.app.appsearch.observer.ObserverSpec;
-import android.app.appsearch.observer.SchemaChangeInfo;
-import android.app.appsearch.testutil.GlobalSearchSessionShimImpl;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
@@ -53,7 +46,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class AppsIndexerUserInstanceTest {
+public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     private TestContext mContext;
     private final PackageManager mMockPackageManager = mock(PackageManager.class);
 
@@ -63,10 +56,12 @@ public class AppsIndexerUserInstanceTest {
     private File mAppsDir;
     private File mSettingsFile;
     private AppsIndexerUserInstance mInstance;
-    private AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
+    private final AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
 
     @Before
+    @Override
     public void setUp() throws Exception {
+        super.setUp();
         Context context = ApplicationProvider.getApplicationContext();
         mContext = new TestContext(context);
 
@@ -87,10 +82,12 @@ public class AppsIndexerUserInstanceTest {
     }
 
     @After
+    @Override
     public void tearDown() throws Exception {
         TestUtils.removeFakePackageDocuments(mContext, Executors.newSingleThreadExecutor());
         mSingleThreadedExecutor.shutdownNow();
         mInstance.shutdown();
+        super.tearDown();
     }
 
     @Test
@@ -343,7 +340,7 @@ public class AppsIndexerUserInstanceTest {
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
                 createFakeResolveInfos(docCount));
-        CountDownLatch latch = createCountdownLatch(docCount);
+        CountDownLatch latch = setupLatch(docCount);
 
         mInstance.doUpdate(/* firstRun= */ false);
         latch.await(10, TimeUnit.SECONDS);
@@ -409,45 +406,6 @@ public class AppsIndexerUserInstanceTest {
         // The last updated app was still the "9" app
         assertThat(settingsBundle.getLong(AppsIndexerSettings.LAST_APP_UPDATE_TIMESTAMP_KEY))
                 .isEqualTo(9);
-    }
-
-    /**
-     * Creates a countdown latch that will count down whenever a {@link MobileApplication} document
-     * is changed.
-     *
-     * @param docCount The number of document changes to wait for before re-enabling waiting
-     *     threads.
-     */
-    private CountDownLatch createCountdownLatch(int docCount) throws Exception {
-        CountDownLatch latch = new CountDownLatch(docCount);
-        ObserverCallback callback =
-                new ObserverCallback() {
-                    @Override
-                    public void onSchemaChanged(@NonNull SchemaChangeInfo changeInfo) {
-                        // Do nothing
-                    }
-
-                    @Override
-                    public void onDocumentChanged(DocumentChangeInfo changeInfo) {
-                        for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
-                            if (changeInfo
-                                    .getSchemaName()
-                                    .startsWith("builtin:MobileApplication")) {
-                                latch.countDown();
-                            }
-                        }
-                    }
-                };
-        GlobalSearchSessionShim shim =
-                GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
-
-        shim.registerObserverCallback(
-                mContext.getPackageName(),
-                new ObserverSpec.Builder().build(),
-                mSingleThreadedExecutor,
-                callback);
-
-        return latch;
     }
 
     class TestContext extends ContextWrapper {
