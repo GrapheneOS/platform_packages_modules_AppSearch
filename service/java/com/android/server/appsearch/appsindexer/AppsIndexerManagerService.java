@@ -20,6 +20,7 @@ import static android.os.Process.INVALID_UID;
 
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironment;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -28,6 +29,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.CancellationSignal;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -36,6 +38,7 @@ import android.util.Slog;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
+import com.android.server.appsearch.indexer.IndexerLocalService;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -238,7 +241,7 @@ public final class AppsIndexerManagerService extends SystemService {
                         }
                         Log.d(TAG, "userid in package receiver: " + uid);
                         UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
-                        mLocalService.doUpdateForUser(userHandle);
+                        mLocalService.doUpdateForUser(userHandle, /* unused= */ null);
                         break;
                     default:
                         Log.w(TAG, "Received unknown intent: " + intent);
@@ -249,9 +252,12 @@ public final class AppsIndexerManagerService extends SystemService {
         }
     }
 
-    class LocalService {
+    public class LocalService implements IndexerLocalService {
         /** Runs an update for a user. */
-        void doUpdateForUser(@NonNull UserHandle userHandle) {
+        @Override
+        public void doUpdateForUser(
+                @NonNull UserHandle userHandle, @Nullable CancellationSignal unused) {
+            // TODO(b/275592563): handle cancellation signal to abort the job.
             Objects.requireNonNull(userHandle);
             synchronized (mAppsIndexersLocked) {
                 AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);

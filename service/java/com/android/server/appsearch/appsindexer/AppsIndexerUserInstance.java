@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APPS_INDEXER;
+
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -24,6 +26,7 @@ import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -72,6 +75,9 @@ public final class AppsIndexerUserInstance {
      */
     private final ExecutorService mSingleThreadedExecutor;
 
+    private final Context mContext;
+    private final AppsIndexerConfig mAppsIndexerConfig;
+
     /**
      * Constructs and initializes a {@link AppsIndexerUserInstance}.
      *
@@ -107,7 +113,8 @@ public final class AppsIndexerUserInstance {
         Objects.requireNonNull(appsIndexerConfig);
         Objects.requireNonNull(executorService);
 
-        AppsIndexerUserInstance indexer = new AppsIndexerUserInstance(appsDir, executorService);
+        AppsIndexerUserInstance indexer =
+                new AppsIndexerUserInstance(appsDir, executorService, context, appsIndexerConfig);
         indexer.loadSettingsAsync();
         indexer.mAppsIndexerImpl = new AppsIndexerImpl(context);
 
@@ -120,17 +127,25 @@ public final class AppsIndexerUserInstance {
      * @param dataDir data directory for storing apps indexer state.
      * @param singleThreadedExecutor an {@link ExecutorService} with at most one thread to ensure
      *     the thread safety of this class.
+     * @param context Context object passed from {@link AppsIndexerManagerService}
      */
     private AppsIndexerUserInstance(
-            @NonNull File dataDir, @NonNull ExecutorService singleThreadedExecutor) {
+            @NonNull File dataDir,
+            @NonNull ExecutorService singleThreadedExecutor,
+            @NonNull Context context,
+            @NonNull AppsIndexerConfig appsIndexerConfig) {
         mDataDir = Objects.requireNonNull(dataDir);
         mSettings = new AppsIndexerSettings(mDataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
+        mContext = Objects.requireNonNull(context);
+        mAppsIndexerConfig = Objects.requireNonNull(appsIndexerConfig);
     }
 
     /** Shuts down the AppsIndexerUserInstance */
     public void shutdown() throws InterruptedException {
         mAppsIndexerImpl.close();
+        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                mContext, mContext.getUser(), APPS_INDEXER);
         synchronized (mSingleThreadedExecutor) {
             mSingleThreadedExecutor.shutdown();
         }
@@ -168,7 +183,17 @@ public final class AppsIndexerUserInstance {
         // right now will run the requested update after the current update. It could also mean
         // there is no update running right now, so we can just call execute and run the update
         // right now.
-        executeOnSingleThreadedExecutor(() -> doUpdate(firstRun));
+        executeOnSingleThreadedExecutor(
+                () -> {
+                    doUpdate(firstRun);
+                    IndexerMaintenanceService.scheduleUpdateJob(
+                            mContext,
+                            mContext.getUser(),
+                            APPS_INDEXER,
+                            /* periodic= */ true,
+                            /* intervalMillis= */ mAppsIndexerConfig
+                                    .getAppsMaintenanceUpdateIntervalMillis());
+                });
     }
 
     /**

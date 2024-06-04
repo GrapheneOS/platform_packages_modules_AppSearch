@@ -14,25 +14,21 @@
  * limitations under the License.
  */
 
-package com.android.server.appsearch.appsindexer;
+package com.android.server.appsearch.indexer;
 
-import java.util.concurrent.TimeUnit;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.os.CancellationSignal;
+import android.os.UserHandle;
+
+import com.android.server.LocalManagerRegistry;
 
 /**
- * An interface which exposes config flags to Apps Indexer.
+ * An interface for Indexers local services.
  *
- * <p>Implementations of this interface must be thread-safe.
- *
- * @hide
+ * @see LocalManagerRegistry#addManager
  */
-public interface AppsIndexerConfig {
-    boolean DEFAULT_APPS_INDEXER_ENABLED = false;
-    long DEFAULT_APPS_UPDATE_INTERVAL_MILLIS = TimeUnit.DAYS.toMillis(30); // 30 days.
-
-    /** Returns whether Apps Indexer is enabled. */
-    boolean isAppsIndexerEnabled();
-
-    /* Returns the minimum internal in millis for two consecutive scheduled updates. */
-    long getAppsMaintenanceUpdateIntervalMillis();
+public interface IndexerLocalService {
+    /** Runs a scheduled update for the user specified by userHandle. */
+    void doUpdateForUser(@NonNull UserHandle userHandle, @Nullable CancellationSignal signal);
 }
-

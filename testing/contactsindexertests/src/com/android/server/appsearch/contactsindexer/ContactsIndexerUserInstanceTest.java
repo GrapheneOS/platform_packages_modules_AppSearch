@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.contactsindexer;
 
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -54,6 +56,7 @@ import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import org.junit.After;
@@ -361,9 +364,11 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         JobInfo mockJobInfo = mock(JobInfo.class);
         // getPendingJob() should return a non-null value to simulate the scenario where a
         // background job is already scheduled.
-        doReturn(mockJobInfo).when(mockJobScheduler).getPendingJob(
-                ContactsIndexerMaintenanceService.MIN_INDEXER_JOB_ID +
-                        mContext.getUser().getIdentifier());
+        doReturn(mockJobInfo)
+                .when(mockJobScheduler)
+                .getPendingJob(
+                        ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                                + mContext.getUser().getIdentifier());
         mContext.setJobScheduler(mockJobScheduler);
         ContactsIndexerUserInstance instance = ContactsIndexerUserInstance.createInstance(
                 mContext, mContactsDir, mConfigForTest, mSingleThreadedExecutor);
@@ -745,8 +750,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // adding it to update stats beforehand.
 
         // Cancel any existing jobs.
-        ContactsIndexerMaintenanceService.cancelFullUpdateJobIfScheduled(mContext,
-                mContext.getUser());
+        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                mContext, mContext.getUser(), CONTACTS_INDEXER);
 
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);

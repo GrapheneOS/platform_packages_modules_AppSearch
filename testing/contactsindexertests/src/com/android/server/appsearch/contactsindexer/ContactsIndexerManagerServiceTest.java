@@ -19,7 +19,7 @@ package com.android.server.appsearch.contactsindexer;
 import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
-import static com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService.MIN_INDEXER_JOB_ID;
+import static com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -163,7 +163,7 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
         fullUpdateLatch.await(30L, TimeUnit.SECONDS);
 
         // Verify that a periodic full-update job is scheduled still.
-        assertThat(getJobState(MIN_INDEXER_JOB_ID + userId)).contains("waiting");
+        assertThat(getJobState(MIN_CONTACTS_INDEXER_JOB_ID + userId)).contains("waiting");
 
         // Verify the stats for the ContactsIndexer. Two full updates are triggered at this
         // point, and the timestamps for 1st update must have been persisted.

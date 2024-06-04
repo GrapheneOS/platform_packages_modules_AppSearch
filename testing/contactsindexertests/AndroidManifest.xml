@@ -23,6 +23,9 @@
     <application android:label="ContactsIndexerTests"
                  android:debuggable="true">
         <uses-library android:name="android.test.runner"/>
+        <service android:name="com.android.server.appsearch.appsindexer.IndexerMaintenanceService"
+                 android:permission="android.permission.BIND_JOB_SERVICE">
+        </service>
         <service android:name="com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService"
                  android:permission="android.permission.BIND_JOB_SERVICE">
         </service>

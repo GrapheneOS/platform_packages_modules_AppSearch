@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.contactsindexer;
 
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
@@ -32,6 +34,7 @@ import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import java.io.File;
@@ -207,8 +210,8 @@ public final class ContactsIndexerUserInstance {
         }
         mContext.getContentResolver().unregisterContentObserver(mContactsObserver);
 
-        ContactsIndexerMaintenanceService.cancelFullUpdateJobIfScheduled(
-                mContext, mContext.getUser());
+        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                mContext, mContext.getUser(), CONTACTS_INDEXER);
         synchronized (mSingleThreadedExecutor) {
             mSingleThreadedExecutor.shutdown();
         }
@@ -253,13 +256,14 @@ public final class ContactsIndexerUserInstance {
         // indexer was disabled before. We need to reschedule the job and run a limited delta update
         // to bring latest contact change in AppSearch right away, after it is re-enabled.
         if (mSettings.getLastFullUpdateTimestampMillis() != 0
-                && ContactsIndexerMaintenanceService.isFullUpdateJobScheduled(
-                        mContext, mContext.getUser().getIdentifier())) {
+                && IndexerMaintenanceService.isUpdateJobScheduled(
+                        mContext, mContext.getUser(), CONTACTS_INDEXER)) {
             return;
         }
-        ContactsIndexerMaintenanceService.scheduleFullUpdateJob(
+        IndexerMaintenanceService.scheduleUpdateJob(
                 mContext,
-                mContext.getUser().getIdentifier(),
+                mContext.getUser(),
+                CONTACTS_INDEXER,
                 /* periodic= */ false,
                 /* intervalMillis= */ -1);
         // TODO(b/222126568): refactor doDeltaUpdateAsync() to return a future value of
@@ -290,9 +294,10 @@ public final class ContactsIndexerUserInstance {
                 () -> {
                     ContactsUpdateStats updateStats = new ContactsUpdateStats();
                     doFullUpdateInternalAsync(signal, updateStats);
-                    ContactsIndexerMaintenanceService.scheduleFullUpdateJob(
+                    IndexerMaintenanceService.scheduleUpdateJob(
                             mContext,
-                            mContext.getUser().getIdentifier(),
+                            mContext.getUser(),
+                            CONTACTS_INDEXER,
                             /* periodic= */ true,
                             mContactsIndexerConfig.getContactsFullUpdateIntervalMillis());
                 });
@@ -565,9 +570,10 @@ public final class ContactsIndexerUserInstance {
                                     // right now, considering we are sharing this limit with any
                                     // AppSearch clients, e.g. ShortcutManager, in the system
                                     // server.
-                                    ContactsIndexerMaintenanceService.scheduleFullUpdateJob(
+                                    IndexerMaintenanceService.scheduleUpdateJob(
                                             mContext,
-                                            mContext.getUser().getIdentifier(),
+                                            mContext.getUser(),
+                                            CONTACTS_INDEXER,
                                             /* periodic= */ false,
                                             /* intervalMillis= */ -1);
                                 }

@@ -112,8 +112,8 @@ public class AppsIndexerRealDocumentsTest extends AppsIndexerTestBase {
     // Created for system health trace, as close to real as we can get in a test
     @Test
     public void testRealIndexing() throws Exception {
-        // Create a real manager service for the test package, no mocking. Only capture the
-        // receiver
+        // Create a real manager service for the test package, no mocking. Use the captured
+        // receiver to simulate package events
         UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         String testPackage = mContext.getPackageName();
         UserInfo userInfo =

@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch;
 
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
+
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -27,9 +29,9 @@ import android.util.Log;
 
 import com.android.server.SystemService;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
-import com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerService;
 import com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerConfig;
+import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import java.io.PrintWriter;
 
@@ -100,8 +102,8 @@ public class AppSearchModule {
         public void onUserUnlocking(@NonNull TargetUser user) {
             mAppSearchManagerService.onUserUnlocking(user);
             if (mContactsIndexerManagerService == null) {
-                ContactsIndexerMaintenanceService.cancelFullUpdateJobIfScheduled(
-                        getContext(), user.getUserHandle());
+                IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                        getContext(), user.getUserHandle(), CONTACTS_INDEXER);
             } else {
                 mContactsIndexerManagerService.onUserUnlocking(user);
             }

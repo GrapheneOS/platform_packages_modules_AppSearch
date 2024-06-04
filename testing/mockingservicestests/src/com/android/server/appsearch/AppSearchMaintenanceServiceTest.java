@@ -19,7 +19,6 @@ package com.android.server.appsearch;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.AppSearchMaintenanceService.MIN_APPSEARCH_MAINTENANCE_JOB_ID;
-import static com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService.MIN_INDEXER_JOB_ID;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -42,6 +41,9 @@ import android.os.CancellationSignal;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
+import com.android.server.LocalManagerRegistry;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,9 +51,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
-
-import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.server.LocalManagerRegistry;
 
 public class AppSearchMaintenanceServiceTest {
     private static final int DEFAULT_USER_ID = 0;

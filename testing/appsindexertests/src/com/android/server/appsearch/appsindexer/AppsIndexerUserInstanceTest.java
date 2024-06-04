@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,25 +22,41 @@ import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackag
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.app.appsearch.AppSearchManager;
+import android.app.appsearch.AppSearchSessionShim;
+import android.app.appsearch.SetSchemaRequest;
+import android.app.appsearch.testutil.AppSearchSessionShimImpl;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.os.PersistableBundle;
+import android.os.UserHandle;
 
 import androidx.test.core.app.ApplicationProvider;
+
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 
 import java.io.File;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -408,14 +424,339 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .isEqualTo(9);
     }
 
+    @Test
+    public void testStart_initialRun_schedulesUpdateJob() throws Exception {
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+        // This semaphore allows us to make sure that a sync has finished running before performing
+        // checks.
+        final Semaphore afterSemaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        afterSemaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+        // Wait for settings initialization
+        afterSemaphore.acquire();
+
+        int docCount = 100;
+        // Set up package manager
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(docCount),
+                createFakeResolveInfos(docCount));
+
+        mInstance.updateAsync(/* firstRun= */ true);
+
+        // Wait for all async tasks to complete
+        afterSemaphore.acquire();
+
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        JobInfo updateJob = jobInfoArgumentCaptor.getValue();
+        assertThat(updateJob.isRequireBatteryNotLow()).isTrue();
+        assertThat(updateJob.isRequireDeviceIdle()).isTrue();
+        assertThat(updateJob.isPersisted()).isTrue();
+        assertThat(updateJob.isPeriodic()).isTrue();
+    }
+
+    @Test
+    public void testStart_subsequentRunWithNoScheduledJob_schedulesUpdateJob() throws Exception {
+        // Trigger an initial update.
+        mInstance.doUpdate(/* firstRun= */ false);
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance (scheduling the maintenance job) are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+
+        // By default mockJobScheduler.getPendingJob() would return null. This simulates the
+        // scenario where the scheduled update job after the initial run is cancelled
+        // due to some reason.
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+        // the update should be zero, and if not it's because of mAppsDir
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        int docCount = 100;
+        // Set up package manager
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(docCount),
+                createFakeResolveInfos(docCount));
+
+        mInstance.updateAsync(/* firstRun= */ false);
+
+        // Wait for all async tasks to complete
+        semaphore.acquire();
+
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        JobInfo updateJob = jobInfoArgumentCaptor.getValue();
+        assertThat(updateJob.isRequireBatteryNotLow()).isTrue();
+        assertThat(updateJob.isRequireDeviceIdle()).isTrue();
+        assertThat(updateJob.isPersisted()).isTrue();
+        assertThat(updateJob.isPeriodic()).isTrue();
+    }
+
+    @Test
+    public void testUpdate_triggered_afterCompatibleSchemaChange() throws Exception {
+        // Preset a compatible schema.
+        AppSearchManager.SearchContext searchContext =
+                new AppSearchManager.SearchContext.Builder(AppSearchHelper.APP_DATABASE).build();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(TestUtils.COMPATIBLE_APP_SCHEMA)
+                        .setForceOverride(true)
+                        .build();
+        db.setSchemaAsync(setSchemaRequest).get();
+        db.close();
+
+        // The current schema is compatible, and an update will be triggered
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+        // This semaphore allows us to make sure that a sync has finished running before performing
+        // checks.
+        final Semaphore afterSemaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        afterSemaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+        // Wait for settings initialization
+        afterSemaphore.acquire();
+
+        mInstance.updateAsync(/* firstRun= */ true);
+        afterSemaphore.acquire();
+
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        JobInfo updateJob = jobInfoArgumentCaptor.getValue();
+        assertThat(updateJob.isRequireBatteryNotLow()).isTrue();
+        assertThat(updateJob.isRequireDeviceIdle()).isTrue();
+        assertThat(updateJob.isPersisted()).isTrue();
+        assertThat(updateJob.isPeriodic()).isTrue();
+    }
+
+    @Test
+    public void testUpdate_triggered_afterIncompatibleSchemaChange() throws Exception {
+        int docCount = 250;
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance (scheduling the maintenance job) are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+
+        // Preset an incompatible schema.
+        AppSearchManager.SearchContext searchContext =
+                new AppSearchManager.SearchContext.Builder(AppSearchHelper.APP_DATABASE).build();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
+
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(TestUtils.INCOMPATIBLE_APP_SCHEMA)
+                        .setForceOverride(true)
+                        .build();
+        db.setSchemaAsync(setSchemaRequest).get();
+
+        // Since the current schema is incompatible, it will overwrite it
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(docCount),
+                createFakeResolveInfos(docCount));
+
+        mInstance.updateAsync(/* firstRun= */ true);
+        // Wait for all async tasks to complete
+        semaphore.acquire();
+
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        JobInfo updateJob = jobInfoArgumentCaptor.getValue();
+        assertThat(updateJob.isRequireBatteryNotLow()).isTrue();
+        assertThat(updateJob.isRequireDeviceIdle()).isTrue();
+        assertThat(updateJob.isPersisted()).isTrue();
+        assertThat(updateJob.isPeriodic()).isTrue();
+    }
+
+    @Test
+    public void testConcurrentUpdates_updatesDoNotInterfereWithEachOther() throws Exception {
+        long timeBeforeChangeNotification = System.currentTimeMillis();
+        setupMockPackageManager(
+                mMockPackageManager, createFakePackageInfos(250), createFakeResolveInfos(250));
+        // This semaphore allows us to make sure that a sync has finished running before performing
+        // checks.
+        final Semaphore afterSemaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        afterSemaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+        // Wait for settings initialization
+        afterSemaphore.acquire();
+
+        // As there is nothing else in the executor queue, it should run soon.
+        Future<?> unused =
+                mSingleThreadedExecutor.submit(() -> mInstance.doUpdate(/* firstRun= */ false));
+
+        // On the current thread, this update will run at the same time as the task on the executor.
+        mInstance.doUpdate(/* firstRun= */ false);
+
+        // By waiting for the single threaded executor to finish after calling doUpdate, both
+        // updates are guaranteed to be finished.
+        afterSemaphore.acquire();
+
+        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
+        assertThat(appIds.size()).isEqualTo(250);
+
+        PersistableBundle settingsBundle = AppsIndexerSettings.readBundle(mSettingsFile);
+        assertThat(settingsBundle.getLong(AppsIndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
+                .isAtLeast(timeBeforeChangeNotification);
+    }
+
+    @Test
+    public void testStart_subsequentRunWithScheduledJob_doesNotScheduleUpdateJob()
+            throws Exception {
+        // Trigger an initial update.
+        mInstance.doUpdate(/* firstRun= */ false);
+
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        JobInfo mockJobInfo = mock(JobInfo.class);
+        // getPendingJob() should return a non-null value to simulate the scenario where a
+        // background job is already scheduled.
+        doReturn(mockJobInfo)
+                .when(mockJobScheduler)
+                .getPendingJob(
+                        AppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
+                                + mContext.getUser().getIdentifier());
+        mContext.setJobScheduler(mockJobScheduler);
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        int docCount = 10;
+        CountDownLatch latch = setupLatch(docCount);
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(docCount),
+                createFakeResolveInfos(docCount));
+        mInstance.doUpdate(/* firstRun= */ false);
+
+        mInstance.updateAsync(/* firstRun= */ false);
+
+        // Wait for all async tasks to complete
+        latch.await(10L, TimeUnit.SECONDS);
+
+        verify(mockJobScheduler, never()).schedule(any());
+    }
+
     class TestContext extends ContextWrapper {
+        @Nullable JobScheduler mJobScheduler;
+
         TestContext(Context base) {
             super(base);
         }
 
         @Override
+        @Nullable
+        public Object getSystemService(String name) {
+            if (mJobScheduler != null && Context.JOB_SCHEDULER_SERVICE.equals(name)) {
+                return mJobScheduler;
+            }
+            return getBaseContext().getSystemService(name);
+        }
+
+        @Override
         public PackageManager getPackageManager() {
             return mMockPackageManager;
+        }
+
+        public void setJobScheduler(@Nullable JobScheduler jobScheduler) {
+            mJobScheduler = jobScheduler;
+        }
+
+        @Override
+        public Context getApplicationContext() {
+            return this;
+        }
+
+        @Override
+        @NonNull
+        public Context createContextAsUser(UserHandle user, int flags) {
+            return this;
         }
     }
 }

@@ -20,7 +20,6 @@ import static android.os.Process.INVALID_UID;
 
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
-import android.annotation.UserIdInt;
 import android.app.appsearch.AppSearchEnvironment;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.util.LogUtil;
@@ -34,16 +33,18 @@ import android.os.CancellationSignal;
 import android.os.PatternMatcher;
 import android.os.UserHandle;
 import android.provider.ContactsContract;
+import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
-import android.util.SparseArray;
 
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
+import com.android.server.appsearch.indexer.IndexerLocalService;
 
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -63,8 +64,8 @@ public final class ContactsIndexerManagerService extends SystemService {
     private final ContactsIndexerConfig mContactsIndexerConfig;
     private final LocalService mLocalService;
     // Sparse array of ContactsIndexerUserInstance indexed by the device-user ID.
-    private final SparseArray<ContactsIndexerUserInstance> mContactsIndexersLocked =
-            new SparseArray<>();
+    private final Map<UserHandle, ContactsIndexerUserInstance> mContactsIndexersLocked =
+            new ArrayMap<>();
 
     private String mContactsProviderPackageName;
 
@@ -90,8 +91,7 @@ public final class ContactsIndexerManagerService extends SystemService {
             Objects.requireNonNull(user);
             UserHandle userHandle = user.getUserHandle();
             synchronized (mContactsIndexersLocked) {
-                int userId = userHandle.getIdentifier();
-                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userId);
+                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userHandle);
                 if (instance == null) {
                     AppSearchEnvironment appSearchEnvironment =
                             AppSearchEnvironmentFactory.getEnvironmentInstance();
@@ -106,7 +106,7 @@ public final class ContactsIndexerManagerService extends SystemService {
                     if (LogUtil.DEBUG) {
                         Log.d(TAG, "Created Contacts Indexer instance for user " + userHandle);
                     }
-                    mContactsIndexersLocked.put(userId, instance);
+                    mContactsIndexersLocked.put(userHandle, instance);
                 }
                 instance.startAsync();
             }
@@ -121,10 +121,9 @@ public final class ContactsIndexerManagerService extends SystemService {
             Objects.requireNonNull(user);
             UserHandle userHandle = user.getUserHandle();
             synchronized (mContactsIndexersLocked) {
-                int userId = userHandle.getIdentifier();
-                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userId);
+                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userHandle);
                 if (instance != null) {
-                    mContactsIndexersLocked.delete(userId);
+                    mContactsIndexersLocked.remove(userHandle);
                     try {
                         instance.shutdown();
                     } catch (InterruptedException e) {
@@ -144,9 +143,8 @@ public final class ContactsIndexerManagerService extends SystemService {
         try {
             Objects.requireNonNull(userHandle);
             Objects.requireNonNull(pw);
-            int userId = userHandle.getIdentifier();
             synchronized (mContactsIndexersLocked) {
-                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userId);
+                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userHandle);
                 if (instance != null) {
                     instance.dump(pw, verbose);
                 } else {
@@ -238,8 +236,8 @@ public final class ContactsIndexerManagerService extends SystemService {
                             Log.w(TAG, "uid is missing in the intent: " + intent);
                             return;
                         }
-                        int userId = UserHandle.getUserHandleForUid(uid).getIdentifier();
-                        mLocalService.doFullUpdateForUser(userId, new CancellationSignal());
+                        mLocalService.doUpdateForUser(
+                                UserHandle.getUserHandleForUid(uid), new CancellationSignal());
                         break;
                     default:
                         Log.w(TAG, "Received unknown intent: " + intent);
@@ -250,11 +248,15 @@ public final class ContactsIndexerManagerService extends SystemService {
         }
     }
 
-    class LocalService {
-        void doFullUpdateForUser(@UserIdInt int userId, @NonNull CancellationSignal signal) {
+    public class LocalService implements IndexerLocalService {
+
+        /** Runs a full update for the user. */
+        @Override
+        public void doUpdateForUser(
+                @NonNull UserHandle userHandle, @NonNull CancellationSignal signal) {
             Objects.requireNonNull(signal);
             synchronized (mContactsIndexersLocked) {
-                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userId);
+                ContactsIndexerUserInstance instance = mContactsIndexersLocked.get(userHandle);
                 if (instance != null) {
                     instance.doFullUpdateAsync(signal);
                 }
