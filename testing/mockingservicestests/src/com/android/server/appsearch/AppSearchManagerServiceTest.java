@@ -52,6 +52,9 @@ import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.AppSearchSchema.LongPropertyConfig;
+import android.app.appsearch.AppSearchSchema.PropertyConfig;
+import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
 import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetByDocumentIdRequest;
@@ -97,6 +100,7 @@ import android.app.appsearch.functions.ExecuteAppFunctionRequest;
 import android.app.appsearch.functions.ExecuteAppFunctionResponse;
 import android.app.appsearch.functions.ServiceCallHelper;
 import android.app.appsearch.observer.ObserverSpec;
+import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.app.role.RoleManager;
 import android.content.AttributionSource;
@@ -127,8 +131,11 @@ import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
+import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
+import com.android.server.appsearch.external.localstorage.usagereporting.ClickActionGenericDocument;
+import com.android.server.appsearch.external.localstorage.usagereporting.SearchActionGenericDocument;
 import com.android.server.usage.StorageStatsManagerLocal;
 
 import com.google.common.util.concurrent.SettableFuture;
@@ -385,6 +392,149 @@ public class AppSearchManagerServiceTest {
         verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
                 CallStats.CALL_TYPE_PUT_DOCUMENTS);
         // putDocuments only logs PutDocumentStats indirectly so we don't verify it
+    }
+
+    @Test
+    public void testPutDocumentsStatsLogging_takenActions() throws Exception {
+        // Set SearchAction and ClickAction schemas.
+        List<AppSearchSchema> schemas =
+                Arrays.asList(
+                        new AppSearchSchema.Builder("builtin:SearchAction")
+                                .addProperty(
+                                        new LongPropertyConfig.Builder("actionType")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .addProperty(
+                                        new StringPropertyConfig.Builder("query")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .addProperty(
+                                        new LongPropertyConfig.Builder("fetchedResultCount")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .build(),
+                        new AppSearchSchema.Builder("builtin:ClickAction")
+                                .addProperty(
+                                        new LongPropertyConfig.Builder("actionType")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .addProperty(
+                                        new StringPropertyConfig.Builder("query")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .addProperty(
+                                        new LongPropertyConfig.Builder("resultRankInBlock")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .addProperty(
+                                        new LongPropertyConfig.Builder("resultRankGlobal")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .addProperty(
+                                        new LongPropertyConfig.Builder("timeStayOnResultMillis")
+                                                .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mUserInstance
+                        .getAppSearchImpl()
+                        .setSchema(
+                                mContext.getPackageName(),
+                                DATABASE_NAME,
+                                schemas,
+                                /* visibilityDocuments= */ Collections.emptyList(),
+                                /* forceOverride= */ false,
+                                /* version= */ 0,
+                                /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Prepare search action and click action generic documents.
+        SearchActionGenericDocument searchAction1 =
+                new SearchActionGenericDocument.Builder(
+                                "namespace", "search1", "builtin:SearchAction")
+                        .setCreationTimestampMillis(1000)
+                        .setQuery("tes")
+                        .setFetchedResultCount(20)
+                        .build();
+        ClickActionGenericDocument clickAction1 =
+                new ClickActionGenericDocument.Builder("namespace", "click1", "builtin:ClickAction")
+                        .setCreationTimestampMillis(2000)
+                        .setQuery("tes")
+                        .setResultRankInBlock(1)
+                        .setResultRankGlobal(2)
+                        .setTimeStayOnResultMillis(512)
+                        .build();
+        ClickActionGenericDocument clickAction2 =
+                new ClickActionGenericDocument.Builder("namespace", "click2", "builtin:ClickAction")
+                        .setCreationTimestampMillis(3000)
+                        .setQuery("tes")
+                        .setResultRankInBlock(3)
+                        .setResultRankGlobal(6)
+                        .setTimeStayOnResultMillis(1024)
+                        .build();
+        SearchActionGenericDocument searchAction2 =
+                new SearchActionGenericDocument.Builder(
+                                "namespace", "search2", "builtin:SearchAction")
+                        .setCreationTimestampMillis(5000)
+                        .setQuery("test")
+                        .setFetchedResultCount(10)
+                        .build();
+        ClickActionGenericDocument clickAction3 =
+                new ClickActionGenericDocument.Builder("namespace", "click3", "builtin:ClickAction")
+                        .setCreationTimestampMillis(6000)
+                        .setQuery("test")
+                        .setResultRankInBlock(2)
+                        .setResultRankGlobal(4)
+                        .setTimeStayOnResultMillis(512)
+                        .build();
+        List<GenericDocumentParcel> takenActionGenericDocumentParcels =
+                Arrays.asList(
+                        GenericDocumentParcel.fromGenericDocument(searchAction1),
+                        GenericDocumentParcel.fromGenericDocument(clickAction1),
+                        GenericDocumentParcel.fromGenericDocument(clickAction2),
+                        GenericDocumentParcel.fromGenericDocument(searchAction2),
+                        GenericDocumentParcel.fromGenericDocument(clickAction3));
+
+        TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
+        mAppSearchManagerServiceStub.putDocuments(
+                new PutDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        DATABASE_NAME,
+                        new DocumentsParcel(
+                                Collections.emptyList(), takenActionGenericDocumentParcels),
+                        mUserHandle,
+                        BINDER_CALL_START_TIME),
+                callback);
+        assertThat(callback.get()).isNull(); // null means there wasn't an error
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_PUT_DOCUMENTS);
+
+        // Verify
+        ArgumentCaptor<List<SearchIntentStats>> searchIntentsStatsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mLogger, timeout(1000).times(1)).logStats(searchIntentsStatsCaptor.capture());
+        List<SearchIntentStats> searchIntentsStats = searchIntentsStatsCaptor.getValue();
+        assertThat(searchIntentsStats).hasSize(2);
+
+        assertThat(searchIntentsStats.get(0).getPackageName()).isEqualTo(mContext.getPackageName());
+        assertThat(searchIntentsStats.get(0).getDatabase()).isEqualTo(DATABASE_NAME);
+        assertThat(searchIntentsStats.get(0).getPrevQuery()).isNull();
+        assertThat(searchIntentsStats.get(0).getCurrQuery()).isEqualTo("tes");
+        assertThat(searchIntentsStats.get(0).getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentsStats.get(0).getNumResultsFetched()).isEqualTo(20);
+        assertThat(searchIntentsStats.get(0).getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
+        assertThat(searchIntentsStats.get(0).getClicksStats()).hasSize(2);
+
+        assertThat(searchIntentsStats.get(1).getPackageName()).isEqualTo(mContext.getPackageName());
+        assertThat(searchIntentsStats.get(1).getDatabase()).isEqualTo(DATABASE_NAME);
+        assertThat(searchIntentsStats.get(1).getPrevQuery()).isEqualTo("tes");
+        assertThat(searchIntentsStats.get(1).getCurrQuery()).isEqualTo("test");
+        assertThat(searchIntentsStats.get(1).getTimestampMillis()).isEqualTo(5000);
+        assertThat(searchIntentsStats.get(1).getNumResultsFetched()).isEqualTo(10);
+        assertThat(searchIntentsStats.get(1).getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
+        assertThat(searchIntentsStats.get(1).getClicksStats()).hasSize(1);
     }
 
     @Test

@@ -22,6 +22,7 @@ import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.content.Context;
+import android.os.Build;
 import android.os.Process;
 import android.os.SystemClock;
 import android.util.ArrayMap;
@@ -33,10 +34,12 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
+import com.android.server.appsearch.external.localstorage.stats.ClickStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
+import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.util.ApiCallRecord;
@@ -214,6 +217,19 @@ public final class PlatformLogger implements InternalAppSearchLogger {
             if (shouldLogForTypeLocked(CallStats.CALL_TYPE_SCHEMA_MIGRATION)) {
                 logStatsImplLocked(stats);
             }
+        }
+    }
+
+    @Override
+    public void logStats(@NonNull List<SearchIntentStats> searchIntentsStats) {
+        Objects.requireNonNull(searchIntentsStats);
+        if (searchIntentsStats.isEmpty()) {
+            return;
+        }
+
+        synchronized (mLock) {
+            // TODO(b/173532925): apply sampling if necessary
+            logStatsImplLocked(searchIntentsStats);
         }
     }
 
@@ -524,6 +540,82 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 stats.getStorageSizeBeforeBytes(),
                 stats.getStorageSizeAfterBytes(),
                 stats.getTimeSinceLastOptimizeMillis());
+    }
+
+    @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull List<SearchIntentStats> searchIntentsStats) {
+        for (int i = 0; i < searchIntentsStats.size(); ++i) {
+            SearchIntentStats searchIntentStats = searchIntentsStats.get(i);
+            logStatsImplLocked(searchIntentStats);
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull SearchIntentStats searchIntentStats) {
+        int packageUid = getPackageUidAsUserLocked(searchIntentStats.getPackageName());
+        String database = searchIntentStats.getDatabase();
+
+        // Prepare click related objects for atoms.
+        List<ClickStats> clicksStats = searchIntentStats.getClicksStats();
+        long[] clicksTimestampMillis = new long[clicksStats.size()];
+        long[] clicksTimeStayOnResultMillis = new long[clicksStats.size()];
+        int[] clicksResultRankInBlock = new int[clicksStats.size()];
+        int[] clicksResultRankGlobal = new int[clicksStats.size()];
+        int numClicks = clicksStats.size();
+        int numGoodClicks = 0;
+        for (int i = 0; i < clicksStats.size(); ++i) {
+            ClickStats clickStats = clicksStats.get(i);
+
+            clicksTimestampMillis[i] = clickStats.getTimestampMillis();
+            clicksTimeStayOnResultMillis[i] = clickStats.getTimeStayOnResultMillis();
+            clicksResultRankInBlock[i] = clickStats.getResultRankInBlock();
+            clicksResultRankGlobal[i] = clickStats.getResultRankGlobal();
+            if (clickStats.isGoodClick()) {
+                ++numGoodClicks;
+            }
+        }
+
+        int hashCodeForDatabase;
+        try {
+            hashCodeForDatabase = calculateHashCodeMd5(database);
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+            // Something is wrong while calculating the hash code for database. Assign the hash
+            // value with 0xFFFFFFFF, and log the error message.
+            // This shouldn't happen since we always use "MD5" and "UTF-8".
+            hashCodeForDatabase = 0xFFFFFFFF;
+            if (database != null) {
+                Log.e(TAG, "Error calculating hash code for database " + database, e);
+            }
+        }
+
+        // Write atoms.
+        AppSearchStatsLog.write(
+                AppSearchStatsLog.APP_SEARCH_USAGE_SEARCH_INTENT_STATS_REPORTED,
+                packageUid,
+                hashCodeForDatabase,
+                searchIntentStats.getTimestampMillis(),
+                searchIntentStats.getNumResultsFetched(),
+                searchIntentStats.getQueryCorrectionType(),
+                clicksTimestampMillis,
+                clicksTimeStayOnResultMillis,
+                clicksResultRankInBlock,
+                clicksResultRankGlobal);
+
+        // Restricted atoms are only available on U+.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            String prevQuery = searchIntentStats.getPrevQuery();
+            String currQuery = searchIntentStats.getCurrQuery();
+            AppSearchStatsLog.write(
+                    AppSearchStatsLog.APP_SEARCH_USAGE_SEARCH_INTENT_RAW_QUERY_STATS_REPORTED,
+                    searchIntentStats.getPackageName(),
+                    hashCodeForDatabase,
+                    prevQuery == null ? "" : prevQuery,
+                    currQuery == null ? "" : currQuery,
+                    searchIntentStats.getNumResultsFetched(),
+                    numClicks,
+                    numGoodClicks,
+                    searchIntentStats.getQueryCorrectionType());
+        }
     }
 
     /**

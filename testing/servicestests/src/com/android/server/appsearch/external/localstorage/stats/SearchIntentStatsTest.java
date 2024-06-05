@@ -43,6 +43,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(20L)
                         .setResultRankInBlock(30)
                         .setResultRankGlobal(40)
+                        .setIsGoodClick(false)
                         .build();
         final ClickStats clickStats1 =
                 new ClickStats.Builder()
@@ -50,6 +51,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(21L)
                         .setResultRankInBlock(31)
                         .setResultRankGlobal(41)
+                        .setIsGoodClick(true)
                         .build();
 
         final SearchIntentStats searchIntentStats =
@@ -81,6 +83,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(20L)
                         .setResultRankInBlock(30)
                         .setResultRankGlobal(40)
+                        .setIsGoodClick(false)
                         .build();
         final ClickStats clickStats1 =
                 new ClickStats.Builder()
@@ -88,6 +91,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(21L)
                         .setResultRankInBlock(31)
                         .setResultRankGlobal(41)
+                        .setIsGoodClick(true)
                         .build();
         Set<ClickStats> clicksStats = ImmutableSet.of(clickStats0, clickStats1);
 
@@ -114,6 +118,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(20L)
                         .setResultRankInBlock(30)
                         .setResultRankGlobal(40)
+                        .setIsGoodClick(false)
                         .build();
         final ClickStats clickStats1 =
                 new ClickStats.Builder()
@@ -121,6 +126,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(21L)
                         .setResultRankInBlock(31)
                         .setResultRankGlobal(41)
+                        .setIsGoodClick(true)
                         .build();
 
         SearchIntentStats.Builder builder =
@@ -141,6 +147,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(22L)
                         .setResultRankInBlock(32)
                         .setResultRankGlobal(42)
+                        .setIsGoodClick(true)
                         .build();
         builder.addClicksStats(clickStats2);
 
@@ -182,6 +189,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(20L)
                         .setResultRankInBlock(30)
                         .setResultRankGlobal(40)
+                        .setIsGoodClick(false)
                         .build();
         final ClickStats clickStats1 =
                 new ClickStats.Builder()
@@ -189,6 +197,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(21L)
                         .setResultRankInBlock(31)
                         .setResultRankGlobal(41)
+                        .setIsGoodClick(true)
                         .build();
 
         SearchIntentStats.Builder builder =
@@ -209,6 +218,7 @@ public class SearchIntentStatsTest {
                         .setTimeStayOnResultMillis(22L)
                         .setResultRankInBlock(32)
                         .setResultRankGlobal(42)
+                        .setIsGoodClick(true)
                         .build();
         builder.addClicksStats(ImmutableSet.of(clickStats2));
 
