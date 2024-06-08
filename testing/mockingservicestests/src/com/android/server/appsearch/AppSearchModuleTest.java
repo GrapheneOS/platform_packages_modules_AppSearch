@@ -16,6 +16,9 @@
 
 package com.android.server.appsearch;
 
+import static com.android.server.appsearch.appsindexer.AppsIndexerConfig.DEFAULT_APPS_INDEXER_ENABLED;
+import static com.android.server.appsearch.contactsindexer.ContactsIndexerConfig.DEFAULT_CONTACTS_INDEXER_ENABLED;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertNull;
@@ -49,8 +52,6 @@ public class AppSearchModuleTest {
     private static final String NAMESPACE_APPSEARCH = "appsearch";
     private static final String KEY_CONTACTS_INDEXER_ENABLED = "contacts_indexer_enabled";
     private static final String KEY_APPS_INDEXER_ENABLED = "apps_indexer_enabled";
-    private static final boolean DEFAULT_CONTACTS_INDEXER_ENABLED = true;
-    private static final boolean DEFAULT_APPS_INDEXER_ENABLED = true;
 
     private final ContactsIndexerManagerService mContactsIndexerService =
             mock(ContactsIndexerManagerService.class);
