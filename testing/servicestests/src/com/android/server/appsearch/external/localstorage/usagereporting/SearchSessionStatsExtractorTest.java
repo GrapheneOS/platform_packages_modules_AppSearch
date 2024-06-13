@@ -21,13 +21,14 @@ import static com.google.common.truth.Truth.assertThat;
 import android.app.appsearch.GenericDocument;
 
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
+import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class SearchIntentStatsExtractorTest {
+public class SearchSessionStatsExtractorTest {
     private static final String TEST_PACKAGE_NAME = "test.package.name";
     private static final String TEST_DATABASE = "database";
 
@@ -104,62 +105,101 @@ public class SearchIntentStatsExtractorTest {
                         clickAction4,
                         clickAction5);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
 
-        assertThat(result).hasSize(2);
-        // Search intent 0
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("tes");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(20);
-        assertThat(result.get(0).getQueryCorrectionType())
-                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).hasSize(2);
-        assertThat(result.get(0).getClicksStats().get(0).getTimestampMillis()).isEqualTo(2000);
-        assertThat(result.get(0).getClicksStats().get(0).getResultRankInBlock()).isEqualTo(1);
-        assertThat(result.get(0).getClicksStats().get(0).getResultRankGlobal()).isEqualTo(2);
-        assertThat(result.get(0).getClicksStats().get(0).getTimeStayOnResultMillis())
-                .isEqualTo(512);
-        assertThat(result.get(0).getClicksStats().get(0).isGoodClick()).isFalse();
-        assertThat(result.get(0).getClicksStats().get(1).getTimestampMillis()).isEqualTo(3000);
-        assertThat(result.get(0).getClicksStats().get(1).getResultRankInBlock()).isEqualTo(3);
-        assertThat(result.get(0).getClicksStats().get(1).getResultRankGlobal()).isEqualTo(6);
-        assertThat(result.get(0).getClicksStats().get(1).getTimeStayOnResultMillis())
-                .isEqualTo(1024);
-        assertThat(result.get(0).getClicksStats().get(1).isGoodClick()).isFalse();
+        assertThat(result).hasSize(1);
 
-        // Search intent 1
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(5000);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("test");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("tes");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(10);
-        assertThat(result.get(1).getQueryCorrectionType())
-                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).hasSize(3);
-        assertThat(result.get(1).getClicksStats().get(0).getTimestampMillis()).isEqualTo(6000);
-        assertThat(result.get(1).getClicksStats().get(0).getResultRankInBlock()).isEqualTo(2);
-        assertThat(result.get(1).getClicksStats().get(0).getResultRankGlobal()).isEqualTo(4);
-        assertThat(result.get(1).getClicksStats().get(0).getTimeStayOnResultMillis())
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(2);
+
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("tes");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(20);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
+        assertThat(searchIntentStats0.getClicksStats()).hasSize(2);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getTimestampMillis()).isEqualTo(2000);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getResultRankInBlock()).isEqualTo(1);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getResultRankGlobal()).isEqualTo(2);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getTimeStayOnResultMillis())
                 .isEqualTo(512);
-        assertThat(result.get(1).getClicksStats().get(0).isGoodClick()).isFalse();
-        assertThat(result.get(1).getClicksStats().get(1).getTimestampMillis()).isEqualTo(7000);
-        assertThat(result.get(1).getClicksStats().get(1).getResultRankInBlock()).isEqualTo(4);
-        assertThat(result.get(1).getClicksStats().get(1).getResultRankGlobal()).isEqualTo(8);
-        assertThat(result.get(1).getClicksStats().get(1).getTimeStayOnResultMillis())
+        assertThat(searchIntentStats0.getClicksStats().get(0).isGoodClick()).isFalse();
+        assertThat(searchIntentStats0.getClicksStats().get(1).getTimestampMillis()).isEqualTo(3000);
+        assertThat(searchIntentStats0.getClicksStats().get(1).getResultRankInBlock()).isEqualTo(3);
+        assertThat(searchIntentStats0.getClicksStats().get(1).getResultRankGlobal()).isEqualTo(6);
+        assertThat(searchIntentStats0.getClicksStats().get(1).getTimeStayOnResultMillis())
+                .isEqualTo(1024);
+        assertThat(searchIntentStats0.getClicksStats().get(1).isGoodClick()).isFalse();
+
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(5000);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("test");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("tes");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(10);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
+        assertThat(searchIntentStats1.getClicksStats()).hasSize(3);
+        assertThat(searchIntentStats1.getClicksStats().get(0).getTimestampMillis()).isEqualTo(6000);
+        assertThat(searchIntentStats1.getClicksStats().get(0).getResultRankInBlock()).isEqualTo(2);
+        assertThat(searchIntentStats1.getClicksStats().get(0).getResultRankGlobal()).isEqualTo(4);
+        assertThat(searchIntentStats1.getClicksStats().get(0).getTimeStayOnResultMillis())
+                .isEqualTo(512);
+        assertThat(searchIntentStats1.getClicksStats().get(0).isGoodClick()).isFalse();
+        assertThat(searchIntentStats1.getClicksStats().get(1).getTimestampMillis()).isEqualTo(7000);
+        assertThat(searchIntentStats1.getClicksStats().get(1).getResultRankInBlock()).isEqualTo(4);
+        assertThat(searchIntentStats1.getClicksStats().get(1).getResultRankGlobal()).isEqualTo(8);
+        assertThat(searchIntentStats1.getClicksStats().get(1).getTimeStayOnResultMillis())
                 .isEqualTo(256);
-        assertThat(result.get(1).getClicksStats().get(1).isGoodClick()).isFalse();
-        assertThat(result.get(1).getClicksStats().get(2).getTimestampMillis()).isEqualTo(8000);
-        assertThat(result.get(1).getClicksStats().get(2).getResultRankInBlock()).isEqualTo(6);
-        assertThat(result.get(1).getClicksStats().get(2).getResultRankGlobal()).isEqualTo(12);
-        assertThat(result.get(1).getClicksStats().get(2).getTimeStayOnResultMillis())
+        assertThat(searchIntentStats1.getClicksStats().get(1).isGoodClick()).isFalse();
+        assertThat(searchIntentStats1.getClicksStats().get(2).getTimestampMillis()).isEqualTo(8000);
+        assertThat(searchIntentStats1.getClicksStats().get(2).getResultRankInBlock()).isEqualTo(6);
+        assertThat(searchIntentStats1.getClicksStats().get(2).getResultRankGlobal()).isEqualTo(12);
+        assertThat(searchIntentStats1.getClicksStats().get(2).getTimeStayOnResultMillis())
                 .isEqualTo(2048);
-        assertThat(result.get(1).getClicksStats().get(2).isGoodClick()).isTrue();
+        assertThat(searchIntentStats1.getClicksStats().get(2).isGoodClick()).isTrue();
+    }
+
+    @Test
+    public void testExtract_noSearchActionShouldReturnEmptyList() {
+        // Create search action and click action generic documents.
+        GenericDocument clickAction1 =
+                new ClickActionGenericDocument.Builder("namespace", "click1", "builtin:ClickAction")
+                        .setCreationTimestampMillis(2000)
+                        .setQuery("tes")
+                        .setResultRankInBlock(1)
+                        .setResultRankGlobal(2)
+                        .setTimeStayOnResultMillis(512)
+                        .setPropertyString("referencedQualifiedId", "pkg$db/ns#doc1")
+                        .build();
+        GenericDocument clickAction2 =
+                new ClickActionGenericDocument.Builder("namespace", "click2", "builtin:ClickAction")
+                        .setCreationTimestampMillis(3000)
+                        .setQuery("tes")
+                        .setResultRankInBlock(3)
+                        .setResultRankGlobal(6)
+                        .setTimeStayOnResultMillis(1024)
+                        .setPropertyString("referencedQualifiedId", "pkg$db/ns#doc2")
+                        .build();
+
+        List<GenericDocument> takenActionGenericDocuments =
+                Arrays.asList(clickAction1, clickAction2);
+
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
+                        .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -194,28 +234,36 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, clickAction1, clickAction2);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(1);
 
         // Since clickAction1 doesn't have property "actionType", it should be skipped without
         // throwing any exception.
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("tes");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(20);
-        assertThat(result.get(0).getQueryCorrectionType())
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("tes");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(20);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).hasSize(1);
-        assertThat(result.get(0).getClicksStats().get(0).getTimestampMillis()).isEqualTo(3000);
-        assertThat(result.get(0).getClicksStats().get(0).getResultRankInBlock()).isEqualTo(3);
-        assertThat(result.get(0).getClicksStats().get(0).getResultRankGlobal()).isEqualTo(6);
-        assertThat(result.get(0).getClicksStats().get(0).getTimeStayOnResultMillis())
+        assertThat(searchIntentStats0.getClicksStats()).hasSize(1);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getTimestampMillis()).isEqualTo(3000);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getResultRankInBlock()).isEqualTo(3);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getResultRankGlobal()).isEqualTo(6);
+        assertThat(searchIntentStats0.getClicksStats().get(0).getTimeStayOnResultMillis())
                 .isEqualTo(1024);
-        assertThat(result.get(0).getClicksStats().get(0).isGoodClick()).isFalse();
+        assertThat(searchIntentStats0.getClicksStats().get(0).isGoodClick()).isFalse();
     }
 
     @Test
@@ -260,43 +308,55 @@ public class SearchIntentStatsExtractorTest {
                 Arrays.asList(
                         searchAction1, searchAction2, searchAction3, searchAction4, searchAction5);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(3);
 
         // searchAction2, searchAction3 should be considered as noise since they're intermediate
         // search actions with no clicks. The extractor should create search intents only for the
         // others.
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(0).getQueryCorrectionType())
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(3001);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("test");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("t");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(3001);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("test");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("t");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
 
-        assertThat(result.get(2).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(2).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(2).getTimestampMillis()).isEqualTo(10000);
-        assertThat(result.get(2).getCurrQuery()).isEqualTo("testing");
-        assertThat(result.get(2).getPrevQuery()).isEqualTo("test");
-        assertThat(result.get(2).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(2).getQueryCorrectionType())
+        // Search session 0, search intent 2
+        SearchIntentStats searchIntentStats2 = searchSessionStats0.getSearchIntentsStats().get(2);
+        assertThat(searchIntentStats2.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats2.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats2.getTimestampMillis()).isEqualTo(10000);
+        assertThat(searchIntentStats2.getCurrQuery()).isEqualTo("testing");
+        assertThat(searchIntentStats2.getPrevQuery()).isEqualTo("test");
+        assertThat(searchIntentStats2.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats2.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(2).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats2.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -341,43 +401,55 @@ public class SearchIntentStatsExtractorTest {
                 Arrays.asList(
                         searchAction1, searchAction2, searchAction3, searchAction4, searchAction5);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(3);
 
         // searchAction2, searchAction3 should be considered as noise since they're intermediate
         // search actions with no clicks. The extractor should create search intents only for the
         // others.
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("testing");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(0).getQueryCorrectionType())
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("testing");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(3001);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("te");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("testing");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(3001);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("te");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("testing");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
 
-        assertThat(result.get(2).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(2).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(2).getTimestampMillis()).isEqualTo(10000);
-        assertThat(result.get(2).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(2).getPrevQuery()).isEqualTo("te");
-        assertThat(result.get(2).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(2).getQueryCorrectionType())
+        // Search session 0, search intent 2
+        SearchIntentStats searchIntentStats2 = searchSessionStats0.getSearchIntentsStats().get(2);
+        assertThat(searchIntentStats2.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats2.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats2.getTimestampMillis()).isEqualTo(10000);
+        assertThat(searchIntentStats2.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats2.getPrevQuery()).isEqualTo("te");
+        assertThat(searchIntentStats2.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats2.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(2).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats2.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -407,42 +479,54 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, searchAction2, searchAction3);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(3);
 
         // searchAction2 should not be considered as noise since it occurs after the threshold from
         // searchAction1 (and therefore not intermediate search actions).
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(0).getQueryCorrectionType())
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(3001);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("te");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("t");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(3001);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("te");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("t");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
 
-        assertThat(result.get(2).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(2).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(2).getTimestampMillis()).isEqualTo(10000);
-        assertThat(result.get(2).getCurrQuery()).isEqualTo("test");
-        assertThat(result.get(2).getPrevQuery()).isEqualTo("te");
-        assertThat(result.get(2).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(2).getQueryCorrectionType())
+        // Search session 0, search intent 2
+        SearchIntentStats searchIntentStats2 = searchSessionStats0.getSearchIntentsStats().get(2);
+        assertThat(searchIntentStats2.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats2.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats2.getTimestampMillis()).isEqualTo(10000);
+        assertThat(searchIntentStats2.getCurrQuery()).isEqualTo("test");
+        assertThat(searchIntentStats2.getPrevQuery()).isEqualTo("te");
+        assertThat(searchIntentStats2.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats2.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(2).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats2.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -479,52 +563,67 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, searchAction2, searchAction3, searchAction4);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(4);
 
         // searchAction2 and searchAction3 should not be considered as noise since neither query
         // string is a prefix of the previous one (and therefore not intermediate search actions).
-        assertThat(result).hasSize(4);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("apple");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(0).getQueryCorrectionType())
+
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("apple");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(1500);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("application");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("apple");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(1500);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("application");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("apple");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
 
-        assertThat(result.get(2).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(2).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(2).getTimestampMillis()).isEqualTo(2000);
-        assertThat(result.get(2).getCurrQuery()).isEqualTo("email");
-        assertThat(result.get(2).getPrevQuery()).isEqualTo("application");
-        assertThat(result.get(2).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(2).getQueryCorrectionType())
+        // Search session 0, search intent 2
+        SearchIntentStats searchIntentStats2 = searchSessionStats0.getSearchIntentsStats().get(2);
+        assertThat(searchIntentStats2.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats2.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats2.getTimestampMillis()).isEqualTo(2000);
+        assertThat(searchIntentStats2.getCurrQuery()).isEqualTo("email");
+        assertThat(searchIntentStats2.getPrevQuery()).isEqualTo("application");
+        assertThat(searchIntentStats2.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats2.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT);
-        assertThat(result.get(2).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats2.getClicksStats()).isEmpty();
 
-        assertThat(result.get(3).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(3).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(3).getTimestampMillis()).isEqualTo(10000);
-        assertThat(result.get(3).getCurrQuery()).isEqualTo("google");
-        assertThat(result.get(3).getPrevQuery()).isEqualTo("email");
-        assertThat(result.get(3).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(3).getQueryCorrectionType())
+        // Search session 0, search intent 3
+        SearchIntentStats searchIntentStats3 = searchSessionStats0.getSearchIntentsStats().get(3);
+        assertThat(searchIntentStats3.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats3.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats3.getTimestampMillis()).isEqualTo(10000);
+        assertThat(searchIntentStats3.getCurrQuery()).isEqualTo("google");
+        assertThat(searchIntentStats3.getPrevQuery()).isEqualTo("email");
+        assertThat(searchIntentStats3.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats3.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT);
-        assertThat(result.get(3).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats3.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -547,32 +646,43 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, searchAction2);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(2);
 
         // searchAction2 should not be considered as noise since it is the last search action (and
         // therefore not an intermediate search action).
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(0).getQueryCorrectionType())
-                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(2000);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("te");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("t");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
+
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(2000);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("te");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("t");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -602,44 +712,62 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, searchAction2, searchAction3);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
 
         // searchAction2 should not be considered as noise:
-        // - searchAction3 is independent from searchAction2.
-        // - So searchAction2 is the last search action of the related search sequence (and
-        //   therefore not an intermediate search action).
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(0).getQueryCorrectionType())
-                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
+        // - searchAction3 is independent from searchAction2 and therefore forms an independent
+        //   search session.
+        // - So searchAction2 is the last search action of its search session (and therefore not an
+        // intermediate search action).
+        assertThat(result).hasSize(2);
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(2000);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("te");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("t");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(1).getQueryCorrectionType())
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(2);
+
+        SearchSessionStats searchSessionStats1 = result.get(1);
+        assertThat(searchSessionStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats1.getSearchIntentsStats()).hasSize(1);
+
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
+
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(2000);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("te");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("t");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
 
-        assertThat(result.get(2).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(2).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(2).getTimestampMillis()).isEqualTo(602001);
-        assertThat(result.get(2).getCurrQuery()).isEqualTo("test");
-        assertThat(result.get(2).getPrevQuery()).isNull();
-        assertThat(result.get(2).getNumResultsFetched()).isEqualTo(0);
-        assertThat(result.get(2).getQueryCorrectionType())
+        // Search session 1, search intent 0
+        SearchIntentStats searchIntentStats2 = searchSessionStats1.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats2.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats2.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats2.getTimestampMillis()).isEqualTo(602001);
+        assertThat(searchIntentStats2.getCurrQuery()).isEqualTo("test");
+        assertThat(searchIntentStats2.getPrevQuery()).isNull();
+        assertThat(searchIntentStats2.getNumResultsFetched()).isEqualTo(0);
+        assertThat(searchIntentStats2.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(2).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats2.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -678,46 +806,59 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, searchAction2, clickAction1, searchAction3);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
+
+        assertThat(result).hasSize(1);
+
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(3);
 
         // Even though searchAction2 is an intermediate search action, it should not be considered
         // as noise since there is at least 1 valid click action associated with it.
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(20);
-        assertThat(result.get(0).getQueryCorrectionType())
+
+        // Search session 0, search intent 0
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(20);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(2000);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("te");
-        assertThat(result.get(1).getPrevQuery()).isEqualTo("t");
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(10);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0, search intent 1
+        SearchIntentStats searchIntentStats1 = searchSessionStats0.getSearchIntentsStats().get(1);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(2000);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("te");
+        assertThat(searchIntentStats1.getPrevQuery()).isEqualTo("t");
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(10);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(1).getClicksStats()).hasSize(1);
+        assertThat(searchIntentStats1.getClicksStats()).hasSize(1);
 
-        assertThat(result.get(2).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(2).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(2).getTimestampMillis()).isEqualTo(10000);
-        assertThat(result.get(2).getCurrQuery()).isEqualTo("test");
-        assertThat(result.get(2).getPrevQuery()).isEqualTo("te");
-        assertThat(result.get(2).getNumResultsFetched()).isEqualTo(5);
-        assertThat(result.get(2).getQueryCorrectionType())
+        // Search session 0, search intent 2
+        SearchIntentStats searchIntentStats2 = searchSessionStats0.getSearchIntentsStats().get(2);
+        assertThat(searchIntentStats2.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats2.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats2.getTimestampMillis()).isEqualTo(10000);
+        assertThat(searchIntentStats2.getCurrQuery()).isEqualTo("test");
+        assertThat(searchIntentStats2.getPrevQuery()).isEqualTo("te");
+        assertThat(searchIntentStats2.getNumResultsFetched()).isEqualTo(5);
+        assertThat(searchIntentStats2.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
-        assertThat(result.get(2).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats2.getClicksStats()).isEmpty();
     }
 
     @Test
-    public void testExtract_detectIndependentSearchIntent() {
+    public void testExtract_independentSearchIntentShouldStartNewSearchSession() {
         GenericDocument searchAction1 =
                 new SearchActionGenericDocument.Builder(
                                 "namespace", "search1", "builtin:SearchAction")
@@ -736,32 +877,46 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, searchAction2);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
 
         // Since time difference between searchAction1 and searchAction2 exceeds the threshold,
-        // searchAction2 should be considered as an independent search intent.
+        // searchAction2 should be considered as an independent search intent and therefore a new
+        // search session stats is created.
         assertThat(result).hasSize(2);
-        assertThat(result.get(0).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(0).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(0).getTimestampMillis()).isEqualTo(1000);
-        assertThat(result.get(0).getCurrQuery()).isEqualTo("t");
-        assertThat(result.get(0).getPrevQuery()).isNull();
-        assertThat(result.get(0).getNumResultsFetched()).isEqualTo(20);
-        assertThat(result.get(0).getQueryCorrectionType())
-                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(0).getClicksStats()).isEmpty();
 
-        assertThat(result.get(1).getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
-        assertThat(result.get(1).getDatabase()).isEqualTo(TEST_DATABASE);
-        assertThat(result.get(1).getTimestampMillis()).isEqualTo(601001);
-        assertThat(result.get(1).getCurrQuery()).isEqualTo("te");
-        assertThat(result.get(1).getPrevQuery()).isNull();
-        assertThat(result.get(1).getNumResultsFetched()).isEqualTo(10);
-        assertThat(result.get(1).getQueryCorrectionType())
+        // Search session 0
+        SearchSessionStats searchSessionStats0 = result.get(0);
+        assertThat(searchSessionStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats0.getSearchIntentsStats()).hasSize(1);
+        SearchIntentStats searchIntentStats0 = searchSessionStats0.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats0.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats0.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats0.getTimestampMillis()).isEqualTo(1000);
+        assertThat(searchIntentStats0.getCurrQuery()).isEqualTo("t");
+        assertThat(searchIntentStats0.getPrevQuery()).isNull();
+        assertThat(searchIntentStats0.getNumResultsFetched()).isEqualTo(20);
+        assertThat(searchIntentStats0.getQueryCorrectionType())
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
-        assertThat(result.get(1).getClicksStats()).isEmpty();
+        assertThat(searchIntentStats0.getClicksStats()).isEmpty();
+
+        // Search session 1
+        SearchSessionStats searchSessionStats1 = result.get(1);
+        assertThat(searchSessionStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats1.getSearchIntentsStats()).hasSize(1);
+        SearchIntentStats searchIntentStats1 = searchSessionStats1.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats1.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchIntentStats1.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchIntentStats1.getTimestampMillis()).isEqualTo(601001);
+        assertThat(searchIntentStats1.getCurrQuery()).isEqualTo("te");
+        assertThat(searchIntentStats1.getPrevQuery()).isNull();
+        assertThat(searchIntentStats1.getNumResultsFetched()).isEqualTo(10);
+        assertThat(searchIntentStats1.getQueryCorrectionType())
+                .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
+        assertThat(searchIntentStats1.getClicksStats()).isEmpty();
     }
 
     @Test
@@ -798,27 +953,35 @@ public class SearchIntentStatsExtractorTest {
                 Arrays.asList(
                         searchAction1, clickAction1, clickAction2, clickAction3, clickAction4);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getClicksStats()).hasSize(4);
 
-        assertThat(result.get(0).getClicksStats().get(0).getTimeStayOnResultMillis())
+        SearchSessionStats searchSessionStats = result.get(0);
+        assertThat(searchSessionStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats.getSearchIntentsStats()).hasSize(1);
+
+        SearchIntentStats searchIntentStats = searchSessionStats.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats.getClicksStats()).hasSize(4);
+
+        assertThat(searchIntentStats.getClicksStats().get(0).getTimeStayOnResultMillis())
                 .isEqualTo(2001);
-        assertThat(result.get(0).getClicksStats().get(0).isGoodClick()).isTrue();
+        assertThat(searchIntentStats.getClicksStats().get(0).isGoodClick()).isTrue();
 
-        assertThat(result.get(0).getClicksStats().get(1).getTimeStayOnResultMillis())
+        assertThat(searchIntentStats.getClicksStats().get(1).getTimeStayOnResultMillis())
                 .isEqualTo(1999);
-        assertThat(result.get(0).getClicksStats().get(1).isGoodClick()).isFalse();
+        assertThat(searchIntentStats.getClicksStats().get(1).isGoodClick()).isFalse();
 
-        assertThat(result.get(0).getClicksStats().get(2).getTimeStayOnResultMillis()).isEqualTo(1);
-        assertThat(result.get(0).getClicksStats().get(2).isGoodClick()).isFalse();
+        assertThat(searchIntentStats.getClicksStats().get(2).getTimeStayOnResultMillis())
+                .isEqualTo(1);
+        assertThat(searchIntentStats.getClicksStats().get(2).isGoodClick()).isFalse();
 
-        assertThat(result.get(0).getClicksStats().get(3).getTimeStayOnResultMillis())
+        assertThat(searchIntentStats.getClicksStats().get(3).getTimeStayOnResultMillis())
                 .isEqualTo(2000);
-        assertThat(result.get(0).getClicksStats().get(3).isGoodClick()).isTrue();
+        assertThat(searchIntentStats.getClicksStats().get(3).isGoodClick()).isTrue();
     }
 
     @Test
@@ -838,15 +1001,26 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, clickAction1);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getClicksStats()).hasSize(1);
 
-        assertThat(result.get(0).getClicksStats().get(0).getTimeStayOnResultMillis()).isEqualTo(0);
-        assertThat(result.get(0).getClicksStats().get(0).isGoodClick()).isTrue();
+        SearchSessionStats searchSessionStats = result.get(0);
+        assertThat(searchSessionStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats.getSearchIntentsStats()).hasSize(1);
+
+        SearchIntentStats searchIntentStats = searchSessionStats.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats.getClicksStats()).hasSize(1);
+
+        assertThat(result).hasSize(1);
+        assertThat(searchIntentStats.getClicksStats()).hasSize(1);
+
+        assertThat(searchIntentStats.getClicksStats().get(0).getTimeStayOnResultMillis())
+                .isEqualTo(0);
+        assertThat(searchIntentStats.getClicksStats().get(0).isGoodClick()).isTrue();
     }
 
     @Test
@@ -872,18 +1046,27 @@ public class SearchIntentStatsExtractorTest {
         List<GenericDocument> takenActionGenericDocuments =
                 Arrays.asList(searchAction1, clickAction1, clickAction2);
 
-        List<SearchIntentStats> result =
-                new SearchIntentStatsExtractor()
+        List<SearchSessionStats> result =
+                new SearchSessionStatsExtractor()
                         .extract(TEST_PACKAGE_NAME, TEST_DATABASE, takenActionGenericDocuments);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getClicksStats()).hasSize(2);
 
-        assertThat(result.get(0).getClicksStats().get(0).getTimeStayOnResultMillis()).isEqualTo(-1);
-        assertThat(result.get(0).getClicksStats().get(0).isGoodClick()).isTrue();
+        SearchSessionStats searchSessionStats = result.get(0);
+        assertThat(searchSessionStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(searchSessionStats.getDatabase()).isEqualTo(TEST_DATABASE);
+        assertThat(searchSessionStats.getSearchIntentsStats()).hasSize(1);
 
-        assertThat(result.get(0).getClicksStats().get(1).getTimeStayOnResultMillis()).isEqualTo(0);
-        assertThat(result.get(0).getClicksStats().get(1).isGoodClick()).isTrue();
+        SearchIntentStats searchIntentStats = searchSessionStats.getSearchIntentsStats().get(0);
+        assertThat(searchIntentStats.getClicksStats()).hasSize(2);
+
+        assertThat(searchIntentStats.getClicksStats().get(0).getTimeStayOnResultMillis())
+                .isEqualTo(-1);
+        assertThat(searchIntentStats.getClicksStats().get(0).isGoodClick()).isTrue();
+
+        assertThat(searchIntentStats.getClicksStats().get(1).getTimeStayOnResultMillis())
+                .isEqualTo(0);
+        assertThat(searchIntentStats.getClicksStats().get(1).isGoodClick()).isTrue();
     }
 
     @Test
@@ -901,12 +1084,12 @@ public class SearchIntentStatsExtractorTest {
         // Query correction type should be unknown if the current search action's query string is
         // null.
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchActionWithNullQueryStr,
                                 /* prevSearchAction= */ null))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_UNKNOWN);
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchActionWithNullQueryStr,
                                 /* prevSearchAction= */ searchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_UNKNOWN);
@@ -914,12 +1097,12 @@ public class SearchIntentStatsExtractorTest {
         // Query correction type should be unknown if the previous search action contains null query
         // string.
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction,
                                 /* prevSearchAction= */ searchActionWithNullQueryStr))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_UNKNOWN);
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchActionWithNullQueryStr,
                                 /* prevSearchAction= */ searchActionWithNullQueryStr))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_UNKNOWN);
@@ -934,7 +1117,7 @@ public class SearchIntentStatsExtractorTest {
                         .build();
 
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 currSearchAction, /* prevSearchAction= */ null))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_FIRST_QUERY);
     }
@@ -954,7 +1137,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("teste")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction1, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
 
@@ -965,7 +1148,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("tester")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction2, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
 
@@ -976,7 +1159,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("tes")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction3, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
 
@@ -987,7 +1170,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("tesla")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction4, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_REFINEMENT);
     }
@@ -1007,7 +1190,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("unit")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction1, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT);
 
@@ -1018,7 +1201,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("te")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction2, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT);
 
@@ -1029,7 +1212,7 @@ public class SearchIntentStatsExtractorTest {
                         .setQuery("texas")
                         .build();
         assertThat(
-                        SearchIntentStatsExtractor.getQueryCorrectionType(
+                        SearchSessionStatsExtractor.getQueryCorrectionType(
                                 /* currSearchAction= */ searchAction3, prevSearchAction))
                 .isEqualTo(SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT);
     }

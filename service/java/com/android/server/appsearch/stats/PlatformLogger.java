@@ -40,6 +40,7 @@ import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
+import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.util.ApiCallRecord;
@@ -221,15 +222,15 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @Override
-    public void logStats(@NonNull List<SearchIntentStats> searchIntentsStats) {
-        Objects.requireNonNull(searchIntentsStats);
-        if (searchIntentsStats.isEmpty()) {
+    public void logStats(@NonNull List<SearchSessionStats> searchSessionsStats) {
+        Objects.requireNonNull(searchSessionsStats);
+        if (searchSessionsStats.isEmpty()) {
             return;
         }
 
         synchronized (mLock) {
             // TODO(b/173532925): apply sampling if necessary
-            logStatsImplLocked(searchIntentsStats);
+            logStatsImplLocked(searchSessionsStats);
         }
     }
 
@@ -543,10 +544,26 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @GuardedBy("mLock")
-    private void logStatsImplLocked(@NonNull List<SearchIntentStats> searchIntentsStats) {
+    private void logStatsImplLocked(@NonNull List<SearchSessionStats> searchSessionsStats) {
+        for (int i = 0; i < searchSessionsStats.size(); ++i) {
+            SearchSessionStats searchSessionStats = searchSessionsStats.get(i);
+            logStatsImplLocked(searchSessionStats);
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull SearchSessionStats searchSessionStats) {
+        List<SearchIntentStats> searchIntentsStats = searchSessionStats.getSearchIntentsStats();
         for (int i = 0; i < searchIntentsStats.size(); ++i) {
             SearchIntentStats searchIntentStats = searchIntentsStats.get(i);
             logStatsImplLocked(searchIntentStats);
+        }
+
+        // Additionally log the end session search intent stats.
+        SearchIntentStats endSessionSearchIntentStats =
+                searchSessionStats.getEndSessionSearchIntentStats();
+        if (endSessionSearchIntentStats != null) {
+            logStatsImplLocked(endSessionSearchIntentStats);
         }
     }
 

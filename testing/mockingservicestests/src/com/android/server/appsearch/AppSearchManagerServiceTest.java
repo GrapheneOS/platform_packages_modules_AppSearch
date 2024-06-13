@@ -132,6 +132,7 @@ import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
+import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.ClickActionGenericDocument;
@@ -509,11 +510,20 @@ public class AppSearchManagerServiceTest {
         verifyCallStats(
                 mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_PUT_DOCUMENTS);
 
-        // Verify
-        ArgumentCaptor<List<SearchIntentStats>> searchIntentsStatsCaptor =
+        // Verify search sessions.
+        ArgumentCaptor<List<SearchSessionStats>> searchSessionsStatsCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mLogger, timeout(1000).times(1)).logStats(searchIntentsStatsCaptor.capture());
-        List<SearchIntentStats> searchIntentsStats = searchIntentsStatsCaptor.getValue();
+        verify(mLogger, timeout(1000).times(1)).logStats(searchSessionsStatsCaptor.capture());
+        List<SearchSessionStats> searchSessionsStats = searchSessionsStatsCaptor.getValue();
+
+        assertThat(searchSessionsStats).hasSize(1);
+        assertThat(searchSessionsStats.get(0).getPackageName())
+                .isEqualTo(mContext.getPackageName());
+        assertThat(searchSessionsStats.get(0).getDatabase()).isEqualTo(DATABASE_NAME);
+
+        // Verify search intents.
+        List<SearchIntentStats> searchIntentsStats =
+                searchSessionsStats.get(0).getSearchIntentsStats();
         assertThat(searchIntentsStats).hasSize(2);
 
         assertThat(searchIntentsStats.get(0).getPackageName()).isEqualTo(mContext.getPackageName());

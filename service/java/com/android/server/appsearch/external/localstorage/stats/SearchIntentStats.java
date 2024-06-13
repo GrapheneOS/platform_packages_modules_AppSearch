@@ -49,6 +49,7 @@ public final class SearchIntentStats {
                 QUERY_CORRECTION_TYPE_FIRST_QUERY,
                 QUERY_CORRECTION_TYPE_REFINEMENT,
                 QUERY_CORRECTION_TYPE_ABANDONMENT,
+                QUERY_CORRECTION_TYPE_END_SESSION,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface QueryCorrectionType {}
@@ -60,6 +61,8 @@ public final class SearchIntentStats {
     public static final int QUERY_CORRECTION_TYPE_REFINEMENT = 2;
 
     public static final int QUERY_CORRECTION_TYPE_ABANDONMENT = 3;
+
+    public static final int QUERY_CORRECTION_TYPE_END_SESSION = 4;
 
     @NonNull private final String mPackageName;
 
@@ -95,7 +98,11 @@ public final class SearchIntentStats {
         return mPackageName;
     }
 
-    /** Returns calling database name. */
+    /**
+     * Returns calling database name.
+     *
+     * <p>For global search, database name will be null.
+     */
     @Nullable
     public String getDatabase() {
         return mDatabase;
@@ -165,7 +172,25 @@ public final class SearchIntentStats {
             mPackageName = Objects.requireNonNull(packageName);
         }
 
-        /** Sets calling database name. */
+        /** Constructor the {@link Builder} from an existing {@link SearchIntentStats}. */
+        public Builder(@NonNull SearchIntentStats searchIntentStats) {
+            Objects.requireNonNull(searchIntentStats);
+
+            mPackageName = searchIntentStats.getPackageName();
+            mDatabase = searchIntentStats.getDatabase();
+            mPrevQuery = searchIntentStats.getPrevQuery();
+            mCurrQuery = searchIntentStats.getCurrQuery();
+            mTimestampMillis = searchIntentStats.getTimestampMillis();
+            mNumResultsFetched = searchIntentStats.getNumResultsFetched();
+            mQueryCorrectionType = searchIntentStats.getQueryCorrectionType();
+            mClicksStats.addAll(searchIntentStats.getClicksStats());
+        }
+
+        /**
+         * Sets calling database name.
+         *
+         * <p>For global search, database name will be null.
+         */
         @CanIgnoreReturnValue
         @NonNull
         public Builder setDatabase(@Nullable String database) {
@@ -226,7 +251,6 @@ public final class SearchIntentStats {
 
         /** Adds one or more {@link ClickStats} objects to this search intent. */
         @CanIgnoreReturnValue
-        @SuppressWarnings("MissingGetterMatchingBuilder")
         @NonNull
         public Builder addClicksStats(@NonNull ClickStats... clicksStats) {
             Objects.requireNonNull(clicksStats);
@@ -236,7 +260,6 @@ public final class SearchIntentStats {
 
         /** Adds a collection of {@link ClickStats} objects to this search intent. */
         @CanIgnoreReturnValue
-        @SuppressWarnings("MissingGetterMatchingBuilder")
         @NonNull
         public Builder addClicksStats(@NonNull Collection<? extends ClickStats> clicksStats) {
             Objects.requireNonNull(clicksStats);
