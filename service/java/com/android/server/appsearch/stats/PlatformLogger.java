@@ -618,8 +618,13 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 clicksResultRankInBlock,
                 clicksResultRankGlobal);
 
+        // Only log restricted atoms for QUERY_CORRECTION_TYPE_ABANDONMENT to catch query correction
+        // for common synonyms, abbreviation, nicknames and rebranded names, e.g. "Robert" -> "Bob".
+        boolean logRestrictedAtom =
+                searchIntentStats.getQueryCorrectionType()
+                        == SearchIntentStats.QUERY_CORRECTION_TYPE_ABANDONMENT;
         // Restricted atoms are only available on U+.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && logRestrictedAtom) {
             String prevQuery = searchIntentStats.getPrevQuery();
             String currQuery = searchIntentStats.getCurrQuery();
             AppSearchStatsLog.write(
