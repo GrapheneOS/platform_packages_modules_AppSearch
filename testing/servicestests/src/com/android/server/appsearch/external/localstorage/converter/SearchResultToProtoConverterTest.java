@@ -28,6 +28,7 @@ import android.app.appsearch.exceptions.AppSearchException;
 
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
+import com.android.server.appsearch.external.localstorage.SchemaCache;
 import com.android.server.appsearch.external.localstorage.UnlimitedLimitConfig;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.icing.proto.DocumentProto;
@@ -89,7 +90,7 @@ public class SearchResultToProtoConverterTest {
         removePrefixesFromDocument(joinedDocProtoBuilder);
         SearchResultPage searchResultPage =
                 SearchResultToProtoConverter.toSearchResultPage(
-                        searchResultProto, schemaMap, config);
+                        searchResultProto, new SchemaCache(schemaMap), config);
         assertThat(searchResultPage.getResults()).hasSize(1);
         SearchResult result = searchResultPage.getResults().get(0);
         assertThat(result.getPackageName()).isEqualTo("com.package.foo");
@@ -166,7 +167,7 @@ public class SearchResultToProtoConverterTest {
                         () ->
                                 SearchResultToProtoConverter.toSearchResultPage(
                                         searchResultProto,
-                                        schemaMap,
+                                        new SchemaCache(schemaMap),
                                         new AppSearchConfigImpl(
                                                 new UnlimitedLimitConfig(),
                                                 new LocalStorageIcingOptionsConfig())));

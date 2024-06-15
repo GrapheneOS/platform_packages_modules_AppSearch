@@ -19,8 +19,9 @@ package com.android.server.appsearch.external.localstorage.converter;
 import android.annotation.NonNull;
 import android.app.appsearch.SearchSuggestionSpec;
 
+import com.android.server.appsearch.external.localstorage.SchemaCache;
+
 import com.google.android.icing.proto.NamespaceDocumentUriGroup;
-import com.google.android.icing.proto.SchemaTypeConfigProto;
 import com.google.android.icing.proto.SuggestionScoringSpecProto;
 import com.google.android.icing.proto.SuggestionSpecProto;
 import com.google.android.icing.proto.TermMatchType;
@@ -73,7 +74,7 @@ public final class SearchSuggestionSpecToProtoConverter {
             @NonNull SearchSuggestionSpec searchSuggestionSpec,
             @NonNull Set<String> prefixes,
             @NonNull Map<String, Set<String>> namespaceMap,
-            @NonNull Map<String, Map<String, SchemaTypeConfigProto>> schemaMap) {
+            @NonNull SchemaCache schemaCache) {
         mSuggestionQueryExpression = Objects.requireNonNull(suggestionQueryExpression);
         mSearchSuggestionSpec = Objects.requireNonNull(searchSuggestionSpec);
         mPrefixes = Objects.requireNonNull(prefixes);
@@ -83,7 +84,7 @@ public final class SearchSuggestionSpecToProtoConverter {
                         prefixes, namespaceMap, searchSuggestionSpec.getFilterNamespaces());
         mTargetPrefixedSchemaFilters =
                 SearchSpecToProtoConverterUtil.generateTargetSchemaFilters(
-                        prefixes, schemaMap, searchSuggestionSpec.getFilterSchemas());
+                        prefixes, schemaCache, searchSuggestionSpec.getFilterSchemas());
     }
 
     /**

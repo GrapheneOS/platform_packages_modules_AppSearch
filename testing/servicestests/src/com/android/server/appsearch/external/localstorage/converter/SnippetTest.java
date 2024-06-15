@@ -24,6 +24,7 @@ import android.app.appsearch.SearchResultPage;
 
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
+import com.android.server.appsearch.external.localstorage.SchemaCache;
 import com.android.server.appsearch.external.localstorage.UnlimitedLimitConfig;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.icing.proto.DocumentProto;
@@ -103,7 +104,7 @@ public class SnippetTest {
         SearchResultPage searchResultPage =
                 SearchResultToProtoConverter.toSearchResultPage(
                         searchResultProto,
-                        SCHEMA_MAP,
+                        new SchemaCache(SCHEMA_MAP),
                         new AppSearchConfigImpl(
                                 new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()));
         assertThat(searchResultPage.getResults()).hasSize(1);
@@ -152,7 +153,7 @@ public class SnippetTest {
         SearchResultPage searchResultPage =
                 SearchResultToProtoConverter.toSearchResultPage(
                         searchResultProto,
-                        SCHEMA_MAP,
+                        new SchemaCache(SCHEMA_MAP),
                         new AppSearchConfigImpl(
                                 new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()));
         assertThat(searchResultPage.getResults()).hasSize(1);
@@ -221,7 +222,7 @@ public class SnippetTest {
         SearchResultPage searchResultPage =
                 SearchResultToProtoConverter.toSearchResultPage(
                         searchResultProto,
-                        SCHEMA_MAP,
+                        new SchemaCache(SCHEMA_MAP),
                         new AppSearchConfigImpl(
                                 new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()));
         assertThat(searchResultPage.getResults()).hasSize(1);
@@ -325,7 +326,7 @@ public class SnippetTest {
         SearchResultPage searchResultPage =
                 SearchResultToProtoConverter.toSearchResultPage(
                         searchResultProto,
-                        SCHEMA_MAP,
+                        new SchemaCache(SCHEMA_MAP),
                         new AppSearchConfigImpl(
                                 new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()));
         assertThat(searchResultPage.getResults()).hasSize(1);
