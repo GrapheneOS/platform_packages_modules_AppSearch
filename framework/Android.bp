@@ -89,4 +89,7 @@ java_sdk_library {
     aconfig_declarations: [
         "appsearch_aconfig_flags",
     ],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }

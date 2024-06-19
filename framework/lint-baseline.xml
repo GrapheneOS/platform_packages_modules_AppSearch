@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.4.0-alpha08" type="baseline" client="" dependencies="true" name="" variant="all" version="8.4.0-alpha08">
+
+    <issue
+        id="FlaggedApi"
+        message="Method `AppFunctionManager()` is a flagged API and should be inside an `if (Flags.enableAppFunctions())` check (or annotate the surrounding method `AppSearchManager` with `@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS) to transfer requirement to caller`)"
+        errorLine1="        mAppFunctionManager = new AppFunctionManager(context, service);"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/android/app/appsearch/AppSearchManager.java"
+            line="136"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getDescription()` is a flagged API and should be inside an `if (Flags.enableAppFunctions())` check (or annotate the surrounding method `appendAppSearchSchemaString` with `@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS) to transfer requirement to caller`)"
+        errorLine1="        builder.append(&quot;description: \&quot;&quot;).append(getDescription()).append(&quot;\&quot;,\n&quot;);"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="114"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getDescription()` is a flagged API and should be inside an `if (Flags.enableAppFunctions())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS) to transfer requirement to caller`)"
+        errorLine1="        if (!getDescription().equals(otherSchema.getDescription())) {"
+        errorLine2="             ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="195"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getDescription()` is a flagged API and should be inside an `if (Flags.enableAppFunctions())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS) to transfer requirement to caller`)"
+        errorLine1="        if (!getDescription().equals(otherSchema.getDescription())) {"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="195"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getParentTypes()` is a flagged API and should be inside an `if (Flags.enableGetParentTypesAndIndexableNestedProperties())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="        if (!getParentTypes().equals(otherSchema.getParentTypes())) {"
+        errorLine2="             ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="198"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getParentTypes()` is a flagged API and should be inside an `if (Flags.enableGetParentTypesAndIndexableNestedProperties())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="        if (!getParentTypes().equals(otherSchema.getParentTypes())) {"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="198"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getDescription()` is a flagged API and should be inside an `if (Flags.enableAppFunctions())` check (or annotate the surrounding method `hashCode` with `@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS) to transfer requirement to caller`)"
+        errorLine1="        return Objects.hash(getSchemaType(), getProperties(), getParentTypes(), getDescription());"
+        errorLine2="                                                                                ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="206"
+            column="81"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getParentTypes()` is a flagged API and should be inside an `if (Flags.enableGetParentTypesAndIndexableNestedProperties())` check (or annotate the surrounding method `hashCode` with `@FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="        return Objects.hash(getSchemaType(), getProperties(), getParentTypes(), getDescription());"
+        errorLine2="                                                              ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="206"
+            column="63"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getDescription()` is a flagged API and should be inside an `if (Flags.enableAppFunctions())` check (or annotate the surrounding method `appendPropertyConfigString` with `@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS) to transfer requirement to caller`)"
+        errorLine1="            builder.append(&quot;description: \&quot;&quot;).append(getDescription()).append(&quot;\&quot;,\n&quot;);"
+        errorLine2="                                                     ~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="479"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `EmbeddingPropertyConfig()` is a flagged API and should be inside an `if (Flags.enableSchemaEmbeddingPropertyConfig())` check (or annotate the surrounding method `fromParcel` with `@FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG) to transfer requirement to caller`)"
+        errorLine1="                    return new EmbeddingPropertyConfig(propertyConfigParcel);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="618"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getIndexableNestedProperties()` is a flagged API and should be inside an `if (Flags.enableGetParentTypesAndIndexableNestedProperties())` check (or annotate the surrounding method `appendDocumentPropertyConfigFields` with `@FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="                    .append(getIndexableNestedProperties())"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/AppSearchSchema.java"
+            line="1554"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getParentTypes()` is a flagged API and should be inside an `if (Flags.enableGetParentTypesAndIndexableNestedProperties())` check (or annotate the surrounding method `setSchema` with `@FlaggedApi(Flags.FLAG_ENABLE_GET_PARENT_TYPES_AND_INDEXABLE_NESTED_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="            if (!schemaList.get(i).getParentTypes().isEmpty()"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/android/app/appsearch/AppSearchSession.java"
+            line="206"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getTakenActionGenericDocuments()` is a flagged API and should be inside an `if (Flags.enablePutDocumentsRequestAddTakenActions())` check (or annotate the surrounding method `put` with `@FlaggedApi(Flags.FLAG_ENABLE_PUT_DOCUMENTS_REQUEST_ADD_TAKEN_ACTIONS) to transfer requirement to caller`)"
+        errorLine1="                        toGenericDocumentParcels(request.getTakenActionGenericDocuments()));"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/android/app/appsearch/AppSearchSession.java"
+            line="355"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getAllowedPackages()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `getSchemaTypesVisibleToPackages` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                        visibilityConfig.getVisibilityConfig().getAllowedPackages();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="172"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getRequiredPermissions()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `getRequiredPermissionsForSchemaTypeVisibility` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                        visibilityConfig.getVisibilityConfig().getRequiredPermissions();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="220"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getPubliclyVisibleTargetPackage()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `getPubliclyVisibleSchemas` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                        visibilityConfig.getVisibilityConfig().getPubliclyVisibleTargetPackage();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="247"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setNotDisplayedBySystem()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `addSchemaTypeNotDisplayedBySystem` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="            visibilityConfigBuilder.setNotDisplayedBySystem(true);"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="358"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `addVisibleToPackage()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `setSchemaTypeVisibleToPackages` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                visibilityConfigBuilder.addVisibleToPackage(packageIdentifier);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="392"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `addVisibleToPermissions()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `setRequiredPermissionsForSchemaTypeVisibility` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                visibilityConfigBuilder.addVisibleToPermissions(visibleToPermissions);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="443"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setPubliclyVisibleTargetPackage()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `setPubliclyVisibleSchema` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="            visibilityConfigBuilder.setPubliclyVisibleTargetPackage(packageIdentifier);"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="468"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `build()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `build` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                    visibilityConfigs.add(builder.build());"
+        errorLine2="                                          ~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="549"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `Builder()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `getOrCreateVisibilityConfigBuilder` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                builder = new InternalVisibilityConfig.Builder(schemaType);"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/GetSchemaResponse.java"
+            line="565"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getPubliclyVisibleSchemas()` is a flagged API and should be inside an `if (Flags.enableSetPubliclyVisibleSchema())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_PUBLICLY_VISIBLE_SCHEMA) to transfer requirement to caller`)"
+        errorLine1="                setSchemaRequest.getPubliclyVisibleSchemas();"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="60"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getSchemasVisibleToConfigs()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                setSchemaRequest.getSchemasVisibleToConfigs();"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="62"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `Builder()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                    new InternalVisibilityConfig.Builder(schemaType)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="68"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setNotDisplayedBySystem()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                    new InternalVisibilityConfig.Builder(schemaType)"
+        errorLine2="                    ^">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="68"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `addVisibleToPackage()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                    builder.addVisibleToPackage(packageIdentifier);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="75"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `addVisibleToPermissions()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                    builder.addVisibleToPermissions(visibleToPermissions);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="82"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setPubliclyVisibleTargetPackage()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                builder.setPubliclyVisibleTargetPackage(publiclyVisibleTargetPackage);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="88"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `addVisibleToConfig()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="                    builder.addVisibleToConfig(schemaVisibilityConfig);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="94"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `build()` is a flagged API and should be inside an `if (Flags.enableSetSchemaVisibleToConfigs())` check (or annotate the surrounding method `toInternalVisibilityConfigs` with `@FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS) to transfer requirement to caller`)"
+        errorLine1="            result.add(builder.build());"
+        errorLine2="                       ~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/InternalVisibilityConfig.java"
+            line="98"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getInformationalRankingSignals()` is a flagged API and should be inside an `if (Flags.enableInformationalRankingExpressions())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS) to transfer requirement to caller`)"
+        errorLine1="                    new ArrayList&lt;>(searchResult.getInformationalRankingSignals());"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchResult.java"
+            line="268"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `EMBEDDING_SEARCH_METRIC_TYPE_COSINE` is a flagged API and should be inside an `if (Flags.enableSchemaEmbeddingPropertyConfig())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG) to transfer requirement to caller`)"
+        errorLine1="        private int mDefaultEmbeddingSearchMetricType = EMBEDDING_SEARCH_METRIC_TYPE_COSINE;"
+        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="757"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getFilterProperties()` is a flagged API and should be inside an `if (Flags.enableSearchSpecFilterProperties())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="                    searchSpec.getFilterProperties().entrySet()) {"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="781"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `addFilterProperties()` is a flagged API and should be inside an `if (Flags.enableSearchSpecFilterProperties())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES) to transfer requirement to caller`)"
+        errorLine1="                addFilterProperties(entry.getKey(), entry.getValue());"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="782"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getSearchEmbeddings()` is a flagged API and should be inside an `if (Flags.enableSchemaEmbeddingPropertyConfig())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG) to transfer requirement to caller`)"
+        errorLine1="            mSearchEmbeddings = new ArrayList&lt;>(searchSpec.getSearchEmbeddings());"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="793"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getDefaultEmbeddingSearchMetricType()` is a flagged API and should be inside an `if (Flags.enableSchemaEmbeddingPropertyConfig())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG) to transfer requirement to caller`)"
+        errorLine1="            mDefaultEmbeddingSearchMetricType = searchSpec.getDefaultEmbeddingSearchMetricType();"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="796"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getInformationalRankingExpressions()` is a flagged API and should be inside an `if (Flags.enableInformationalRankingExpressions())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS) to transfer requirement to caller`)"
+        errorLine1="                    new ArrayList&lt;>(searchSpec.getInformationalRankingExpressions());"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="807"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getSearchSourceLogTag()` is a flagged API and should be inside an `if (Flags.enableSearchSpecSetSearchSourceLogTag())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_SET_SEARCH_SOURCE_LOG_TAG) to transfer requirement to caller`)"
+        errorLine1="            mSearchSourceLogTag = searchSpec.getSearchSourceLogTag();"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/framework/java/external/android/app/appsearch/SearchSpec.java"
+            line="808"
+            column="35"/>
+    </issue>
+
+</issues>
