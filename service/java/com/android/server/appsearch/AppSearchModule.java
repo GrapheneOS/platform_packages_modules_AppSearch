@@ -28,6 +28,7 @@ import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.AppsIndexerConfig;
@@ -121,7 +122,11 @@ public class AppSearchModule {
             }
 
             AppsIndexerConfig appsIndexerConfig = new FrameworkAppsIndexerConfig();
-            if (appsIndexerConfig.isAppsIndexerEnabled()) {
+            // Flags.appsIndexerEnabled will be rolled out through gantry, and this check will be
+            // removed once it is fully rolled out. appsIndexerConfig.isAppsIndexerEnabled checks
+            // DeviceConfig, so we can keep this check here in case we need to turn off apps
+            // indexer.
+            if (Flags.appsIndexerEnabled() && appsIndexerConfig.isAppsIndexerEnabled()) {
                 mAppsIndexerManagerService =
                         createAppsIndexerManagerService(getContext(), appsIndexerConfig);
                 try {

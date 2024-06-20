@@ -11,3 +11,7 @@ rule com.google.android.appsearch.proto.** com.android.server.appsearch.appsearc
 
 # These must be kept in sync with the sources of framework-utils-appsearch
 rule com.android.internal.util.Preconditions* com.android.server.appsearch.internal.util.Preconditions@1
+
+
+# These are for generated flag classes
+rule com.android.appsearch.flags.** com.android.server.appsearch.flags.@1

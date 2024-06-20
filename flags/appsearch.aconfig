@@ -158,3 +158,12 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+flag {
+    name: "apps_indexer_enabled"
+    namespace: "appsearch"
+    description: "Enables the apps indexer module"
+    bug: "275592563"
+    is_fixed_read_only: true
+    is_exported: true
+}

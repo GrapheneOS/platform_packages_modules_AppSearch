@@ -30,10 +30,14 @@ import static org.mockito.Mockito.verify;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.content.pm.UserInfo;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.SystemService.TargetUser;
 import com.android.server.appsearch.AppSearchModule.Lifecycle;
@@ -44,14 +48,19 @@ import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerServic
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
+@RequiresFlagsEnabled(Flags.FLAG_APPS_INDEXER_ENABLED)
 public class AppSearchModuleTest {
     private static final String NAMESPACE_APPSEARCH = "appsearch";
     private static final String KEY_CONTACTS_INDEXER_ENABLED = "contacts_indexer_enabled";
     private static final String KEY_APPS_INDEXER_ENABLED = "apps_indexer_enabled";
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private final ContactsIndexerManagerService mContactsIndexerService =
             mock(ContactsIndexerManagerService.class);

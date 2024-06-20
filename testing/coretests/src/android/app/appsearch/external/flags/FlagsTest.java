@@ -126,4 +126,10 @@ public class FlagsTest {
         assertThat(Flags.FLAG_ENABLE_INFORMATIONAL_RANKING_EXPRESSIONS)
                 .isEqualTo("com.android.appsearch.flags.enable_informational_ranking_expressions");
     }
+
+    @Test
+    public void testFlagValue_appsIndexerEnabled() {
+        assertThat(Flags.FLAG_APPS_INDEXER_ENABLED)
+                .isEqualTo("com.android.appsearch.flags.apps_indexer_enabled");
+    }
 }
