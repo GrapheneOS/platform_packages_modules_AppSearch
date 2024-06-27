@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  * @hide
  */
 public interface AppsIndexerConfig {
-    boolean DEFAULT_APPS_INDEXER_ENABLED = false;
+    boolean DEFAULT_APPS_INDEXER_ENABLED = true;
     long DEFAULT_APPS_UPDATE_INTERVAL_MILLIS = TimeUnit.DAYS.toMillis(30); // 30 days.
 
     /** Returns whether Apps Indexer is enabled. */
