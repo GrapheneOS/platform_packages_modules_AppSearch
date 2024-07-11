@@ -44,7 +44,6 @@ import android.os.UserHandle;
 
 import androidx.test.core.app.ApplicationProvider;
 
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -145,7 +144,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         }
 
         assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
-        try (AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext)) {
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mContext)) {
             Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
             assertThat(appsTimestampMap).hasSize(1);
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
@@ -156,6 +155,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     public void testFirstRun_updateAlreadyRan_doesNotUpdate() throws Exception {
         // Pretend we already ran
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
         settings.persist();
 
@@ -202,7 +202,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // timestamp was not 0, so nothing should've been indexed
-        try (AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext)) {
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mContext)) {
             assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
         }
     }
@@ -361,7 +361,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance.doUpdate(/* firstRun= */ false);
         latch.await(10, TimeUnit.SECONDS);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        AppSearchHelper searchHelper = new AppSearchHelper(mContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(docCount);
     }
@@ -396,7 +396,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         mInstance.doUpdate(/* firstRun= */ false);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        AppSearchHelper searchHelper = new AppSearchHelper(mContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(10);
 
@@ -405,7 +405,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         mInstance.doUpdate(/* firstRun= */ false);
 
-        searchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        searchHelper = new AppSearchHelper(mContext);
         appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(6);
         assertThat(appIds.keySet())
@@ -678,7 +678,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // updates are guaranteed to be finished.
         afterSemaphore.acquire();
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        AppSearchHelper searchHelper = new AppSearchHelper(mContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(250);
 

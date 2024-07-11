@@ -19,6 +19,7 @@ package com.android.server.appsearch.appsindexer;
 import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APPS_INDEXER;
 
 import android.annotation.NonNull;
+import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
@@ -204,6 +205,7 @@ public final class AppsIndexerUserInstance {
      *     should only run the first time this happens.
      */
     @VisibleForTesting
+    @WorkerThread
     void doUpdate(boolean firstRun) {
         try {
             // Check if there was a prior run

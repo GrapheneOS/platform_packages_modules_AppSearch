@@ -18,14 +18,10 @@ package com.android.server.appsearch.contactsindexer;
 
 import android.annotation.NonNull;
 import android.os.PersistableBundle;
-import android.util.AtomicFile;
 
-import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.indexer.IndexerSettings;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -44,7 +40,7 @@ import java.util.Objects;
  *
  * @hide
  */
-public class ContactsIndexerSettings {
+public class ContactsIndexerSettings extends IndexerSettings {
 
     private static final String TAG = "ContactsIndexerSettings";
 
@@ -59,20 +55,13 @@ public class ContactsIndexerSettings {
     // been kept the same for backwards compatibility
     static final String LAST_CONTACT_DELETE_TIMESTAMP_KEY = "last_delta_delete_timestamp_millis";
 
-    private final File mFile;
-    private PersistableBundle mBundle = new PersistableBundle();
-
     public ContactsIndexerSettings(@NonNull File baseDir) {
-        Objects.requireNonNull(baseDir);
-        mFile = new File(baseDir, SETTINGS_FILE_NAME);
+        super(Objects.requireNonNull(baseDir));
     }
 
-    public void load() throws IOException {
-        mBundle = readBundle(mFile);
-    }
-
-    public void persist() throws IOException {
-        writeBundle(mFile, mBundle);
+    @Override
+    protected String getSettingsFileName() {
+        return SETTINGS_FILE_NAME;
     }
 
     /** Returns the timestamp of when the last full update occurred in milliseconds. */
@@ -116,36 +105,11 @@ public class ContactsIndexerSettings {
     }
 
     /** Resets all the settings to default values. */
+    @Override
     public void reset() {
         setLastFullUpdateTimestampMillis(0);
         setLastDeltaUpdateTimestampMillis(0);
         setLastContactUpdateTimestampMillis(0);
         setLastContactDeleteTimestampMillis(0);
-    }
-
-    @VisibleForTesting
-    @NonNull
-    static PersistableBundle readBundle(@NonNull File src) throws IOException {
-        AtomicFile atomicFile = new AtomicFile(src);
-        try (FileInputStream fis = atomicFile.openRead()) {
-            return PersistableBundle.readFromStream(fis);
-        }
-    }
-
-    @VisibleForTesting
-    static void writeBundle(@NonNull File dest, @NonNull PersistableBundle bundle)
-            throws IOException {
-        AtomicFile atomicFile = new AtomicFile(dest);
-        FileOutputStream fos = null;
-        try {
-            fos = atomicFile.startWrite();
-            bundle.writeToStream(fos);
-            atomicFile.finishWrite(fos);
-        } catch (IOException e) {
-            if (fos != null) {
-                atomicFile.failWrite(fos);
-            }
-            throw e;
-        }
     }
 }

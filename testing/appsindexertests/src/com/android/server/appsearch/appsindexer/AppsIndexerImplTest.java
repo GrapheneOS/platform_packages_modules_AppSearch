@@ -60,7 +60,7 @@ public class AppsIndexerImplTest {
     @Before
     public void setUp() throws Exception {
         mContext = ApplicationProvider.getApplicationContext();
-        mAppSearchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        mAppSearchHelper = new AppSearchHelper(mContext);
     }
 
     @After

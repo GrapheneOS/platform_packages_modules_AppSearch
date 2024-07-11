@@ -17,6 +17,7 @@ package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.BatchResultCallback;
@@ -28,14 +29,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
-/** Contains common methods for converting async methods to sync */
+/** Contains common methods for converting async methods to sync. */
 public class SyncAppSearchBase {
+    protected final Object mSessionLock = new Object();
     protected final Executor mExecutor;
 
     public SyncAppSearchBase(@NonNull Executor executor) {
         mExecutor = Objects.requireNonNull(executor);
     }
 
+    @WorkerThread
     protected <T> T executeAppSearchResultOperation(
             Consumer<Consumer<AppSearchResult<T>>> operation) throws AppSearchException {
         final CompletableFuture<AppSearchResult<T>> futureResult = new CompletableFuture<>();
@@ -66,6 +69,7 @@ public class SyncAppSearchBase {
         }
     }
 
+    @WorkerThread
     protected <T, V> AppSearchBatchResult<T, V> executeAppSearchBatchResultOperation(
             Consumer<BatchResultCallback<T, V>> operation) throws AppSearchException {
         final CompletableFuture<AppSearchBatchResult<T, V>> futureResult =

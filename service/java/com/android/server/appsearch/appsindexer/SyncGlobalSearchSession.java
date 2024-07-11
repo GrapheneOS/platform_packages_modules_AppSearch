@@ -16,15 +16,21 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.WorkerThread;
 import android.app.appsearch.GlobalSearchSession;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.SearchSpec;
+import android.app.appsearch.exceptions.AppSearchException;
 
 import java.io.Closeable;
 
 /**
  * A synchronous wrapper around {@link GlobalSearchSession}. This allows us to call globalSearch
  * synchronously.
+ *
+ * <p>Note that while calling the methods in this class will park the calling thread, and only one
+ * {@link GlobalSearchSession} wil be created, multiple threads may call {@link #search} at the same
+ * time. It is up to the caller of this class to ensure this does not cause issues.
  *
  * @see GlobalSearchSession
  */
@@ -38,7 +44,9 @@ public interface SyncGlobalSearchSession extends Closeable {
      * @see GlobalSearchSession#search
      */
     @NonNull
-    SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec);
+    @WorkerThread
+    SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec)
+            throws AppSearchException;
 
     /**
      * Closes the global session.

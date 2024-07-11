@@ -107,6 +107,7 @@ public class AppSearchModuleTest {
                     }
                 };
 
+        // Enable contacts indexer and apps indexer by default. Some tests will turn them off
         ExtendedMockito.doReturn(true)
                 .when(
                         () ->
@@ -226,7 +227,7 @@ public class AppSearchModuleTest {
         assertThat(mLifecycle.mAppsIndexerManagerService).isNull();
         assertThat(mLifecycle.mContactsIndexerManagerService).isNotNull();
 
-        //  Setup ContactsIndexerManagerService to throw an error on start
+        // Setup ContactsIndexerManagerService to throw an error on start
         doNothing().when(mAppsIndexerService).onStart();
         doThrow(new RuntimeException("Contacts indexer exception"))
                 .when(mContactsIndexerService)

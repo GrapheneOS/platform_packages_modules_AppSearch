@@ -74,7 +74,7 @@ public class AppSearchHelperTest {
     @Before
     public void setUp() throws Exception {
         mContext = ApplicationProvider.getApplicationContext();
-        mAppSearchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        mAppSearchHelper = new AppSearchHelper(mContext);
     }
 
     @After
@@ -130,7 +130,7 @@ public class AppSearchHelperTest {
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         session.setSchemaAsync(setSchemaRequest).get();
 
-        AppSearchHelper appSearchHelper = AppSearchHelper.createAppSearchHelper(mContext);
+        AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         appSearchHelper.setSchemasForPackages(
                 ImmutableList.of(createMockPackageIdentifier(variant)));
         appSearchHelper.indexApps(ImmutableList.of(createFakeMobileApplication(variant)));
@@ -171,8 +171,8 @@ public class AppSearchHelperTest {
                                 .setFailure(
                                         "id", AppSearchResult.RESULT_OUT_OF_SPACE, "errorMessage")
                                 .build());
-        AppSearchHelper mocked = AppSearchHelper.createAppSearchHelper(mContext);
-        mocked.setAppSearchSession(fullSession);
+        AppSearchHelper mocked = new AppSearchHelper(mContext);
+        mocked.setAppSearchSessionForTest(fullSession);
 
         mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1));
         // It should throw if it's out of space

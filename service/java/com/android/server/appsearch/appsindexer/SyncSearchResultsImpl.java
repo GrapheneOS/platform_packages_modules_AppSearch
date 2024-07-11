@@ -16,6 +16,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.WorkerThread;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -34,6 +35,7 @@ public class SyncSearchResultsImpl extends SyncAppSearchBase implements SyncSear
 
     @NonNull
     @Override
+    @WorkerThread
     public List<SearchResult> getNextPage() throws AppSearchException {
         return executeAppSearchResultOperation(
                 resultHandler -> mSearchResults.getNextPage(mExecutor, resultHandler));

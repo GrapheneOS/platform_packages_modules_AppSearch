@@ -16,6 +16,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
@@ -32,6 +33,8 @@ import java.io.Closeable;
  * A synchronous wrapper around {@link AppSearchSession}. This allows us to perform operations in
  * AppSearch without needing to handle async calls.
  *
+ * <p>Note that calling the methods in this class will park the calling thread.
+ *
  * @see AppSearchSession
  */
 public interface SyncAppSearchSession extends Closeable {
@@ -41,6 +44,7 @@ public interface SyncAppSearchSession extends Closeable {
      * @see AppSearchSession#setSchema
      */
     @NonNull
+    @WorkerThread
     SetSchemaResponse setSchema(@NonNull SetSchemaRequest setSchemaRequest)
             throws AppSearchException;
 
@@ -50,6 +54,7 @@ public interface SyncAppSearchSession extends Closeable {
      * @see AppSearchSession#put
      */
     @NonNull
+    @WorkerThread
     AppSearchBatchResult<String, Void> put(@NonNull PutDocumentsRequest request)
             throws AppSearchException;
 
@@ -62,7 +67,9 @@ public interface SyncAppSearchSession extends Closeable {
      * @see AppSearchSession#search
      */
     @NonNull
-    SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec);
+    @WorkerThread
+    SyncSearchResults search(@NonNull String query, @NonNull SearchSpec searchSpec)
+            throws AppSearchException;
 
     /**
      * Closes the session.

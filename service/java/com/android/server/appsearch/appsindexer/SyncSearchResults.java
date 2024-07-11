@@ -16,6 +16,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.WorkerThread;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -35,5 +36,6 @@ public interface SyncSearchResults {
      * @see SearchResults#getNextPage
      */
     @NonNull
+    @WorkerThread
     List<SearchResult> getNextPage() throws AppSearchException;
 }

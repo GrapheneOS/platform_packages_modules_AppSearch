@@ -20,6 +20,7 @@ import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONT
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.util.LogUtil;
@@ -675,6 +676,7 @@ public final class ContactsIndexerUserInstance {
                 });
     }
 
+    @WorkerThread
     private void persistSettings() {
         try {
             mSettings.persist();

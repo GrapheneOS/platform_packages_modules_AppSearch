@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.WorkerThread;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
@@ -51,7 +52,7 @@ public final class AppsIndexerImpl implements Closeable {
 
     public AppsIndexerImpl(@NonNull Context context) throws AppSearchException {
         mContext = Objects.requireNonNull(context);
-        mAppSearchHelper = AppSearchHelper.createAppSearchHelper(context);
+        mAppSearchHelper = new AppSearchHelper(context);
     }
 
     /**
@@ -64,6 +65,7 @@ public final class AppsIndexerImpl implements Closeable {
      *     updated.
      */
     @VisibleForTesting
+    @WorkerThread
     public void doUpdate(@NonNull AppsIndexerSettings settings) throws AppSearchException {
         Objects.requireNonNull(settings);
         long currentTimeMillis = System.currentTimeMillis();
