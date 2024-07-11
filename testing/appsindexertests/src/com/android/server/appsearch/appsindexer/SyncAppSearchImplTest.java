@@ -20,6 +20,9 @@ import static android.app.appsearch.SearchSpec.TERM_MATCH_PREFIX;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchManager;
@@ -212,5 +215,36 @@ public class SyncAppSearchImplTest {
         // Searching will late initialize the underlying session
         session.search("", new SearchSpec.Builder().build());
         assertThat(executor.getCompletedTaskCount()).isGreaterThan(0);
+    }
+
+    @Test
+    public void testAsyncOperationThrowsError() throws AppSearchException {
+        // This should throw an error, but not crash the device
+        AppSearchManager.SearchContext searchContext =
+                new AppSearchManager.SearchContext.Builder("testDb").build();
+        AppSearchManager appSearchManager = mock(AppSearchManager.class);
+        doThrow(new IllegalStateException("Innocuous exception"))
+                .when(appSearchManager)
+                .createSearchSession(any(), any(), any());
+
+        AppSearchException e;
+        try (SyncAppSearchSession syncWrapper =
+                new SyncAppSearchSessionImpl(appSearchManager, searchContext, mExecutor)) {
+            e =
+                    assertThrows(
+                            AppSearchException.class,
+                            () -> syncWrapper.setSchema(new SetSchemaRequest.Builder().build()));
+            assertThat(e.getCause().getMessage()).isEqualTo("Innocuous exception");
+        }
+
+        // The put command uses a separate method in SyncAppSearchBase
+        try (SyncAppSearchSession syncWrapper =
+                new SyncAppSearchSessionImpl(appSearchManager, searchContext, mExecutor)) {
+            e =
+                    assertThrows(
+                            AppSearchException.class,
+                            () -> syncWrapper.put(new PutDocumentsRequest.Builder().build()));
+            assertThat(e.getCause().getMessage()).isEqualTo("Innocuous exception");
+        }
     }
 }

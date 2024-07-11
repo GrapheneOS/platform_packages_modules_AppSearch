@@ -43,9 +43,15 @@ public class SyncAppSearchBase {
             Consumer<Consumer<AppSearchResult<T>>> operation) throws AppSearchException {
         final CompletableFuture<AppSearchResult<T>> futureResult = new CompletableFuture<>();
 
+        // Without this catch + completeExceptionally, this crashes the device if the operation
+        // throws an error.
         mExecutor.execute(
                 () -> {
-                    operation.accept(futureResult::complete);
+                    try {
+                        operation.accept(futureResult::complete);
+                    } catch (Exception e) {
+                        futureResult.completeExceptionally(e);
+                    }
                 });
 
         try {
@@ -76,7 +82,8 @@ public class SyncAppSearchBase {
                 new CompletableFuture<>();
 
         mExecutor.execute(
-                () ->
+                () -> {
+                    try {
                         operation.accept(
                                 new BatchResultCallback<>() {
                                     @Override
@@ -89,7 +96,11 @@ public class SyncAppSearchBase {
                                     public void onSystemError(@Nullable Throwable throwable) {
                                         futureResult.completeExceptionally(throwable);
                                     }
-                                }));
+                                });
+                    } catch (Exception e) {
+                        futureResult.completeExceptionally(e);
+                    }
+                });
 
         try {
             // TODO(b/275592563): Change to get timeout value from config
