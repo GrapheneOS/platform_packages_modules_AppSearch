@@ -18,12 +18,15 @@ package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
+import android.app.appsearch.AppSearchBatchResult;
+import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.SystemClock;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
@@ -32,6 +35,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -63,19 +67,30 @@ public final class AppsIndexerImpl implements Closeable {
      *
      * @param settings contains update timestamps that help the indexer determine which apps were
      *     updated.
+     * @param appsUpdateStats contains stats about the apps indexer update. This method will
+     *     populate the fields of this {@link AppsUpdateStats} structure.
      */
     @VisibleForTesting
     @WorkerThread
-    public void doUpdate(@NonNull AppsIndexerSettings settings) throws AppSearchException {
+    public void doUpdate(
+            @NonNull AppsIndexerSettings settings, @NonNull AppsUpdateStats appsUpdateStats)
+            throws AppSearchException {
         Objects.requireNonNull(settings);
+        Objects.requireNonNull(appsUpdateStats);
         long currentTimeMillis = System.currentTimeMillis();
 
-        PackageManager packageManager = mContext.getPackageManager();
-
         // Search AppSearch for MobileApplication objects to get a "current" list of indexed apps.
+        long beforeGetTimestamp = SystemClock.elapsedRealtime();
         Map<String, Long> appUpdatedTimestamps = mAppSearchHelper.getAppsFromAppSearch();
+        appsUpdateStats.mAppSearchGetLatencyMillis =
+                SystemClock.elapsedRealtime() - beforeGetTimestamp;
+
+        long beforePackageManagerTimestamp = SystemClock.elapsedRealtime();
+        PackageManager packageManager = mContext.getPackageManager();
         Map<PackageInfo, ResolveInfo> launchablePackages =
                 AppsUtil.getLaunchablePackages(packageManager);
+        appsUpdateStats.mPackageManagerLatencyMillis =
+                SystemClock.elapsedRealtime() - beforePackageManagerTimestamp;
         Set<PackageInfo> packageInfos = launchablePackages.keySet();
 
         Map<PackageInfo, ResolveInfo> packagesToBeAddedOrUpdated = new ArrayMap<>();
@@ -93,9 +108,20 @@ public final class AppsIndexerImpl implements Closeable {
 
             Long storedUpdateTime = appUpdatedTimestamps.get(packageInfo.packageName);
 
-            if (storedUpdateTime == null || packageInfo.lastUpdateTime != storedUpdateTime) {
-                // Added or updated
+            boolean added = storedUpdateTime == null;
+            boolean updated =
+                    storedUpdateTime != null && packageInfo.lastUpdateTime != storedUpdateTime;
+
+            if (added) {
+                appsUpdateStats.mNumberOfAppsAdded++;
+            }
+            if (updated) {
+                appsUpdateStats.mNumberOfAppsUpdated++;
+            }
+            if (added || updated) {
                 packagesToBeAddedOrUpdated.put(packageInfo, launchablePackages.get(packageInfo));
+            } else {
+                appsUpdateStats.mNumberOfAppsUnchanged++;
             }
         }
 
@@ -105,6 +131,16 @@ public final class AppsIndexerImpl implements Closeable {
                 // This means this is the first sync, an app was removed, or an app was added. In
                 // all cases, we need to call setSchema to keep AppSearch in sync with
                 // PackageManager.
+
+                // currentAppIds comes from PackageManager, appUpdatedTimestamps comes from
+                // AppSearch. Deleted apps are those in appUpdateTimestamps and NOT in currentAppIds
+                appsUpdateStats.mNumberOfAppsRemoved = 0;
+                for (String appSearchApp : appUpdatedTimestamps.keySet()) {
+                    if (!currentAppIds.contains(appSearchApp)) {
+                        appsUpdateStats.mNumberOfAppsRemoved++;
+                    }
+                }
+
                 List<PackageIdentifier> packageIdentifiers = new ArrayList<>();
                 for (PackageInfo packageInfo : packageInfos) {
                     // We get certificates here as getting the certificates during the previous for
@@ -119,20 +155,40 @@ public final class AppsIndexerImpl implements Closeable {
                 }
                 // The certificate is necessary along with the package name as it is used in
                 // visibility settings.
+                long beforeSetSchemaTimestamp = SystemClock.elapsedRealtime();
                 mAppSearchHelper.setSchemasForPackages(packageIdentifiers);
+                appsUpdateStats.mAppSearchSetSchemaLatencyMillis =
+                        SystemClock.elapsedRealtime() - beforeSetSchemaTimestamp;
             }
 
             if (!packagesToBeAddedOrUpdated.isEmpty()) {
-                mAppSearchHelper.indexApps(
-                        AppsUtil.buildAppsFromPackageInfos(
-                                packageManager, packagesToBeAddedOrUpdated));
+                long beforePutTimestamp = SystemClock.elapsedRealtime();
+                AppSearchBatchResult<String, Void> result =
+                        mAppSearchHelper.indexApps(
+                                AppsUtil.buildAppsFromPackageInfos(
+                                        packageManager, packagesToBeAddedOrUpdated));
+                if (result.isSuccess()) {
+                    appsUpdateStats.mUpdateStatusCodes.add(AppSearchResult.RESULT_OK);
+                } else {
+                    Collection<AppSearchResult<Void>> values = result.getAll().values();
+
+                    for (AppSearchResult<Void> putResult : values) {
+                        appsUpdateStats.mUpdateStatusCodes.add(putResult.getResultCode());
+                    }
+                }
+                appsUpdateStats.mAppSearchPutLatencyMillis =
+                        SystemClock.elapsedRealtime() - beforePutTimestamp;
             }
 
             settings.setLastAppUpdateTimestampMillis(mostRecentAppUpdatedTimestampMillis);
             settings.setLastUpdateTimestampMillis(currentTimeMillis);
+
+            appsUpdateStats.mLastAppUpdateTimestampMillis = mostRecentAppUpdatedTimestampMillis;
         } catch (AppSearchException e) {
             // Reset the last update time stamp and app update timestamp so we can try again later.
             settings.reset();
+            appsUpdateStats.mUpdateStatusCodes.clear();
+            appsUpdateStats.mUpdateStatusCodes.add(e.getResultCode());
             throw e;
         }
     }

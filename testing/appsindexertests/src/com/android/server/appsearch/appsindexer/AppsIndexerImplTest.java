@@ -30,7 +30,9 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -93,7 +95,9 @@ public class AppsIndexerImplTest {
                     }
                 };
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context)) {
-            appsIndexerImpl.doUpdate(new AppsIndexerSettings(temporaryFolder.newFolder("temp")));
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp")),
+                    new AppsUpdateStats());
 
             assertThat(mAppSearchHelper.getAppsFromAppSearch().keySet())
                     .containsExactly("com.fake.package0");
@@ -112,10 +116,80 @@ public class AppsIndexerImplTest {
                     }
                 };
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context)) {
-            appsIndexerImpl.doUpdate(new AppsIndexerSettings(temporaryFolder.newFolder("tmp")));
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("tmp")),
+                    new AppsUpdateStats());
 
             // Shouldn't throw, but no apps indexed
             assertThat(mAppSearchHelper.getAppsFromAppSearch()).isEmpty();
+        }
+    }
+
+    @Test
+    public void testAppsIndexerImpl_statsSet() throws Exception {
+        // Simulate the first update: no changes, just adding initial apps
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        setupMockPackageManager(pm1, createFakePackageInfos(3), createFakeResolveInfos(3));
+        Context context1 =
+                new ContextWrapper(mContext) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm1;
+                    }
+                };
+
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+
+            // Check the stats object after the first update
+            assertThat(stats1.mNumberOfAppsAdded).isEqualTo(3); // Three new apps added
+            assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0); // No apps deleted
+            assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0); // No apps unchanged
+            assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0); // No apps updated
+
+            // Verify the state of the indexed apps after the first update
+            assertThat(mAppSearchHelper.getAppsFromAppSearch().keySet())
+                    .containsExactly("com.fake.package0", "com.fake.package1", "com.fake.package2");
+        }
+
+        PackageManager pm2 = Mockito.mock(PackageManager.class);
+        // Simulate the second update: one app updated, one unchanged, one deleted, and one new
+        // added. We'll remove package0, update package1, leave package2 unchanged, and add
+        // package3.
+        List<PackageInfo> fakePackages = new ArrayList<>(createFakePackageInfos(4));
+        List<ResolveInfo> fakeActivities = new ArrayList<>(createFakeResolveInfos(4));
+        int updateIndex = 1;
+        fakePackages.get(updateIndex).lastUpdateTime = 1000;
+        fakePackages.remove(0);
+        fakeActivities.remove(0);
+
+        setupMockPackageManager(pm2, fakePackages, fakeActivities);
+        Context context2 =
+                new ContextWrapper(mContext) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm2;
+                    }
+                };
+
+        // Perform the second update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context2)) {
+            AppsUpdateStats stats2 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats2);
+
+            // Check the stats object after the second update
+            assertThat(stats2.mNumberOfAppsAdded).isEqualTo(1); // One new app added
+            assertThat(stats2.mNumberOfAppsRemoved).isEqualTo(1); // One app deleted
+            assertThat(stats2.mNumberOfAppsUnchanged).isEqualTo(1); // One app unchanged
+            assertThat(stats2.mNumberOfAppsUpdated).isEqualTo(1); // One app updated
+
+            // Verify the state of the indexed apps after the second update
+            assertThat(mAppSearchHelper.getAppsFromAppSearch().keySet())
+                    .containsExactly("com.fake.package1", "com.fake.package2", "com.fake.package3");
         }
     }
 }

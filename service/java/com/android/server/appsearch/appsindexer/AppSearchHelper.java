@@ -23,6 +23,7 @@ import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.BatchResultCallback;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.PutDocumentsRequest;
@@ -152,9 +153,15 @@ public class AppSearchHelper implements Closeable {
      *     results in a system error as in {@link BatchResultCallback#onSystemError}. This may
      *     happen if the AppSearch service unexpectedly fails to initialize and can't be recovered,
      *     for instance.
+     * @return an {@link AppSearchBatchResult} containing the results of the put operation. The keys
+     *     of the returned {@link AppSearchBatchResult} are the IDs of the input documents. The
+     *     values are {@code null} if they were successfully indexed, or a failed {@link
+     *     AppSearchResult} otherwise.
+     * @see AppSearchSession#put
      */
     @WorkerThread
-    public void indexApps(@NonNull List<MobileApplication> apps) throws AppSearchException {
+    public AppSearchBatchResult<String, Void> indexApps(@NonNull List<MobileApplication> apps)
+            throws AppSearchException {
         Objects.requireNonNull(apps);
 
         // At this point, the document schema names have already been set to the per-package name.
@@ -175,11 +182,14 @@ public class AppSearchHelper implements Closeable {
                 }
             }
         }
+        return result;
     }
 
     /**
      * Searches AppSearch and returns a Map with the package ids and their last updated times. This
      * helps us determine which app documents need to be re-indexed.
+     *
+     * @return a mapping of document id Strings to updated timestamps.
      */
     @NonNull
     @WorkerThread
@@ -198,7 +208,11 @@ public class AppSearchHelper implements Closeable {
         return collectUpdatedTimestampFromAllPages(results);
     }
 
-    /** Iterates through result pages to get the last updated times */
+    /**
+     * Iterates through result pages to get the last updated times
+     *
+     * @return a mapping of document id Strings updated timestamps.
+     */
     @NonNull
     @WorkerThread
     private Map<String, Long> collectUpdatedTimestampFromAllPages(

@@ -23,11 +23,13 @@ import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -172,6 +174,10 @@ public final class AppsIndexerUserInstance {
      *     for the last update timestamp.
      */
     public void updateAsync(boolean firstRun) {
+        AppsUpdateStats appsUpdateStats = new AppsUpdateStats();
+        long updateLatencyStartTimestampMillis = SystemClock.elapsedRealtime();
+        appsUpdateStats.mUpdateStartTimestampMillis = System.currentTimeMillis();
+        appsUpdateStats.mUpdateType = AppsUpdateStats.FULL_UPDATE;
         // Try to acquire a permit.
         if (!mRunningOrScheduledSemaphore.tryAcquire()) {
             // If there are none available, that means an update is running and we have ALREADY
@@ -186,7 +192,7 @@ public final class AppsIndexerUserInstance {
         // right now.
         executeOnSingleThreadedExecutor(
                 () -> {
-                    doUpdate(firstRun);
+                    doUpdate(firstRun, appsUpdateStats);
                     IndexerMaintenanceService.scheduleUpdateJob(
                             mContext,
                             mContext.getUser(),
@@ -194,6 +200,9 @@ public final class AppsIndexerUserInstance {
                             /* periodic= */ true,
                             /* intervalMillis= */ mAppsIndexerConfig
                                     .getAppsMaintenanceUpdateIntervalMillis());
+                    appsUpdateStats.mTotalLatencyMillis =
+                            SystemClock.elapsedRealtime() - updateLatencyStartTimestampMillis;
+                    logStats(appsUpdateStats);
                 });
     }
 
@@ -203,16 +212,19 @@ public final class AppsIndexerUserInstance {
      * @param firstRun when set to true, that means this was called from onUserUnlocking. If we
      *     didn't have this check, the apps indexer would run every time the phone got unlocked. It
      *     should only run the first time this happens.
+     * @param appsUpdateStats contains stats about the apps indexer update. This method will
+     *     populate the fields of this {@link AppsUpdateStats} structure.
      */
     @VisibleForTesting
     @WorkerThread
-    void doUpdate(boolean firstRun) {
+    void doUpdate(boolean firstRun, @NonNull AppsUpdateStats appsUpdateStats) {
         try {
+            Objects.requireNonNull(appsUpdateStats);
             // Check if there was a prior run
             if (firstRun && mSettings.getLastUpdateTimestampMillis() != 0) {
                 return;
             }
-            mAppsIndexerImpl.doUpdate(mSettings);
+            mAppsIndexerImpl.doUpdate(mSettings, appsUpdateStats);
             mSettings.persist();
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
@@ -284,5 +296,30 @@ public final class AppsIndexerUserInstance {
                         }
                     });
         }
+    }
+
+    private void logStats(@NonNull AppsUpdateStats appsUpdateStats) {
+        Objects.requireNonNull(appsUpdateStats);
+        int[] updateStatusArr = new int[appsUpdateStats.mUpdateStatusCodes.size()];
+        int updateIdx = 0;
+        for (int updateStatus : appsUpdateStats.mUpdateStatusCodes) {
+            updateStatusArr[updateIdx] = updateStatus;
+            ++updateIdx;
+        }
+        AppSearchStatsLog.write(
+                AppSearchStatsLog.APP_SEARCH_APPS_INDEXER_STATS_REPORTED,
+                appsUpdateStats.mUpdateType,
+                updateStatusArr,
+                appsUpdateStats.mNumberOfAppsAdded,
+                appsUpdateStats.mNumberOfAppsRemoved,
+                appsUpdateStats.mNumberOfAppsUpdated,
+                appsUpdateStats.mNumberOfAppsUnchanged,
+                appsUpdateStats.mTotalLatencyMillis,
+                appsUpdateStats.mPackageManagerLatencyMillis,
+                appsUpdateStats.mAppSearchGetLatencyMillis,
+                appsUpdateStats.mAppSearchSetSchemaLatencyMillis,
+                appsUpdateStats.mAppSearchPutLatencyMillis,
+                appsUpdateStats.mUpdateStartTimestampMillis,
+                appsUpdateStats.mLastAppUpdateTimestampMillis);
     }
 }

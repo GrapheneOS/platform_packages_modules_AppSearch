@@ -358,7 +358,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(docCount));
         CountDownLatch latch = setupLatch(docCount);
 
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
         latch.await(10, TimeUnit.SECONDS);
 
         AppSearchHelper searchHelper = new AppSearchHelper(mContext);
@@ -373,7 +373,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
                 createFakeResolveInfos(docCount));
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         settings.load();
@@ -394,7 +394,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager, createFakePackageInfos(10), createFakeResolveInfos(10));
 
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         AppSearchHelper searchHelper = new AppSearchHelper(mContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
@@ -403,7 +403,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager, createFakePackageInfos(6), createFakeResolveInfos(6));
 
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         searchHelper = new AppSearchHelper(mContext);
         appIds = searchHelper.getAppsFromAppSearch();
@@ -474,7 +474,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @Test
     public void testStart_subsequentRunWithNoScheduledJob_schedulesUpdateJob() throws Exception {
         // Trigger an initial update.
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance (scheduling the maintenance job) are finished.
@@ -669,10 +669,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // As there is nothing else in the executor queue, it should run soon.
         Future<?> unused =
-                mSingleThreadedExecutor.submit(() -> mInstance.doUpdate(/* firstRun= */ false));
+                mSingleThreadedExecutor.submit(
+                        () -> mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats()));
 
         // On the current thread, this update will run at the same time as the task on the executor.
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         // By waiting for the single threaded executor to finish after calling doUpdate, both
         // updates are guaranteed to be finished.
@@ -691,7 +692,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     public void testStart_subsequentRunWithScheduledJob_doesNotScheduleUpdateJob()
             throws Exception {
         // Trigger an initial update.
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         JobInfo mockJobInfo = mock(JobInfo.class);
@@ -713,7 +714,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
                 createFakeResolveInfos(docCount));
-        mInstance.doUpdate(/* firstRun= */ false);
+        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         mInstance.updateAsync(/* firstRun= */ false);
 
