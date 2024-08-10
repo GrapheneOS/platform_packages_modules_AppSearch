@@ -38,11 +38,15 @@ import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
-import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.content.Context;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
 
@@ -50,6 +54,7 @@ import com.google.common.collect.ImmutableSet;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -73,7 +78,9 @@ public class AppSearchHelperTest {
     private ContactsUpdateStats mUpdateStats;
 
     private AppSearchSessionShim mDb;
-    private ContactsIndexerConfig mConfigForTest = new TestContactsIndexerConfig();
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Before
     public void setUp() throws Exception {
@@ -100,8 +107,7 @@ public class AppSearchHelperTest {
         // We choose to do it in the setup to make sure it won't create such flakiness in the
         // future tests.
         //
-        mAppSearchHelper = AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor,
-                mConfigForTest);
+        mAppSearchHelper = AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         // TODO(b/237115318) we need to revisit this once the contact indexer is refactored.
         // getSession here will call get() on the future for AppSearchSession to make sure it has
         // been initialized.
@@ -266,8 +272,8 @@ public class AppSearchHelperTest {
 
     @Test
     public void testCreateAppSearchHelper_compatibleSchemaChange() throws Exception {
-        AppSearchHelper appSearchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper appSearchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
 
         assertThat(appSearchHelper).isNotNull();
         assertThat(appSearchHelper.isDataLikelyWipedDuringInitAsync().get()).isFalse();
@@ -282,8 +288,7 @@ public class AppSearchHelperTest {
 
         // APP_IDS changed from optional to repeated, which is a compatible change.
         AppSearchHelper appSearchHelper =
-                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor,
-                        mConfigForTest);
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
 
         assertThat(appSearchHelper).isNotNull();
         assertThat(appSearchHelper.isDataLikelyWipedDuringInitAsync().get()).isFalse();
@@ -298,8 +303,7 @@ public class AppSearchHelperTest {
 
         // LABEL changed from repeated to optional, which is an incompatible change.
         AppSearchHelper appSearchHelper =
-                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor,
-                        mConfigForTest);
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
 
         assertThat(appSearchHelper).isNotNull();
         assertThat(appSearchHelper.isDataLikelyWipedDuringInitAsync().get()).isTrue();
@@ -331,18 +335,14 @@ public class AppSearchHelperTest {
         return indexContactsInBatchesFuture;
     }
 
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES)
     @Test
     public void testPersonSchema_indexFirstMiddleAndLastNames() throws Exception {
-        // Override test config to index first, middle and last names.
-        ContactsIndexerConfig config = new TestContactsIndexerConfig() {
-            @Override
-            public boolean shouldIndexFirstMiddleAndLastNames() {
-                return true;
-            }
-        };
-        SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
-                .addSchemas(ContactPoint.SCHEMA, Person.getSchema(config))
-                .setForceOverride(true).build();
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(ContactPoint.SCHEMA, Person.getSchema())
+                        .setForceOverride(true)
+                        .build();
         mDb.setSchemaAsync(setSchemaRequest).get();
         // Index document
         GenericDocument doc1 =
@@ -388,11 +388,14 @@ public class AppSearchHelperTest {
     // a single token "新中野" currently), the third and fourth asserts in ths test will start
     // failing. This documents current behavior, but doesn't endorse it. Ideally, all of the below
     // queries would be considered matches even when only the full name is indexed.
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES)
     @Test
     public void testPersonSchema_indexFullNameOnly() throws Exception {
-        SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
-                .addSchemas(ContactPoint.SCHEMA, Person.getSchema(mConfigForTest))
-                .setForceOverride(true).build();
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(ContactPoint.SCHEMA, Person.getSchema())
+                        .setForceOverride(true)
+                        .build();
         mDb.setSchemaAsync(setSchemaRequest).get();
         GenericDocument doc1 =
                 new GenericDocument.Builder<>("namespace", "id1", Person.SCHEMA_TYPE)

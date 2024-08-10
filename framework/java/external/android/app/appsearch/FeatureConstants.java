@@ -16,6 +16,7 @@
 
 package android.app.appsearch;
 
+
 /**
  * A class that encapsulates all feature constants that are accessible in AppSearch framework.
  *
@@ -41,9 +42,6 @@ public final class FeatureConstants {
 
     /** A feature constant for the "semanticSearch" function in {@link AppSearchSession#search}. */
     public static final String EMBEDDING_SEARCH = "EMBEDDING_SEARCH";
-
-    /** A feature constant for the "tokenize" function in {@link AppSearchSession#search}. */
-    public static final String LIST_FILTER_TOKENIZE_FUNCTION = "TOKENIZE";
 
     private FeatureConstants() {}
 }

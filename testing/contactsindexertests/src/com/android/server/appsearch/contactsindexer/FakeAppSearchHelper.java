@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.content.Context;
 import android.util.ArrayMap;
 
@@ -46,7 +45,7 @@ public final class FakeAppSearchHelper extends AppSearchHelper {
     }
 
     public FakeAppSearchHelper(@NonNull Context context, int docLimit, int deleteLimit) {
-        super(context, Runnable::run, new TestContactsIndexerConfig());
+        super(context, Runnable::run);
         mDocLimit = docLimit;
         mDeleteLimit = deleteLimit;
     }

@@ -16,6 +16,7 @@
 
 package android.app.appsearch.checker.nullness.qual;
 
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

@@ -31,7 +31,6 @@ public interface ContactsIndexerConfig {
     long DEFAULT_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS = TimeUnit.DAYS.toMillis(30); // 30 days.
     int DEFAULT_CONTACTS_FULL_UPDATE_INDEXING_LIMIT = 10_000;
     int DEFAULT_CONTACTS_DELTA_UPDATE_INDEXING_LIMIT = 1000;
-    boolean DEFAULT_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES = false;
     boolean DEFAULT_CONTACTS_KEEP_UPDATING_ON_ERROR = true;
 
     /** Returns whether Contacts Indexer is enabled. */
@@ -64,12 +63,6 @@ public interface ContactsIndexerConfig {
      * <p>The value will be used as a LIMIT for querying CP2 during the delta update.
      */
     int getContactsDeltaUpdateLimit();
-
-    /**
-     * Returns whether the first, middle and last names of a contact should be indexed in addition
-     * to the full name.
-     */
-    boolean shouldIndexFirstMiddleAndLastNames();
 
     /** Returns whether full and delta updates should continue on error. */
     boolean shouldKeepUpdatingOnError();

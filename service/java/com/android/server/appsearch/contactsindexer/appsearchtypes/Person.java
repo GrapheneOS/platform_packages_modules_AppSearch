@@ -23,9 +23,9 @@ import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.net.Uri;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
-import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -246,14 +246,9 @@ public class Person extends GenericDocument {
         return builder.build();
     }
 
-    /***
-     * Returns Person schema based on current value of flag
-     * 'contacts_index_first_middle_and_last_names'. If the flag value changes after the initial
-     * schema fetch, the schema returned will be different than the original schema that was set
-     * for the Person corpus.
-     */
-    public static AppSearchSchema getSchema(ContactsIndexerConfig config) {
-        return createSchema(config.shouldIndexFirstMiddleAndLastNames());
+    /** Returns Person schema based on {@link Flags#enableContactsIndexFirstMiddleAndLastNames}. */
+    public static AppSearchSchema getSchema() {
+        return createSchema(Flags.enableContactsIndexFirstMiddleAndLastNames());
     }
 
     /** Constructs a {@link Person}. */

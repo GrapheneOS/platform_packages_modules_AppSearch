@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package {
+    default_team: "trendy_team_appsearch",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -22,20 +23,21 @@ android_test {
     defaults: ["modules-utils-testable-device-config-defaults"],
     static_libs: [
         "CtsAppSearchTestUtils",
+        "Harrier",
+        "Nene",
+        "TestApp",
         "androidx.test.ext.junit",
         "androidx.test.rules",
+        "appsearch_flags_java_lib",
         "compatibility-device-util-axt",
         "service-appsearch-for-tests",
         "services.core",
         "truth",
-        "Nene",
-        "Harrier",
-        "TestApp",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.mock",
         "android.test.base",
+        "android.test.mock",
+        "android.test.runner",
         "framework-appsearch.impl",
     ],
     test_suites: [

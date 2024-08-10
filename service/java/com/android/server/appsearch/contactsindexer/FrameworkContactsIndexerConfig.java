@@ -34,8 +34,6 @@ public class FrameworkContactsIndexerConfig implements ContactsIndexerConfig {
             "contacts_full_update_interval_millis";
     static final String KEY_CONTACTS_FULL_UPDATE_LIMIT = "contacts_indexer_full_update_limit";
     static final String KEY_CONTACTS_DELTA_UPDATE_LIMIT = "contacts_indexer_delta_update_limit";
-    public static final String KEY_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES =
-            "contacts_index_first_middle_and_last_names";
     static final String KEY_CONTACTS_KEEP_UPDATING_ON_ERROR = "contacts_keep_updating_on_error";
 
     @Override
@@ -79,14 +77,6 @@ public class FrameworkContactsIndexerConfig implements ContactsIndexerConfig {
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_CONTACTS_DELTA_UPDATE_LIMIT,
                 DEFAULT_CONTACTS_DELTA_UPDATE_INDEXING_LIMIT);
-    }
-
-    @Override
-    public boolean shouldIndexFirstMiddleAndLastNames() {
-        return DeviceConfig.getBoolean(
-                DeviceConfig.NAMESPACE_APPSEARCH,
-                KEY_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES,
-                DEFAULT_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES);
     }
 
     @Override

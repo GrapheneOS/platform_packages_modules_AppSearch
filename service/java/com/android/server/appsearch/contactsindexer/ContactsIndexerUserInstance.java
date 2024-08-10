@@ -133,8 +133,7 @@ public final class ContactsIndexerUserInstance {
         Objects.requireNonNull(executorService);
 
         AppSearchHelper appSearchHelper =
-                AppSearchHelper.createAppSearchHelper(
-                        context, executorService, contactsIndexerConfig);
+                AppSearchHelper.createAppSearchHelper(context, executorService);
         ContactsIndexerUserInstance indexer =
                 new ContactsIndexerUserInstance(
                         context,

@@ -425,8 +425,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 mInstance.doFullUpdateInternalAsync(new CancellationSignal(), mUpdateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(500);
     }
@@ -477,8 +477,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                         mUpdateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(250);
 
@@ -527,8 +527,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                         mUpdateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(100);
     }
@@ -561,8 +561,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                         mUpdateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(6);
         assertThat(contactIds).containsNoneOf("2", "3", "5", "7");
@@ -624,8 +624,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                         mUpdateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(6);
         assertThat(contactIds).containsNoneOf("2", "3", "5", "7");
@@ -699,8 +699,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                         mUpdateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(11);
         assertThat(contactIds).containsNoneOf("2", "3", "5", "7");
@@ -788,10 +788,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
         AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(
                 searchContext).get();
-        SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
-                .addSchemas(TestUtils.CONTACT_POINT_SCHEMA_WITH_APP_IDS_OPTIONAL,
-                        Person.getSchema(mConfigForTest))
-                .setForceOverride(true).build();
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(
+                                TestUtils.CONTACT_POINT_SCHEMA_WITH_APP_IDS_OPTIONAL,
+                                Person.getSchema())
+                        .setForceOverride(true)
+                        .build();
         db.setSchemaAsync(setSchemaRequest).get();
 
         // Since the current schema is compatible, this won't trigger any delta update and
@@ -835,10 +838,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
         AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(
                 searchContext).get();
-        SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
-                .addSchemas(TestUtils.CONTACT_POINT_SCHEMA_WITH_LABEL_REPEATED,
-                        Person.getSchema(mConfigForTest))
-                .setForceOverride(true).build();
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(
+                                TestUtils.CONTACT_POINT_SCHEMA_WITH_LABEL_REPEATED,
+                                Person.getSchema())
+                        .setForceOverride(true)
+                        .build();
         db.setSchemaAsync(setSchemaRequest).get();
         // Setup a latch
         CountDownLatch latch = new CountDownLatch(docCount);
@@ -943,8 +949,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 mInstance.doFullUpdateInternalAsync(new CancellationSignal(), updateStats),
                 mSingleThreadedExecutor);
 
-        AppSearchHelper searchHelper = AppSearchHelper.createAppSearchHelper(mContext,
-                mSingleThreadedExecutor, mConfigForTest);
+        AppSearchHelper searchHelper =
+                AppSearchHelper.createAppSearchHelper(mContext, mSingleThreadedExecutor);
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(250);
 

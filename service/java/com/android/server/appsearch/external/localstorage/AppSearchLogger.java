@@ -42,28 +42,44 @@ import java.util.List;
  */
 public interface AppSearchLogger {
     /** Logs {@link CallStats} */
-    void logStats(@NonNull CallStats stats);
+    default void logStats(@NonNull CallStats stats) {
+        // no-op
+    }
 
     /** Logs {@link PutDocumentStats} */
-    void logStats(@NonNull PutDocumentStats stats);
+    default void logStats(@NonNull PutDocumentStats stats) {
+        // no-op
+    }
 
     /** Logs {@link InitializeStats} */
-    void logStats(@NonNull InitializeStats stats);
+    default void logStats(@NonNull InitializeStats stats) {
+        // no-op
+    }
 
     /** Logs {@link SearchStats} */
-    void logStats(@NonNull SearchStats stats);
+    default void logStats(@NonNull SearchStats stats) {
+        // no-op
+    }
 
     /** Logs {@link RemoveStats} */
-    void logStats(@NonNull RemoveStats stats);
+    default void logStats(@NonNull RemoveStats stats) {
+        // no-op
+    }
 
     /** Logs {@link OptimizeStats} */
-    void logStats(@NonNull OptimizeStats stats);
+    default void logStats(@NonNull OptimizeStats stats) {
+        // no-op
+    }
 
     /** Logs {@link SetSchemaStats} */
-    void logStats(@NonNull SetSchemaStats stats);
+    default void logStats(@NonNull SetSchemaStats stats) {
+        // no-op
+    }
 
     /** Logs {@link SchemaMigrationStats} */
-    void logStats(@NonNull SchemaMigrationStats stats);
+    default void logStats(@NonNull SchemaMigrationStats stats) {
+        // no-op
+    }
 
     /**
      * Logs a list of {@link SearchSessionStats}.
@@ -84,7 +100,9 @@ public interface AppSearchLogger {
      * creates 2 {@link SearchSessionStats} with search intents ["a", "app"] and ["email"]
      * respectively.
      */
-    void logStats(@NonNull List<SearchSessionStats> searchSessionsStats);
+    default void logStats(@NonNull List<SearchSessionStats> searchSessionsStats) {
+        // no-op
+    }
 
     // TODO(b/173532925) Add remaining logStats once we add all the stats.
 }

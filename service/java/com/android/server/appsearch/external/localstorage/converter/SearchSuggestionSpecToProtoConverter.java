@@ -106,7 +106,9 @@ public final class SearchSuggestionSpecToProtoConverter {
                         .setPrefix(mSuggestionQueryExpression)
                         .addAllNamespaceFilters(mTargetPrefixedNamespaceFilters)
                         .addAllSchemaTypeFilters(mTargetPrefixedSchemaFilters)
-                        .setNumToReturn(mSearchSuggestionSpec.getMaximumResultCount());
+                        .setNumToReturn(mSearchSuggestionSpec.getMaximumResultCount())
+                        .addAllQueryParameterStrings(
+                                mSearchSuggestionSpec.getSearchStringParameters());
 
         // Convert type property filter map into type property mask proto.
         for (Map.Entry<String, List<String>> entry :

@@ -16,6 +16,7 @@
 
 package android.app.appsearch.usagereporting;
 
+
 /**
  * Wrapper class for action constants.
  *

@@ -151,10 +151,10 @@ flag {
 
 
 flag {
-    name: "enable_list_filter_tokenize_function"
+    name: "enable_search_spec_search_string_parameters"
     namespace: "appsearch"
     description: "Enables the tokenize function in the list filter language"
-    bug: "332620561"
+    bug: "352780707"
     is_fixed_read_only: true
     is_exported: true
 }
@@ -164,6 +164,24 @@ flag {
     namespace: "appsearch"
     description: "Enables the apps indexer module"
     bug: "275592563"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_contacts_index_first_middle_and_last_names"
+    namespace: "appsearch"
+    description: "Enables the indexing of first, middle, and last names in contacts indexer"
+    bug: "358082031"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_result_already_exists"
+    namespace: "appsearch"
+    description: "Enable the RESULT_ALREADY_EXISTS constant in AppSearchResult"
+    bug: "357708638"
     is_fixed_read_only: true
     is_exported: true
 }
