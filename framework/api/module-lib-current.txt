@@ -1,1 +1,10 @@
 // Signature format: 2.0
+package android.app.appsearch {
+
+  public class GenericDocument {
+    method @FlaggedApi("com.android.appsearch.flags.enable_generic_document_over_ipc") @NonNull public static android.app.appsearch.GenericDocument createFromParcel(@NonNull android.os.Parcel);
+    method @FlaggedApi("com.android.appsearch.flags.enable_generic_document_over_ipc") public final void writeToParcel(@NonNull android.os.Parcel, int);
+  }
+
+}
+

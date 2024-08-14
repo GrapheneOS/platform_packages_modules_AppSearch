@@ -50,13 +50,13 @@ java_defaults {
     sdk_version: "system_server_current",
     min_sdk_version: "Tiramisu",
     static_libs: [
-        "appsearch_flags_java_lib",
         "icing-java-proto-lite",
         "libicing-java",
         "statslog-appsearch-lib",
 
         // Entries below this line are outside of the appsearch package tree and must be kept in
         // sync with jarjar.txt
+        "appsearch_flags_java_lib",
         "modules-utils-preconditions",
     ],
     libs: [

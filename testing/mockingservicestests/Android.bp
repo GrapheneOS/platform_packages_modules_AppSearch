@@ -24,7 +24,7 @@ android_test {
         "CtsAppSearchTestUtils",
         "androidx.test.ext.junit",
         "androidx.test.rules",
-        "appsearch_flags_java_lib",
+        "appsearch_flags_java_exported_lib",
         "flag-junit",
         "mockito-target-minus-junit4",
         "service-appsearch-for-tests",

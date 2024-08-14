@@ -13,14 +13,32 @@ aconfig_declarations {
 }
 
 java_aconfig_library {
+    name: "appsearch_flags_java_exported_lib",
+    aconfig_declarations: "appsearch_aconfig_flags",
+    visibility: [
+        "//cts/tests/appfunctions:__subpackages__",
+        "//cts/tests/appsearch:__subpackages__",
+        "//frameworks/base",
+        "//packages/modules/AppSearch/testing:__subpackages__",
+    ],
+    mode: "exported",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    min_sdk_version: "Tiramisu",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.appsearch",
+    ],
+}
+
+java_aconfig_library {
     name: "appsearch_flags_java_lib",
     aconfig_declarations: "appsearch_aconfig_flags",
     visibility: [
-        "//cts/tests/appsearch:__subpackages__",
         "//packages/modules/AppSearch:__subpackages__",
     ],
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
-    mode: "exported",
     min_sdk_version: "Tiramisu",
-    apex_available: ["com.android.appsearch"],
+    apex_available: [
+        "com.android.appsearch",
+    ],
 }

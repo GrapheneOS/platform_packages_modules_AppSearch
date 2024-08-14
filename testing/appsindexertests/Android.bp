@@ -25,15 +25,16 @@ android_test {
         "CtsAppSearchTestUtils",
         "androidx.test.ext.junit",
         "androidx.test.rules",
+        "appsearch_flags_java_exported_lib",
         "compatibility-device-util-axt",
         "service-appsearch-for-tests",
         "services.core",
         "truth",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.mock",
         "android.test.base",
+        "android.test.mock",
+        "android.test.runner",
         "framework-appsearch.impl",
     ],
     test_suites: [

@@ -46,9 +46,9 @@ import android.net.Uri;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
-import com.android.server.appsearch.flags.Flags;
 
 import org.junit.After;
 import org.junit.Test;
