@@ -95,7 +95,6 @@ import android.app.appsearch.aidl.SearchSuggestionAidlRequest;
 import android.app.appsearch.aidl.SetSchemaAidlRequest;
 import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
-import android.app.appsearch.functions.AppFunctionManager;
 import android.app.appsearch.functions.ExecuteAppFunctionRequest;
 import android.app.appsearch.functions.ExecuteAppFunctionResponse;
 import android.app.appsearch.functions.ServiceCallHelper;
@@ -1509,19 +1508,6 @@ public class AppSearchManagerServiceTest {
     }
 
     @Test
-    public void executeAppFunction_serviceNotPermissionProtected() throws Exception {
-        ServiceInfo serviceInfo = new ServiceInfo();
-        serviceInfo.packageName = FOO_PACKAGE_NAME;
-        serviceInfo.name = ".MyAppFunctionService";
-        ResolveInfo resolveInfo = new ResolveInfo();
-        resolveInfo.serviceInfo = serviceInfo;
-        PackageManager spyPackageManager = mContext.getPackageManager();
-        doReturn(resolveInfo).when(spyPackageManager).resolveService(any(Intent.class), eq(0));
-
-        verifyExecuteAppFunctionCallbackResult(AppSearchResult.RESULT_NOT_FOUND);
-    }
-
-    @Test
     public void executeAppFunction_bindServiceReturnsFalse() throws Exception {
         mServiceCallHelper.setBindServiceResult(false);
         mServiceCallHelper.setOnRunServiceCallListener((callback) -> {});
@@ -2020,7 +2006,10 @@ public class AppSearchManagerServiceTest {
         ServiceInfo serviceInfo = new ServiceInfo();
         serviceInfo.packageName = FOO_PACKAGE_NAME;
         serviceInfo.name = ".MyAppFunctionService";
-        serviceInfo.permission = AppFunctionManager.PERMISSION_BIND_APP_FUNCTION_SERVICE;
+        // TODO(b/359911502): Commenting out this permission since the BIND_APP_FUNCTION_SERVICE
+        //   permission is deleted from app search. Th whole app function functionality should be
+        //   removed along with the tests here once the new app function manager is submitted.
+        //   serviceInfo.permission = AppFunctionManager.PERMISSION_BIND_APP_FUNCTION_SERVICE;
         ResolveInfo resolveInfo = new ResolveInfo();
         resolveInfo.serviceInfo = serviceInfo;
         PackageManager spyPackageManager = mContext.getPackageManager();

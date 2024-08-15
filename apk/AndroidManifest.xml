@@ -16,13 +16,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.android.appsearch.apk">
 
-    <!-- Must be required by a {@link android.app.appsearch.functions.AppFunctionService},
-         to ensure that only the system can bind to it.
-         <p>Protection level: signature
-    -->
-    <permission android:name="android.permission.BIND_APP_FUNCTION_SERVICE"
-                android:protectionLevel="signature"/>
-    <!-- Allows system applications to execute app functions provided by apps through AppSearch. -->
+    <!-- TODO(b/359911502): Remove this permission along with the other app functionality that
+           exists in app search once the new app function implementation is done.
+         Allows system applications to execute app functions provided by apps through AppSearch. -->
     <permission android:name="android.permission.EXECUTE_APP_FUNCTION"
                 android:protectionLevel="internal|role" />
 
