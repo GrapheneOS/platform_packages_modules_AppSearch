@@ -15,7 +15,6 @@
  */
 package com.android.server.appsearch.util;
 
-import static android.app.appsearch.AppSearchResult.RESULT_RATE_LIMITED;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 
 import android.Manifest;
@@ -42,11 +41,9 @@ import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.AppSearchUserInstanceManager;
-import com.android.server.appsearch.external.localstorage.stats.CallStats;
 
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Executor;
 
 /**
  * Utilities to help with implementing AppSearch's services.
@@ -59,7 +56,6 @@ public class ServiceImplHelper {
     private final Context mContext;
     private final UserManager mUserManager;
     private final DevicePolicyManager mDevicePolicyManager;
-    private final ExecutorManager mExecutorManager;
     private final AppSearchUserInstanceManager mAppSearchUserInstanceManager;
 
     // Cache of unlocked users so we don't have to query UserManager service each time. The "locked"
@@ -78,10 +74,9 @@ public class ServiceImplHelper {
     @Nullable
     private UserHandle mEnterpriseUserLocked;
 
-    public ServiceImplHelper(@NonNull Context context, @NonNull ExecutorManager executorManager) {
+    public ServiceImplHelper(@NonNull Context context) {
         mContext = Objects.requireNonNull(context);
         mUserManager = context.getSystemService(UserManager.class);
-        mExecutorManager = Objects.requireNonNull(executorManager);
         mAppSearchUserInstanceManager = AppSearchUserInstanceManager.getInstance();
         mDevicePolicyManager = context.getSystemService(DevicePolicyManager.class);
     }
@@ -339,137 +334,6 @@ public class ServiceImplHelper {
                         + targetUserHandle
                         + "; Requires permission: "
                         + Manifest.permission.INTERACT_ACROSS_USERS_FULL);
-    }
-
-    /**
-     * Helper to execute the implementation of some AppSearch functionality on the executor for that
-     * user.
-     *
-     * <p>You should first make sure the call is allowed to run using {@link #verifyCaller}.
-     *
-     * @param targetUser The verified user the call should run as, as determined by {@link
-     *     #verifyCaller}.
-     * @param errorCallback Callback to complete with an error if starting the lambda fails.
-     *     Otherwise this callback is not triggered.
-     * @param callingPackageName Package making this lambda call.
-     * @param apiType Api type of this lambda call.
-     * @param lambda The lambda to execute on the user-provided executor.
-     * @return true if the call is accepted by the executor and false otherwise.
-     */
-    @BinderThread
-    @CanIgnoreReturnValue
-    public boolean executeLambdaForUserAsync(
-            @NonNull UserHandle targetUser,
-            @NonNull IAppSearchResultCallback errorCallback,
-            @NonNull String callingPackageName,
-            @CallStats.CallType int apiType,
-            @NonNull Runnable lambda) {
-        Objects.requireNonNull(targetUser);
-        Objects.requireNonNull(errorCallback);
-        Objects.requireNonNull(callingPackageName);
-        Objects.requireNonNull(lambda);
-        try {
-            Executor executor = mExecutorManager.getOrCreateUserExecutor(targetUser);
-            if (executor instanceof RateLimitedExecutor) {
-                boolean callAccepted =
-                        ((RateLimitedExecutor) executor)
-                                .execute(lambda, callingPackageName, apiType);
-                if (!callAccepted) {
-                    invokeCallbackOnResult(
-                            errorCallback,
-                            AppSearchResultParcel.fromFailedResult(
-                                    AppSearchResult.newFailedResult(
-                                            RESULT_RATE_LIMITED, "AppSearch rate limit reached.")));
-                    return false;
-                }
-            } else {
-                executor.execute(lambda);
-            }
-        } catch (RuntimeException e) {
-            AppSearchResult failedResult = throwableToFailedResult(e);
-            invokeCallbackOnResult(
-                    errorCallback, AppSearchResultParcel.fromFailedResult(failedResult));
-        }
-        return true;
-    }
-
-    /**
-     * Helper to execute the implementation of some AppSearch functionality on the executor for that
-     * user.
-     *
-     * <p>You should first make sure the call is allowed to run using {@link #verifyCaller}.
-     *
-     * @param targetUser The verified user the call should run as, as determined by {@link
-     *     #verifyCaller}.
-     * @param errorCallback Callback to complete with an error if starting the lambda fails.
-     *     Otherwise this callback is not triggered.
-     * @param callingPackageName Package making this lambda call.
-     * @param apiType Api type of this lambda call.
-     * @param lambda The lambda to execute on the user-provided executor.
-     * @return true if the call is accepted by the executor and false otherwise.
-     */
-    @BinderThread
-    public boolean executeLambdaForUserAsync(
-            @NonNull UserHandle targetUser,
-            @NonNull IAppSearchBatchResultCallback errorCallback,
-            @NonNull String callingPackageName,
-            @CallStats.CallType int apiType,
-            @NonNull Runnable lambda) {
-        Objects.requireNonNull(targetUser);
-        Objects.requireNonNull(errorCallback);
-        Objects.requireNonNull(callingPackageName);
-        Objects.requireNonNull(lambda);
-        try {
-            Executor executor = mExecutorManager.getOrCreateUserExecutor(targetUser);
-            if (executor instanceof RateLimitedExecutor) {
-                boolean callAccepted =
-                        ((RateLimitedExecutor) executor)
-                                .execute(lambda, callingPackageName, apiType);
-                if (!callAccepted) {
-                    invokeCallbackOnError(
-                            errorCallback,
-                            AppSearchResult.newFailedResult(
-                                    RESULT_RATE_LIMITED, "AppSearch rate limit reached."));
-                    return false;
-                }
-            } else {
-                executor.execute(lambda);
-            }
-        } catch (RuntimeException e) {
-            invokeCallbackOnError(errorCallback, e);
-        }
-        return true;
-    }
-
-    /**
-     * Helper to execute the implementation of some AppSearch functionality on the executor for that
-     * user, without invoking callback for the user.
-     *
-     * <p>You should first make sure the call is allowed to run using {@link #verifyCaller}.
-     *
-     * @param targetUser The verified user the call should run as, as determined by {@link
-     *     #verifyCaller}.
-     * @param callingPackageName Package making this lambda call.
-     * @param apiType Api type of this lambda call.
-     * @param lambda The lambda to execute on the user-provided executor.
-     * @return true if the call is accepted by the executor and false otherwise.
-     */
-    @BinderThread
-    public boolean executeLambdaForUserNoCallbackAsync(
-            @NonNull UserHandle targetUser,
-            @NonNull String callingPackageName,
-            @CallStats.CallType int apiType,
-            @NonNull Runnable lambda) {
-        Objects.requireNonNull(targetUser);
-        Objects.requireNonNull(callingPackageName);
-        Objects.requireNonNull(lambda);
-        Executor executor = mExecutorManager.getOrCreateUserExecutor(targetUser);
-        if (executor instanceof RateLimitedExecutor) {
-            return ((RateLimitedExecutor) executor).execute(lambda, callingPackageName, apiType);
-        } else {
-            executor.execute(lambda);
-            return true;
-        }
     }
 
     /**

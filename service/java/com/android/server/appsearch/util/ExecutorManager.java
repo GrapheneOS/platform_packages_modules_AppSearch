@@ -16,8 +16,20 @@
 
 package com.android.server.appsearch.util;
 
+import static android.app.appsearch.AppSearchResult.RESULT_RATE_LIMITED;
+import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
+
+import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnError;
+import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnResult;
+
+import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
+import android.app.appsearch.AppSearchResult;
+import android.app.appsearch.aidl.AppSearchResultParcel;
+import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
+import android.app.appsearch.aidl.IAppSearchResultCallback;
+import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 
@@ -25,6 +37,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.AppSearchRateLimitConfig;
 import com.android.server.appsearch.FrameworkServiceAppSearchConfig;
 import com.android.server.appsearch.ServiceAppSearchConfig;
+import com.android.server.appsearch.external.localstorage.stats.CallStats;
 
 import java.util.Map;
 import java.util.Objects;
@@ -41,15 +54,6 @@ import java.util.concurrent.TimeUnit;
  * @hide
  */
 public class ExecutorManager {
-    private final ServiceAppSearchConfig mAppSearchConfig;
-
-    /**
-     * A map of per-user executors for queued work. These can be started or shut down via this
-     * class's public API.
-     */
-    @GuardedBy("mPerUserExecutorsLocked")
-    private final Map<UserHandle, ExecutorService> mPerUserExecutorsLocked = new ArrayMap<>();
-
     /**
      * Creates a new {@link ExecutorService} with default settings for use in AppSearch.
      *
@@ -72,6 +76,15 @@ public class ExecutorManager {
                         /* workQueue= */ new LinkedBlockingQueue<>(),
                         /* priority= */ 0); // priority is unused.
     }
+
+    private final ServiceAppSearchConfig mAppSearchConfig;
+
+    /**
+     * A map of per-user executors for queued work. These can be started or shut down via this
+     * class's public API.
+     */
+    @GuardedBy("mPerUserExecutorsLocked")
+    private final Map<UserHandle, ExecutorService> mPerUserExecutorsLocked = new ArrayMap<>();
 
     public ExecutorManager(@NonNull ServiceAppSearchConfig appSearchConfig) {
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
@@ -96,6 +109,175 @@ public class ExecutorManager {
             } else {
                 return getOrCreateUserExecutorLocked(userHandle);
             }
+        }
+    }
+
+    /**
+     * Gracefully shuts down the executor for the given user if there is one, waiting up to 30
+     * seconds for jobs to finish.
+     */
+    public void shutDownAndRemoveUserExecutor(@NonNull UserHandle userHandle)
+            throws InterruptedException {
+        Objects.requireNonNull(userHandle);
+        ExecutorService executor;
+        synchronized (mPerUserExecutorsLocked) {
+            executor = mPerUserExecutorsLocked.remove(userHandle);
+        }
+        if (executor != null) {
+            executor.shutdown();
+            // Wait a little bit to finish outstanding requests. It's important not to call
+            // shutdownNow because nothing would pass a final result to the caller, leading to
+            // hangs. If we are interrupted or the timeout elapses, just move on to closing the
+            // user instance, meaning pending tasks may crash when AppSearchImpl closes under
+            // them.
+            executor.awaitTermination(30, TimeUnit.SECONDS);
+        }
+    }
+
+    /**
+     * Helper to execute the implementation of some AppSearch functionality on the executor for that
+     * user.
+     *
+     * @param targetUser The verified user the call should run as.
+     * @param errorCallback Callback to complete with an error if starting the lambda fails.
+     *     Otherwise this callback is not triggered.
+     * @param callingPackageName Package making this lambda call.
+     * @param apiType Api type of this lambda call.
+     * @param lambda The lambda to execute on the user-provided executor.
+     * @return true if the call is accepted by the executor and false otherwise.
+     */
+    @BinderThread
+    @CanIgnoreReturnValue
+    public boolean executeLambdaForUserAsync(
+            @NonNull UserHandle targetUser,
+            @NonNull IAppSearchResultCallback errorCallback,
+            @NonNull String callingPackageName,
+            @CallStats.CallType int apiType,
+            @NonNull Runnable lambda) {
+        Objects.requireNonNull(targetUser);
+        Objects.requireNonNull(errorCallback);
+        Objects.requireNonNull(callingPackageName);
+        Objects.requireNonNull(lambda);
+        try {
+            synchronized (mPerUserExecutorsLocked) {
+                Executor executor = getOrCreateUserExecutor(targetUser);
+                if (executor instanceof RateLimitedExecutor) {
+                    boolean callAccepted =
+                            ((RateLimitedExecutor) executor)
+                                    .execute(lambda, callingPackageName, apiType);
+                    if (!callAccepted) {
+                        invokeCallbackOnResult(
+                                errorCallback,
+                                AppSearchResultParcel.fromFailedResult(
+                                        AppSearchResult.newFailedResult(
+                                                RESULT_RATE_LIMITED,
+                                                "AppSearch rate limit reached.")));
+                        return false;
+                    }
+                } else {
+                    executor.execute(lambda);
+                }
+            }
+        } catch (RuntimeException e) {
+            AppSearchResult failedResult = throwableToFailedResult(e);
+            invokeCallbackOnResult(
+                    errorCallback, AppSearchResultParcel.fromFailedResult(failedResult));
+        }
+        return true;
+    }
+
+    /**
+     * Helper to execute the implementation of some AppSearch functionality on the executor for that
+     * user.
+     *
+     * @param targetUser The verified user the call should run as.
+     * @param errorCallback Callback to complete with an error if starting the lambda fails.
+     *     Otherwise this callback is not triggered.
+     * @param callingPackageName Package making this lambda call.
+     * @param apiType Api type of this lambda call.
+     * @param lambda The lambda to execute on the user-provided executor.
+     * @return true if the call is accepted by the executor and false otherwise.
+     */
+    @BinderThread
+    public boolean executeLambdaForUserAsync(
+            @NonNull UserHandle targetUser,
+            @NonNull IAppSearchBatchResultCallback errorCallback,
+            @NonNull String callingPackageName,
+            @CallStats.CallType int apiType,
+            @NonNull Runnable lambda) {
+        Objects.requireNonNull(targetUser);
+        Objects.requireNonNull(errorCallback);
+        Objects.requireNonNull(callingPackageName);
+        Objects.requireNonNull(lambda);
+        try {
+            synchronized (mPerUserExecutorsLocked) {
+                Executor executor = getOrCreateUserExecutor(targetUser);
+                if (executor instanceof RateLimitedExecutor) {
+                    boolean callAccepted =
+                            ((RateLimitedExecutor) executor)
+                                    .execute(lambda, callingPackageName, apiType);
+                    if (!callAccepted) {
+                        invokeCallbackOnError(
+                                errorCallback,
+                                AppSearchResult.newFailedResult(
+                                        RESULT_RATE_LIMITED, "AppSearch rate limit reached."));
+                        return false;
+                    }
+                } else {
+                    executor.execute(lambda);
+                }
+            }
+        } catch (RuntimeException e) {
+            invokeCallbackOnError(errorCallback, e);
+        }
+        return true;
+    }
+
+    /**
+     * Helper to execute the implementation of some AppSearch functionality on the executor for that
+     * user, without invoking callback for the user.
+     *
+     * @param targetUser The verified user the call should run as.
+     * @param callingPackageName Package making this lambda call.
+     * @param apiType Api type of this lambda call.
+     * @param lambda The lambda to execute on the user-provided executor.
+     * @return true if the call is accepted by the executor and false otherwise.
+     */
+    @BinderThread
+    public boolean executeLambdaForUserNoCallbackAsync(
+            @NonNull UserHandle targetUser,
+            @NonNull String callingPackageName,
+            @CallStats.CallType int apiType,
+            @NonNull Runnable lambda) {
+        Objects.requireNonNull(targetUser);
+        Objects.requireNonNull(callingPackageName);
+        Objects.requireNonNull(lambda);
+        synchronized (mPerUserExecutorsLocked) {
+            Executor executor = getOrCreateUserExecutor(targetUser);
+            if (executor instanceof RateLimitedExecutor) {
+                return ((RateLimitedExecutor) executor)
+                        .execute(lambda, callingPackageName, apiType);
+            } else {
+                executor.execute(lambda);
+                return true;
+            }
+        }
+    }
+
+    /**
+     * Helper to execute the implementation of some AppSearch functionality on the executor for that
+     * user, without invoking callback for the user.
+     *
+     * @param targetUser The verified user the call should run as.
+     * @param lambda The lambda to execute on the user-provided executor.
+     */
+    public void executeLambdaForUserNoCallbackAsync(
+            @NonNull UserHandle targetUser, @NonNull Runnable lambda) {
+        Objects.requireNonNull(targetUser);
+        Objects.requireNonNull(lambda);
+
+        synchronized (mPerUserExecutorsLocked) {
+            getOrCreateUserExecutor(targetUser).execute(lambda);
         }
     }
 
@@ -129,27 +311,5 @@ public class ExecutorManager {
             mPerUserExecutorsLocked.put(userHandle, executor);
         }
         return executor;
-    }
-
-    /**
-     * Gracefully shuts down the executor for the given user if there is one, waiting up to 30
-     * seconds for jobs to finish.
-     */
-    public void shutDownAndRemoveUserExecutor(@NonNull UserHandle userHandle)
-            throws InterruptedException {
-        Objects.requireNonNull(userHandle);
-        ExecutorService executor;
-        synchronized (mPerUserExecutorsLocked) {
-            executor = mPerUserExecutorsLocked.remove(userHandle);
-        }
-        if (executor != null) {
-            executor.shutdown();
-            // Wait a little bit to finish outstanding requests. It's important not to call
-            // shutdownNow because nothing would pass a final result to the caller, leading to
-            // hangs. If we are interrupted or the timeout elapses, just move on to closing the
-            // user instance, meaning pending tasks may crash when AppSearchImpl closes under
-            // them.
-            executor.awaitTermination(30, TimeUnit.SECONDS);
-        }
     }
 }
