@@ -55,4 +55,11 @@ public class AppFunctionStaticMetadataTest {
         assertThat(appFunction.getMobileApplicationQualifiedId())
                 .isEqualTo("android$apps-db/apps#com.example.message");
     }
+
+    @Test
+    public void testSchemaName() {
+        String packageName = "com.example.message";
+        String schemaName = AppFunctionStaticMetadata.getSchemaNameForPackage(packageName);
+        assertThat(schemaName).isEqualTo("AppFunctionStaticMetadata-com.example.message");
+    }
 }

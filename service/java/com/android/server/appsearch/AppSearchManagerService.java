@@ -109,6 +109,7 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
@@ -890,10 +891,25 @@ public class AppSearchManagerService extends SystemService {
             UserHandle userToQuery = mServiceImplHelper.getUserToQuery(
                     request.isForEnterprise(), targetUser);
             if (userToQuery == null) {
-                // Return an empty batch result if we tried to and couldn't get the enterprise user
-                invokeCallbackOnResult(callback, AppSearchBatchResultParcel
-                        .fromStringToGenericDocumentParcel(new AppSearchBatchResult
-                                .Builder<String, GenericDocumentParcel>().build()));
+                if (Flags.enableEnterpriseEmptyBatchResultFix()) {
+                    // Return a batch result with RESULT_NOT_FOUND for each document id if we tried
+                    // to and couldn't get the enterprise user
+                    AppSearchBatchResult.Builder<String, GenericDocumentParcel> resultBuilder =
+                            new AppSearchBatchResult.Builder<>();
+                    String namespace = request.getGetByDocumentIdRequest().getNamespace();
+                    for (String id : request.getGetByDocumentIdRequest().getIds()) {
+                        resultBuilder.setFailure(id, RESULT_NOT_FOUND,
+                                "Document (" + namespace + ", " + id + ") not found.");
+                    }
+                    invokeCallbackOnResult(callback, AppSearchBatchResultParcel
+                            .fromStringToGenericDocumentParcel(resultBuilder.build()));
+                } else {
+                    // Return an empty batch result if we tried to and couldn't get the enterprise
+                    // user
+                    invokeCallbackOnResult(callback, AppSearchBatchResultParcel
+                            .fromStringToGenericDocumentParcel(new AppSearchBatchResult
+                                    .Builder<String, GenericDocumentParcel>().build()));
+                }
                 return;
             }
             // TODO(b/319315074): consider removing local getDocument and just use globalGetDocument

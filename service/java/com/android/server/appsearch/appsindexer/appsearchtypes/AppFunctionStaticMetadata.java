@@ -55,7 +55,7 @@ public class AppFunctionStaticMetadata extends GenericDocument {
             "mobileApplicationQualifiedId";
 
     /** Returns a per-app schema name, to store all functions for that package. */
-    private static String getSchemaNameForPackage(@NonNull String pkg) {
+    public static String getSchemaNameForPackage(@NonNull String pkg) {
         return SCHEMA_TYPE + "-" + Objects.requireNonNull(pkg);
     }
 

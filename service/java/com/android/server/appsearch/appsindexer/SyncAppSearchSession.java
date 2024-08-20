@@ -21,6 +21,7 @@ import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.PutDocumentsRequest;
+import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
@@ -37,6 +38,7 @@ import java.io.Closeable;
  *
  * @see AppSearchSession
  */
+// TODO(b/275592563): Sort methods so that they match the order in AppSearchSession
 public interface SyncAppSearchSession extends Closeable {
     /**
      * Synchronously sets an {@link AppSearchSchema}.
@@ -56,6 +58,16 @@ public interface SyncAppSearchSession extends Closeable {
     @NonNull
     @WorkerThread
     AppSearchBatchResult<String, Void> put(@NonNull PutDocumentsRequest request)
+            throws AppSearchException;
+
+    /**
+     * Synchronously removes documents from AppSearch using a query and {@link SearchSpec}.
+     *
+     * @see AppSearchSession#remove
+     */
+    @NonNull
+    @WorkerThread
+    Void remove(@NonNull String queryExpression, @NonNull SearchSpec searchSpec)
             throws AppSearchException;
 
     /**

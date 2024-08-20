@@ -31,6 +31,7 @@ import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PutDocumentsRequest;
+import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
@@ -70,7 +71,7 @@ public class SyncAppSearchImplTest {
 
     @After
     public void tearDown() throws Exception {
-       clean();
+        clean();
     }
 
     private void clean() throws Exception {
@@ -83,7 +84,9 @@ public class SyncAppSearchImplTest {
         CompletableFuture<AppSearchResult<SetSchemaResponse>> schemaFuture =
                 new CompletableFuture<>();
         searchSession.setSchema(
-                new SetSchemaRequest.Builder().setForceOverride(true).build(), mExecutor, mExecutor,
+                new SetSchemaRequest.Builder().setForceOverride(true).build(),
+                mExecutor,
+                mExecutor,
                 schemaFuture::complete);
         schemaFuture.get().getResultValue();
     }
@@ -97,20 +100,24 @@ public class SyncAppSearchImplTest {
                 new SyncAppSearchSessionImpl(mAppSearch, searchContext, mExecutor);
 
         // Set the schema.
-        syncWrapper.setSchema(new SetSchemaRequest.Builder()
-                .addSchemas(new AppSearchSchema.Builder("schema1").build())
-                .setForceOverride(true).build());
+        syncWrapper.setSchema(
+                new SetSchemaRequest.Builder()
+                        .addSchemas(new AppSearchSchema.Builder("schema1").build())
+                        .setForceOverride(true)
+                        .build());
 
         // Create a document and insert 3 package1 documents
-        GenericDocument document1 = new GenericDocument.Builder<>("namespace", "id1",
-                "schema1").build();
-        GenericDocument document2 = new GenericDocument.Builder<>("namespace", "id2",
-                "schema1").build();
-        GenericDocument document3 = new GenericDocument.Builder<>("namespace", "id3",
-                "schema1").build();
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+        GenericDocument document3 =
+                new GenericDocument.Builder<>("namespace", "id3", "schema1").build();
 
-        PutDocumentsRequest request = new PutDocumentsRequest.Builder()
-                .addGenericDocuments(document1, document2, document3).build();
+        PutDocumentsRequest request =
+                new PutDocumentsRequest.Builder()
+                        .addGenericDocuments(document1, document2, document3)
+                        .build();
         // Test put operation with no futures
         AppSearchBatchResult<String, Void> result = syncWrapper.put(request);
 
@@ -120,11 +127,12 @@ public class SyncAppSearchImplTest {
         SyncGlobalSearchSession globalSession =
                 new SyncGlobalSearchSessionImpl(mAppSearch, mExecutor);
         // Search globally for only 2 result per page
-        SearchSpec searchSpec = new SearchSpec.Builder()
-                .setTermMatch(TERM_MATCH_PREFIX)
-                .addFilterPackageNames(mContext.getPackageName())
-                .setResultCountPerPage(2)
-                .build();
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(TERM_MATCH_PREFIX)
+                        .addFilterPackageNames(mContext.getPackageName())
+                        .setResultCountPerPage(2)
+                        .build();
         SyncSearchResults searchResults = globalSession.search("", searchSpec);
 
         // Get the first page, it contains 2 results.
@@ -174,6 +182,54 @@ public class SyncAppSearchImplTest {
         assertThrows(
                 RejectedExecutionException.class,
                 () -> session.search("", new SearchSpec.Builder().build()));
+    }
+
+    @Test
+    public void testSyncAppSearchSessionImpl_removesDocuments() throws AppSearchException {
+        AppSearchManager.SearchContext searchContext =
+                new AppSearchManager.SearchContext.Builder("testDb").build();
+        SyncAppSearchSession syncWrapper =
+                new SyncAppSearchSessionImpl(mAppSearch, searchContext, mExecutor);
+
+        // Set the schema
+        syncWrapper.setSchema(
+                new SetSchemaRequest.Builder()
+                        .addSchemas(new AppSearchSchema.Builder("schema1").build())
+                        .addSchemas(new AppSearchSchema.Builder("schema2").build())
+                        .setForceOverride(true)
+                        .build());
+        // Index 2 documents
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema2").build();
+        syncWrapper.put(
+                new PutDocumentsRequest.Builder()
+                        .addGenericDocuments(document1, document2)
+                        .build());
+
+        // Delete 1 document by filtering on schema
+        syncWrapper.remove(
+                "",
+                new SearchSpec.Builder()
+                        .addFilterSchemas("schema1")
+                        .build());
+
+        // Assert that only 1 document is left
+        SyncGlobalSearchSession globalSession =
+                new SyncGlobalSearchSessionImpl(mAppSearch, mExecutor);
+        // Search globally for only 2 result per page
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(TERM_MATCH_PREFIX)
+                        .addFilterPackageNames(mContext.getPackageName())
+                        .setResultCountPerPage(2)
+                        .build();
+        SyncSearchResults searchResults = globalSession.search("", searchSpec);
+        // Check that only 1 document is left, document2
+        List<SearchResult> results = searchResults.getNextPage();
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getGenericDocument()).isEqualTo(document2);
     }
 
     @Test

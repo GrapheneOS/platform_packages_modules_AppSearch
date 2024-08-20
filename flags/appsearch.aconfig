@@ -194,3 +194,12 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+flag {
+    name: "enable_enterprise_empty_batch_result_fix"
+    namespace: "appsearch"
+    description: "Populates the GetDocuments batch result with RESULT_NOT_FOUND when the enterprise user cannot be retrieved."
+    bug: "349805579"
+    is_fixed_read_only: true
+    is_exported: true
+}
