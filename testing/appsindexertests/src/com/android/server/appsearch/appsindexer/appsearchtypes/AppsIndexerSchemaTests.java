@@ -22,7 +22,7 @@ import android.net.Uri;
 
 import org.junit.Test;
 
-public class MobileApplicationTest {
+public class AppsIndexerSchemaTests {
     @Test
     public void testMobileApplication() {
         String packageName = "com.android.apps.food";
@@ -49,5 +49,24 @@ public class MobileApplicationTest {
         assertThat(mobileApplication.getAlternateNames()).isEqualTo(alternateNames);
         assertThat(mobileApplication.getSha256Certificate()).isEqualTo(sha256Certificate);
         assertThat(mobileApplication.getUpdatedTimestamp()).isEqualTo(updatedTimestamp);
+    }
+
+    @Test
+    public void testAppOpenEvent() {
+        String packageName = "com.android.apps.food";
+        String mobileApplicationQualifiedId = "appsearch$internal/db#food";
+        long appOpenEventTimestampMillis = System.currentTimeMillis();
+
+        AppOpenEvent appOpenEvent =
+                new AppOpenEvent.Builder(packageName, appOpenEventTimestampMillis)
+                        .setPackageName(packageName)
+                        .setMobileApplicationQualifiedId(mobileApplicationQualifiedId)
+                        .build();
+
+        assertThat(appOpenEvent.getPackageName()).isEqualTo(packageName);
+        assertThat(appOpenEvent.getMobileApplicationQualifiedId())
+                .isEqualTo(mobileApplicationQualifiedId);
+        assertThat(appOpenEvent.getAppOpenEventTimestampMillis())
+                .isEqualTo(appOpenEventTimestampMillis);
     }
 }

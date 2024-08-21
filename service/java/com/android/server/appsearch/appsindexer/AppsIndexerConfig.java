@@ -27,12 +27,18 @@ import java.util.concurrent.TimeUnit;
  */
 public interface AppsIndexerConfig {
     boolean DEFAULT_APPS_INDEXER_ENABLED = true;
+
     long DEFAULT_APPS_UPDATE_INTERVAL_MILLIS = TimeUnit.DAYS.toMillis(30); // 30 days.
+    /** The default maximum number of app functions per package that the app indexer will index. */
+    int DEFAULT_MAX_APP_FUNCTIONS_PER_PACKAGE = 500;
 
     /** Returns whether Apps Indexer is enabled. */
     boolean isAppsIndexerEnabled();
 
     /* Returns the minimum internal in millis for two consecutive scheduled updates. */
     long getAppsMaintenanceUpdateIntervalMillis();
+
+    /** Returns the max number of app functions the app indexer will index per package. */
+    int getMaxAppFunctionsPerPackage();
 }
 

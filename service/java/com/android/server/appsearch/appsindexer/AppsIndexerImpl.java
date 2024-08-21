@@ -36,6 +36,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -156,7 +157,8 @@ public final class AppsIndexerImpl implements Closeable {
                 // The certificate is necessary along with the package name as it is used in
                 // visibility settings.
                 long beforeSetSchemaTimestamp = SystemClock.elapsedRealtime();
-                mAppSearchHelper.setSchemasForPackages(packageIdentifiers);
+                mAppSearchHelper.setSchemasForPackages(
+                        packageIdentifiers, /*appFunctionPkgs=*/Collections.emptyList());
                 appsUpdateStats.mAppSearchSetSchemaLatencyMillis =
                         SystemClock.elapsedRealtime() - beforeSetSchemaTimestamp;
             }
@@ -166,7 +168,9 @@ public final class AppsIndexerImpl implements Closeable {
                 AppSearchBatchResult<String, Void> result =
                         mAppSearchHelper.indexApps(
                                 AppsUtil.buildAppsFromPackageInfos(
-                                        packageManager, packagesToBeAddedOrUpdated));
+                                        packageManager,
+                                        packagesToBeAddedOrUpdated),
+                                        /*appFunctions=*/Collections.emptyList());
                 if (result.isSuccess()) {
                     appsUpdateStats.mUpdateStatusCodes.add(AppSearchResult.RESULT_OK);
                 } else {

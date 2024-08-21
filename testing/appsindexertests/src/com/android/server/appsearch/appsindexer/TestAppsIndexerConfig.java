@@ -26,4 +26,9 @@ public class TestAppsIndexerConfig implements AppsIndexerConfig {
     public long getAppsMaintenanceUpdateIntervalMillis() {
         return 24 * 60 * 60 * 1000L;
     }
+
+    @Override
+    public int getMaxAppFunctionsPerPackage() {
+        return 500;
+    }
 }

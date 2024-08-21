@@ -77,8 +77,9 @@ public class AppsIndexerImplTest {
         MobileApplication app1 = createFakeMobileApplication(0);
         MobileApplication app2 = createFakeMobileApplication(1);
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2));
-        mAppSearchHelper.indexApps(ImmutableList.of(app1, app2));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app1, app2), /* appFunctions= */ ImmutableList.of());
         Map<String, Long> appTimestampMap = mAppSearchHelper.getAppsFromAppSearch();
 
         List<String> packageIds = new ArrayList<>(appTimestampMap.keySet());

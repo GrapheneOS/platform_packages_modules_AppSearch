@@ -46,6 +46,7 @@ import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.content.res.Resources;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import org.mockito.Mockito;
@@ -288,6 +289,23 @@ class TestUtils {
             appList.add(createFakeMobileApplication(i));
         }
         return appList;
+    }
+
+    /**
+     * Generates a mock {@link AppFunctionStaticMetadata} corresponding to the same package created
+     * by {@link #createFakePackageInfo} with the same variant.
+     *
+     * @param packageVariant changes the package of the AppFunctionStaticMetadata document.
+     * @param functionVariant changes the function id of the AppFunctionStaticMetadata document.
+     */
+    @NonNull
+    public static AppFunctionStaticMetadata createFakeAppFunction(
+            int packageVariant, int functionVariant, Context context) {
+        return new AppFunctionStaticMetadata.Builder(
+                        FAKE_PACKAGE_PREFIX + packageVariant,
+                        "function_id" + functionVariant,
+                        context.getPackageName())
+                .build();
     }
 
     /**

@@ -20,6 +20,7 @@ import static com.android.server.appsearch.appsindexer.TestUtils.COMPATIBLE_APP_
 import static com.android.server.appsearch.appsindexer.TestUtils.FAKE_PACKAGE_PREFIX;
 import static com.android.server.appsearch.appsindexer.TestUtils.FAKE_SIGNATURE;
 import static com.android.server.appsearch.appsindexer.TestUtils.INCOMPATIBLE_APP_SCHEMA;
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppFunction;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppIndexerSession;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeMobileApplication;
 import static com.android.server.appsearch.appsindexer.TestUtils.createMobileApplications;
@@ -47,6 +48,7 @@ import android.content.Context;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
@@ -85,8 +87,9 @@ public class AppSearchHelperTest {
 
     @Test
     public void testAppSearchHelper_permissionSetCorrectlyForMobileApplication() throws Exception {
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1));
-        mAppSearchHelper.indexApps(createMobileApplications(1));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                createMobileApplications(1), /* appFunctions= */ ImmutableList.of());
 
         AppSearchSessionShim session =
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
@@ -108,8 +111,10 @@ public class AppSearchHelperTest {
 
     @Test
     public void testIndexManyApps() throws Exception {
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(600));
-        mAppSearchHelper.indexApps(createMobileApplications(600));
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(600), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                createMobileApplications(600), /* appFunctions= */ ImmutableList.of());
         Map<String, Long> appsearchIds = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(appsearchIds.size()).isEqualTo(600);
         List<SearchResult> real = searchAppSearchForApps(600 + 1);
@@ -132,8 +137,10 @@ public class AppSearchHelperTest {
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         appSearchHelper.setSchemasForPackages(
-                ImmutableList.of(createMockPackageIdentifier(variant)));
-        appSearchHelper.indexApps(ImmutableList.of(createFakeMobileApplication(variant)));
+                ImmutableList.of(createMockPackageIdentifier(variant)), new ArrayList<>());
+        appSearchHelper.indexApps(
+                ImmutableList.of(createFakeMobileApplication(variant)),
+                /* appFunctions= */ ImmutableList.of());
 
         assertThat(appSearchHelper).isNotNull();
         List<SearchResult> results = searchAppSearchForApps(1 + 1);
@@ -154,8 +161,9 @@ public class AppSearchHelperTest {
                         .build();
         session.setSchemaAsync(setSchemaRequest).get();
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(50));
-        mAppSearchHelper.indexApps(createMobileApplications(50));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(50), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                createMobileApplications(50), /* appFunctions= */ ImmutableList.of());
 
         List<SearchResult> real = searchAppSearchForApps(50 + 1);
         assertThat(real).hasSize(50);
@@ -174,19 +182,24 @@ public class AppSearchHelperTest {
         AppSearchHelper mocked = new AppSearchHelper(mContext);
         mocked.setAppSearchSessionForTest(fullSession);
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
         // It should throw if it's out of space
         assertThrows(
                 AppSearchException.class,
-                () -> mocked.indexApps(ImmutableList.of(createFakeMobileApplication(0))));
+                () ->
+                        mocked.indexApps(
+                                ImmutableList.of(createFakeMobileApplication(0)),
+                                /* appFunctions= */ ImmutableList.of()));
     }
 
     @Test
     public void testAppSearchHelper_removeApps() throws Exception {
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(100));
-        mAppSearchHelper.indexApps(createMobileApplications(100));
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(100), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                createMobileApplications(100), /* appFunctions= */ ImmutableList.of());
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(50));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(50), new ArrayList<>());
 
         List<String> deletedIds = new ArrayList<>();
         // Last 50 ids should be removed.
@@ -205,14 +218,16 @@ public class AppSearchHelperTest {
         MobileApplication app0 = createFakeMobileApplication(0);
         MobileApplication app1 = createFakeMobileApplication(1);
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2));
-        mAppSearchHelper.indexApps(ImmutableList.of(app0, app1));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of());
         Map<String, Long> timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly("com.fake.package0", 0L, "com.fake.package1", 1L);
 
         // Try to add the same apps
-        mAppSearchHelper.indexApps(ImmutableList.of(app0, app1));
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of());
 
         // Should still be two
         timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
@@ -225,8 +240,9 @@ public class AppSearchHelperTest {
         MobileApplication app0 = createFakeMobileApplication(0);
         MobileApplication app1 = createFakeMobileApplication(1);
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2));
-        mAppSearchHelper.indexApps(ImmutableList.of(app0, app1));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of());
         Map<String, Long> timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly("com.fake.package0", 0L, "com.fake.package1", 1L);
@@ -242,7 +258,7 @@ public class AppSearchHelperTest {
                         .build();
 
         // Should update the app, not add a new one
-        mAppSearchHelper.indexApps(ImmutableList.of(app1));
+        mAppSearchHelper.indexApps(ImmutableList.of(app1), /* appFunctions= */ ImmutableList.of());
         timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly("com.fake.package0", 0L, "com.fake.package1", 300L);
@@ -253,19 +269,80 @@ public class AppSearchHelperTest {
         MobileApplication app0 = createFakeMobileApplication(0);
         MobileApplication app1 = createFakeMobileApplication(1);
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2));
-        mAppSearchHelper.indexApps(ImmutableList.of(app0, app1));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(2), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of());
         assertThat(mAppSearchHelper.getAppsFromAppSearch()).hasSize(2);
 
         MobileApplication app2 = createFakeMobileApplication(2);
 
-        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(3));
-        mAppSearchHelper.indexApps(ImmutableList.of(app0, app1, app2));
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(3), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1, app2), /* appFunctions= */ ImmutableList.of());
 
         // Should be three
         Map<String, Long> timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly(
                         "com.fake.package0", 0L, "com.fake.package1", 1L, "com.fake.package2", 2L);
+    }
+
+    @Test
+    public void test_newAppFunction_indexed() throws Exception {
+        // Set up 2 MobileApplications.
+        MobileApplication app0 = createFakeMobileApplication(0);
+        MobileApplication app1 = createFakeMobileApplication(1);
+
+        // initially, no apps has app functions.
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(2), createMockPackageIdentifiers(0));
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of());
+        assertThat(mAppSearchHelper.getAppFunctionPackagesFromAppSearch()).isEmpty();
+
+        // Now app0 has an app function.
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(2), createMockPackageIdentifiers(1));
+        AppFunctionStaticMetadata app0Function0 = createFakeAppFunction(0, 0, mContext);
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of(app0Function0));
+
+        assertThat(mAppSearchHelper.getAppFunctionPackagesFromAppSearch())
+                .containsExactly("com.fake.package0");
+    }
+
+    @Test
+    public void test_appFunctionRemoved_indexed() throws Exception {
+        // Set up 2 MobileApplications.
+        MobileApplication app0 = createFakeMobileApplication(0);
+        MobileApplication app1 = createFakeMobileApplication(1);
+        // initially, app0 has two app functions.
+        AppFunctionStaticMetadata app0Function0 = createFakeAppFunction(0, 0, mContext);
+        AppFunctionStaticMetadata app0Function1 = createFakeAppFunction(0, 1, mContext);
+
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(2), createMockPackageIdentifiers(1));
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1),
+                /* appFunctions= */ ImmutableList.of(app0Function0, app0Function1));
+        assertThat(mAppSearchHelper.getAppFunctionPackagesFromAppSearch())
+                .containsExactly("com.fake.package0");
+
+        // Now we remove one app function from app0
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(2), createMockPackageIdentifiers(1));
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of(app0Function0));
+        // app0 still have one app function. so app0 is being indexed.
+        assertThat(mAppSearchHelper.getAppFunctionPackagesFromAppSearch())
+                .containsExactly("com.fake.package0");
+
+        // We remove the last app function from app0.
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(2), createMockPackageIdentifiers(0));
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0, app1), /* appFunctions= */ ImmutableList.of());
+        // App0 is no longer indexed for app functions cause it no longer has any of them.
+        assertThat(mAppSearchHelper.getAppFunctionPackagesFromAppSearch()).isEmpty();
     }
 }

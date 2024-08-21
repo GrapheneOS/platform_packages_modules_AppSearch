@@ -187,6 +187,15 @@ flag {
 }
 
 flag {
+    name: "app_open_event_indexer_enabled"
+    namespace: "appsearch"
+    description: "Enables the app open event indexer module"
+    bug: "357835538"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
     name: "enable_result_already_exists"
     namespace: "appsearch"
     description: "Enable the RESULT_ALREADY_EXISTS constant in AppSearchResult"
