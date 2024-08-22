@@ -25,7 +25,6 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.os.SystemClock;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -88,13 +87,13 @@ public final class AppsIndexerImpl implements Closeable {
 
         long beforePackageManagerTimestamp = SystemClock.elapsedRealtime();
         PackageManager packageManager = mContext.getPackageManager();
-        Map<PackageInfo, ResolveInfo> launchablePackages =
-                AppsUtil.getLaunchablePackages(packageManager);
+        Map<PackageInfo, ResolveInfos> packagesToIndex =
+                AppsUtil.getPackagesToIndex(packageManager);
         appsUpdateStats.mPackageManagerLatencyMillis =
                 SystemClock.elapsedRealtime() - beforePackageManagerTimestamp;
-        Set<PackageInfo> packageInfos = launchablePackages.keySet();
+        Set<PackageInfo> packageInfos = packagesToIndex.keySet();
 
-        Map<PackageInfo, ResolveInfo> packagesToBeAddedOrUpdated = new ArrayMap<>();
+        Map<PackageInfo, ResolveInfos> packagesToBeAddedOrUpdated = new ArrayMap<>();
         long mostRecentAppUpdatedTimestampMillis = settings.getLastAppUpdateTimestampMillis();
 
         // Prepare a set of current app IDs for efficient lookup
@@ -120,7 +119,7 @@ public final class AppsIndexerImpl implements Closeable {
                 appsUpdateStats.mNumberOfAppsUpdated++;
             }
             if (added || updated) {
-                packagesToBeAddedOrUpdated.put(packageInfo, launchablePackages.get(packageInfo));
+                packagesToBeAddedOrUpdated.put(packageInfo, packagesToIndex.get(packageInfo));
             } else {
                 appsUpdateStats.mNumberOfAppsUnchanged++;
             }

@@ -37,7 +37,7 @@ import java.io.InputStream;
 import java.util.List;
 
 @RunWith(MockitoJUnitRunner.class)
-public class AppFunctionStaticMetadataParserTest {
+public class AppFunctionStaticMetadataParserImplTest {
 
     private static final String TEST_PACKAGE_NAME = "com.example.app";
     private static final String TEST_INDEXER_PACKAGE_NAME = "com.android.test.indexer";
@@ -52,7 +52,7 @@ public class AppFunctionStaticMetadataParserTest {
     @Before
     public void setUp() throws Exception {
         mParser =
-                new AppFunctionStaticMetadataParser(
+                new AppFunctionStaticMetadataParserImpl(
                         TEST_INDEXER_PACKAGE_NAME, /* maxAppFunctions= */ 2);
 
         when(mPackageManager.getResourcesForApplication(TEST_PACKAGE_NAME)).thenReturn(mResources);

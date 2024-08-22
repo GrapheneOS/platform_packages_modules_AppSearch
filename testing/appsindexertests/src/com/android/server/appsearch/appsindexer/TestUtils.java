@@ -42,6 +42,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.content.res.Resources;
@@ -137,13 +138,13 @@ class TestUtils {
     }
 
     /**
-     * Generates a mock resolve info corresponding to the same package created by
+     * Generates a mock launch activity resolve info corresponding to the same package created by
      * {@link #createFakePackageInfo} with the same variant.
      *
      * @param variant adds variation in the mocked ResolveInfo so we can index multiple fake apps.
      */
     @NonNull
-    public static ResolveInfo createFakeResolveInfo(int variant) {
+    public static ResolveInfo createFakeLaunchResolveInfo(int variant) {
         String pkgName = FAKE_PACKAGE_PREFIX + variant;
         ResolveInfo mockResolveInfo = new ResolveInfo();
         mockResolveInfo.activityInfo = new ActivityInfo();
@@ -158,27 +159,46 @@ class TestUtils {
     }
 
     /**
+     * Generates a mock app function activity resolve info corresponding to the same package created
+     * by {@link #createFakePackageInfo} with the same variant.
+     *
+     * @param variant adds variation in the mocked ResolveInfo so we can index multiple fake apps.
+     */
+    @NonNull
+    public static ResolveInfo createFakeAppFunctionResolveInfo(int variant) {
+        String pkgName = FAKE_PACKAGE_PREFIX + variant;
+        ResolveInfo mockResolveInfo = new ResolveInfo();
+        mockResolveInfo.serviceInfo = new ServiceInfo();
+        mockResolveInfo.serviceInfo.packageName = pkgName;
+        mockResolveInfo.serviceInfo.name = pkgName + ".FakeActivity";
+
+        return mockResolveInfo;
+    }
+
+    /**
      * Generates multiple mock ResolveInfos.
      *
-     * @see #createFakeResolveInfo
+     * @see #createFakeLaunchResolveInfo
      * @param numApps number of mock ResolveInfos to create
      */
     @NonNull
     public static List<ResolveInfo> createFakeResolveInfos(int numApps) {
         List<ResolveInfo> resolveInfoList = new ArrayList<>();
         for (int i = 0; i < numApps; i++) {
-            resolveInfoList.add(createFakeResolveInfo(i));
+            resolveInfoList.add(createFakeLaunchResolveInfo(i));
         }
         return resolveInfoList;
     }
 
     /**
-     * Configure a mock {@link PackageManager} to return certain {@link PackageInfo}s and
-     * {@link ResolveInfo}s when getInstalledPackages and queryIntentActivities are called,
-     * respectively.
+     * Configure a mock {@link PackageManager} to return certain {@link PackageInfo}s and {@link
+     * ResolveInfo}s when getInstalledPackages and queryIntentActivities are called, respectively.
      */
-    public static void setupMockPackageManager(@NonNull PackageManager pm,
-            @NonNull List<PackageInfo> packages, @NonNull List<ResolveInfo> activities)
+    public static void setupMockPackageManager(
+            @NonNull PackageManager pm,
+            @NonNull List<PackageInfo> packages,
+            @NonNull List<ResolveInfo> activities,
+            @NonNull List<ResolveInfo> appFunctionServices)
             throws Exception {
         Objects.requireNonNull(pm);
         Objects.requireNonNull(packages);
@@ -190,6 +210,7 @@ class TestUtils {
         when(pm.getResourcesForApplication((ApplicationInfo) any())).thenReturn(res);
         when(pm.getApplicationLabel(any())).thenReturn("label");
         when(pm.queryIntentActivities(any(), eq(0))).then(i -> activities);
+        when(pm.queryIntentServices(any(), eq(0))).then(i -> appFunctionServices);
     }
 
     /** Wipes out the apps database. */

@@ -20,9 +20,9 @@ import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppIndexerSession;
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakeLaunchResolveInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfos;
-import static com.android.server.appsearch.appsindexer.TestUtils.createFakeResolveInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeResolveInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackageManager;
 
@@ -60,6 +60,8 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+
+import com.google.common.collect.ImmutableList;
 
 import org.junit.After;
 import org.junit.Before;
@@ -163,7 +165,11 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         List<PackageInfo> fakePackages = new ArrayList<>(createFakePackageInfos(numFakePackages));
         List<ResolveInfo> fakeActivities = new ArrayList<>(createFakeResolveInfos(numFakePackages));
 
-        setupMockPackageManager(mPackageManager, fakePackages, fakeActivities);
+        setupMockPackageManager(
+                mPackageManager,
+                fakePackages,
+                fakeActivities,
+                /* appFunctionServices= */ ImmutableList.of());
 
         UserInfo userInfo =
                 new UserInfo(
@@ -214,7 +220,11 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         List<PackageInfo> fakePackages = new ArrayList<>(createFakePackageInfos(numFakePackages));
         List<ResolveInfo> fakeActivities = new ArrayList<>(createFakeResolveInfos(numFakePackages));
 
-        setupMockPackageManager(mPackageManager, fakePackages, fakeActivities);
+        setupMockPackageManager(
+                mPackageManager,
+                fakePackages,
+                fakeActivities,
+                /* appFunctionServices= */ ImmutableList.of());
 
         UserInfo userInfo =
                 new UserInfo(
@@ -240,7 +250,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
 
         // Add a package at index numFakePackages
         fakePackages.add(createFakePackageInfo(numFakePackages));
-        fakeActivities.add(createFakeResolveInfo(numFakePackages));
+        fakeActivities.add(createFakeLaunchResolveInfo(numFakePackages));
         CountDownLatch latch = setupLatch(1, /* listenForSchemaChanges= */ false);
 
         mCapturedReceiver.onReceive(mContext, fakeIntent);
@@ -268,7 +278,11 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         List<PackageInfo> fakePackages = new ArrayList<>(createFakePackageInfos(numFakePackages));
         List<ResolveInfo> fakeActivities = new ArrayList<>(createFakeResolveInfos(numFakePackages));
 
-        setupMockPackageManager(mPackageManager, fakePackages, fakeActivities);
+        setupMockPackageManager(
+                mPackageManager,
+                fakePackages,
+                fakeActivities,
+                /* appFunctionServices= */ ImmutableList.of());
 
         UserInfo userInfo =
                 new UserInfo(
@@ -333,7 +347,11 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         List<PackageInfo> fakePackages = new ArrayList<>(createFakePackageInfos(numFakePackages));
         List<ResolveInfo> fakeActivities = new ArrayList<>(createFakeResolveInfos(numFakePackages));
 
-        setupMockPackageManager(mPackageManager, fakePackages, fakeActivities);
+        setupMockPackageManager(
+                mPackageManager,
+                fakePackages,
+                fakeActivities,
+                /* appFunctionServices= */ ImmutableList.of());
 
         UserInfo userInfo =
                 new UserInfo(

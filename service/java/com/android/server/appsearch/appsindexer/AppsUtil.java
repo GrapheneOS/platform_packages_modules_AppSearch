@@ -19,6 +19,7 @@ package com.android.server.appsearch.appsindexer;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.util.LogUtil;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -33,6 +34,8 @@ import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import java.security.MessageDigest;
@@ -117,69 +120,160 @@ public final class AppsUtil {
     }
 
     /**
-     * Gets {@link PackageInfo}s only for packages that have a launch activity, along with their
-     * corresponding {@link ResolveInfo}. This is useful for building schemas as well as determining
-     * which packages to set schemas for.
+     * Gets {@link PackageInfo}s for packages that have a launch activity or has app functions,
+     * along with their corresponding {@link ResolveInfo}. This is useful for building schemas as
+     * well as determining which packages to set schemas for.
      *
-     * @return a mapping of {@link PackageInfo}s with their corresponding {@link ResolveInfo} for
-     *     the packages launch activity.
+     * @return a mapping of {@link PackageInfo}s with their corresponding {@link ResolveInfos} for
+     *     the packages launch activity and maybe app function resolve info.
      * @see PackageManager#getInstalledPackages
      * @see PackageManager#queryIntentActivities
+     * @see PackageManager#queryIntentServices
      */
     @NonNull
-    public static Map<PackageInfo, ResolveInfo> getLaunchablePackages(
+    public static Map<PackageInfo, ResolveInfos> getPackagesToIndex(
             @NonNull PackageManager packageManager) {
         Objects.requireNonNull(packageManager);
         List<PackageInfo> packageInfos =
                 packageManager.getInstalledPackages(
                         PackageManager.GET_META_DATA | PackageManager.GET_SIGNING_CERTIFICATES);
-        Map<PackageInfo, ResolveInfo> launchablePackages = new ArrayMap<>();
-        Intent intent = new Intent(Intent.ACTION_MAIN, null);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        intent.setPackage(null);
-        List<ResolveInfo> activities = packageManager.queryIntentActivities(intent, 0);
+
+        Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
+        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        launchIntent.setPackage(null);
+        List<ResolveInfo> activities = packageManager.queryIntentActivities(launchIntent, 0);
         Map<String, ResolveInfo> packageNameToLauncher = new ArrayMap<>();
         for (int i = 0; i < activities.size(); i++) {
-            ResolveInfo ri = activities.get(i);
-            packageNameToLauncher.put(ri.activityInfo.packageName, ri);
+            ResolveInfo resolveInfo = activities.get(i);
+            packageNameToLauncher.put(resolveInfo.activityInfo.packageName, resolveInfo);
         }
 
+        // This is to workaround the android lint check.
+        // AppFunctionService.SERVICE_INTERFACE is defined in API 36 but also it is just a string
+        // literal.
+        Intent appFunctionServiceIntent = new Intent("android.app.appfunctions.AppFunctionService");
+        Map<String, ResolveInfo> packageNameToAppFunctionServiceInfo = new ArrayMap<>();
+        List<ResolveInfo> services =
+                packageManager.queryIntentServices(appFunctionServiceIntent, 0);
+        for (int i = 0; i < services.size(); i++) {
+            ResolveInfo resolveInfo = services.get(i);
+            packageNameToAppFunctionServiceInfo.put(
+                    resolveInfo.serviceInfo.packageName, resolveInfo);
+        }
+
+        Map<PackageInfo, ResolveInfos> packagesToIndex = new ArrayMap<>();
         for (int i = 0; i < packageInfos.size(); i++) {
             PackageInfo packageInfo = packageInfos.get(i);
-            ResolveInfo resolveInfo = packageNameToLauncher.get(packageInfo.packageName);
-            if (resolveInfo != null) {
-                // Include the resolve info as we might need it later to build the MobileApplication
-                launchablePackages.put(packageInfo, resolveInfo);
+            ResolveInfos.Builder builder = new ResolveInfos.Builder();
+
+            ResolveInfo launchActivityResolveInfo =
+                    packageNameToLauncher.get(packageInfo.packageName);
+            if (launchActivityResolveInfo != null) {
+                builder.setLaunchActivityResolveInfo(launchActivityResolveInfo);
+            }
+
+            ResolveInfo appFunctionServiceInfo =
+                    packageNameToAppFunctionServiceInfo.get(packageInfo.packageName);
+            if (appFunctionServiceInfo != null) {
+                builder.setAppFunctionServiceResolveInfo(appFunctionServiceInfo);
+            }
+
+            if (launchActivityResolveInfo != null || appFunctionServiceInfo != null) {
+                packagesToIndex.put(packageInfo, builder.build());
             }
         }
-
-        return launchablePackages;
+        return packagesToIndex;
     }
 
     /**
-     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfo}s to
+     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
      * build AppSearch {@link MobileApplication} documents. Info from both are required to build app
      * documents.
      *
      * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
-     *     ResolveInfo} for the packages launch activity.
+     *     ResolveInfo}s for the packages launch activity.
      */
     @NonNull
     public static List<MobileApplication> buildAppsFromPackageInfos(
             @NonNull PackageManager packageManager,
-            @NonNull Map<PackageInfo, ResolveInfo> packageInfos) {
+            @NonNull Map<PackageInfo, ResolveInfos> packageInfos) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
 
         List<MobileApplication> mobileApplications = new ArrayList<>();
-        for (Map.Entry<PackageInfo, ResolveInfo> entry : packageInfos.entrySet()) {
+        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
+            ResolveInfo resolveInfo = entry.getValue().getLaunchActivityResolveInfo();
+
             MobileApplication mobileApplication =
-                    createMobileApplication(packageManager, entry.getKey(), entry.getValue());
-            if (mobileApplication != null && !mobileApplication.getDisplayName().isEmpty()) {
+                    createMobileApplication(packageManager, entry.getKey(), resolveInfo);
+            if (mobileApplication != null) {
                 mobileApplications.add(mobileApplication);
             }
         }
         return mobileApplications;
+    }
+
+    /**
+     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
+     * build AppSearch {@link AppFunctionStaticMetadata} documents. Info from both are required to
+     * build app documents.
+     *
+     * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
+     *     ResolveInfo} for the packages launch activity.
+     * @param indexerPackageName the name of the package performing the indexing. This should be the
+     *     same as the package running the apps indexer so that qualified ids are correctly created.
+     * @param maxAppFunctions the max number of app functions to be indexed per package.
+     */
+    public static List<AppFunctionStaticMetadata> buildAppFunctionStaticMetadata(
+            @NonNull PackageManager packageManager,
+            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+            @NonNull String indexerPackageName,
+            int maxAppFunctions) {
+        AppFunctionStaticMetadataParser parser =
+                new AppFunctionStaticMetadataParserImpl(indexerPackageName, maxAppFunctions);
+        return buildAppFunctionStaticMetadata(packageManager, packageInfos, parser);
+    }
+
+    /**
+     * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
+     * provide a custom parser. This is for testing purposes.
+     */
+    @VisibleForTesting
+    static List<AppFunctionStaticMetadata> buildAppFunctionStaticMetadata(
+            @NonNull PackageManager packageManager,
+            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+            @NonNull AppFunctionStaticMetadataParser parser) {
+        Objects.requireNonNull(packageManager);
+        Objects.requireNonNull(packageInfos);
+        Objects.requireNonNull(parser);
+
+        List<AppFunctionStaticMetadata> appFunctions = new ArrayList<>();
+        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
+            PackageInfo packageInfo = entry.getKey();
+            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
+            if (resolveInfo == null) {
+                continue;
+            }
+
+            String assetFilePath;
+            try {
+                PackageManager.Property property =
+                        packageManager.getProperty(
+                                "android.app.appfunctions",
+                                new ComponentName(
+                                        resolveInfo.serviceInfo.packageName,
+                                        resolveInfo.serviceInfo.name));
+                assetFilePath = property.getString();
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.w(TAG, "buildAppFunctionMetadataFromPackageInfo: Failed to get property", e);
+                continue;
+            }
+            if (assetFilePath != null) {
+                appFunctions.addAll(
+                        parser.parse(packageManager, packageInfo.packageName, assetFilePath));
+            }
+        }
+        return appFunctions;
     }
 
     /** Gets the SHA-256 certificate from a {@link PackageManager}, or null if it is not found */
@@ -207,7 +301,8 @@ public final class AppsUtil {
     }
 
     /**
-     * Uses PackageManager to supplement packageInfos with an application display name and icon uri.
+     * Uses PackageManager to supplement packageInfos with an application display name and icon uri,
+     * if any.
      *
      * @return a MobileApplication representing the packageInfo, null if finding the signing
      *     certificate fails.
@@ -216,17 +311,9 @@ public final class AppsUtil {
     private static MobileApplication createMobileApplication(
             @NonNull PackageManager packageManager,
             @NonNull PackageInfo packageInfo,
-            @NonNull ResolveInfo resolveInfo) {
+            @Nullable ResolveInfo resolveInfo) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfo);
-        Objects.requireNonNull(resolveInfo);
-
-        String applicationDisplayName = resolveInfo.loadLabel(packageManager).toString();
-        if (TextUtils.isEmpty(applicationDisplayName)) {
-            applicationDisplayName = packageInfo.applicationInfo.className;
-        }
-
-        String iconUri = getActivityIconUriString(packageManager, resolveInfo.activityInfo);
 
         byte[] certificate = getCertificate(packageInfo);
         if (certificate == null) {
@@ -235,22 +322,28 @@ public final class AppsUtil {
 
         MobileApplication.Builder builder =
                 new MobileApplication.Builder(packageInfo.packageName, certificate)
-                        .setDisplayName(applicationDisplayName)
                         // TODO(b/275592563): Populate with nicknames from various sources
                         .setCreationTimestampMillis(packageInfo.firstInstallTime)
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
+        if (resolveInfo == null) {
+            return builder.build();
+        }
+        String applicationDisplayName = resolveInfo.loadLabel(packageManager).toString();
+        if (TextUtils.isEmpty(applicationDisplayName)) {
+            applicationDisplayName = packageInfo.applicationInfo.className;
+        }
+        builder.setDisplayName(applicationDisplayName);
+        String iconUri = getActivityIconUriString(packageManager, resolveInfo.activityInfo);
+        if (iconUri != null) {
+            builder.setIconUri(iconUri);
+        }
         String applicationLabel =
                 packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
         if (!applicationDisplayName.equals(applicationLabel)) {
             // This can be different from applicationDisplayName, and should be indexed
             builder.setAlternateNames(applicationLabel);
         }
-
-        if (iconUri != null) {
-            builder.setIconUri(iconUri);
-        }
-
         if (resolveInfo.activityInfo.name != null) {
             builder.setClassName(resolveInfo.activityInfo.name);
         }

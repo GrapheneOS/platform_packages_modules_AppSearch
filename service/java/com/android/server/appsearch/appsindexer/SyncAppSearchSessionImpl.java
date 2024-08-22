@@ -21,7 +21,6 @@ import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.PutDocumentsRequest;
-import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.SetSchemaResponse;

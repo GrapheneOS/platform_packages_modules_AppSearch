@@ -44,6 +44,8 @@ import android.os.UserHandle;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.google.common.collect.ImmutableList;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -129,7 +131,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Pretend there's one package on device
         setupMockPackageManager(
-                mMockPackageManager, createFakePackageInfos(1), createFakeResolveInfos(1));
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
         semaphore.acquire();
@@ -181,7 +186,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Pretend there's one package on device
         setupMockPackageManager(
-                mMockPackageManager, createFakePackageInfos(1), createFakeResolveInfos(1));
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
         semaphore.acquire();
@@ -262,7 +270,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(numOfNotifications / 10),
-                createFakeResolveInfos(numOfNotifications / 10));
+                createFakeResolveInfos(numOfNotifications / 10),
+                /* appFunctionServices= */ ImmutableList.of());
 
         // Schedule a bunch of tasks. However, only one will run, and one other will be scheduled
         for (int i = 0; i < numOfNotifications / 2; i++) {
@@ -286,7 +295,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(numOfNotifications),
-                createFakeResolveInfos(numOfNotifications));
+                createFakeResolveInfos(numOfNotifications),
+                /* appFunctionServices= */ ImmutableList.of());
         for (int i = numOfNotifications / 2; i < numOfNotifications; i++) {
             mInstance.updateAsync(/* firstRun= */ false);
         }
@@ -355,7 +365,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
-                createFakeResolveInfos(docCount));
+                createFakeResolveInfos(docCount),
+                /* appFunctionServices= */ ImmutableList.of());
         CountDownLatch latch = setupLatch(docCount);
 
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
@@ -372,7 +383,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
-                createFakeResolveInfos(docCount));
+                createFakeResolveInfos(docCount),
+                /* appFunctionServices= */ ImmutableList.of());
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
@@ -392,7 +404,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // of them when we "remove" four apps.
 
         setupMockPackageManager(
-                mMockPackageManager, createFakePackageInfos(10), createFakeResolveInfos(10));
+                mMockPackageManager,
+                createFakePackageInfos(10),
+                createFakeResolveInfos(10),
+                /* appFunctionServices= */ ImmutableList.of());
 
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
@@ -401,7 +416,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(appIds.size()).isEqualTo(10);
 
         setupMockPackageManager(
-                mMockPackageManager, createFakePackageInfos(6), createFakeResolveInfos(6));
+                mMockPackageManager,
+                createFakePackageInfos(6),
+                createFakeResolveInfos(6),
+                /* appFunctionServices= */ ImmutableList.of());
 
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
@@ -455,7 +473,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
-                createFakeResolveInfos(docCount));
+                createFakeResolveInfos(docCount),
+                /* appFunctionServices= */ ImmutableList.of());
 
         mInstance.updateAsync(/* firstRun= */ true);
 
@@ -511,7 +530,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
-                createFakeResolveInfos(docCount));
+                createFakeResolveInfos(docCount),
+                /* appFunctionServices= */ ImmutableList.of());
 
         mInstance.updateAsync(/* firstRun= */ false);
 
@@ -625,7 +645,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
-                createFakeResolveInfos(docCount));
+                createFakeResolveInfos(docCount),
+                /* appFunctionServices= */ ImmutableList.of());
 
         mInstance.updateAsync(/* firstRun= */ true);
         // Wait for all async tasks to complete
@@ -644,7 +665,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     public void testConcurrentUpdates_updatesDoNotInterfereWithEachOther() throws Exception {
         long timeBeforeChangeNotification = System.currentTimeMillis();
         setupMockPackageManager(
-                mMockPackageManager, createFakePackageInfos(250), createFakeResolveInfos(250));
+                mMockPackageManager,
+                createFakePackageInfos(250),
+                createFakeResolveInfos(250),
+                /* appFunctionServices= */ ImmutableList.of());
         // This semaphore allows us to make sure that a sync has finished running before performing
         // checks.
         final Semaphore afterSemaphore = new Semaphore(0);
@@ -713,7 +737,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
-                createFakeResolveInfos(docCount));
+                createFakeResolveInfos(docCount),
+                /* appFunctionServices= */ ImmutableList.of());
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         mInstance.updateAsync(/* firstRun= */ false);

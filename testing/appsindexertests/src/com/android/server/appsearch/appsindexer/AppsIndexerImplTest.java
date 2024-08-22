@@ -87,7 +87,11 @@ public class AppsIndexerImplTest {
 
         // Set up mock so that just 1 document is returned, as if we deleted a doc
         PackageManager pm = Mockito.mock(PackageManager.class);
-        setupMockPackageManager(pm, createFakePackageInfos(1), createFakeResolveInfos(1));
+        setupMockPackageManager(
+                pm,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
         Context context =
                 new ContextWrapper(mContext) {
                     @Override
@@ -130,7 +134,11 @@ public class AppsIndexerImplTest {
     public void testAppsIndexerImpl_statsSet() throws Exception {
         // Simulate the first update: no changes, just adding initial apps
         PackageManager pm1 = Mockito.mock(PackageManager.class);
-        setupMockPackageManager(pm1, createFakePackageInfos(3), createFakeResolveInfos(3));
+        setupMockPackageManager(
+                pm1,
+                createFakePackageInfos(3),
+                createFakeResolveInfos(3),
+                /* appFunctionServices= */ ImmutableList.of());
         Context context1 =
                 new ContextWrapper(mContext) {
                     @Override
@@ -167,7 +175,8 @@ public class AppsIndexerImplTest {
         fakePackages.remove(0);
         fakeActivities.remove(0);
 
-        setupMockPackageManager(pm2, fakePackages, fakeActivities);
+        setupMockPackageManager(
+                pm2, fakePackages, fakeActivities, /* appFunctionServices= */ ImmutableList.of());
         Context context2 =
                 new ContextWrapper(mContext) {
                     @Override
