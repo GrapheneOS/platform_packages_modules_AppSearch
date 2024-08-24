@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
+import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSessionShim;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.PackageIdentifier;
@@ -107,6 +108,21 @@ public class AppSearchHelperTest {
                 response.getPubliclyVisibleSchemas().values().toArray(new PackageIdentifier[0])[0];
         assertThat(actual.getSha256Certificate()).isEqualTo(expected.getSha256Certificate());
         assertThat(actual.getPackageName()).isEqualTo(expected.getPackageName());
+    }
+
+    @Test
+    public void testAppSearchHelper_onlyIndexMobileApp_appFunctionParentSchemaIsNotSet()
+            throws Exception {
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
+        mAppSearchHelper.indexApps(
+                createMobileApplications(1), /* appFunctions= */ ImmutableList.of());
+
+        AppSearchSessionShim session =
+                createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
+        GetSchemaResponse response = session.getSchemaAsync().get();
+
+        assertThat(response.getSchemas().stream().map(AppSearchSchema::getSchemaType).toList())
+                .doesNotContain(AppFunctionStaticMetadata.SCHEMA_TYPE);
     }
 
     @Test
@@ -309,6 +325,23 @@ public class AppSearchHelperTest {
 
         assertThat(mAppSearchHelper.getAppFunctionPackagesFromAppSearch())
                 .containsExactly("com.fake.package0");
+    }
+
+    @Test
+    public void test_newAppFunction_parentSchemaIsInserted() throws Exception {
+        // Set up 1 MobileApplications with an app function.
+        MobileApplication app0 = createFakeMobileApplication(0);
+        mAppSearchHelper.setSchemasForPackages(
+                createMockPackageIdentifiers(1), createMockPackageIdentifiers(1));
+        AppFunctionStaticMetadata app0Function0 = createFakeAppFunction(0, 0, mContext);
+        mAppSearchHelper.indexApps(
+                ImmutableList.of(app0), /* appFunctions= */ ImmutableList.of(app0Function0));
+
+        AppSearchSessionShim session =
+                createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
+        GetSchemaResponse response = session.getSchemaAsync().get();
+        assertThat(response.getSchemas().stream().map(AppSearchSchema::getSchemaType).toList())
+                .contains(AppFunctionStaticMetadata.SCHEMA_TYPE);
     }
 
     @Test

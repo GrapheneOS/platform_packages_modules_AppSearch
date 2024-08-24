@@ -58,6 +58,7 @@ public class AppsIndexerImplTest {
     private Context mContext;
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
+    private final AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
 
     @Before
     public void setUp() throws Exception {
@@ -99,7 +100,7 @@ public class AppsIndexerImplTest {
                         return pm;
                     }
                 };
-        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context)) {
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context, mAppsIndexerConfig)) {
             appsIndexerImpl.doUpdate(
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp")),
                     new AppsUpdateStats());
@@ -120,7 +121,7 @@ public class AppsIndexerImplTest {
                         return pm;
                     }
                 };
-        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context)) {
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context, mAppsIndexerConfig)) {
             appsIndexerImpl.doUpdate(
                     new AppsIndexerSettings(temporaryFolder.newFolder("tmp")),
                     new AppsUpdateStats());
@@ -148,7 +149,7 @@ public class AppsIndexerImplTest {
                 };
 
         // Perform the first update
-        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1)) {
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdate(
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
@@ -186,7 +187,7 @@ public class AppsIndexerImplTest {
                 };
 
         // Perform the second update
-        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context2)) {
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context2, mAppsIndexerConfig)) {
             AppsUpdateStats stats2 = new AppsUpdateStats();
             appsIndexerImpl.doUpdate(
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats2);

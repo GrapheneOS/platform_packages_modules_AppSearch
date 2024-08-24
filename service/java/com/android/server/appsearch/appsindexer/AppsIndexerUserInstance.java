@@ -119,7 +119,7 @@ public final class AppsIndexerUserInstance {
         AppsIndexerUserInstance indexer =
                 new AppsIndexerUserInstance(appsDir, executorService, context, appsIndexerConfig);
         indexer.loadSettingsAsync();
-        indexer.mAppsIndexerImpl = new AppsIndexerImpl(context);
+        indexer.mAppsIndexerImpl = new AppsIndexerImpl(context, appsIndexerConfig);
 
         return indexer;
     }

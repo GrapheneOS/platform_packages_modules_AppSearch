@@ -22,6 +22,7 @@ import android.annotation.StringRes;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.util.DocumentIdUtil;
+import android.os.Build;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.AppSearchHelper;
@@ -39,7 +40,7 @@ import java.util.Objects;
 public class AppFunctionStaticMetadata extends GenericDocument {
     private static final String TAG = "AppSearchAppFunction";
 
-    private static final String SCHEMA_TYPE = "AppFunctionStaticMetadata";
+    public static final String SCHEMA_TYPE = "AppFunctionStaticMetadata";
 
     public static final String APP_FUNCTION_NAMESPACE = "app_functions";
     public static final String PROPERTY_FUNCTION_ID = "functionId";
@@ -53,6 +54,8 @@ public class AppFunctionStaticMetadata extends GenericDocument {
             "restrictCallersWithExecuteAppFunctions";
     public static final String PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID =
             "mobileApplicationQualifiedId";
+    public static final AppSearchSchema PARENT_TYPE_APPSEARCH_SCHEMA =
+            createAppFunctionSchemaForPackage(/* packageName= */ null);
 
     /** Returns a per-app schema name, to store all functions for that package. */
     public static String getSchemaNameForPackage(@NonNull String pkg) {
@@ -63,14 +66,19 @@ public class AppFunctionStaticMetadata extends GenericDocument {
      * Different packages have different visibility requirements. To allow for different visibility,
      * we need to have per-package app function schemas.
      *
-     * @param packageName The package name to create a schema for. Will create the base schema if
+     * @param packageName The package name to create a schema for. Will create the base schema if it
+     *     is null.
      */
     @NonNull
-    public static AppSearchSchema createAppFunctionSchemaForPackage(@NonNull String packageName) {
-        Objects.requireNonNull(packageName);
-
-        return new AppSearchSchema.Builder(getSchemaNameForPackage(packageName))
-                .addProperty(
+    public static AppSearchSchema createAppFunctionSchemaForPackage(@Nullable String packageName) {
+        AppSearchSchema.Builder builder =
+                new AppSearchSchema.Builder(
+                        (packageName == null) ? SCHEMA_TYPE : getSchemaNameForPackage(packageName));
+        if (shouldSetParentType() && packageName != null) {
+            // This is a child schema, setting the parent type.
+            builder.addParentType(SCHEMA_TYPE);
+        }
+        return builder.addProperty(
                         new AppSearchSchema.StringPropertyConfig.Builder(PROPERTY_FUNCTION_ID)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                 .setIndexingType(
@@ -125,7 +133,7 @@ public class AppFunctionStaticMetadata extends GenericDocument {
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                 .build())
                 .addProperty(
-                        new AppSearchSchema.StringPropertyConfig.Builder(
+                        new AppSearchSchema.LongPropertyConfig.Builder(
                                         PROPERTY_DISPLAY_NAME_STRING_RES)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                 .build())
@@ -216,6 +224,14 @@ public class AppFunctionStaticMetadata extends GenericDocument {
     @VisibleForTesting
     public String getMobileApplicationQualifiedId() {
         return getPropertyString(PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID);
+    }
+
+    /** Whether a parent type should be set for {@link AppFunctionStaticMetadata}. */
+    public static boolean shouldSetParentType() {
+        // addParentTypes() is also available on T Extensions 10+. However, we only need it to work
+        // on V+ devices because that is where AppFunctionManager will be available anyway. So,
+        // we're just checking for V+ here to keep it simple.
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM;
     }
 
     public static final class Builder extends GenericDocument.Builder<Builder> {

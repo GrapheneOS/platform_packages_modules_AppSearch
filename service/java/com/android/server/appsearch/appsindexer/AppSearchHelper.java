@@ -156,6 +156,10 @@ public class AppSearchHelper implements Closeable {
             schemaBuilder.setPubliclyVisibleSchema(schemaVariant.getSchemaType(), pkg);
         }
 
+        // Set the base type first for AppFunctions
+        if (!appFunctionPkgs.isEmpty() && AppFunctionStaticMetadata.shouldSetParentType()) {
+            schemaBuilder.addSchemas(AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA);
+        }
         for (int i = 0; i < appFunctionPkgs.size(); i++) {
             PackageIdentifier pkg = appFunctionPkgs.get(i);
             String packageName = pkg.getPackageName();

@@ -191,7 +191,7 @@ public final class AppsUtil {
      * documents.
      *
      * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
-     *     ResolveInfo}s for the packages launch activity.
+     *     ResolveInfos} for the packages launch activity.
      */
     @NonNull
     public static List<MobileApplication> buildAppsFromPackageInfos(
