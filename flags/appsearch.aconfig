@@ -205,6 +205,15 @@ flag {
 }
 
 flag {
+    name: "enable_blob_store"
+    namespace: "appsearch"
+    description: "Enable the BlobHandle and putBlob APIs in AppSearch"
+    bug: "273591938"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
     name: "enable_enterprise_empty_batch_result_fix"
     namespace: "appsearch"
     description: "Populates the GetDocuments batch result with RESULT_NOT_FOUND when the enterprise user cannot be retrieved."

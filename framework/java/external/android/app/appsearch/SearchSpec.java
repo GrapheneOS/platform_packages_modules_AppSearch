@@ -674,21 +674,6 @@ public final class SearchSpec extends AbstractSafeParcelable {
      * "getEmbeddingParameter({index})" function.
      *
      * @see AppSearchSession#search
-     * @deprecated Use {@link #getEmbeddingParameters}.
-     * @hide
-     */
-    @NonNull
-    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
-    @Deprecated
-    public List<EmbeddingVector> getSearchEmbeddings() {
-        return getEmbeddingParameters();
-    }
-
-    /**
-     * Returns the list of {@link EmbeddingVector} that can be referenced in the query through the
-     * "getEmbeddingParameter({index})" function.
-     *
-     * @see AppSearchSession#search
      */
     @NonNull
     @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
@@ -749,20 +734,6 @@ public final class SearchSpec extends AbstractSafeParcelable {
     @FlaggedApi(Flags.FLAG_ENABLE_LIST_FILTER_HAS_PROPERTY_FUNCTION)
     public boolean isListFilterHasPropertyFunctionEnabled() {
         return mEnabledFeatures.contains(FeatureConstants.LIST_FILTER_HAS_PROPERTY_FUNCTION);
-    }
-
-    /**
-     * Returns whether the embedding search feature is enabled.
-     *
-     * @deprecated AppSearch no longer requires clients to explicitly enable embedding search
-     *     because {@link Builder#addEmbeddingParameters} is already guarded by {@link
-     *     android.app.appsearch.Features#isFeatureSupported}.
-     * @hide
-     */
-    @Deprecated
-    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
-    public boolean isEmbeddingSearchEnabled() {
-        return mEnabledFeatures.contains(FeatureConstants.EMBEDDING_SEARCH);
     }
 
     /**
@@ -1609,40 +1580,6 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *
          * @see AppSearchSession#search
          * @see SearchSpec.Builder#setRankingStrategy(String)
-         * @deprecated Use {@link #addEmbeddingParameters}
-         * @hide
-         */
-        @CanIgnoreReturnValue
-        @NonNull
-        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
-        @Deprecated
-        public Builder addSearchEmbeddings(@NonNull EmbeddingVector... searchEmbeddings) {
-            return addEmbeddingParameters(searchEmbeddings);
-        }
-
-        /**
-         * Adds an embedding search to {@link SearchSpec} Entry, which will be referred in the query
-         * expression and the ranking expression for embedding search.
-         *
-         * @see AppSearchSession#search
-         * @see SearchSpec.Builder#setRankingStrategy(String)
-         * @deprecated Use {@link #addEmbeddingParameters}
-         * @hide
-         */
-        @CanIgnoreReturnValue
-        @NonNull
-        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
-        @Deprecated
-        public Builder addSearchEmbeddings(@NonNull Collection<EmbeddingVector> searchEmbeddings) {
-            return addEmbeddingParameters(searchEmbeddings);
-        }
-
-        /**
-         * Adds an embedding search to {@link SearchSpec} Entry, which will be referred in the query
-         * expression and the ranking expression for embedding search.
-         *
-         * @see AppSearchSession#search
-         * @see SearchSpec.Builder#setRankingStrategy(String)
          */
         @CanIgnoreReturnValue
         @NonNull
@@ -1805,27 +1742,6 @@ public final class SearchSpec extends AbstractSafeParcelable {
         @FlaggedApi(Flags.FLAG_ENABLE_LIST_FILTER_HAS_PROPERTY_FUNCTION)
         public Builder setListFilterHasPropertyFunctionEnabled(boolean enabled) {
             modifyEnabledFeature(FeatureConstants.LIST_FILTER_HAS_PROPERTY_FUNCTION, enabled);
-            return this;
-        }
-
-        /**
-         * Sets the embedding search feature as enabled/disabled according to the enabled parameter.
-         *
-         * <p>If disabled, disallows the use of the "semanticSearch" function. See {@link
-         * AppSearchSession#search} for more details about the function.
-         *
-         * @param enabled Enables the feature if true, otherwise disables it
-         * @deprecated AppSearch no longer requires clients to explicitly enable embedding search
-         *     because {@link #addEmbeddingParameters} is already guarded by {@link
-         *     android.app.appsearch.Features#isFeatureSupported}.
-         * @hide
-         */
-        @CanIgnoreReturnValue
-        @Deprecated
-        @NonNull
-        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
-        public Builder setEmbeddingSearchEnabled(boolean enabled) {
-            modifyEnabledFeature(FeatureConstants.EMBEDDING_SEARCH, enabled);
             return this;
         }
 
