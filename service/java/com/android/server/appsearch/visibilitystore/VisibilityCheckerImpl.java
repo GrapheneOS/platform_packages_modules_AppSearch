@@ -15,6 +15,8 @@
  */
 package com.android.server.appsearch.visibilitystore;
 
+import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
+import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_TRUSTED;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
@@ -31,6 +33,7 @@ import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.SchemaVisibilityConfig;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
+import android.content.AttributionSource;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.UserHandle;
@@ -318,6 +321,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 case SetSchemaRequest.READ_EXTERNAL_STORAGE:
                 case SetSchemaRequest.READ_HOME_APP_SEARCH_DATA:
                 case SetSchemaRequest.READ_ASSISTANT_APP_SEARCH_DATA:
+                case SetSchemaRequest.EXECUTE_APP_FUNCTIONS:
+                case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
                     if (!doesCallerHavePermissionForDataDelivery(
                             requiredPermission, callerAttributionSource)) {
                         // The calling package doesn't have this required permission, return false.
@@ -354,6 +359,10 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
      * Checks whether the calling package has the corresponding Android permission to the specified
      * {@code requiredPermission}.
      */
+    // Suppressing warning about not guarding by SDK level check since this method is manually
+    // tested to work on older devices that don't have permissions declared in higher SDKs
+    // (returning false by default if permission does not exist).
+    @SuppressWarnings("InlinedApi")
     private boolean doesCallerHavePermissionForDataDelivery(
             @SetSchemaRequest.AppSearchSupportedPermission int requiredPermission,
             @NonNull AppSearchAttributionSource callerAttributionSource) {
@@ -377,16 +386,36 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             case SetSchemaRequest.READ_ASSISTANT_APP_SEARCH_DATA:
                 permission = READ_ASSISTANT_APP_SEARCH_DATA;
                 break;
+            case SetSchemaRequest.EXECUTE_APP_FUNCTIONS:
+                permission = EXECUTE_APP_FUNCTIONS;
+                break;
+            case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
+                permission = EXECUTE_APP_FUNCTIONS_TRUSTED;
+                break;
             default:
                 return false;
         }
         // getAttributionSource can be safely called and the returned value will only be
         // null on Android R-
+        return checkPermissionForDataDeliveryGranted(
+                permission,
+                callerAttributionSource.getAttributionSource(),
+                /* message= */ "appsearch");
+    }
+
+    /**
+     * Checks whether permission for data delivery with {@link PermissionManager} is granted.
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    public boolean checkPermissionForDataDeliveryGranted(
+            @NonNull String permission,
+            @NonNull AttributionSource attributionSource,
+            @Nullable String message) {
         return PERMISSION_GRANTED
                 == mPermissionManager.checkPermissionForDataDelivery(
-                        permission,
-                        callerAttributionSource.getAttributionSource(),
-                        /* message= */ "appsearch");
+                        permission, attributionSource, message);
     }
 
     /**

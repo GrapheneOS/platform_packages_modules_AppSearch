@@ -21,17 +21,20 @@ android_test {
     srcs: ["src/**/*.java"],
     static_libs: [
         "CtsAppSearchTestUtils",
+        "android.app.appfunctions.flags-aconfig-java",
         "androidx.test.ext.junit",
         "androidx.test.rules",
         "compatibility-device-util-axt",
+        "flag-junit",
         "framework-appsearch.impl",
+        "platform-test-annotations",
         "service-appsearch-for-tests",
         "truth",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.mock",
         "android.test.base",
+        "android.test.mock",
+        "android.test.runner",
     ],
     // jni libs are not normally accessible from apps so they must be explicitly included.
     jni_libs: ["libicing"],

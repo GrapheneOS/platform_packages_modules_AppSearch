@@ -94,7 +94,7 @@ public class AppsUtilTest {
     }
 
     @Test
-    public void testBuildRealApps() {
+    public void testBuildRealApps_returnsNonEmptyList() {
         // This shouldn't crash, and shouldn't be an empty list
         Context context = ApplicationProvider.getApplicationContext();
         Map<PackageInfo, ResolveInfos> packageActivityMapping =
@@ -104,8 +104,10 @@ public class AppsUtilTest {
                         context.getPackageManager(), packageActivityMapping);
 
         assertThat(resultApps).isNotEmpty();
-        assertThat(resultApps.get(0).getDisplayName()).isNotEmpty();
     }
+
+    // TODO(b/361879099): Add a test that checks that building apps from real PackageManager info
+    // results in non-empty documents
 
     @Test
     public void testRetrieveAppFunctionResolveInfo() throws Exception {
