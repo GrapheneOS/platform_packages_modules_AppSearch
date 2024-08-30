@@ -21,6 +21,7 @@ import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.PutDocumentsRequest;
+import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.SetSchemaResponse;
@@ -130,6 +131,25 @@ public class SyncAppSearchSessionImpl extends SyncAppSearchBase implements SyncA
                 resultHandler -> {
                     synchronized (mSessionLock) {
                         mSession.remove(queryExpression, searchSpec, mExecutor, resultHandler);
+                    }
+                });
+    }
+
+    /**
+     * Removes documents from AppSearch using a list of ids. Initializes the {@link
+     * AppSearchSession} if it hasn't been initialized already.
+     */
+    @Override
+    @NonNull
+    @WorkerThread
+    public AppSearchBatchResult<String, Void> remove(@NonNull RemoveByDocumentIdRequest request)
+            throws AppSearchException {
+        Objects.requireNonNull(request);
+        ensureSessionInitializedLocked();
+        return executeAppSearchBatchResultOperation(
+                resultHandler -> {
+                    synchronized (mSessionLock) {
+                        mSession.remove(request, mExecutor, resultHandler);
                     }
                 });
     }

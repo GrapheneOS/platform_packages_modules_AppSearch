@@ -103,11 +103,11 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
     /**
      * Retrieves {@link GenericDocument} documents, belonging to the specified package name and
      * database name and identified by the namespace and ids in the request, from the {@link
-     * GlobalSearchSession} database.
-     *
-     * <p>If the package or database doesn't exist or if the calling package doesn't have access,
-     * the gets will be handled as failures in an {@link AppSearchBatchResult} object in the
-     * callback.
+     * GlobalSearchSession} database. When a call is successful, the result will be returned in the
+     * successes section of the {@link AppSearchBatchResult} object in the callback. If the package
+     * doesn't exist, database doesn't exist, or if the calling package doesn't have access, these
+     * failures will be reflected as {@link AppSearchResult} objects with a RESULT_NOT_FOUND status
+     * code in the failures section of the {@link AppSearchBatchResult} object.
      *
      * @param packageName the name of the package to get from
      * @param databaseName the name of the database to get from
@@ -136,10 +136,12 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * Retrieves documents from all AppSearch databases that the querying application has access to.
      *
      * <p>Applications can be granted access to documents by specifying {@link
-     * SetSchemaRequest.Builder#setSchemaTypeVisibilityForPackage} when building a schema.
+     * SetSchemaRequest.Builder#setSchemaTypeVisibilityForPackage}, or {@link
+     * SetSchemaRequest.Builder#setDocumentClassVisibilityForPackage} when building a schema.
      *
      * <p>Document access can also be granted to system UIs by specifying {@link
-     * SetSchemaRequest.Builder#setSchemaTypeDisplayedBySystem} when building a schema.
+     * SetSchemaRequest.Builder#setSchemaTypeDisplayedBySystem}, or {@link
+     * SetSchemaRequest.Builder#setDocumentClassDisplayedBySystem} when building a schema.
      *
      * <p>See {@link AppSearchSession#search} for a detailed explanation on forming a query string.
      *
@@ -168,9 +170,11 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      *
      * @param packageName the package that owns the requested {@link AppSearchSchema} instances.
      * @param databaseName the database that owns the requested {@link AppSearchSchema} instances.
-     * @return The pending {@link GetSchemaResponse} containing the schemas that the caller has
-     *     access to or an empty GetSchemaResponse if the request package and database does not
-     *     exist, has not set a schema or contains no schemas that are accessible to the caller.
+     * @param executor Executor on which to invoke the callback.
+     * @param callback Callback to receive the pending {@link GetSchemaResponse} containing the
+     *     schemas that the caller has access to or an empty GetSchemaResponse if the request
+     *     package and database does not exist, has not set a schema or contains no schemas that are
+     *     accessible to the caller.
      */
     @Override
     public void getSchema(
@@ -258,7 +262,7 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
      * @param spec Specification of what types of changes to listen for
      * @param executor Executor on which to call the {@code observer} callback methods.
      * @param observer Callback to trigger when a schema or document changes
-     * @throws AppSearchException If an unexpected error occurs when trying to register an observer.
+     * @throws AppSearchException if an error occurs trying to register the observer
      */
     @SuppressWarnings("unchecked")
     public void registerObserverCallback(
@@ -437,10 +441,7 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
         }
     }
 
-    /**
-     * Closes the {@link GlobalSearchSession}. Persists all mutations, including usage reports, to
-     * disk.
-     */
+    /** Closes the {@link GlobalSearchSession}. */
     @Override
     public void close() {
         if (mIsMutated && !mIsClosed) {
