@@ -71,6 +71,16 @@ public interface SyncAppSearchSession extends Closeable {
             throws AppSearchException;
 
     /**
+     * Synchronously removes documents from AppSearch using a list of document IDs.
+     *
+     * @see AppSearchSession#remove
+     */
+    @NonNull
+    @WorkerThread
+    AppSearchBatchResult<String, Void> remove(@NonNull RemoveByDocumentIdRequest request)
+            throws AppSearchException;
+
+    /**
      * Returns a synchronous version of {@link SearchResults}.
      *
      * <p>While the underlying method is not asynchronous, this method allows for convenience while

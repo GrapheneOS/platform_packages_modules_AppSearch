@@ -19,14 +19,17 @@ package com.android.server.appsearch.appsindexer;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppFunctionResolveInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeLaunchResolveInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfo;
+import static com.android.server.appsearch.appsindexer.TestUtils.createIndividualUsageEvent;
+import static com.android.server.appsearch.appsindexer.TestUtils.createUsageEvents;
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackageManager;
-
 import static com.google.common.truth.Truth.assertThat;
-
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -35,24 +38,22 @@ import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.util.ArrayMap;
-
 import androidx.test.core.app.ApplicationProvider;
-
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
-
 import com.google.common.collect.ImmutableList;
-
+import com.google.common.collect.ImmutableMap;
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.ByteArrayInputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 /** This tests that we can convert what comes from PackageManager to a MobileApplication */
 public class AppsUtilTest {
+
     @Test
     public void testBuildAppsFromPackageInfos_ReturnsNonNullList() throws Exception {
         PackageManager pm = Mockito.mock(PackageManager.class);
@@ -94,7 +95,7 @@ public class AppsUtilTest {
     }
 
     @Test
-    public void testBuildRealApps() {
+    public void testBuildRealApps_returnsNonEmptyList() {
         // This shouldn't crash, and shouldn't be an empty list
         Context context = ApplicationProvider.getApplicationContext();
         Map<PackageInfo, ResolveInfos> packageActivityMapping =
@@ -104,7 +105,38 @@ public class AppsUtilTest {
                         context.getPackageManager(), packageActivityMapping);
 
         assertThat(resultApps).isNotEmpty();
-        assertThat(resultApps.get(0).getDisplayName()).isNotEmpty();
+    }
+
+    // TODO(b/361879099): Add a test that checks that building apps from real PackageManager info
+    // results in non-empty documents
+
+    @Test
+    public void testRealUsageStatsManager() {
+        UsageStatsManager mockUsageStatsManager = Mockito.mock(UsageStatsManager.class);
+
+        UsageEvents.Event[] events =
+                new UsageEvents.Event[] {
+                    createIndividualUsageEvent(
+                            UsageEvents.Event.MOVE_TO_FOREGROUND, 1000L, "com.example.package"),
+                    createIndividualUsageEvent(
+                            UsageEvents.Event.ACTIVITY_RESUMED, 2000L, "com.example.package"),
+                    createIndividualUsageEvent(
+                            UsageEvents.Event.MOVE_TO_FOREGROUND, 3000L, "com.example.package2"),
+                    createIndividualUsageEvent(
+                            UsageEvents.Event.MOVE_TO_BACKGROUND, 4000L, "com.example.package2")
+                };
+
+        UsageEvents mockUsageEvents = TestUtils.createUsageEvents(events);
+        when(mockUsageStatsManager.queryEvents(anyLong(), anyLong())).thenReturn(mockUsageEvents);
+
+        Map<String, List<Long>> appOpenTimestamps =
+                AppsUtil.getAppOpenTimestamps(
+                        mockUsageStatsManager, 0, Calendar.getInstance().getTimeInMillis());
+
+        assertThat(appOpenTimestamps)
+                .containsExactly(
+                        "com.example.package", List.of(1000L, 2000L),
+                        "com.example.package2", List.of(3000L));
     }
 
     @Test

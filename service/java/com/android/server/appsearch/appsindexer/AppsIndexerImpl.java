@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
+import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
@@ -129,9 +130,12 @@ public final class AppsIndexerImpl implements Closeable {
             }
         }
 
+        List<GenericDocument> appSearchAppFunctions =
+                mAppSearchHelper.getAppFunctionsFromAppSearch();
+
         try {
             if (!currentAppIds.equals(appUpdatedTimestamps.keySet())
-                    || requiresInsertSchemaForAppFunction(packagesToIndex)) {
+                    || requiresInsertSchemaForAppFunction(packagesToIndex, appSearchAppFunctions)) {
                 // The current list of apps/app functions in AppSearch does not match what is in
                 // PackageManager. This means this is the first sync, an app/app function was
                 // removed, or an app/app function was added. In all cases, we need to call
@@ -186,7 +190,8 @@ public final class AppsIndexerImpl implements Closeable {
                                 mAppsIndexerConfig.getMaxAppFunctionsPerPackage());
 
                 AppSearchBatchResult<String, Void> result =
-                        mAppSearchHelper.indexApps(mobileApplications, appFunctions);
+                        mAppSearchHelper.indexApps(
+                                mobileApplications, appFunctions, appSearchAppFunctions);
                 if (result.isSuccess()) {
                     appsUpdateStats.mUpdateStatusCodes.add(AppSearchResult.RESULT_OK);
                 } else {
@@ -215,11 +220,18 @@ public final class AppsIndexerImpl implements Closeable {
 
     /** Returns whether the indexer should insert schema for app functions. */
     private boolean requiresInsertSchemaForAppFunction(
-            @NonNull Map<PackageInfo, ResolveInfos> targetedPackages) throws AppSearchException {
+            @NonNull Map<PackageInfo, ResolveInfos> targetedPackages,
+            List<GenericDocument> appSearchAppFunctions)
+            throws AppSearchException {
         // Should re-insert the schema as long as the indexed packages does not match the current
         // set of packages.
-        Set<String> indexedAppFunctionPackages =
-                mAppSearchHelper.getAppFunctionPackagesFromAppSearch();
+        Set<String> indexedAppFunctionPackages = new ArraySet<>();
+        for (int i = 0; i < appSearchAppFunctions.size(); i++) {
+            indexedAppFunctionPackages.add(
+                    appSearchAppFunctions
+                            .get(i)
+                            .getPropertyString(AppFunctionStaticMetadata.PROPERTY_PACKAGE_NAME));
+        }
         Set<String> currentAppFunctionPackages = getCurrentAppFunctionPackages(targetedPackages);
         return !indexedAppFunctionPackages.equals(currentAppFunctionPackages);
     }

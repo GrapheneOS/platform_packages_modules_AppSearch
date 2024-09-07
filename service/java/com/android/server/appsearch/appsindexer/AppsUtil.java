@@ -19,6 +19,8 @@ package com.android.server.appsearch.appsindexer;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.util.LogUtil;
+import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManager;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Intent;
@@ -33,11 +35,9 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
-
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -276,6 +276,41 @@ public final class AppsUtil {
         return appFunctions;
     }
 
+    /**
+     * Gets a map of package name to a list of app open timestamps within a specific time range.
+     *
+     * @param usageStatsManager the {@link UsageStatsManager} to query for app open events.
+     * @param startTime the start time in milliseconds since the epoch.
+     * @param endTime the end time in milliseconds since the epoch.
+     * @return a map of package name to a list of app open timestamps.
+     */
+    @NonNull
+    public static Map<String, List<Long>> getAppOpenTimestamps(
+            @NonNull UsageStatsManager usageStatsManager, long startTime, long endTime) {
+
+        Map<String, List<Long>> appOpenTimestamps = new ArrayMap<>();
+
+        UsageEvents usageEvents = usageStatsManager.queryEvents(startTime, endTime);
+        while (usageEvents.hasNextEvent()) {
+            UsageEvents.Event event = new UsageEvents.Event();
+            usageEvents.getNextEvent(event);
+
+            if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND
+                    || event.getEventType() == UsageEvents.Event.ACTIVITY_RESUMED) {
+                String packageName = event.getPackageName();
+
+                List<Long> timestamps = appOpenTimestamps.get(packageName);
+                if (timestamps == null) {
+                    timestamps = new ArrayList<>();
+                    appOpenTimestamps.put(packageName, timestamps);
+                }
+                timestamps.add(event.getTimeStamp());
+            }
+        }
+
+        return appOpenTimestamps;
+    }
+
     /** Gets the SHA-256 certificate from a {@link PackageManager}, or null if it is not found */
     @Nullable
     public static byte[] getCertificate(@NonNull PackageInfo packageInfo) {
@@ -350,4 +385,3 @@ public final class AppsUtil {
         return builder.build();
     }
 }
-

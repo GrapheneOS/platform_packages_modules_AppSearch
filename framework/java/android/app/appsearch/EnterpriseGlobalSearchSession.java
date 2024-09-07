@@ -29,14 +29,21 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
- * Provides a connection to the work profile's AppSearch databases that explicitly allow access from
- * enterprise sessions. Databases may have additional required permissions and restricted fields
- * when accessed through an enterprise session that they normally would not have.
+ * Provides a connection to all enterprise (work profile) AppSearch databases the querying
+ * application has been granted access to.
  *
- * <p>EnterpriseGlobalSearchSession will only return results when created from the main user context
- * and when there is an associated work profile. If the given context is either not the main user or
- * does not have a work profile, queries will successfully complete with empty results, allowing
- * clients to query the work profile without having to account for whether it exists or not.
+ * <p>This session can be created from any user profile but will only properly return results when
+ * created from the main profile. If the user is not the main profile or an associated work profile
+ * does not exist, queries will still successfully complete but with empty results.
+ *
+ * <p>Schemas must be explicitly tagged enterprise and may require additional permissions to be
+ * visible from an enterprise session. Retrieved documents may also have certain fields restricted
+ * or modified unlike if they were retrieved directly from {@link GlobalSearchSession} on the work
+ * profile.
+ *
+ * <p>This class is thread safe.
+ *
+ * @see GlobalSearchSession
  */
 @FlaggedApi(Flags.FLAG_ENABLE_ENTERPRISE_GLOBAL_SEARCH_SESSION)
 public class EnterpriseGlobalSearchSession extends ReadOnlyGlobalSearchSession {

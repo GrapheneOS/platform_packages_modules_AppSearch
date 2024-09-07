@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.visibilitystore;
 
+import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
+import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_TRUSTED;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
@@ -23,13 +25,16 @@ import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
 import static android.Manifest.permission.READ_GLOBAL_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_HOME_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_SMS;
+import static android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_MANAGER;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
@@ -43,6 +48,9 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.os.UserHandle;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.ArrayMap;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -74,6 +82,11 @@ public class VisibilityCheckerImplTest {
     // These constants are hidden in SetSchemaRequest
     private static final int ENTERPRISE_ACCESS = 7;
     private static final int MANAGED_PROFILE_CONTACTS_ACCESS = 8;
+    private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS = 9;
+    private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_TRUSTED = 10;
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
     private final Map<UserHandle, PackageManager> mMockPackageManagers = new ArrayMap<>();
@@ -105,7 +118,7 @@ public class VisibilityCheckerImplTest {
             }
         };
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        mVisibilityChecker = new VisibilityCheckerImpl(mContext);
+        mVisibilityChecker = Mockito.spy(new VisibilityCheckerImpl(mContext));
         // Give ourselves global query permissions
         AppSearchImpl appSearchImpl = AppSearchImpl.create(
                 mTemporaryFolder.newFolder(),
@@ -516,6 +529,84 @@ public class VisibilityCheckerImplTest {
                 "package",
                 prefix + "Schema",
                 mVisibilityStore))
+                .isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_APP_FUNCTION_MANAGER)
+    public void testSetSchema_visibleToAppFunctionsPermissions() throws Exception {
+        String prefix = PrefixUtil.createPrefix("package", "database");
+
+        // Create a VDoc that require either EXECUTE_APP_FUNCTIONS or EXECUTE_APP_FUNCTIONS_TRUSTED
+        // permissions only.
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
+                        .addVisibleToPermissions(
+                                ImmutableSet.of(SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS))
+                        .addVisibleToPermissions(
+                                ImmutableSet.of(SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_TRUSTED))
+                        .build();
+        mVisibilityStore.setVisibility(ImmutableList.of(visibilityConfig));
+
+        // Grant the EXECUTE_APP_FUNCTIONS permission, we should able to access.
+        doReturn(true)
+                .when(mVisibilityChecker)
+                .checkPermissionForDataDeliveryGranted(eq(EXECUTE_APP_FUNCTIONS), any(), any());
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isTrue();
+        // Grant the EXECUTE_APP_FUNCTIONS_TRUSTED permission along with EXECUTE_APP_FUNCTIONS, we
+        // should still be able to access.
+        doReturn(true)
+                .when(mVisibilityChecker)
+                .checkPermissionForDataDeliveryGranted(
+                        eq(EXECUTE_APP_FUNCTIONS_TRUSTED), any(), any());
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isTrue();
+        // Drop the EXECUTE_APP_FUNCTIONS permission so only EXECUTE_APP_FUNCTIONS_TRUSTED is held,
+        // we should still be able to access.
+        doReturn(false)
+                .when(mVisibilityChecker)
+                .checkPermissionForDataDeliveryGranted(eq(EXECUTE_APP_FUNCTIONS), any(), any());
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isTrue();
+        // Drop both permissions, it becomes invisible.
+        doReturn(false)
+                .when(mVisibilityChecker)
+                .checkPermissionForDataDeliveryGranted(
+                        eq(EXECUTE_APP_FUNCTIONS_TRUSTED), any(), any());
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
                 .isFalse();
     }
 

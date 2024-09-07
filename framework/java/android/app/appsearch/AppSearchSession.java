@@ -188,8 +188,7 @@ public final class AppSearchSession implements Closeable {
      * @param workExecutor Executor on which to schedule heavy client-side background work such as
      *     transforming documents.
      * @param callbackExecutor Executor on which to invoke the callback.
-     * @param callback Callback to receive errors resulting from setting the schema. If the
-     *     operation succeeds, the callback will be invoked with {@code null}.
+     * @param callback Callback to receive the result of setting the schema.
      */
     public void setSchema(
             @NonNull SetSchemaRequest request,
@@ -337,9 +336,10 @@ public final class AppSearchSession implements Closeable {
      * @param executor Executor on which to invoke the callback.
      * @param callback Callback to receive pending result of performing this operation. The keys of
      *     the returned {@link AppSearchBatchResult} are the IDs of the input documents. The values
-     *     are {@code null} if they were successfully indexed, or a failed {@link AppSearchResult}
-     *     otherwise. If an unexpected internal error occurs in the AppSearch service, {@link
-     *     BatchResultCallback#onSystemError} will be invoked with a {@link Throwable}.
+     *     are either {@code null} if the corresponding document was successfully indexed, or a
+     *     failed {@link AppSearchResult} otherwise. If an unexpected internal error occurs in the
+     *     AppSearch service, {@link BatchResultCallback#onSystemError} will be invoked with a
+     *     {@link Throwable}.
      */
     public void put(
             @NonNull PutDocumentsRequest request,
@@ -394,12 +394,14 @@ public final class AppSearchSession implements Closeable {
      * @param request a request containing a namespace and IDs to get documents for.
      * @param executor Executor on which to invoke the callback.
      * @param callback Callback to receive the pending result of performing this operation. The keys
-     *     of the returned {@link AppSearchBatchResult} are the input IDs. The values are the
-     *     returned {@link GenericDocument}s on success, or a failed {@link AppSearchResult}
-     *     otherwise. IDs that are not found will return a failed {@link AppSearchResult} with a
-     *     result code of {@link AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error
-     *     occurs in the AppSearch service, {@link BatchResultCallback#onSystemError} will be
-     *     invoked with a {@link Throwable}.
+     *     of the {@link AppSearchBatchResult} represent the input document IDs from the {@link
+     *     GetByDocumentIdRequest} object. The values are either the corresponding {@link
+     *     GenericDocument} object for the ID on success, or an {@link AppSearchResult} object on
+     *     failure. For example, if an ID is not found, the value for that ID will be set to an
+     *     {@link AppSearchResult} object with result code: {@link
+     *     AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error occurs in the
+     *     AppSearch service, {@link BatchResultCallback#onSystemError} will be invoked with a
+     *     {@link Throwable}.
      */
     public void getByDocumentId(
             @NonNull GetByDocumentIdRequest request,
@@ -474,8 +476,8 @@ public final class AppSearchSession implements Closeable {
      *       the "subject" property.
      * </ul>
      *
-     * <p>The above description covers the basic query operators. Additional advanced query operator
-     * features should be explicitly enabled in the SearchSpec and are described below.
+     * <p>The above description covers the query operators that are supported on all versions of
+     * AppSearch. Additional operators and their required features are described below.
      *
      * <p>LIST_FILTER_QUERY_LANGUAGE: This feature covers the expansion of the query language to
      * conform to the definition of the list filters language (https://aip.dev/160). This includes:
@@ -490,7 +492,7 @@ public final class AppSearchSession implements Closeable {
      *
      * <ul>
      *   <li>createList(String...)
-     *   <li>search(String, List&lt;String&gt;)
+     *   <li>search(String, {@code List<String>})
      *   <li>propertyDefined(String)
      * </ul>
      *
@@ -501,13 +503,13 @@ public final class AppSearchSession implements Closeable {
      * and an optional list of strings that specify the properties to be restricted to. This exists
      * as a convenience for multiple property restricts. So, for example, the query `(subject:foo OR
      * body:foo) (subject:bar OR body:bar)` could be rewritten as `search("foo bar",
-     * createList("subject", "bar"))`.
+     * createList("subject", "body"))`.
      *
      * <p>propertyDefined takes a string specifying the property of interest and matches all
      * documents of any type that defines the specified property (ex.
      * `propertyDefined("sender.name")`). Note that propertyDefined will match so long as the
-     * document's type defines the specified property. It does NOT require that the document
-     * actually hold any values for this property.
+     * document's type defines the specified property. Unlike the "hasProperty" function below, this
+     * function does NOT require that the document actually hold any values for this property.
      *
      * <p>NUMERIC_SEARCH: This feature covers numeric search expressions. In the query language, the
      * values of properties that have {@link AppSearchSchema.LongPropertyConfig#INDEXING_TYPE_RANGE}
@@ -521,6 +523,66 @@ public final class AppSearchSession implements Closeable {
      *
      * <p>Ex. `"foo/bar" OR baz` will ensure that 'foo/bar' is treated as a single 'verbatim' token.
      *
+     * <p>LIST_FILTER_HAS_PROPERTY_FUNCTION: This feature covers the "hasProperty" function in query
+     * expressions, which takes a string specifying the property of interest and matches all
+     * documents that hold values for this property. Not to be confused with the "propertyDefined"
+     * function, which checks whether a document's schema has defined the property, instead of
+     * whether a document itself has this property.
+     *
+     * <p>Ex. `foo hasProperty("sender.name")` will return all documents that have the term "foo"
+     * AND have values in the property "sender.name". Consider two documents, documentA and
+     * documentB, of the same schema with an optional property "sender.name". If documentA sets
+     * "foo" in this property but documentB does not, then `hasProperty("sender.name")` will only
+     * match documentA. However, `propertyDefined("sender.name")` will match both documentA and
+     * documentB, regardless of whether a value is actually set.
+     *
+     * <p>SCHEMA_EMBEDDING_PROPERTY_CONFIG: This feature covers the "semanticSearch" and
+     * "getEmbeddingParameter" functions in query expressions, which are used for semantic search.
+     *
+     * <p>Usage: semanticSearch(getEmbeddingParameter({embedding_index}), {low}, {high}, {metric})
+     *
+     * <ul>
+     *   <li>semanticSearch matches all documents that have at least one embedding vector with a
+     *       matching model signature (see {@link EmbeddingVector#getModelSignature()}) and a
+     *       similarity score within the range specified based on the provided metric.
+     *   <li>getEmbeddingParameter({embedding_index}) retrieves the embedding search passed in
+     *       {@link SearchSpec.Builder#addEmbeddingParameters} based on the index specified, which
+     *       starts from 0.
+     *   <li>"low" and "high" are floating point numbers that specify the similarity score range. If
+     *       omitted, they default to negative and positive infinity, respectively.
+     *   <li>"metric" is a string value that specifies how embedding similarities should be
+     *       calculated. If omitted, it defaults to the metric specified in {@link
+     *       SearchSpec.Builder#setDefaultEmbeddingSearchMetricType(int)}. Possible values:
+     *       <ul>
+     *         <li>"COSINE"
+     *         <li>"DOT_PRODUCT"
+     *         <li>"EUCLIDEAN"
+     *       </ul>
+     * </ul>
+     *
+     * <p>Examples:
+     *
+     * <ul>
+     *   <li>Basic: semanticSearch(getEmbeddingParameter(0), 0.5, 1, "COSINE")
+     *   <li>With a property restriction: property1:semanticSearch(getEmbeddingParameter(0), 0.5, 1)
+     *   <li>Hybrid: foo OR semanticSearch(getEmbeddingParameter(0), 0.5, 1)
+     *   <li>Complex: (foo OR semanticSearch(getEmbeddingParameter(0), 0.5, 1)) AND bar
+     * </ul>
+     *
+     * <p>SEARCH_SPEC_SEARCH_STRING_PARAMETERS: This feature covers the "getSearchStringParameter"
+     * function in query expressions, which substitutes the string provided at the same index in
+     * {@link SearchSpec.Builder#addSearchStringParameters} into the query as plain text. This
+     * string is then segmented, normalized and stripped of punctuation-only segments. The remaining
+     * tokens are then AND'd together. This function is useful for callers who wish to provide user
+     * input, but want to ensure that that user input does not invoke any query operators.
+     *
+     * <p>Usage: getSearchStringParameter({search_parameter_strings_index})
+     *
+     * <p>Ex. `foo OR getSearchStringParameter(0)` with {@link SearchSpec#getSearchStringParameters}
+     * returning {"bar OR baz."}. The string "bar OR baz." will be segmented into "bar", "OR",
+     * "baz", ".". Punctuation is removed and the segments are normalized to "bar", "or", "baz".
+     * This query will be equivalent to `foo OR (bar AND or AND baz)`.
+     *
      * <p>Additional search specifications, such as filtering by {@link AppSearchSchema} type or
      * adding projection, can be set by calling the corresponding {@link SearchSpec.Builder} setter.
      *
@@ -532,6 +594,8 @@ public final class AppSearchSession implements Closeable {
      *     type, etc.
      * @return a {@link SearchResults} object for retrieved matched documents.
      */
+    // TODO(b/326656531): Refine the javadoc to provide guidance on the best practice of
+    //  embedding searches and how to select an appropriate metric.
     @NonNull
     public SearchResults search(@NonNull String queryExpression, @NonNull SearchSpec searchSpec) {
         Objects.requireNonNull(queryExpression);
@@ -728,12 +792,12 @@ public final class AppSearchSession implements Closeable {
      *     index.
      * @param executor Executor on which to invoke the callback.
      * @param callback Callback to receive the pending result of performing this operation. The keys
-     *     of the returned {@link AppSearchBatchResult} are the input document IDs. The values are
-     *     {@code null} on success, or a failed {@link AppSearchResult} otherwise. IDs that are not
-     *     found will return a failed {@link AppSearchResult} with a result code of {@link
-     *     AppSearchResult#RESULT_NOT_FOUND}. If an unexpected internal error occurs in the
-     *     AppSearch service, {@link BatchResultCallback#onSystemError} will be invoked with a
-     *     {@link Throwable}.
+     *     of the returned {@link AppSearchBatchResult} represent the input IDs from the {@link
+     *     RemoveByDocumentIdRequest} object. The values are either {@code null} on success, or a
+     *     failed {@link AppSearchResult} otherwise. IDs that are not found will return a failed
+     *     {@link AppSearchResult} with a result code of {@link AppSearchResult#RESULT_NOT_FOUND}.
+     *     If an unexpected internal error occurs in the AppSearch service, {@link
+     *     BatchResultCallback#onSystemError} will be invoked with a {@link Throwable}..
      */
     public void remove(
             @NonNull RemoveByDocumentIdRequest request,
@@ -795,6 +859,9 @@ public final class AppSearchSession implements Closeable {
      * @param executor Executor on which to invoke the callback.
      * @param callback Callback to receive errors resulting from removing the documents. If the
      *     operation succeeds, the callback will be invoked with {@code null}.
+     * @throws IllegalArgumentException if the {@link SearchSpec} contains a {@link JoinSpec}.
+     *     {@link JoinSpec} lets you join docs that are not owned by the caller, so the semantics of
+     *     failures from this method would be complex.
      */
     public void remove(
             @NonNull String queryExpression,

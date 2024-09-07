@@ -25,8 +25,10 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.BatchResultCallback;
+import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.PutDocumentsRequest;
+import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
@@ -43,7 +45,6 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication
 
 import java.io.Closeable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -125,8 +126,8 @@ public class AppSearchHelper implements Closeable {
      * @param mobileAppPkgs A list of {@link PackageIdentifier}s for which to set {@link
      *     MobileApplication} schemas for
      * @param appFunctionPkgs A list of {@link PackageIdentifier}s for which to set {@link
-     *     AppFunctionStaticMetadata} schemas for. These are packages with an AppFunctionService.
-     *     It is always a subset of `mobileAppPkgs`.
+     *     AppFunctionStaticMetadata} schemas for. These are packages with an AppFunctionService. It
+     *     is always a subset of `mobileAppPkgs`.
      */
     @WorkerThread
     public void setSchemasForPackages(
@@ -180,10 +181,9 @@ public class AppSearchHelper implements Closeable {
      * sync.
      *
      * @param apps a list of MobileApplication documents to be inserted.
-     * @param appFunctions a list of AppFunctionStaticMetadata documents to be inserted. Each
-     *                     AppFunctionStaticMetadata should point to its corresponding
-     *                     MobileApplication.
-     *
+     * @param currentAppFunctions a list of AppFunctionStaticMetadata documents to be inserted. Each
+     *     AppFunctionStaticMetadata should point to its corresponding MobileApplication.
+     * @param indexedAppFunctions a list of indexed AppFunctionStaticMetadata documents
      * @throws AppSearchException if indexing results in a {@link
      *     AppSearchResult#RESULT_OUT_OF_SPACE} result code. It will also throw this if the put call
      *     results in a system error as in {@link BatchResultCallback#onSystemError}. This may
@@ -198,25 +198,40 @@ public class AppSearchHelper implements Closeable {
     @WorkerThread
     public AppSearchBatchResult<String, Void> indexApps(
             @NonNull List<MobileApplication> apps,
-            @NonNull List<AppFunctionStaticMetadata> appFunctions)
+            @NonNull List<AppFunctionStaticMetadata> currentAppFunctions,
+            @NonNull List<GenericDocument> indexedAppFunctions)
             throws AppSearchException {
         Objects.requireNonNull(apps);
-        Objects.requireNonNull(appFunctions);
+        Objects.requireNonNull(currentAppFunctions);
 
-        // First, clear all the function metadata from the packages to be updated.
-        Set<String> appFunctionPackages = new ArraySet<>();
-        for (int i = 0; i < appFunctions.size(); i++) {
-            AppFunctionStaticMetadata appFunctionStaticMetadata = appFunctions.get(i);
-            appFunctionPackages.add(appFunctionStaticMetadata.getPackageName());
+        // For packages that we are re-indexing, we need to collect a list of stale of function IDs.
+        Set<String> packagesToReindex = new ArraySet<>();
+        Set<String> currentAppFunctionIds = new ArraySet<>();
+        for (int i = 0; i < currentAppFunctions.size(); i++) {
+            AppFunctionStaticMetadata appFunction = currentAppFunctions.get(i);
+            packagesToReindex.add(appFunction.getPackageName());
+            currentAppFunctionIds.add(appFunction.getId());
         }
-        removeAppFunctions(appFunctionPackages);
+        // Determine which indexed app functions are no longer in the apps. We should only remove
+        // functions in packages that we are re-indexing.
+        Set<String> appFunctionIdsToRemove = new ArraySet<>();
+        for (int i = 0; i < indexedAppFunctions.size(); i++) {
+            GenericDocument appFunction = indexedAppFunctions.get(i);
+            String id = appFunction.getId();
+            String packageName =
+                    appFunction.getPropertyString(AppFunctionStaticMetadata.PROPERTY_PACKAGE_NAME);
+            if (packagesToReindex.contains(packageName) && !currentAppFunctionIds.contains(id)) {
+                appFunctionIdsToRemove.add(id);
+            }
+        }
 
-        // Second, insert all the documents. At this point, the document schema names have
+        // Then, insert all the documents. At this point, the document schema names have
         // already been set to the per-package name. We can just add them to the request.
+        // TODO(b/357551503): put only the documents that have been added or updated.
         PutDocumentsRequest request =
                 new PutDocumentsRequest.Builder()
                         .addGenericDocuments(apps)
-                        .addGenericDocuments(appFunctions)
+                        .addGenericDocuments(currentAppFunctions)
                         .build();
 
         AppSearchBatchResult<String, Void> result = mSyncAppSearchSession.put(request);
@@ -232,30 +247,14 @@ public class AppSearchHelper implements Closeable {
                 }
             }
         }
+
+        // Then, delete all the stale documents.
+        mSyncAppSearchSession.remove(
+                new RemoveByDocumentIdRequest.Builder(
+                                AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)
+                        .addIds(appFunctionIdsToRemove)
+                        .build());
         return result;
-    }
-
-    // TODO(b/357551503): Refactor these two methods to minimize calls to AppSearch rather than
-    //  deleting and re-insering each time
-    /**
-     * Remove all app functions corresponding to the given packages from AppSearch
-     *
-     * @param packageNames packages for which to delete App Function documents from AppSearch
-     */
-    @WorkerThread
-    public void removeAppFunctions(@NonNull Collection<String> packageNames)
-            throws AppSearchException {
-        Objects.requireNonNull(packageNames);
-        SearchSpec.Builder searchSpecBuilder = new SearchSpec.Builder();
-        searchSpecBuilder.addFilterNamespaces(AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE);
-
-        List<String> schemasToBeRemoved = new ArrayList<>();
-        for (String packageName : packageNames) {
-            schemasToBeRemoved.add(AppFunctionStaticMetadata.getSchemaNameForPackage(packageName));
-        }
-
-        searchSpecBuilder.addFilterSchemas(schemasToBeRemoved);
-        mSyncAppSearchSession.remove("", searchSpecBuilder.build());
     }
 
     /**
@@ -319,10 +318,15 @@ public class AppSearchHelper implements Closeable {
 
     // TODO(b/357551503): Refactor/combine these two methods with the above to simplify code.
 
-    /** Returns the set of packages that have app functions currently indexed into AppSearch. */
+    /**
+     * Searches AppSearch and returns a list of app function GenericDocuments.
+     *
+     * @return a list of app function GenericDocuments, containing just the id and package name.
+     */
     @NonNull
     @WorkerThread
-    public Set<String> getAppFunctionPackagesFromAppSearch() throws AppSearchException {
+    public List<GenericDocument> getAppFunctionsFromAppSearch() throws AppSearchException {
+        List<GenericDocument> appFunctions = new ArrayList<>();
         SearchSpec allAppsSpec =
                 new SearchSpec.Builder()
                         .addFilterNamespaces(AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)
@@ -334,12 +338,24 @@ public class AppSearchHelper implements Closeable {
                         .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE)
                         .build();
         SyncSearchResults results = mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec);
-        return collectAppFunctionPackagesFromAllPages(results);
+        // TODO(b/357551503): Use pagination instead of building a list of all docs.
+        try {
+            List<SearchResult> resultList = results.getNextPage();
+            while (!resultList.isEmpty()) {
+                for (int i = 0; i < resultList.size(); i++) {
+                    appFunctions.add(resultList.get(i).getGenericDocument());
+                }
+                resultList = results.getNextPage();
+            }
+        } catch (AppSearchException e) {
+            Log.e(TAG, "Error while searching for all app documents", e);
+        }
+        return appFunctions;
     }
 
     /**
-     * Iterates through result pages and returns a set of package name corresponding to the
-     * packages that have app functions currently indexed into AppSearch.
+     * Iterates through result pages and returns a set of package name corresponding to the packages
+     * that have app functions currently indexed into AppSearch.
      */
     @NonNull
     @WorkerThread
