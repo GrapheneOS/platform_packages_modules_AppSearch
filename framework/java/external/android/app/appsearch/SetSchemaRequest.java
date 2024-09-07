@@ -25,10 +25,8 @@ import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.util.ArrayMap;
 import android.util.ArraySet;
-
 import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
@@ -108,6 +106,7 @@ public final class SetSchemaRequest {
                 MANAGED_PROFILE_CONTACTS_ACCESS,
                 EXECUTE_APP_FUNCTIONS,
                 EXECUTE_APP_FUNCTIONS_TRUSTED,
+                PACKAGE_USAGE_STATS,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AppSearchSupportedPermission {}
@@ -197,6 +196,14 @@ public final class SetSchemaRequest {
      * @hide
      */
     public static final int EXECUTE_APP_FUNCTIONS_TRUSTED = 10;
+
+    /**
+     * The {@link android.Manifest.permission#PACKAGE_USAGE_STATS} AppSearch supported in {@link
+     * SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility}
+     *
+     * @hide
+     */
+    public static final int PACKAGE_USAGE_STATS = 11;
 
     private final Set<AppSearchSchema> mSchemas;
     private final Set<String> mSchemasNotDisplayedBySystem;
@@ -475,7 +482,7 @@ public final class SetSchemaRequest {
             Objects.requireNonNull(permissions);
             for (int permission : permissions) {
                 Preconditions.checkArgumentInRange(
-                        permission, READ_SMS, EXECUTE_APP_FUNCTIONS_TRUSTED, "permission");
+                        permission, READ_SMS, PACKAGE_USAGE_STATS, "permission");
             }
             resetIfBuilt();
             Set<Set<Integer>> visibleToPermissions = mSchemasVisibleToPermissions.get(schemaType);
