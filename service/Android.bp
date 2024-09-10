@@ -61,8 +61,8 @@ java_defaults {
     ],
     libs: [
         "framework-appsearch.impl",
-        "framework-configinfrastructure",
-        "framework-permission-s",
+        "framework-configinfrastructure.stubs.module_lib",
+        "framework-permission-s.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
     ],
     optimize: {
