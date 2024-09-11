@@ -144,9 +144,9 @@ public class GenericDocument {
     @NonNull
     public static GenericDocument createFromParcel(@NonNull Parcel parcel) {
         Objects.requireNonNull(parcel);
-        return new GenericDocument(
-                parcel.readParcelable(
-                        GenericDocumentParcel.class.getClassLoader(), GenericDocumentParcel.class));
+        GenericDocumentParcel documentParcel =
+                parcel.readParcelable(GenericDocumentParcel.class.getClassLoader());
+        return new GenericDocument(documentParcel);
     }
 
     /**
