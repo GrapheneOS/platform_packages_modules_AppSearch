@@ -35,7 +35,7 @@ android_test {
         "truth",
     ],
     libs: [
-        "android.test.runner",
+        "android.test.runner.stubs.system",
         "framework-annotations-lib",
         "framework-appsearch.impl",
     ],
