@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication.SCHEMA_TYPE;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -46,8 +47,12 @@ import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.content.res.Resources;
+
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+
+import org.mockito.Mockito;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,7 +60,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import org.mockito.Mockito;
 
 class TestUtils {
     // In the mocking tests, integers are appended to this prefix to create unique package names.

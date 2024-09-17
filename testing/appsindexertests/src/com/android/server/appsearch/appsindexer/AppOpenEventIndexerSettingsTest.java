@@ -25,45 +25,37 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-public class AppsIndexerSettingsTest {
+public class AppOpenEventIndexerSettingsTest {
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
-    private AppsIndexerSettings mIndexerSettings;
+    private AppOpenEventIndexerSettings mAppOpenEventIndexerSettings;
 
     @Before
     public void setUp() throws IOException {
         // Create a test folder for each test
-        File baseDirectory = mTemporaryFolder.newFolder("testAppsIndexerSettings");
-        mIndexerSettings = new AppsIndexerSettings(baseDirectory);
+        File baseDirectory = mTemporaryFolder.newFolder("testAppOpenEventIndexerSettings");
+        mAppOpenEventIndexerSettings = new AppOpenEventIndexerSettings(baseDirectory);
     }
 
     @Test
     public void testLoadAndPersist() throws IOException {
         // Set some values, persist them, and then load them back
-        mIndexerSettings.setLastUpdateTimestampMillis(123456789L);
-        mIndexerSettings.setLastAppUpdateTimestampMillis(987654321L);
-        // Persist to file
-        mIndexerSettings.persist();
+        mAppOpenEventIndexerSettings.setLastUpdateTimestampMillis(123456789L);
+        mAppOpenEventIndexerSettings.persist();
 
         // Reset the settings to ensure loading happens from the file
-        mIndexerSettings.setLastUpdateTimestampMillis(0);
-        mIndexerSettings.setLastAppUpdateTimestampMillis(0);
+        mAppOpenEventIndexerSettings.setLastUpdateTimestampMillis(0);
 
-        // Load from file
-        mIndexerSettings.load();
-
-        // Check values after loading
-        Assert.assertEquals(123456789L, mIndexerSettings.getLastUpdateTimestampMillis());
-        Assert.assertEquals(987654321L, mIndexerSettings.getLastAppUpdateTimestampMillis());
+        mAppOpenEventIndexerSettings.load();
+        Assert.assertEquals(
+                123456789L, mAppOpenEventIndexerSettings.getLastUpdateTimestampMillis());
     }
 
     @Test
     public void testReset() {
-        mIndexerSettings.setLastUpdateTimestampMillis(123456789L);
-        mIndexerSettings.setLastAppUpdateTimestampMillis(987654321L);
-        mIndexerSettings.reset();
-        Assert.assertEquals(0, mIndexerSettings.getLastUpdateTimestampMillis());
-        Assert.assertEquals(0, mIndexerSettings.getLastAppUpdateTimestampMillis());
+        mAppOpenEventIndexerSettings.setLastUpdateTimestampMillis(123456789L);
+        mAppOpenEventIndexerSettings.reset();
+        Assert.assertEquals(0, mAppOpenEventIndexerSettings.getLastUpdateTimestampMillis());
     }
 }

@@ -221,3 +221,12 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+flag {
+    name: "enable_apps_indexer_incremental_put"
+    namespace: "appsearch"
+    description: "Calls put only for added and updated AppFunctionStaticMetadata documents"
+    bug: "367410454"
+    is_fixed_read_only: true
+    is_exported: true
+}

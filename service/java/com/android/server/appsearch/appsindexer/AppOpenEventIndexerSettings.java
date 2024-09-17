@@ -23,41 +23,26 @@ import com.android.server.appsearch.indexer.IndexerSettings;
 import java.io.File;
 
 /**
- * Apps indexer settings backed by a PersistableBundle.
+ * Abstract class for settings backed by a PersistableBundle.
  *
  * <p>Holds settings such as:
  *
  * <ul>
- *   <li>the timestamp of the last full update
- *   <li>the timestamp of the last apps update
+ *   <li>getting and setting the timestamp of the last update, stored in {@link
+ *       #getLastUpdateTimestampMillis()}
  * </ul>
+ *
+ * <p>This class is NOT thread safe (similar to {@link PersistableBundle} which it wraps).
  */
-public class AppsIndexerSettings extends IndexerSettings {
-    static final String SETTINGS_FILE_NAME = "apps_indexer_settings.pb";
-    static final String LAST_APP_UPDATE_TIMESTAMP_KEY = "last_app_update_timestamp_millis";
+public class AppOpenEventIndexerSettings extends IndexerSettings {
+    static final String SETTINGS_FILE_NAME = "app_open_event_indexer_settings.pb";
 
-    public AppsIndexerSettings(@NonNull File baseDir) {
+    public AppOpenEventIndexerSettings(@NonNull File baseDir) {
         super(baseDir);
     }
 
     @Override
     protected String getSettingsFileName() {
         return SETTINGS_FILE_NAME;
-    }
-
-    /** Returns the timestamp of when the last app was updated in milliseconds. */
-    public long getLastAppUpdateTimestampMillis() {
-        return mBundle.getLong(LAST_APP_UPDATE_TIMESTAMP_KEY);
-    }
-
-    /** Sets the timestamp of when the last app was updated in milliseconds. */
-    public void setLastAppUpdateTimestampMillis(long timestampMillis) {
-        mBundle.putLong(LAST_APP_UPDATE_TIMESTAMP_KEY, timestampMillis);
-    }
-
-    @Override
-    public void reset() {
-        super.reset();
-        setLastAppUpdateTimestampMillis(0);
     }
 }

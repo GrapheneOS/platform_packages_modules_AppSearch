@@ -76,7 +76,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                         + "    <schema_version>1</schema_version>\n"
                         + "    <schema_category>utils</schema_category>\n"
                         + "    <enabled_by_default>false</enabled_by_default>\n"
-                        + "    <restrict_callers_with_execute_app_functions>true"
+                        + "    <restrict_callers_with_execute_app_functions>true\n"
                         + "</restrict_callers_with_execute_app_functions>\n"
                         + "    <display_name_string_res>10</display_name_string_res>\n"
                         + "  </appfunction>\n"

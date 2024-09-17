@@ -44,6 +44,8 @@ import android.os.UserHandle;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.server.appsearch.indexer.IndexerSettings;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.After;
@@ -64,7 +66,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
-    private TestContext mContext;
+    private TestContext mTestContext;
     private final PackageManager mMockPackageManager = mock(PackageManager.class);
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
@@ -80,7 +82,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     public void setUp() throws Exception {
         super.setUp();
         Context context = ApplicationProvider.getApplicationContext();
-        mContext = new TestContext(context);
+        mTestContext = new TestContext(context);
 
         mSingleThreadedExecutor =
                 new ThreadPoolExecutor(
@@ -95,13 +97,13 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mSettingsFile = new File(mAppsDir, AppsIndexerSettings.SETTINGS_FILE_NAME);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
     }
 
     @After
     @Override
     public void tearDown() throws Exception {
-        TestUtils.removeFakePackageDocuments(mContext, Executors.newSingleThreadExecutor());
+        TestUtils.removeFakePackageDocuments(mTestContext, Executors.newSingleThreadExecutor());
         mSingleThreadedExecutor.shutdownNow();
         mInstance.shutdown();
         super.tearDown();
@@ -127,7 +129,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -149,7 +151,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         }
 
         assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
-        try (AppSearchHelper searchHelper = new AppSearchHelper(mContext)) {
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
             Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
             assertThat(appsTimestampMap).hasSize(1);
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
@@ -182,7 +184,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -210,7 +212,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // timestamp was not 0, so nothing should've been indexed
-        try (AppSearchHelper searchHelper = new AppSearchHelper(mContext)) {
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
             assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
         }
     }
@@ -344,7 +346,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                                 () -> {
                                     AppsIndexerUserInstance unused =
                                             AppsIndexerUserInstance.createInstance(
-                                                    mContext,
+                                                    mTestContext,
                                                     dataDir,
                                                     mAppsIndexerConfig,
                                                     mSingleThreadedExecutor);
@@ -372,7 +374,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
         latch.await(10, TimeUnit.SECONDS);
 
-        AppSearchHelper searchHelper = new AppSearchHelper(mContext);
+        AppSearchHelper searchHelper = new AppSearchHelper(mTestContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(docCount);
     }
@@ -411,7 +413,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
-        AppSearchHelper searchHelper = new AppSearchHelper(mContext);
+        AppSearchHelper searchHelper = new AppSearchHelper(mTestContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(10);
 
@@ -423,7 +425,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
-        searchHelper = new AppSearchHelper(mContext);
+        searchHelper = new AppSearchHelper(mTestContext);
         appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(6);
         assertThat(appIds.keySet())
@@ -434,7 +436,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                         TestUtils.FAKE_PACKAGE_PREFIX + "9");
 
         PersistableBundle settingsBundle = AppsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(AppsIndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
+        assertThat(settingsBundle.getLong(IndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
                 .isAtLeast(timeBeforeChangeNotification);
 
         // The last updated app was still the "9" app
@@ -445,7 +447,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @Test
     public void testStart_initialRun_schedulesUpdateJob() throws Exception {
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
-        mContext.setJobScheduler(mockJobScheduler);
+        mTestContext.setJobScheduler(mockJobScheduler);
         // This semaphore allows us to make sure that a sync has finished running before performing
         // checks.
         final Semaphore afterSemaphore = new Semaphore(0);
@@ -464,7 +466,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
         // Wait for settings initialization
         afterSemaphore.acquire();
 
@@ -516,11 +518,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // scenario where the scheduled update job after the initial run is cancelled
         // due to some reason.
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
-        mContext.setJobScheduler(mockJobScheduler);
+        mTestContext.setJobScheduler(mockJobScheduler);
         // the update should be zero, and if not it's because of mAppsDir
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
 
         // Wait for file setup, as file setup uses the same ExecutorService.
         semaphore.acquire();
@@ -564,7 +566,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // The current schema is compatible, and an update will be triggered
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
-        mContext.setJobScheduler(mockJobScheduler);
+        mTestContext.setJobScheduler(mockJobScheduler);
         // This semaphore allows us to make sure that a sync has finished running before performing
         // checks.
         final Semaphore afterSemaphore = new Semaphore(0);
@@ -583,7 +585,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
         // Wait for settings initialization
         afterSemaphore.acquire();
 
@@ -635,10 +637,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Since the current schema is incompatible, it will overwrite it
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
-        mContext.setJobScheduler(mockJobScheduler);
+        mTestContext.setJobScheduler(mockJobScheduler);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
         // Wait for file setup, as file setup uses the same ExecutorService.
         semaphore.acquire();
 
@@ -687,7 +689,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
         // Wait for settings initialization
         afterSemaphore.acquire();
 
@@ -703,12 +705,12 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // updates are guaranteed to be finished.
         afterSemaphore.acquire();
 
-        AppSearchHelper searchHelper = new AppSearchHelper(mContext);
+        AppSearchHelper searchHelper = new AppSearchHelper(mTestContext);
         Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
         assertThat(appIds.size()).isEqualTo(250);
 
         PersistableBundle settingsBundle = AppsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(AppsIndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
+        assertThat(settingsBundle.getLong(IndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
                 .isAtLeast(timeBeforeChangeNotification);
     }
 
@@ -726,11 +728,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .when(mockJobScheduler)
                 .getPendingJob(
                         AppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
-                                + mContext.getUser().getIdentifier());
-        mContext.setJobScheduler(mockJobScheduler);
+                                + mTestContext.getUser().getIdentifier());
+        mTestContext.setJobScheduler(mockJobScheduler);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
 
         int docCount = 10;
         CountDownLatch latch = setupLatch(docCount);
