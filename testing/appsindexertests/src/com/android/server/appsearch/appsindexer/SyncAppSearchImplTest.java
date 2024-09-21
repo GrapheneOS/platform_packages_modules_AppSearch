@@ -31,7 +31,6 @@ import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PutDocumentsRequest;
-import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
@@ -209,11 +208,7 @@ public class SyncAppSearchImplTest {
                         .build());
 
         // Delete 1 document by filtering on schema
-        syncWrapper.remove(
-                "",
-                new SearchSpec.Builder()
-                        .addFilterSchemas("schema1")
-                        .build());
+        syncWrapper.remove("", new SearchSpec.Builder().addFilterSchemas("schema1").build());
 
         // Assert that only 1 document is left
         SyncGlobalSearchSession globalSession =

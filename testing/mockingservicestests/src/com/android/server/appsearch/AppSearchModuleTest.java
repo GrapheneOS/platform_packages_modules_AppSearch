@@ -48,15 +48,12 @@ import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerServic
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
 @RequiresFlagsEnabled(Flags.FLAG_APPS_INDEXER_ENABLED)
-// TODO(b/357100361): Research how to test flags, then re-enable this test.
-@Ignore("b/357100361 Research how to test flags, then re-enable this test.")
 public class AppSearchModuleTest {
     private static final String NAMESPACE_APPSEARCH = "appsearch";
     private static final String KEY_CONTACTS_INDEXER_ENABLED = "contacts_indexer_enabled";

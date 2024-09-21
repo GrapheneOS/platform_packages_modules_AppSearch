@@ -139,26 +139,26 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                 String tagName = parser.getName();
                 switch (tagName) {
                     case "function_id":
-                        functionId = parser.nextText();
+                        functionId = parser.nextText().trim();
                         break;
                     case "schema_name":
-                        schemaName = parser.nextText();
+                        schemaName = parser.nextText().trim();
                         break;
                     case "schema_version":
-                        schemaVersion = Long.parseLong(parser.nextText());
+                        schemaVersion = Long.parseLong(parser.nextText().trim());
                         break;
                     case "schema_category":
-                        schemaCategory = parser.nextText();
+                        schemaCategory = parser.nextText().trim();
                         break;
                     case "enabled_by_default":
-                        enabledByDefault = Boolean.parseBoolean(parser.nextText());
+                        enabledByDefault = Boolean.parseBoolean(parser.nextText().trim());
                         break;
                     case "restrict_callers_with_execute_app_functions":
                         restrictCallersWithExecuteAppFunctions =
-                                Boolean.parseBoolean(parser.nextText());
+                                Boolean.parseBoolean(parser.nextText().trim());
                         break;
                     case "display_name_string_res":
-                        displayNameStringRes = Integer.parseInt(parser.nextText());
+                        displayNameStringRes = Integer.parseInt(parser.nextText().trim());
                         break;
                 }
             }

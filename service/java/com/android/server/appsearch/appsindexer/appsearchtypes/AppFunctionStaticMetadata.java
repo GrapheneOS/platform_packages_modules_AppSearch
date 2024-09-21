@@ -111,6 +111,8 @@ public class AppFunctionStaticMetadata extends GenericDocument {
                 .addProperty(
                         new AppSearchSchema.LongPropertyConfig.Builder(PROPERTY_SCHEMA_VERSION)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .setIndexingType(
+                                        AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE)
                                 .build())
                 .addProperty(
                         new AppSearchSchema.StringPropertyConfig.Builder(PROPERTY_SCHEMA_CATEGORY)

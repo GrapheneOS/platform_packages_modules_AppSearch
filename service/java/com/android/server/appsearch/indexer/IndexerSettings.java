@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.indexer;
 
+import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
 import android.os.PersistableBundle;
@@ -29,7 +30,21 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
+/**
+ * Settings backed by a PersistableBundle, providing common functionality for settings handling.
+ *
+ * <p>This class provides common functionality for settings handling, including:
+ *
+ * <ul>
+ *   <li>getting and setting the timestamp of the last update
+ *   <li>loading and persisting settings to/from a file
+ * </ul>
+ *
+ * <p>This class is NOT thread safe (similar to {@link PersistableBundle} which it wraps).
+ */
 public abstract class IndexerSettings {
+
+    public static final String LAST_UPDATE_TIMESTAMP_KEY = "last_update_timestamp_millis";
 
     private final File mBaseDir;
     private File mFile;
@@ -39,7 +54,7 @@ public abstract class IndexerSettings {
         mBaseDir = Objects.requireNonNull(baseDir);
     }
 
-    /** Allows for late initialization of ContactsIndexerSettings. */
+    /** Allows for late initialization of the settings file. */
     @WorkerThread
     private void ensureFileCreated() {
         if (mFile != null) {
@@ -64,8 +79,20 @@ public abstract class IndexerSettings {
         writeBundle(mFile, mBundle);
     }
 
+    /** Returns the timestamp of when the last update occurred in milliseconds. */
+    public @CurrentTimeMillisLong long getLastUpdateTimestampMillis() {
+        return mBundle.getLong(LAST_UPDATE_TIMESTAMP_KEY);
+    }
+
+    /** Sets the timestamp of when the last update occurred in milliseconds. */
+    public void setLastUpdateTimestampMillis(@CurrentTimeMillisLong long timestampMillis) {
+        mBundle.putLong(LAST_UPDATE_TIMESTAMP_KEY, timestampMillis);
+    }
+
     /** Resets all the settings to default values. */
-    public abstract void reset();
+    public void reset() {
+        setLastUpdateTimestampMillis(0);
+    }
 
     /** Static util method to read a bundle from a file. */
     @VisibleForTesting
