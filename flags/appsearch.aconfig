@@ -230,3 +230,12 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+flag {
+    name: "enable_additional_builder_copy_constructors"
+    namespace: "appsearch"
+    description: "Enables additional builder copy constructors for AppSearchSchema, SetSchemaRequest, SearchSpec, JoinSpec, AppSearchBatchResult, and GetSchemaResponse."
+    bug: "369563892"
+    is_fixed_read_only: true
+    is_exported: true
+}
