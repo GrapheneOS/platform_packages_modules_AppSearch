@@ -29,9 +29,9 @@
     <test class="com.android.tradefed.testtype.AndroidJUnitTest">
         <option name="package" value="com.android.appsearch.appsindexertests"/>
         <option name="exclude-annotation"
-            value="com.android.bedstead.harrier.annotations.RequireRunOnWorkProfile" />
+            value="com.android.bedstead.enterprise.annotations.RequireRunOnWorkProfile" />
         <option name="exclude-annotation"
-            value="com.android.bedstead.harrier.annotations.RequireRunOnSecondaryUser" />
+            value="com.android.bedstead.multiuser.annotations.RequireRunOnSecondaryUser" />
         <option name="hidden-api-checks" value="false" />
     </test>
 

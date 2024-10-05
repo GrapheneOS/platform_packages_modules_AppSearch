@@ -32,6 +32,7 @@ import static com.android.server.appsearch.appsindexer.TestUtils.searchAppSearch
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -359,6 +360,8 @@ public class AppSearchHelperTest {
 
     @Test
     public void test_newAppFunction_parentSchemaIsInserted() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
+
         // Set up 1 MobileApplications with an app function.
         MobileApplication app0 = createFakeMobileApplication(0);
         mAppSearchHelper.setSchemasForPackages(
