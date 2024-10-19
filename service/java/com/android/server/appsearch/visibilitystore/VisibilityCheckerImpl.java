@@ -17,6 +17,7 @@ package com.android.server.appsearch.visibilitystore;
 
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_TRUSTED;
+import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
@@ -323,6 +324,7 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 case SetSchemaRequest.READ_ASSISTANT_APP_SEARCH_DATA:
                 case SetSchemaRequest.EXECUTE_APP_FUNCTIONS:
                 case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
+                case SetSchemaRequest.PACKAGE_USAGE_STATS:
                     if (!doesCallerHavePermissionForDataDelivery(
                             requiredPermission, callerAttributionSource)) {
                         // The calling package doesn't have this required permission, return false.
@@ -391,6 +393,9 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 break;
             case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
                 permission = EXECUTE_APP_FUNCTIONS_TRUSTED;
+                break;
+            case SetSchemaRequest.PACKAGE_USAGE_STATS:
+                permission = PACKAGE_USAGE_STATS;
                 break;
             default:
                 return false;

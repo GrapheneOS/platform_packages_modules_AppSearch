@@ -16,15 +16,11 @@
 
 package com.android.server.appsearch.appsindexer.appsearchtypes;
 
-import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
-import android.net.Uri;
-
-import com.android.internal.annotations.VisibleForTesting;
+import android.app.appsearch.annotation.CanIgnoreReturnValue;
 
 import java.util.Objects;
 
@@ -36,14 +32,14 @@ import java.util.Objects;
  */
 public class AppOpenEvent extends GenericDocument {
     // Properties
-    private static final String SCHEMA_TYPE = "builtin:AppOpenEvent";
+    public static final String SCHEMA_TYPE = "builtin:AppOpenEvent";
 
-    private static final String APP_OPEN_EVENT_NAMESPACE = "app-open-event";
+    public static final String APP_OPEN_EVENT_NAMESPACE = "app-open-event";
 
-    private static final String APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME = "packageName";
-    private static final String APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID =
+    public static final String APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME = "packageName";
+    public static final String APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID =
             "mobileApplicationQualifiedId"; // Joins to MobileApplication
-    private static final String APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS =
+    public static final String APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS =
             "appOpenTimestampMillis";
 
     // Schema
@@ -81,7 +77,6 @@ public class AppOpenEvent extends GenericDocument {
                     .build();
 
     /** Constructs an {@link AppOpenEvent}. */
-    @VisibleForTesting
     public AppOpenEvent(@NonNull GenericDocument document) {
         super(document);
     }

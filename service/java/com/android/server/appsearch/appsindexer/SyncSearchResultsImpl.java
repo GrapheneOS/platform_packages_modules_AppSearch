@@ -21,6 +21,7 @@ import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.exceptions.AppSearchException;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -39,5 +40,10 @@ public class SyncSearchResultsImpl extends SyncAppSearchBase implements SyncSear
     public List<SearchResult> getNextPage() throws AppSearchException {
         return executeAppSearchResultOperation(
                 resultHandler -> mSearchResults.getNextPage(mExecutor, resultHandler));
+    }
+
+    @Override
+    public void close() throws IOException {
+        mSearchResults.close();
     }
 }

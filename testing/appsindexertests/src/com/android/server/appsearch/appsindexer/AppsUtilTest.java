@@ -44,6 +44,7 @@ import android.util.ArrayMap;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
@@ -53,9 +54,12 @@ import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /** This tests that we can convert what comes from PackageManager to a MobileApplication */
 public class AppsUtilTest {
@@ -231,5 +235,45 @@ public class AppsUtilTest {
         for (AppFunctionStaticMetadata appFunction : resultAppFunctions) {
             assertThat(appFunction.getFunctionId()).isEqualTo("com.example.utils#print");
         }
+    }
+
+    @Test
+    public void testConvertAppOpenEventsToMap() {
+        List<AppOpenEvent> appOpenEvents =
+                Arrays.asList(
+                        new AppOpenEvent.Builder("com.example.app1", 1000L).build(),
+                        new AppOpenEvent.Builder("com.example.app2", 2000L).build(),
+                        new AppOpenEvent.Builder("com.example.app1", 3000L).build());
+
+        Map<String, List<Long>> result = AppsUtil.convertAppOpenEventsToMap(appOpenEvents);
+
+        assertThat(result)
+                .containsExactly(
+                        "com.example.app1", List.of(1000L, 3000L),
+                        "com.example.app2", List.of(2000L));
+    }
+
+    @Test
+    public void testConvertMapToAppOpenEvents() {
+        Map<String, List<Long>> appOpenEventsMap = new TreeMap<>();
+        appOpenEventsMap.put("com.example.app1", Arrays.asList(1000L, 3000L));
+        appOpenEventsMap.put("com.example.app2", Arrays.asList(2000L));
+
+        List<AppOpenEvent> result = AppsUtil.convertMapToAppOpenEvents(appOpenEventsMap);
+
+        // Extract package names and timestamps from the result list
+        List<String> packageNames =
+                result.stream().map(AppOpenEvent::getPackageName).collect(Collectors.toList());
+        List<Long> timestamps =
+                result.stream()
+                        .map(AppOpenEvent::getAppOpenEventTimestampMillis)
+                        .collect(Collectors.toList());
+
+        // Assert the order of package names and timestamps without creating app open events to
+        // compare them to, since creation timestamps will mismatch
+        assertThat(packageNames)
+                .containsExactly("com.example.app1", "com.example.app1", "com.example.app2")
+                .inOrder();
+        assertThat(timestamps).containsExactly(1000L, 3000L, 2000L).inOrder();
     }
 }

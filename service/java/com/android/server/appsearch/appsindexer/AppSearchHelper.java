@@ -16,6 +16,12 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static android.app.appsearch.AppSearchResult.RESULT_INVALID_ARGUMENT;
+import static android.app.appsearch.AppSearchResult.RESULT_IO_ERROR;
+
+import static com.android.server.appsearch.appsindexer.AppsUtil.convertMapToAppOpenEvents;
+
+import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
@@ -23,8 +29,6 @@ import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
-import android.app.appsearch.AppSearchSession;
-import android.app.appsearch.BatchResultCallback;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.PutDocumentsRequest;
@@ -41,9 +45,11 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -77,10 +83,17 @@ public class AppSearchHelper implements Closeable {
     // Therefore each application needs its own schema. We put all these schema into a single
     // database by dynamically renaming the schema so that they have different names.
     public static final String APP_DATABASE = "apps-db";
+
+    // The app open event indexer needs to be in a separate database from the apps indexer because
+    // they will have schemas set at separate times by separate services.
+    public static final String APP_OPEN_EVENTS_DATABASE = "app-open-events-db";
+
     private static final int GET_APP_IDS_PAGE_SIZE = 1000;
     private final Context mContext;
     // Volatile, not final due to being swapped during some tests
-    private volatile SyncAppSearchSession mSyncAppSearchSession;
+    private volatile SyncAppSearchSession mSyncAppSearchAppsDbSession;
+    private volatile SyncAppSearchSession mSyncAppSearchAppOpenEventDbSession;
+
     private final SyncGlobalSearchSession mSyncGlobalSearchSession;
 
     /** Creates an {@link AppSearchHelper}. */
@@ -91,17 +104,25 @@ public class AppSearchHelper implements Closeable {
             throw new AndroidRuntimeException(
                     "Can't get AppSearchManager to initialize AppSearchHelper.");
         }
-        AppSearchManager.SearchContext searchContext =
+        AppSearchManager.SearchContext appsSearchContext =
                 new AppSearchManager.SearchContext.Builder(APP_DATABASE).build();
+        AppSearchManager.SearchContext appOpenEventsSearchContext =
+                new AppSearchManager.SearchContext.Builder(APP_OPEN_EVENTS_DATABASE).build();
         ExecutorService executor =
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
-        mSyncAppSearchSession =
-                new SyncAppSearchSessionImpl(appSearchManager, searchContext, executor);
+
+        mSyncAppSearchAppsDbSession =
+                new SyncAppSearchSessionImpl(appSearchManager, appsSearchContext, executor);
+        mSyncAppSearchAppOpenEventDbSession =
+                new SyncAppSearchSessionImpl(
+                        appSearchManager, appOpenEventsSearchContext, executor);
+
         mSyncGlobalSearchSession = new SyncGlobalSearchSessionImpl(appSearchManager, executor);
     }
 
     /**
-     * Allows us to test various scenarios involving SyncAppSearchSession.
+     * Allows us to test various scenarios involving SyncAppSearchSession. Sets all sessions to the
+     * SyncAppSearchSession passed in for convenience only as it is only used for testing.
      *
      * <p>This method is not thread-safe, as it could be ran in the middle of a set schema, index,
      * or search operation. It should only be called from tests, and threading safety should be
@@ -110,10 +131,14 @@ public class AppSearchHelper implements Closeable {
     @VisibleForTesting
     /* package */ void setAppSearchSessionForTest(@NonNull SyncAppSearchSession session) {
         // Close the existing one
-        if (mSyncAppSearchSession != null) {
-            mSyncAppSearchSession.close();
+        if (mSyncAppSearchAppsDbSession != null) {
+            mSyncAppSearchAppsDbSession.close();
         }
-        mSyncAppSearchSession = Objects.requireNonNull(session);
+        if (mSyncAppSearchAppOpenEventDbSession != null) {
+            mSyncAppSearchAppOpenEventDbSession.close();
+        }
+        mSyncAppSearchAppsDbSession = Objects.requireNonNull(session);
+        mSyncAppSearchAppOpenEventDbSession = Objects.requireNonNull(session);
     }
 
     /**
@@ -171,7 +196,25 @@ public class AppSearchHelper implements Closeable {
         }
 
         // TODO(b/275592563): Log app removal in metrics
-        mSyncAppSearchSession.setSchema(schemaBuilder.build());
+        mSyncAppSearchAppsDbSession.setSchema(schemaBuilder.build());
+    }
+
+    /**
+     * Sets the schema for AppOpenEvent. Unlike the apps indexer and apps functions, this schema is
+     * not per-package permissioned. It is a single schema that is shared by all packages, with
+     * PACKAGE_USAGE_STATS as the required permission to mimic the UsageStatsManager API.
+     */
+    @WorkerThread
+    public void setSchemaForAppOpenEvents() throws AppSearchException {
+        SetSchemaRequest.Builder schemaBuilder =
+                new SetSchemaRequest.Builder()
+                        .addRequiredPermissionsForSchemaTypeVisibility(
+                                AppOpenEvent.SCHEMA_TYPE,
+                                Collections.singleton(SetSchemaRequest.PACKAGE_USAGE_STATS))
+                        .setForceOverride(true)
+                        .addSchemas(AppOpenEvent.SCHEMA);
+
+        mSyncAppSearchAppOpenEventDbSession.setSchema(schemaBuilder.build());
     }
 
     /**
@@ -234,7 +277,7 @@ public class AppSearchHelper implements Closeable {
                         .addGenericDocuments(currentAppFunctions)
                         .build();
 
-        AppSearchBatchResult<String, Void> result = mSyncAppSearchSession.put(request);
+        AppSearchBatchResult<String, Void> result = mSyncAppSearchAppsDbSession.put(request);
         if (!result.isSuccess()) {
             Map<String, AppSearchResult<Void>> failures = result.getFailures();
             for (AppSearchResult<Void> failure : failures.values()) {
@@ -249,11 +292,46 @@ public class AppSearchHelper implements Closeable {
         }
 
         // Then, delete all the stale documents.
-        mSyncAppSearchSession.remove(
+        mSyncAppSearchAppsDbSession.remove(
                 new RemoveByDocumentIdRequest.Builder(
                                 AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)
                         .addIds(appFunctionIdsToRemove)
                         .build());
+        return result;
+    }
+
+    /**
+     * Indexes a collection of app open events into AppSearch. This requires that the AppOpenEvent
+     * schema is already set by a previous call to {@link setSchemaForAppOpenEvents}.
+     *
+     * @param appOpenEvents a map of package names to a list of app open event timestamps.
+     * @throws AppSearchException if indexing results in a {@link
+     *     AppSearchResult#RESULT_OUT_OF_SPACE} result code.
+     */
+    @WorkerThread
+    public AppSearchBatchResult<String, Void> indexAppOpenEvents(
+            @NonNull Map<String, List<Long>> appOpenEvents) throws AppSearchException {
+        Objects.requireNonNull(appOpenEvents);
+
+        List<AppOpenEvent> documents = convertMapToAppOpenEvents(appOpenEvents);
+
+        PutDocumentsRequest request =
+                new PutDocumentsRequest.Builder().addGenericDocuments(documents).build();
+
+        AppSearchBatchResult<String, Void> result =
+                mSyncAppSearchAppOpenEventDbSession.put(request);
+        if (!result.isSuccess()) {
+            Map<String, AppSearchResult<Void>> failures = result.getFailures();
+            for (AppSearchResult<Void> failure : failures.values()) {
+                // If it's out of space, stop indexing
+                if (failure.getResultCode() == AppSearchResult.RESULT_OUT_OF_SPACE) {
+                    throw new AppSearchException(
+                            failure.getResultCode(), failure.getErrorMessage());
+                } else {
+                    Log.e(TAG, "Ran into error while indexing apps: " + failure);
+                }
+            }
+        }
         return result;
     }
 
@@ -276,8 +354,58 @@ public class AppSearchHelper implements Closeable {
                         .addFilterPackageNames(mContext.getPackageName())
                         .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE)
                         .build();
-        SyncSearchResults results = mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec);
-        return collectUpdatedTimestampFromAllPages(results);
+        try (SyncSearchResults results =
+                mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec)) {
+            return collectUpdatedTimestampFromAllPages(results);
+        } catch (IOException e) {
+            throw new AppSearchException(RESULT_IO_ERROR, "Failed to close search results", e);
+        }
+    }
+
+    /**
+     * Searches AppSearch and returns the AppOpenEvent with the next app open event timestamp
+     * (larger time in epoch) after the provided timestamp threshold.
+     *
+     * @param timestampThresholdMillis the timestamp to filter the app open events by. The returned
+     *     timestamp will be after this timestamp.
+     * @return the first AppOpenEvent whose timestamp occurs after the provided timestamp.
+     * @throws AppSearchException if no results are found for the given timestamp threshold.
+     */
+    @NonNull
+    @WorkerThread
+    public AppOpenEvent getSubsequentAppOpenEventAfterThreshold(
+            @CurrentTimeMillisLong long timestampThresholdMillis) throws AppSearchException {
+
+        // Creation timestamp is set to event timestamp, so sorting in ascending order of creation
+        // timestamp gives us
+        // the first event after the threshold.
+        SearchSpec latestAppOpenEventsSpec =
+                new SearchSpec.Builder()
+                        .addFilterNamespaces(AppOpenEvent.APP_OPEN_EVENT_NAMESPACE)
+                        .setOrder(SearchSpec.ORDER_ASCENDING)
+                        .setListFilterQueryLanguageEnabled(true)
+                        .setNumericSearchEnabled(true)
+                        .setResultCountPerPage(1)
+                        .setRankingStrategy(SearchSpec.RANKING_STRATEGY_CREATION_TIMESTAMP)
+                        .build();
+
+        try (SyncSearchResults results =
+                mSyncAppSearchAppOpenEventDbSession.search(
+                        /* query= */ "appOpenTimestampMillis > " + timestampThresholdMillis,
+                        latestAppOpenEventsSpec)) {
+
+            List<SearchResult> page = results.getNextPage();
+
+            if (page.isEmpty()) {
+                throw new AppSearchException(
+                        RESULT_INVALID_ARGUMENT,
+                        "No app open events were found for the given timestamp threshold.");
+            }
+            return new AppOpenEvent(page.get(0).getGenericDocument());
+
+        } catch (IOException e) {
+            throw new AppSearchException(RESULT_IO_ERROR, "Failed to close search results", e);
+        }
     }
 
     /**
@@ -337,9 +465,9 @@ public class AppSearchHelper implements Closeable {
                         .addFilterPackageNames(mContext.getPackageName())
                         .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE)
                         .build();
-        SyncSearchResults results = mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec);
-        // TODO(b/357551503): Use pagination instead of building a list of all docs.
-        try {
+        try (SyncSearchResults results =
+                mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec)) {
+            // TODO(b/357551503): Use pagination instead of building a list of all docs.
             List<SearchResult> resultList = results.getNextPage();
             while (!resultList.isEmpty()) {
                 for (int i = 0; i < resultList.size(); i++) {
@@ -347,6 +475,8 @@ public class AppSearchHelper implements Closeable {
                 }
                 resultList = results.getNextPage();
             }
+        } catch (IOException e) {
+            throw new AppSearchException(RESULT_IO_ERROR, "Failed to close search results", e);
         } catch (AppSearchException e) {
             Log.e(TAG, "Error while searching for all app documents", e);
         }
@@ -389,7 +519,8 @@ public class AppSearchHelper implements Closeable {
     /** Closes the AppSearch sessions. */
     @Override
     public void close() {
-        mSyncAppSearchSession.close();
+        mSyncAppSearchAppsDbSession.close();
+        mSyncAppSearchAppOpenEventDbSession.close();
         mSyncGlobalSearchSession.close();
     }
 }

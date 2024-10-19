@@ -16,16 +16,22 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppsUtil.convertAppOpenEventsToMap;
+import static com.android.server.appsearch.appsindexer.TestUtils.COMPATIBLE_APP_OPEN_EVENT_SCHEMA;
 import static com.android.server.appsearch.appsindexer.TestUtils.COMPATIBLE_APP_SCHEMA;
 import static com.android.server.appsearch.appsindexer.TestUtils.FAKE_PACKAGE_PREFIX;
 import static com.android.server.appsearch.appsindexer.TestUtils.FAKE_SIGNATURE;
+import static com.android.server.appsearch.appsindexer.TestUtils.INCOMPATIBLE_APP_OPEN_EVENT_SCHEMA;
 import static com.android.server.appsearch.appsindexer.TestUtils.INCOMPATIBLE_APP_SCHEMA;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppFunction;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppIndexerSession;
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppOpenEvent;
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppOpenEventsIndexerSession;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeMobileApplication;
 import static com.android.server.appsearch.appsindexer.TestUtils.createMobileApplications;
 import static com.android.server.appsearch.appsindexer.TestUtils.createMockPackageIdentifier;
 import static com.android.server.appsearch.appsindexer.TestUtils.createMockPackageIdentifiers;
+import static com.android.server.appsearch.appsindexer.TestUtils.removeFakeAppOpenEventDocuments;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakePackageDocuments;
 import static com.android.server.appsearch.appsindexer.TestUtils.searchAppSearchForApps;
 
@@ -52,6 +58,7 @@ import android.content.Context;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
@@ -85,6 +92,7 @@ public class AppSearchHelperTest {
     @After
     public void tearDown() throws Exception {
         removeFakePackageDocuments(mContext, mSingleThreadedExecutor);
+        removeFakeAppOpenEventDocuments(mContext, mSingleThreadedExecutor);
         mAppSearchHelper.close();
     }
 
@@ -174,7 +182,34 @@ public class AppSearchHelperTest {
     }
 
     @Test
-    public void testIndexApps_incompatibleSchemaChange() throws Exception {
+    public void testIndexAppOpenEvents_compatibleSchemaChange() throws Exception {
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(COMPATIBLE_APP_OPEN_EVENT_SCHEMA)
+                        .setForceOverride(true)
+                        .build();
+
+        long currentTimeMillis = System.currentTimeMillis();
+
+        AppSearchSessionShim session =
+                createFakeAppOpenEventsIndexerSession(mContext, mSingleThreadedExecutor);
+        session.setSchemaAsync(setSchemaRequest).get();
+
+        AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
+        appSearchHelper.setSchemaForAppOpenEvents();
+        AppOpenEvent fakeAppOpenEvent = createFakeAppOpenEvent(currentTimeMillis);
+        appSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(List.of(fakeAppOpenEvent)));
+
+        assertThat(appSearchHelper).isNotNull();
+        AppOpenEvent appOpenEvent =
+                appSearchHelper.getSubsequentAppOpenEventAfterThreshold(currentTimeMillis - 100L);
+        assertThat(appOpenEvent.getPackageName()).isEqualTo(fakeAppOpenEvent.getPackageName());
+        assertThat(appOpenEvent.getAppOpenEventTimestampMillis())
+                .isEqualTo(fakeAppOpenEvent.getAppOpenEventTimestampMillis());
+    }
+
+    @Test
+    public void testIndexApps_incompatibleSchemaChange_canBeIndexedOver() throws Exception {
         AppSearchSessionShim session =
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
 
@@ -194,6 +229,76 @@ public class AppSearchHelperTest {
 
         List<SearchResult> real = searchAppSearchForApps(50 + 1);
         assertThat(real).hasSize(50);
+    }
+
+    @Test
+    public void testIndexApps_incompatibleSchemaChange_wipesOutDatabase() throws Exception {
+        AppSearchSessionShim session =
+                createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
+
+        // Set incompatible schemas that would be removed
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(INCOMPATIBLE_APP_SCHEMA)
+                        .setForceOverride(true)
+                        .build();
+        session.setSchemaAsync(setSchemaRequest).get();
+
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(50), new ArrayList<>());
+        List<SearchResult> real = searchAppSearchForApps(50 + 1);
+        assertThat(real).hasSize(0);
+    }
+
+    @Test
+    public void testIndexAppOpenEvents_incompatibleSchemaChange_canBeIndexedOver()
+            throws Exception {
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(INCOMPATIBLE_APP_OPEN_EVENT_SCHEMA)
+                        .setForceOverride(true)
+                        .build();
+
+        long currentTimeMillis = System.currentTimeMillis();
+
+        AppSearchSessionShim session =
+                createFakeAppOpenEventsIndexerSession(mContext, mSingleThreadedExecutor);
+        // Set incompatible schemas that would be removed
+        session.setSchemaAsync(setSchemaRequest).get();
+
+        AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
+        appSearchHelper.setSchemaForAppOpenEvents();
+        AppOpenEvent fakeAppOpenEvent = createFakeAppOpenEvent(currentTimeMillis);
+        appSearchHelper.indexAppOpenEvents(
+                convertAppOpenEventsToMap(List.of(createFakeAppOpenEvent(currentTimeMillis))));
+
+        assertThat(appSearchHelper).isNotNull();
+        AppOpenEvent appOpenEvent =
+                appSearchHelper.getSubsequentAppOpenEventAfterThreshold(currentTimeMillis - 100L);
+        assertThat(appOpenEvent.getPackageName()).isEqualTo(fakeAppOpenEvent.getPackageName());
+        assertThat(appOpenEvent.getAppOpenEventTimestampMillis())
+                .isEqualTo(fakeAppOpenEvent.getAppOpenEventTimestampMillis());
+    }
+
+    @Test
+    public void testIndexAppOpenEvents_incompatibleSchemaChange_wipesOutDatabase()
+            throws Exception {
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(INCOMPATIBLE_APP_OPEN_EVENT_SCHEMA)
+                        .setForceOverride(true)
+                        .build();
+
+        AppSearchSessionShim session =
+                createFakeAppOpenEventsIndexerSession(mContext, mSingleThreadedExecutor);
+        // Set incompatible schemas that would be removed
+        session.setSchemaAsync(setSchemaRequest).get();
+
+        AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
+        appSearchHelper.setSchemaForAppOpenEvents();
+        assertThat(appSearchHelper).isNotNull();
+        assertThrows(
+                AppSearchException.class,
+                () -> appSearchHelper.getSubsequentAppOpenEventAfterThreshold(100L));
     }
 
     @Test
@@ -424,5 +529,73 @@ public class AppSearchHelperTest {
                 /* existingAppFunctions= */ ImmutableList.of(app0Function0));
         // App0 is no longer indexed for app functions cause it no longer has any of them.
         assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch()).isEmpty();
+    }
+
+    @Test
+    public void testIndexAppOpenEvents_incrementalUpdateSupported() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
+        mAppSearchHelper.setSchemaForAppOpenEvents();
+        mAppSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(ImmutableList.of(event1)));
+
+        AppOpenEvent event2 = createFakeAppOpenEvent(currentTimeMillis + 200L);
+        mAppSearchHelper.setSchemaForAppOpenEvents();
+        mAppSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(ImmutableList.of(event2)));
+
+        assertThat(
+                        mAppSearchHelper
+                                .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
+                                .getId())
+                .isEqualTo(event1.getId());
+        assertThat(
+                        mAppSearchHelper
+                                .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis + 150L)
+                                .getId())
+                .isEqualTo(event2.getId());
+    }
+
+    @Test
+    public void testIndexAppOpenEvents_doesNotInterfereWithAppSchemaSet() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        mAppSearchHelper.setSchemaForAppOpenEvents();
+        AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
+
+        mAppSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(ImmutableList.of(event1)));
+        assertThat(
+                        mAppSearchHelper
+                                .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
+                                .getId())
+                .isEqualTo(event1.getId());
+    }
+
+    @Test
+    public void testIndexAppOpenEvents_multipleAppOpenEventsStored() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
+        AppOpenEvent event2 = createFakeAppOpenEvent(currentTimeMillis + 200L);
+
+        mAppSearchHelper.setSchemaForAppOpenEvents();
+        assertThrows(
+                AppSearchException.class,
+                () -> mAppSearchHelper.getSubsequentAppOpenEventAfterThreshold(currentTimeMillis));
+
+        mAppSearchHelper.indexAppOpenEvents(
+                convertAppOpenEventsToMap(ImmutableList.of(event1, event2)));
+        assertThat(
+                        mAppSearchHelper
+                                .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
+                                .getId())
+                .isEqualTo(event1.getId());
+        assertThat(
+                        mAppSearchHelper
+                                .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis + 150L)
+                                .getId())
+                .isEqualTo(event2.getId());
+        assertThrows(
+                AppSearchException.class,
+                () ->
+                        mAppSearchHelper.getSubsequentAppOpenEventAfterThreshold(
+                                currentTimeMillis + 300L));
     }
 }

@@ -16,13 +16,12 @@
 
 package com.android.server.appsearch.appsindexer;
 
-import static com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication.SCHEMA_TYPE;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSchema;
@@ -49,6 +48,7 @@ import android.content.pm.SigningInfo;
 import android.content.res.Resources;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import org.mockito.Mockito;
@@ -69,7 +69,25 @@ class TestUtils {
     // Represents a schema compatible with MobileApplication. This is used to test compatible schema
     // upgrades. It is compatible as changing to MobileApplication just adds properties.
     public static final AppSearchSchema COMPATIBLE_APP_SCHEMA =
-            new AppSearchSchema.Builder(SCHEMA_TYPE)
+            new AppSearchSchema.Builder(MobileApplication.SCHEMA_TYPE)
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            MobileApplication.APP_PROPERTY_PACKAGE_NAME)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_VERBATIM)
+                                    .build())
+                    .build();
+
+    // Represents a schema compatible with AppOpenEvent. This is used to test compatible schema
+    // upgrades. It is compatible as changing to AppOpenEvent just adds properties.
+    public static final AppSearchSchema COMPATIBLE_APP_OPEN_EVENT_SCHEMA =
+            new AppSearchSchema.Builder(AppOpenEvent.SCHEMA_TYPE)
                     .addProperty(
                             new AppSearchSchema.StringPropertyConfig.Builder(
                                             MobileApplication.APP_PROPERTY_PACKAGE_NAME)
@@ -88,7 +106,7 @@ class TestUtils {
     // schema upgrades. It is incompatible as changing to MobileApplication removes the
     // "NotPackageName" field.
     public static final AppSearchSchema INCOMPATIBLE_APP_SCHEMA =
-            new AppSearchSchema.Builder(SCHEMA_TYPE)
+            new AppSearchSchema.Builder(MobileApplication.SCHEMA_TYPE)
                     .addProperty(
                             new AppSearchSchema.StringPropertyConfig.Builder("NotPackageName")
                                     .setCardinality(
@@ -99,6 +117,25 @@ class TestUtils {
                                     .setTokenizerType(
                                             AppSearchSchema.StringPropertyConfig
                                                     .TOKENIZER_TYPE_PLAIN)
+                                    .build())
+                    .build();
+
+    // Represents a schema incompatible with AppOpenEvent. This is used to test incompatible schema
+    // upgrades. It is incompatible as changing to AppOpenEvent will remove the "NotPackageName"
+    // field.
+    public static final AppSearchSchema INCOMPATIBLE_APP_OPEN_EVENT_SCHEMA =
+            new AppSearchSchema.Builder(AppOpenEvent.SCHEMA_TYPE)
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            "NotPackageName") // Different field name
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .setIndexingType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .INDEXING_TYPE_PREFIXES)
+                                    .setTokenizerType(
+                                            AppSearchSchema.StringPropertyConfig
+                                                    .TOKENIZER_TYPE_VERBATIM)
                                     .build())
                     .build();
 
@@ -240,6 +277,26 @@ class TestUtils {
                         .get();
     }
 
+    /** Wipes out the app open events database. */
+    public static void removeFakeAppOpenEventDocuments(
+            @NonNull Context context, @NonNull ExecutorService executorService)
+            throws ExecutionException, InterruptedException {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(executorService);
+
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(
+                                context,
+                                new AppSearchManager.SearchContext.Builder("app-open-events-db")
+                                        .build(),
+                                executorService)
+                        .get();
+
+        SetSchemaResponse unused =
+                db.setSchemaAsync(new SetSchemaRequest.Builder().setForceOverride(true).build())
+                        .get();
+    }
+
     /**
      * Search for documents indexed by the Apps Indexer. The database, namespace, and schematype are
      * all configured.
@@ -289,6 +346,23 @@ class TestUtils {
     }
 
     /**
+     * Creates an {@link AppSearchSessionShim} for the same database the app open eventss indexer
+     * interacts with for mock events.
+     */
+    @NonNull
+    public static AppSearchSessionShim createFakeAppOpenEventsIndexerSession(
+            @NonNull Context context, @NonNull ExecutorService executorService)
+            throws ExecutionException, InterruptedException {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(executorService);
+        return AppSearchSessionShimImpl.createSearchSessionAsync(
+                        context,
+                        new AppSearchManager.SearchContext.Builder("app-open-events-db").build(),
+                        executorService)
+                .get();
+    }
+
+    /**
      * Generates a mock {@link MobileApplication} corresponding to the same package created by
      * {@link #createFakePackageInfo} with the same variant.
      *
@@ -304,6 +378,17 @@ class TestUtils {
                 .setUpdatedTimestampMs(variant)
                 .setAlternateNames("Mock")
                 .build();
+    }
+
+    /**
+     * Generates a mock {@link AppOpenEvent} document.
+     *
+     * @param timestamp the timestamp of the AppOpenEvent document.
+     * @return a {@link AppOpenEvent} document with the given timestamp.
+     */
+    @NonNull
+    public static AppOpenEvent createFakeAppOpenEvent(@CurrentTimeMillisLong long timestamp) {
+        return new AppOpenEvent.Builder(FAKE_PACKAGE_PREFIX, timestamp).build();
     }
 
     /**

@@ -21,6 +21,7 @@ import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.exceptions.AppSearchException;
 
+import java.io.Closeable;
 import java.util.List;
 
 /**
@@ -29,7 +30,7 @@ import java.util.List;
  *
  * @see SearchResults
  */
-public interface SyncSearchResults {
+public interface SyncSearchResults extends Closeable {
     /**
      * Synchronously returns a list of {@link SearchResult}s.
      *

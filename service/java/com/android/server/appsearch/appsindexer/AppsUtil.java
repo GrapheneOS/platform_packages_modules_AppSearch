@@ -35,9 +35,12 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
+
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -48,6 +51,10 @@ import java.util.Objects;
 /** Utility class for pulling apps details from package manager. */
 public final class AppsUtil {
     public static final String TAG = "AppSearchAppsUtil";
+
+    // App Open events are user's activity, which is both privacy and recency sensitive. 14 days was
+    // chosen as a reasonable duration to maintain this type of user activity.
+    private static final long APP_OPEN_EVENT_TTL_MILLIS = 1000 * 60 * 60 * 24 * 14; // 14 days
 
     private AppsUtil() {}
 
@@ -309,6 +316,74 @@ public final class AppsUtil {
         }
 
         return appOpenTimestamps;
+    }
+
+    /**
+     * Converts a map of package name to a list of app open timestamps to a list of {@link
+     * AppOpenEvent} documents. It's a less compact representation of the data, but it's directly
+     * writeable to AppSearch.
+     *
+     * @param appOpenEvents a map of package name to a list of app open timestamps.
+     * @return a list of {@link AppOpenEvent} documents.
+     */
+    public static List<AppOpenEvent> convertMapToAppOpenEvents(
+            @NonNull Map<String, List<Long>> appOpenEvents) {
+        Objects.requireNonNull(appOpenEvents);
+        List<AppOpenEvent> documents = new ArrayList<>();
+
+        for (Map.Entry<String, List<Long>> entry : appOpenEvents.entrySet()) {
+            String packageName = entry.getKey();
+            List<Long> eventTimes = entry.getValue();
+
+            for (int i = 0; i < eventTimes.size(); i++) {
+                Long eventTimeObj = eventTimes.get(i);
+                if (eventTimeObj != null) {
+                    long eventTimeMillis = eventTimeObj;
+                    AppOpenEvent event =
+                            new AppOpenEvent.Builder(packageName, eventTimeMillis)
+                                    .setCreationTimestampMillis(eventTimeMillis)
+                                    .setTtlMillis(APP_OPEN_EVENT_TTL_MILLIS)
+                                    .build();
+                    documents.add(event);
+                } else {
+                    Log.w(
+                            TAG,
+                            "convertMapToAppOpenEvents: eventTimeObj is unexpectedly null.  This"
+                                    + " should never happen.");
+                }
+            }
+        }
+
+        return documents;
+    }
+
+    /**
+     * Converts a list of {@link AppOpenEvent} documents into a map of package names to their
+     * corresponding app open timestamps. This provides a more compact representation of the data,
+     * potentially useful for further processing.
+     *
+     * @param appOpenEvents a list of {@link AppOpenEvent} documents.
+     * @return a map of package names to lists of their app open timestamps
+     */
+    public static Map<String, List<Long>> convertAppOpenEventsToMap(
+            @NonNull List<AppOpenEvent> appOpenEvents) {
+        Objects.requireNonNull(appOpenEvents);
+        Map<String, List<Long>> appOpenEventsMap = new ArrayMap<>();
+
+        for (int i = 0; i < appOpenEvents.size(); i++) {
+            AppOpenEvent event = appOpenEvents.get(i);
+            String packageName = event.getPackageName();
+            long timestamp = event.getAppOpenEventTimestampMillis();
+
+            List<Long> timestamps = appOpenEventsMap.get(packageName);
+            if (timestamps == null) {
+                timestamps = new ArrayList<>();
+                appOpenEventsMap.put(packageName, timestamps);
+            }
+            timestamps.add(timestamp);
+        }
+
+        return appOpenEventsMap;
     }
 
     /** Gets the SHA-256 certificate from a {@link PackageManager}, or null if it is not found */
