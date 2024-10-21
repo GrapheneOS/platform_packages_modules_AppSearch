@@ -91,15 +91,36 @@ public class IndexerMaintenanceService extends JobService {
             long intervalMillis) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(userHandle);
-        int jobId = getJobIdForUser(userHandle, indexerType);
+        JobInfo jobInfo = createJobInfo(context, userHandle, indexerType, periodic, intervalMillis);
         JobScheduler jobScheduler = context.getSystemService(JobScheduler.class);
+        JobInfo pendingJobInfo = jobScheduler.getPendingJob(jobInfo.getId());
+        // Don't reschedule a pending job if the parameters haven't changed.
+        if (jobInfo.equals(pendingJobInfo)) {
+            return;
+        }
+        jobScheduler.schedule(jobInfo);
+        if (LogUtil.DEBUG) {
+            Log.v(TAG, "Scheduled update job " + jobInfo.getId() + " for user " + userHandle);
+        }
+    }
+
+    /**
+     * Creates a {@link JobInfo} with the given parameters.
+     */
+    @VisibleForTesting
+    public static JobInfo createJobInfo(
+            @NonNull Context context,
+            @NonNull UserHandle userHandle,
+            @IndexerType int indexerType,
+            boolean periodic,
+            long intervalMillis) {
+        int jobId = getJobIdForUser(userHandle, indexerType);
         // For devices U and below, we have to schedule using ContactsIndexerMaintenanceService
         // as it has the proper permissions in core/res/AndroidManifest.xml.
         // IndexerMaintenanceService does not have the proper permissions on U. For simplicity, we
         // can also use the same component for scheduling maintenance on U+.
         ComponentName component =
                 new ComponentName(context, ContactsIndexerMaintenanceService.class);
-
         final PersistableBundle extras = new PersistableBundle();
         extras.putInt(EXTRA_USER_ID, userHandle.getIdentifier());
         extras.putInt(INDEXER_TYPE, indexerType);
@@ -109,7 +130,6 @@ public class IndexerMaintenanceService extends JobService {
                         .setRequiresBatteryNotLow(true)
                         .setRequiresDeviceIdle(true)
                         .setPersisted(true);
-
         if (periodic) {
             // Specify a flex value of 1/2 the interval so that the job is scheduled to run
             // in the [interval/2, interval) time window, assuming the other conditions are
@@ -117,16 +137,7 @@ public class IndexerMaintenanceService extends JobService {
             // a short duration of the previous run.
             jobInfoBuilder.setPeriodic(intervalMillis, /* flexMillis= */ intervalMillis / 2);
         }
-        JobInfo jobInfo = jobInfoBuilder.build();
-        JobInfo pendingJobInfo = jobScheduler.getPendingJob(jobId);
-        // Don't reschedule a pending job if the parameters haven't changed.
-        if (jobInfo.equals(pendingJobInfo)) {
-            return;
-        }
-        jobScheduler.schedule(jobInfo);
-        if (LogUtil.DEBUG) {
-            Log.v(TAG, "Scheduled update job " + jobId + " for user " + userHandle);
-        }
+        return jobInfoBuilder.build();
     }
 
     /**
@@ -163,6 +174,32 @@ public class IndexerMaintenanceService extends JobService {
         int jobId = getJobIdForUser(userHandle, indexerType);
         JobScheduler jobScheduler = context.getSystemService(JobScheduler.class);
         return jobScheduler.getPendingJob(jobId) != null;
+    }
+
+    /**
+     * Check if an update job is scheduled for the given user with the expected parameters.
+     *
+     * @param userHandle The user handle for whom the check for scheduled job needs to be performed
+     * @return true if a scheduled job exists with the expected parameters
+     */
+    public static boolean isUpdateJobScheduledWithExpectedParams(
+            @NonNull Context context,
+            @NonNull UserHandle userHandle,
+            @IndexerType int indexerType,
+            long intervalMillis) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(userHandle);
+        int jobId = getJobIdForUser(userHandle, indexerType);
+        JobScheduler jobScheduler = context.getSystemService(JobScheduler.class);
+        JobInfo jobInfo = jobScheduler.getPendingJob(jobId);
+        if (jobInfo == null) {
+            return false;
+        }
+        JobInfo periodicJobInfo = createJobInfo(context, userHandle, indexerType, /* periodic= */
+                true, intervalMillis);
+        JobInfo immediateJobInfo = createJobInfo(context, userHandle, indexerType, /* periodic= */
+                false, /* intervalMillis= */ -1);
+        return jobInfo.equals(periodicJobInfo) || jobInfo.equals(immediateJobInfo);
     }
 
     /**
