@@ -191,7 +191,14 @@ public final class AppsIndexerImpl implements Closeable {
 
                 AppSearchBatchResult<String, Void> result =
                         mAppSearchHelper.indexApps(
-                                mobileApplications, appFunctions, appSearchAppFunctions);
+                                mobileApplications,
+                                appFunctions,
+                                appSearchAppFunctions,
+                                appsUpdateStats);
+                // Here we log all of these functions as "updated". However, some of these may be
+                // added or unchanged.
+                // TODO(b/357551503): Log function counts more accurately
+                appsUpdateStats.mNumberOfFunctionsUpdated = appFunctions.size();
                 if (result.isSuccess()) {
                     appsUpdateStats.mUpdateStatusCodes.add(AppSearchResult.RESULT_OK);
                 } else {

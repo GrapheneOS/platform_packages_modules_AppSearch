@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -64,7 +65,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -72,7 +72,7 @@ public class ContactsIndexerMaintenanceTest {
     private static final int DEFAULT_USER_ID = 0;
     private static final UserHandle DEFAULT_USER_HANDLE = new UserHandle(0);
 
-    private Context mContext = ApplicationProvider.getApplicationContext();
+    private Context mContext;
     private Context mContextWrapper;
     private IndexerMaintenanceService mIndexerMaintenanceService;
     private MockitoSession session;
@@ -83,6 +83,7 @@ public class ContactsIndexerMaintenanceTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        mContext = ApplicationProvider.getApplicationContext();
         mContextWrapper = new ContextWrapper(mContext) {
             @Override
             @Nullable
@@ -99,7 +100,6 @@ public class ContactsIndexerMaintenanceTest {
                 mockStatic(LocalManagerRegistry.class).
                 startMocking();
         mExtras = new PersistableBundle();
-        mExtras.putInt("indexer_type", CONTACTS_INDEXER);
         mParams = Mockito.mock(JobParameters.class);
     }
 
@@ -246,20 +246,54 @@ public class ContactsIndexerMaintenanceTest {
     }
 
     @Test
-    public void testDoFullUpdateForUser_withInitializedLocalService_isSuccessful() {
+    public void testDoUpdateForUser_withInitializedLocalService_isSuccessful() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        ExtendedMockito.doReturn(Mockito.mock(ContactsIndexerManagerService.LocalService.class))
-                .when(() -> LocalManagerRegistry.getManager(
-                        ContactsIndexerManagerService.LocalService.class));
+        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
+        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
+                ContactsIndexerManagerService.LocalService.class);
+        ExtendedMockito.doReturn(mockService).when(() -> LocalManagerRegistry.getManager(
+                ContactsIndexerManagerService.LocalService.class));
+        CancellationSignal signal = new CancellationSignal();
         boolean updateSucceeded =
                 mIndexerMaintenanceService.doUpdateForUser(
-                        mContextWrapper, mParams, DEFAULT_USER_HANDLE, new CancellationSignal());
+                        mContextWrapper, mParams, DEFAULT_USER_HANDLE, signal);
         assertThat(updateSucceeded).isTrue();
+        verify(mockService).doUpdateForUser(DEFAULT_USER_HANDLE, signal);
     }
 
     @Test
-    public void testDoFullUpdateForUser_withUninitializedLocalService_failsGracefully() {
+    public void testDoUpdateForUser_withInitializedLocalService_withoutIndexerType_isSuccessful() {
         when(mParams.getExtras()).thenReturn(mExtras);
+        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
+                ContactsIndexerManagerService.LocalService.class);
+        ExtendedMockito.doReturn(mockService).when(() -> LocalManagerRegistry.getManager(
+                ContactsIndexerManagerService.LocalService.class));
+        CancellationSignal signal = new CancellationSignal();
+        boolean updateSucceeded =
+                mIndexerMaintenanceService.doUpdateForUser(
+                        mContextWrapper, mParams, DEFAULT_USER_HANDLE, signal);
+        assertThat(updateSucceeded).isTrue();
+        verify(mockService).doUpdateForUser(DEFAULT_USER_HANDLE, signal);
+    }
+
+    @Test
+    public void testOnStartJob_withInitializedLocalService_withoutIndexerType_isSuccessful() {
+        when(mParams.getExtras()).thenReturn(mExtras);
+        mExtras.putInt(IndexerMaintenanceService.EXTRA_USER_ID, 0);
+        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
+                ContactsIndexerManagerService.LocalService.class);
+        ExtendedMockito.doReturn(mockService).when(() -> LocalManagerRegistry.getManager(
+                ContactsIndexerManagerService.LocalService.class));
+        assertThat(mIndexerMaintenanceService.onStartJob(mParams)).isTrue();
+        verify(mIndexerMaintenanceService, timeout(10000)).doUpdateForUser(any(), any(), any(),
+                any());
+        verify(mockService, timeout(10000)).doUpdateForUser(any(), any());
+    }
+
+    @Test
+    public void testDoUpdateForUser_withUninitializedLocalService_failsGracefully() {
+        when(mParams.getExtras()).thenReturn(mExtras);
+        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ExtendedMockito.doReturn(null)
                 .when(() -> LocalManagerRegistry.getManager(
                         ContactsIndexerManagerService.LocalService.class));
@@ -270,8 +304,9 @@ public class ContactsIndexerMaintenanceTest {
     }
 
     @Test
-    public void testDoFullUpdateForUser_onEncounteringException_failsGracefully() {
+    public void testDoUpdateForUser_onEncounteringException_failsGracefully() {
         when(mParams.getExtras()).thenReturn(mExtras);
+        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
                 ContactsIndexerManagerService.LocalService.class);
         doThrow(RuntimeException.class).when(mockService).doUpdateForUser(any(), any());
@@ -287,8 +322,9 @@ public class ContactsIndexerMaintenanceTest {
     }
 
     @Test
-    public void testDoFullUpdateForUser_cancelsBackgroundJob_whenCiDisabled() {
+    public void testDoUpdateForUser_cancelsBackgroundJob_whenCiDisabled() {
         when(mParams.getExtras()).thenReturn(mExtras);
+        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ExtendedMockito.doReturn(null)
                 .when(() -> LocalManagerRegistry.getManager(
                         ContactsIndexerManagerService.LocalService.class));
@@ -300,8 +336,9 @@ public class ContactsIndexerMaintenanceTest {
     }
 
     @Test
-    public void testDoFullUpdateForUser_doesNotCancelBackgroundJob_whenCiEnabled() {
+    public void testDoUpdateForUser_doesNotCancelBackgroundJob_whenCiEnabled() {
         when(mParams.getExtras()).thenReturn(mExtras);
+        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ExtendedMockito.doReturn(Mockito.mock(ContactsIndexerManagerService.LocalService.class))
                 .when(() -> LocalManagerRegistry.getManager(
                         ContactsIndexerManagerService.LocalService.class));
@@ -313,7 +350,7 @@ public class ContactsIndexerMaintenanceTest {
     }
 
     @Test
-    public void testCancelPendingFullUpdateJob_succeeds() throws IOException {
+    public void testCancelPendingFullUpdateJob_succeeds() {
         UserInfo userInfo = new UserInfo(DEFAULT_USER_ID, /*name=*/ "default", /*flags=*/ 0);
         SystemService.TargetUser user = new SystemService.TargetUser(userInfo);
         UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
@@ -340,12 +377,12 @@ public class ContactsIndexerMaintenanceTest {
 
     @Test
     public void test_onStartJob_handlesExceptionGracefully() {
-        mIndexerMaintenanceService.onStartJob(mParams);
+        mIndexerMaintenanceService.onStartJob(null);
     }
 
     @Test
     public void test_onStopJob_handlesExceptionGracefully() {
-        mIndexerMaintenanceService.onStopJob(mParams);
+        mIndexerMaintenanceService.onStopJob(null);
     }
 
     @Nullable

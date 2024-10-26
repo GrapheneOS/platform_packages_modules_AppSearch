@@ -227,6 +227,8 @@ public class AppSearchHelper implements Closeable {
      * @param currentAppFunctions a list of AppFunctionStaticMetadata documents to be inserted. Each
      *     AppFunctionStaticMetadata should point to its corresponding MobileApplication.
      * @param indexedAppFunctions a list of indexed AppFunctionStaticMetadata documents
+     * @param appsUpdateStats stats object to update, necessary as we determine number of deleted
+     *     functions in this method.
      * @throws AppSearchException if indexing results in a {@link
      *     AppSearchResult#RESULT_OUT_OF_SPACE} result code. It will also throw this if the put call
      *     results in a system error as in {@link BatchResultCallback#onSystemError}. This may
@@ -242,10 +244,12 @@ public class AppSearchHelper implements Closeable {
     public AppSearchBatchResult<String, Void> indexApps(
             @NonNull List<MobileApplication> apps,
             @NonNull List<AppFunctionStaticMetadata> currentAppFunctions,
-            @NonNull List<GenericDocument> indexedAppFunctions)
+            @NonNull List<GenericDocument> indexedAppFunctions,
+            @NonNull AppsUpdateStats appsUpdateStats)
             throws AppSearchException {
         Objects.requireNonNull(apps);
         Objects.requireNonNull(currentAppFunctions);
+        Objects.requireNonNull(appsUpdateStats);
 
         // For packages that we are re-indexing, we need to collect a list of stale of function IDs.
         Set<String> packagesToReindex = new ArraySet<>();
@@ -291,6 +295,7 @@ public class AppSearchHelper implements Closeable {
             }
         }
 
+        appsUpdateStats.mApproximateNumberOfFunctionsRemoved = appFunctionIdsToRemove.size();
         // Then, delete all the stale documents.
         mSyncAppSearchAppsDbSession.remove(
                 new RemoveByDocumentIdRequest.Builder(

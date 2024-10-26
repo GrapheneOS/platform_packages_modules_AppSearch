@@ -26,6 +26,7 @@ android_test {
         "Harrier",
         "Nene",
         "TestApp",
+        "bedstead-enterprise",
         "androidx.test.ext.junit",
         "androidx.test.rules",
         "appsearch_flags_java_lib",

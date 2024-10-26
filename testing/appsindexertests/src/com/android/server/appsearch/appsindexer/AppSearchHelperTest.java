@@ -102,7 +102,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 createMobileApplications(1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         AppSearchSessionShim session =
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
@@ -129,7 +130,9 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 createMobileApplications(1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         AppSearchSessionShim session =
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
@@ -146,7 +149,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 createMobileApplications(600),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         Map<String, Long> appsearchIds = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(appsearchIds.size()).isEqualTo(600);
         List<SearchResult> real = searchAppSearchForApps(600 + 1);
@@ -173,7 +177,8 @@ public class AppSearchHelperTest {
         appSearchHelper.indexApps(
                 ImmutableList.of(createFakeMobileApplication(variant)),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         assertThat(appSearchHelper).isNotNull();
         List<SearchResult> results = searchAppSearchForApps(1 + 1);
@@ -225,7 +230,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 createMobileApplications(50),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         List<SearchResult> real = searchAppSearchForApps(50 + 1);
         assertThat(real).hasSize(50);
@@ -322,7 +328,8 @@ public class AppSearchHelperTest {
                         mocked.indexApps(
                                 ImmutableList.of(createFakeMobileApplication(0)),
                                 /* appFunctions= */ ImmutableList.of(),
-                                /* existingAppFunctions= */ ImmutableList.of()));
+                                /* existingAppFunctions= */ ImmutableList.of(),
+                                /* appsUpdateStats= */ new AppsUpdateStats()));
     }
 
     @Test
@@ -332,7 +339,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 createMobileApplications(100),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(50), new ArrayList<>());
 
@@ -357,7 +365,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         Map<String, Long> timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly("com.fake.package0", 0L, "com.fake.package1", 1L);
@@ -366,7 +375,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         // Should still be two
         timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
@@ -383,7 +393,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         Map<String, Long> timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly("com.fake.package0", 0L, "com.fake.package1", 1L);
@@ -402,7 +413,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
         assertThat(timestampMapping)
                 .containsExactly("com.fake.package0", 0L, "com.fake.package1", 300L);
@@ -417,7 +429,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         assertThat(mAppSearchHelper.getAppsFromAppSearch()).hasSize(2);
 
         MobileApplication app2 = createFakeMobileApplication(2);
@@ -426,7 +439,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1, app2),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         // Should be three
         Map<String, Long> timestampMapping = mAppSearchHelper.getAppsFromAppSearch();
@@ -447,7 +461,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch()).isEmpty();
 
         // Now app0 has an app function.
@@ -457,7 +472,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(app0Function0),
-                /* existingAppFunctions= */ ImmutableList.of(app0Function0));
+                /* existingAppFunctions= */ ImmutableList.of(app0Function0),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch().get(0).getId())
                 .isEqualTo("com.fake.package0/function_id0");
@@ -475,7 +491,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0),
                 /* appFunctions= */ ImmutableList.of(app0Function0),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
 
         AppSearchSessionShim session =
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
@@ -498,7 +515,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(app0Function0, app0Function1),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         List<GenericDocument> appFunctionsInAppSearch =
                 mAppSearchHelper.getAppFunctionsFromAppSearch();
         assertThat(appFunctionsInAppSearch).hasSize(2);
@@ -515,7 +533,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(app0Function0),
-                /* existingAppFunctions= */ ImmutableList.of(app0Function0, app0Function1));
+                /* existingAppFunctions= */ ImmutableList.of(app0Function0, app0Function1),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         // app0 still have one app function. so app0 is being indexed.
         assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch().get(0).getId())
                 .isEqualTo("com.fake.package0/function_id0");
@@ -526,7 +545,8 @@ public class AppSearchHelperTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app0, app1),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of(app0Function0));
+                /* existingAppFunctions= */ ImmutableList.of(app0Function0),
+                /* appsUpdateStats= */ new AppsUpdateStats());
         // App0 is no longer indexed for app functions cause it no longer has any of them.
         assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch()).isEmpty();
     }

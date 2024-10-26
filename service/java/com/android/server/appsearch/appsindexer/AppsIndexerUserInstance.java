@@ -320,6 +320,11 @@ public final class AppsIndexerUserInstance {
                 appsUpdateStats.mAppSearchSetSchemaLatencyMillis,
                 appsUpdateStats.mAppSearchPutLatencyMillis,
                 appsUpdateStats.mUpdateStartTimestampMillis,
-                appsUpdateStats.mLastAppUpdateTimestampMillis);
+                appsUpdateStats.mLastAppUpdateTimestampMillis,
+                appsUpdateStats.mNumberOfFunctionsAdded,
+                appsUpdateStats.mApproximateNumberOfFunctionsRemoved,
+                appsUpdateStats.mNumberOfFunctionsUpdated,
+                appsUpdateStats.mApproximateNumberOfFunctionsUnchanged,
+                appsUpdateStats.mAppSearchRemoveLatencyMillis);
     }
 }

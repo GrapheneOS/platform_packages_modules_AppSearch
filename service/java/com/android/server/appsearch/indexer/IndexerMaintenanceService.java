@@ -48,9 +48,13 @@ import java.util.concurrent.TimeUnit;
 
 /** Dispatches maintenance tasks for various indexers. */
 public class IndexerMaintenanceService extends JobService {
-    private static final String TAG = "AppSearchIndexerMaintena";
-    private static final String EXTRA_USER_ID = "user_id";
-    private static final String INDEXER_TYPE = "indexer_type";
+    private static final String TAG = "AppSearchIndexerMainten";
+
+    @VisibleForTesting
+    public static final String EXTRA_USER_ID = "user_id";
+
+    @VisibleForTesting
+    public static final String INDEXER_TYPE = "indexer_type";
 
     /**
      * A mapping of userHandle-to-CancellationSignal. Since we schedule a separate job for each
@@ -202,14 +206,15 @@ public class IndexerMaintenanceService extends JobService {
                 return false;
             }
 
-            @IndexerType
-            int indexerType = params.getExtras().getInt(INDEXER_TYPE, /* defaultValue= */ -1);
-            if (indexerType == -1) {
-                return false;
-            }
-
             if (LogUtil.DEBUG) {
-                Log.v(TAG, "Update job started for user " + userId);
+                // If the job parameters is missing INDEXER_TYPE, then this job was scheduled on
+                // a previous version before INDEXER_TYPE was introduced, and therefore the job
+                // must be for contacts indexer.
+                @IndexerType int indexerType = params.getExtras().getInt(
+                        INDEXER_TYPE, /* defaultValue= */
+                        IndexerMaintenanceConfig.CONTACTS_INDEXER);
+                Log.v(TAG, "Update job started for user " + userId + " and indexer type "
+                        + indexerType);
             }
 
             UserHandle userHandle = UserHandle.getUserHandleForUid(userId);
@@ -257,10 +262,11 @@ public class IndexerMaintenanceService extends JobService {
             Objects.requireNonNull(userHandle);
             Objects.requireNonNull(signal);
 
-            @IndexerType int indexerType = params.getExtras().getInt(INDEXER_TYPE, -1);
-            if (indexerType == -1) {
-                return false;
-            }
+            // If the job parameters is missing INDEXER_TYPE, then this job was scheduled on a
+            // previous version before INDEXER_TYPE was introduced, and therefore the job must be
+            // for contacts indexer.
+            @IndexerType int indexerType = params.getExtras().getInt(INDEXER_TYPE,
+                    IndexerMaintenanceConfig.CONTACTS_INDEXER);
             Class<? extends IndexerLocalService> indexerLocalService =
                     IndexerMaintenanceConfig.getConfigForIndexer(indexerType).getLocalService();
             IndexerLocalService service = LocalManagerRegistry.getManager(indexerLocalService);

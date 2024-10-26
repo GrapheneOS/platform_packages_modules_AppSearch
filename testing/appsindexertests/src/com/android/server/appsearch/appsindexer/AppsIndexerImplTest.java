@@ -16,7 +16,10 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppFunctionResolveInfo;
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakeLaunchResolveInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeMobileApplication;
+import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfo;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeResolveInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.createMockPackageIdentifiers;
@@ -28,11 +31,15 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import android.app.appsearch.GenericDocument;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.AssetManager;
+import android.content.res.Resources;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -46,7 +53,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
+import org.mockito.MockitoSession;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +68,7 @@ public class AppsIndexerImplTest {
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private final AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
+    private MockitoSession mMockitoSession;
 
     @Before
     public void setUp() throws Exception {
@@ -70,6 +80,9 @@ public class AppsIndexerImplTest {
     public void tearDown() throws Exception {
         removeFakePackageDocuments(mContext, mSingleThreadedExecutor);
         mAppSearchHelper.close();
+        if (mMockitoSession != null) {
+            mMockitoSession.finishMocking();
+        }
     }
 
     @Test
@@ -82,7 +95,8 @@ public class AppsIndexerImplTest {
         mAppSearchHelper.indexApps(
                 ImmutableList.of(app1, app2),
                 /* appFunctions= */ ImmutableList.of(),
-                /* existingAppFunctions= */ ImmutableList.of());
+                /* existingAppFunctions= */ ImmutableList.of(),
+                new AppsUpdateStats());
         Map<String, Long> appTimestampMap = mAppSearchHelper.getAppsFromAppSearch();
 
         List<String> packageIds = new ArrayList<>(appTimestampMap.keySet());
@@ -203,6 +217,173 @@ public class AppsIndexerImplTest {
             // Verify the state of the indexed apps after the second update
             assertThat(mAppSearchHelper.getAppsFromAppSearch().keySet())
                     .containsExactly("com.fake.package1", "com.fake.package2", "com.fake.package3");
+        }
+    }
+
+    @Test
+    public void testAppsIndexerImpl_statsSet_functionsIndexed() throws Exception {
+        // Simulate the first update: no changes, just adding initial apps
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
+
+        for (int i = 0; i < 5; i++) {
+            fakePackages.add(createFakePackageInfo(i));
+            fakeActivities.add(createFakeLaunchResolveInfo(i));
+            fakeAppFunctionServices.add(createFakeAppFunctionResolveInfo(i));
+        }
+
+        when(pm1.getProperty(any(String.class), any(ComponentName.class)))
+                .thenReturn(new PackageManager.Property("", "", "", ""));
+        AssetManager assetManager = Mockito.mock(AssetManager.class);
+
+        // Three functions initially. One will be deleted, another updated, the third left alone,
+        // then a fourth added.
+        String xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#print</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#search</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#pay</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>";
+
+        when(assetManager.open(any(String.class)))
+                .thenReturn(
+                        new ByteArrayInputStream(xml.getBytes()),
+                        new ByteArrayInputStream(xml.getBytes()),
+                        new ByteArrayInputStream(xml.getBytes()),
+                        new ByteArrayInputStream(xml.getBytes()),
+                        new ByteArrayInputStream(xml.getBytes()));
+
+        Resources resources = Mockito.mock(Resources.class);
+        when(resources.getAssets()).thenReturn(assetManager);
+        when(pm1.getResourcesForApplication(any(String.class))).thenReturn(resources);
+        setupMockPackageManager(pm1, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Context context1 =
+                new ContextWrapper(mContext) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm1;
+                    }
+                };
+
+        List<String> packages = new ArrayList<>();
+        packages.add("com.fake.package0");
+        packages.add("com.fake.package1");
+        packages.add("com.fake.package2");
+        packages.add("com.fake.package3");
+        packages.add("com.fake.package4");
+
+        List<String> expectedFunctionIds = new ArrayList<>();
+        for (int i = 0; i < packages.size(); i++) {
+            expectedFunctionIds.add(packages.get(i) + "/com.example.utils#pay");
+            expectedFunctionIds.add(packages.get(i) + "/com.example.utils#search");
+            expectedFunctionIds.add(packages.get(i) + "/com.example.utils#print");
+        }
+
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+
+            // Check the stats object after the first update
+            assertThat(stats1.mNumberOfAppsAdded).isEqualTo(5);
+            assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0); // No apps deleted
+            assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0); // No apps unchanged
+            assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0); // No apps updated
+
+            // Currently we are logging added and updated and unchanged all as updated
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(15); // One app updated
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsUnchanged).isEqualTo(0);
+
+            List<GenericDocument> indexedFunctions =
+                    mAppSearchHelper.getAppFunctionsFromAppSearch();
+            List<String> indexedFunctionIds = new ArrayList<>();
+            for (int i = 0; i < indexedFunctions.size(); i++) {
+                indexedFunctionIds.add(indexedFunctions.get(i).getId());
+            }
+            // Verify the state of the indexed apps after the first update
+            assertThat(indexedFunctionIds).containsExactlyElementsIn(expectedFunctionIds);
+        }
+
+        // Simulate an update
+        for (int i = 0; i < 5; i++) {
+            fakePackages.get(i).lastUpdateTime = 1000;
+        }
+
+        expectedFunctionIds = new ArrayList<>();
+        for (int i = 0; i < packages.size(); i++) {
+            expectedFunctionIds.add(packages.get(i) + "/com.example.utils#pay");
+            expectedFunctionIds.add(packages.get(i) + "/com.example.utils#search");
+            expectedFunctionIds.add(packages.get(i) + "/com.example.utils#scan_doc");
+        }
+
+        // Remove print, update search (with category), don't change pay, add scan doc
+        String xml2 =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#search</function_id>\n"
+                        + "    <schema_category>utils</schema_category>\n"
+                        + "  </appfunction>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#pay</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#scan_doc</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>";
+
+        // This is flaky, out of order
+        when(assetManager.open(any(String.class)))
+                .thenReturn(
+                        new ByteArrayInputStream(xml2.getBytes()),
+                        new ByteArrayInputStream(xml2.getBytes()),
+                        new ByteArrayInputStream(xml2.getBytes()),
+                        new ByteArrayInputStream(xml2.getBytes()),
+                        new ByteArrayInputStream(xml2.getBytes()));
+
+        // xml + xmlUpdatedFunction both seem to be treated as updates
+        // or it's no functions + two functions
+
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+
+            // Check the stats object after the first update
+            assertThat(stats1.mNumberOfAppsAdded).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(5);
+
+            // Currently we are logging added and updated and unchanged all as updated
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(15);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(5);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsUnchanged).isEqualTo(0);
+
+            List<GenericDocument> indexedFunctions =
+                    mAppSearchHelper.getAppFunctionsFromAppSearch();
+            List<String> indexedFunctionIds = new ArrayList<>();
+            for (int i = 0; i < indexedFunctions.size(); i++) {
+                indexedFunctionIds.add(indexedFunctions.get(i).getId());
+            }
+            // Verify the state of the indexed apps after the first update
+            assertThat(indexedFunctionIds).containsExactlyElementsIn(expectedFunctionIds);
         }
     }
 }

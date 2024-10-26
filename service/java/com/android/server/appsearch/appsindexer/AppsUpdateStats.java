@@ -26,6 +26,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Set;
 
 public class AppsUpdateStats {
+
     @IntDef(
             value = {
                 UNKNOWN_UPDATE_TYPE,
@@ -60,6 +61,21 @@ public class AppsUpdateStats {
     long mUpdateStartTimestampMillis;
     long mLastAppUpdateTimestampMillis;
 
+    int mNumberOfFunctionsAdded;
+    // For apps that get deleted, we don't check what functions were indexed into AppSearch, and
+    // delete the entire database corresponding to the packages functions. We use a setSchema call
+    // with override set to true, so it's not clear how many functions were deleted from AppSearch
+    // for deleted packages.
+    int mApproximateNumberOfFunctionsRemoved;
+    // As of now, added and unchanged and updated functions are all logged as updated
+    // TODO(b/357551503): Log indexed function counts more accurately
+    int mNumberOfFunctionsUpdated;
+    // For apps that don't get updated, we don't check functions at all. So it's not clear how many
+    // functions have remained unchanged in packages that were unchanged.
+    int mApproximateNumberOfFunctionsUnchanged;
+
+    long mAppSearchRemoveLatencyMillis;
+
     /** Resets the Apps Indexer update stats. */
     public void clear() {
         mUpdateType = UNKNOWN_UPDATE_TYPE;
@@ -78,5 +94,12 @@ public class AppsUpdateStats {
 
         mLastAppUpdateTimestampMillis = 0;
         mUpdateStartTimestampMillis = 0;
+
+        mNumberOfFunctionsAdded = 0;
+        mApproximateNumberOfFunctionsRemoved = 0;
+        mApproximateNumberOfFunctionsUnchanged = 0;
+        mNumberOfFunctionsUpdated = 0;
+
+        mAppSearchRemoveLatencyMillis = 0;
     }
 }
