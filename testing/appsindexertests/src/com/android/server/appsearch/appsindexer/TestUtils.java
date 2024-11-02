@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +37,7 @@ import android.app.appsearch.SetSchemaResponse;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
 import android.app.appsearch.testutil.GlobalSearchSessionShimImpl;
 import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
@@ -258,6 +260,17 @@ class TestUtils {
         when(pm.queryIntentServices(any(), eq(0))).then(i -> appFunctionServices);
     }
 
+    /**
+     * Sets up a mock {@link UsageStatsManager} to return the given {@link UsageEvents} when
+     * queryEvents is called.
+     */
+    public static void setupMockUsageStatsManager(
+            @NonNull UsageStatsManager usm, @NonNull UsageEvents usageEvents) throws Exception {
+        Objects.requireNonNull(usm);
+        Objects.requireNonNull(usageEvents);
+        when(usm.queryEvents(anyLong(), anyLong())).thenReturn(usageEvents);
+    }
+
     /** Wipes out the apps database. */
     public static void removeFakePackageDocuments(
             @NonNull Context context, @NonNull ExecutorService executorService)
@@ -451,6 +464,22 @@ class TestUtils {
      */
     public static UsageEvents createUsageEvents(UsageEvents.Event... events) {
         return new UsageEvents(Arrays.asList(events), new String[] {});
+    }
+
+    /**
+     * Creates a mock {@link UsageEvents} object.
+     *
+     * @param numEvents the number of events to add to the UsageEvents object.
+     * @return a {@link UsageEvents} object with the given events.
+     */
+    public static UsageEvents createManyUsageEvents(int numEvents) {
+        List<UsageEvents.Event> events = new ArrayList<>();
+        for (int i = 0; i < numEvents; i++) {
+            events.add(
+                    createIndividualUsageEvent(
+                            UsageEvents.Event.ACTIVITY_RESUMED, i, "com.fake.package" + i));
+        }
+        return new UsageEvents(events, new String[] {});
     }
 
     /**

@@ -19,7 +19,6 @@ package com.android.server.appsearch.stats;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.content.Context;
 import android.os.Build;
@@ -45,16 +44,15 @@ import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.util.ApiCallRecord;
 import com.android.server.appsearch.util.PackageUtil;
+import com.android.server.appsearch.util.StatsUtil;
 
 import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 
 /**
  * Logger Implementation for pushed atoms.
@@ -72,7 +70,6 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     // Manager holding the configuration flags
     private final ServiceAppSearchConfig mConfig;
 
-    private final Random mRng = new Random();
     private final Object mLock = new Object();
 
     /**
@@ -283,7 +280,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
             // will be 10*12 + 10*3 = 150 for that device's reported value.
             final int numReportedCalls = 1;
 
-            int hashCodeForDatabase = calculateHashCodeMd5(database);
+            int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_CALL_STATS_REPORTED,
                     extraStats.mSamplingInterval,
@@ -317,7 +314,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 createExtraStatsLocked(stats.getPackageName(), CallStats.CALL_TYPE_SET_SCHEMA);
         String database = stats.getDatabase();
         try {
-            int hashCodeForDatabase = calculateHashCodeMd5(database);
+            int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             // ignore close exception
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_SET_SCHEMA_STATS_REPORTED,
@@ -367,7 +364,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                         stats.getPackageName(), CallStats.CALL_TYPE_SCHEMA_MIGRATION);
         String database = stats.getDatabase();
         try {
-            int hashCodeForDatabase = calculateHashCodeMd5(database);
+            int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             // ignore close exception
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_SET_SCHEMA_STATS_REPORTED,
@@ -404,7 +401,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 createExtraStatsLocked(stats.getPackageName(), CallStats.CALL_TYPE_PUT_DOCUMENT);
         String database = stats.getDatabase();
         try {
-            int hashCodeForDatabase = calculateHashCodeMd5(database);
+            int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_PUT_DOCUMENT_STATS_REPORTED,
                     extraStats.mSamplingInterval,
@@ -442,8 +439,9 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 createExtraStatsLocked(stats.getPackageName(), CallStats.CALL_TYPE_SEARCH);
         String database = stats.getDatabase();
         try {
-            int hashCodeForDatabase = calculateHashCodeMd5(database);
-            int hashCodeForSearchSourceLogTag = calculateHashCodeMd5(stats.getSearchSourceLogTag());
+            int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
+            int hashCodeForSearchSourceLogTag =
+                    StatsUtil.calculateHashCodeMd5(stats.getSearchSourceLogTag());
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_QUERY_STATS_REPORTED,
                     extraStats.mSamplingInterval,
@@ -594,7 +592,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
 
         int hashCodeForDatabase;
         try {
-            hashCodeForDatabase = calculateHashCodeMd5(database);
+            hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // Something is wrong while calculating the hash code for database. Assign the hash
             // value with 0xFFFFFFFF, and log the error message.
@@ -670,37 +668,6 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     }
 
     /**
-     * Calculate the hash code as an integer by returning the last four bytes of its MD5.
-     *
-     * @param str a string
-     * @return hash code as an integer. returns -1 if str is null.
-     * @throws AppSearchException if either algorithm or encoding does not exist.
-     */
-    @VisibleForTesting
-    @NonNull
-    static int calculateHashCodeMd5(@Nullable String str)
-            throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        if (str == null) {
-            return -1;
-        }
-
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(str.getBytes(/* charsetName= */ "UTF-8"));
-        byte[] digest = md.digest();
-
-        // Since MD5 generates 16 bytes digest, we don't need to check the length here to see
-        // if it is smaller than sizeof(int)(4).
-        //
-        // We generate the same value as BigInteger(digest).intValue().
-        // BigInteger takes bytes[] and treat it as big endian. And its intValue() would get the
-        // lower 4 bytes. So here we take the last 4 bytes and treat them as big endian.
-        return (digest[12] & 0xFF) << 24
-                | (digest[13] & 0xFF) << 16
-                | (digest[14] & 0xFF) << 8
-                | (digest[15] & 0xFF);
-    }
-
-    /**
      * Creates {@link ExtraStats} to hold additional information generated for logging.
      *
      * <p>This method is called by most of logStatsImplLocked functions to reduce code duplication.
@@ -745,7 +712,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
     boolean shouldLogForTypeLocked(@CallStats.CallType int callType) {
         int samplingInterval = getSamplingIntervalFromConfig(callType);
         // Sampling
-        if (!shouldSample(samplingInterval)) {
+        if (!StatsUtil.shouldSample(samplingInterval)) {
             return false;
         }
 
@@ -761,20 +728,6 @@ public final class PlatformLogger implements InternalAppSearchLogger {
         }
 
         return true;
-    }
-
-    /**
-     * Checks if the stats should be "sampled"
-     *
-     * @param samplingInterval sampling interval
-     * @return if the stats should be sampled
-     */
-    private boolean shouldSample(int samplingInterval) {
-        if (samplingInterval <= 0) {
-            return false;
-        }
-
-        return mRng.nextInt((int) samplingInterval) == 0;
     }
 
     /**

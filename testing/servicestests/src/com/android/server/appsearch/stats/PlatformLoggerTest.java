@@ -40,11 +40,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
 /**
@@ -67,76 +62,6 @@ public class PlatformLoggerTest {
                 return getMockPackageManager(mContext.getUser());
             }
         };
-    }
-
-    @Test
-    public void testCalculateHashCode_MD5_int32_shortString()
-            throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        final String str1 = "d1";
-        final String str2 = "d2";
-
-        int hashCodeForStr1 = PlatformLogger.calculateHashCodeMd5(str1);
-
-        // hashing should be stable
-        assertThat(hashCodeForStr1).isEqualTo(
-                PlatformLogger.calculateHashCodeMd5(str1));
-        assertThat(hashCodeForStr1).isNotEqualTo(
-                PlatformLogger.calculateHashCodeMd5(str2));
-    }
-
-    @Test
-    public void testGetCalculateCode_MD5_int32_mediumString()
-            throws NoSuchAlgorithmException, UnsupportedEncodingException {
-        final String str1 = "Siblings";
-        final String str2 = "Teheran";
-
-        int hashCodeForStr1 = PlatformLogger.calculateHashCodeMd5(str1);
-
-        // hashing should be stable
-        assertThat(hashCodeForStr1).isEqualTo(
-                PlatformLogger.calculateHashCodeMd5(str1));
-        assertThat(hashCodeForStr1).isNotEqualTo(
-                PlatformLogger.calculateHashCodeMd5(str2));
-    }
-
-    @Test
-    public void testCalculateHashCode_MD5_int32_longString() throws NoSuchAlgorithmException,
-            UnsupportedEncodingException {
-        final String str1 = "abcdefghijkl-mnopqrstuvwxyz";
-        final String str2 = "abcdefghijkl-mnopqrstuvwxy123";
-
-        int hashCodeForStr1 = PlatformLogger.calculateHashCodeMd5(str1);
-
-        // hashing should be stable
-        assertThat(hashCodeForStr1).isEqualTo(
-                PlatformLogger.calculateHashCodeMd5(str1));
-        assertThat(hashCodeForStr1).isNotEqualTo(
-                PlatformLogger.calculateHashCodeMd5(str2));
-    }
-
-    @Test
-    public void testCalculateHashCode_MD5_int32_sameAsBigInteger_intValue() throws
-            NoSuchAlgorithmException, UnsupportedEncodingException {
-        final String emptyStr = "";
-        final String shortStr = "a";
-        final String mediumStr = "Teheran";
-        final String longStr = "abcd-efgh-ijkl-mnop-qrst-uvwx-yz";
-
-        int emptyHashCode = PlatformLogger.calculateHashCodeMd5(emptyStr);
-        int shortHashCode = PlatformLogger.calculateHashCodeMd5(shortStr);
-        int mediumHashCode = PlatformLogger.calculateHashCodeMd5(mediumStr);
-        int longHashCode = PlatformLogger.calculateHashCodeMd5(longStr);
-
-        assertThat(emptyHashCode).isEqualTo(calculateHashCodeMd5withBigInteger(emptyStr));
-        assertThat(shortHashCode).isEqualTo(calculateHashCodeMd5withBigInteger(shortStr));
-        assertThat(mediumHashCode).isEqualTo(calculateHashCodeMd5withBigInteger(mediumStr));
-        assertThat(longHashCode).isEqualTo(calculateHashCodeMd5withBigInteger(longStr));
-    }
-
-    @Test
-    public void testCalculateHashCode_MD5_strIsNull() throws
-            NoSuchAlgorithmException, UnsupportedEncodingException {
-        assertThat(PlatformLogger.calculateHashCodeMd5(/*str=*/ null)).isEqualTo(-1);
     }
 
     /** Makes sure the caching works while getting the UID for calling package. */
@@ -173,14 +98,6 @@ public class PlatformLoggerTest {
         verify(mockPackageManager, times(2))
                 .getPackageUid(eq(testPackageName), /*flags=*/ anyInt());
         assertThat(extraStats.mPackageUid).isEqualTo(testUid);
-    }
-
-    private static int calculateHashCodeMd5withBigInteger(@NonNull String str)
-            throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(str.getBytes(StandardCharsets.UTF_8));
-        byte[] digest = md.digest();
-        return new BigInteger(digest).intValue();
     }
 
     @NonNull

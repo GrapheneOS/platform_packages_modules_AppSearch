@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeResolveInfos;
+import static com.android.server.appsearch.appsindexer.TestUtils.removeFakePackageDocuments;
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackageManager;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -103,7 +104,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @After
     @Override
     public void tearDown() throws Exception {
-        TestUtils.removeFakePackageDocuments(mTestContext, Executors.newSingleThreadExecutor());
+        removeFakePackageDocuments(mTestContext, Executors.newSingleThreadExecutor());
         mSingleThreadedExecutor.shutdownNow();
         mInstance.shutdown();
         super.tearDown();

@@ -34,6 +34,7 @@ java_aconfig_library {
     name: "appsearch_flags_java_lib",
     aconfig_declarations: "appsearch_aconfig_flags",
     visibility: [
+        "//cts/tests/appsearch:__subpackages__",
         "//packages/modules/AppSearch:__subpackages__",
     ],
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
