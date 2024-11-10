@@ -51,6 +51,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -217,6 +218,8 @@ public class AppSearchHelper implements Closeable {
         mSyncAppSearchAppOpenEventDbSession.setSchema(schemaBuilder.build());
     }
 
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
     /**
      * Indexes a collection of apps into AppSearch. This requires that the corresponding
      * MobileApplication and AppFunctionStaticMetadata schemas are already set by a previous call to
@@ -341,6 +344,136 @@ public class AppSearchHelper implements Closeable {
     }
 
     /**
+     * Indexes a collection of apps and a collection of app functions into AppSearch. This requires
+     * that the corresponding {@link MobileApplication} and {@link AppFunctionStaticMetadata}
+     * schemas are already set by a previous call to {@link #setSchemasForPackages}. The call
+     * doesn't necessarily have to happen in the current sync.
+     *
+     * @param apps a list of {@link MobileApplication} documents to be inserted.
+     * @param currentAppFunctions a list of {@link AppFunctionStaticMetadata} documents to be
+     *     AppFunctionStaticMetadata should point to its corresponding MobileApplication.
+     * @throws AppSearchException if indexing results in a {@link
+     *     AppSearchResult#RESULT_OUT_OF_SPACE} result code. It will also throw this if the put call
+     *     results in a system error as in {@link BatchResultCallback#onSystemError}. This may
+     *     happen if the AppSearch service unexpectedly fails to initialize and can't be recovered,
+     *     for instance.
+     * @return an {@link AppSearchBatchResult} containing the results of the put operation. The keys
+     *     of the returned {@link AppSearchBatchResult} are the IDs of the input documents. The
+     *     values are {@code null} if they were successfully indexed, or a failed {@link
+     *     AppSearchResult} otherwise.
+     * @see AppSearchSession#put
+     */
+    @WorkerThread
+    public AppSearchBatchResult<String, Void> indexApps(
+            @NonNull List<MobileApplication> apps,
+            @NonNull List<AppFunctionStaticMetadata> currentAppFunctions)
+            throws AppSearchException {
+        Objects.requireNonNull(apps);
+        Objects.requireNonNull(currentAppFunctions);
+
+        // Insert all the documents. At this point, the proper schemas should've been set.
+        PutDocumentsRequest request =
+                new PutDocumentsRequest.Builder()
+                        .addGenericDocuments(apps)
+                        .addGenericDocuments(currentAppFunctions)
+                        .build();
+
+        AppSearchBatchResult<String, Void> result = mSyncAppSearchAppsDbSession.put(request);
+        if (!result.isSuccess()) {
+            Map<String, AppSearchResult<Void>> failures = result.getFailures();
+            for (AppSearchResult<Void> failure : failures.values()) {
+                // If it's out of space, stop indexing
+                if (failure.getResultCode() == AppSearchResult.RESULT_OUT_OF_SPACE) {
+                    throw new AppSearchException(
+                            failure.getResultCode(), failure.getErrorMessage());
+                } else {
+                    Log.e(TAG, "Ran into error while indexing apps: " + failure);
+                }
+            }
+        }
+        return result;
+    }
+
+    /** Uses remove by id to remove app functions from AppSearch */
+    @WorkerThread
+    public AppSearchBatchResult<String, Void> removeAppFunctionsById(
+            @NonNull Collection<String> appFunctionIds) throws AppSearchException {
+        Objects.requireNonNull(appFunctionIds);
+        return mSyncAppSearchAppsDbSession.remove(
+                new RemoveByDocumentIdRequest.Builder(
+                                AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)
+                        .addIds(appFunctionIds)
+                        .build());
+    }
+
+    /**
+     * Returns a mapping of packages to a mapping of function ids to {@link
+     * AppFunctionStaticMetadata} objects. This is useful for determining what has changed during an
+     * update.
+     *
+     * @param appPackageIds a set of package ids for which to retrieve functions from AppSearch.
+     */
+    @NonNull
+    @WorkerThread
+    public Map<String, Map<String, AppFunctionStaticMetadata>> getAppFunctionsFromAppSearch(
+            List<String> appPackageIds) throws AppSearchException {
+        SearchSpec.Builder allAppFunctionsSpec =
+                new SearchSpec.Builder()
+                        .addFilterNamespaces(AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)
+                        .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE);
+
+        for (int i = 0; i < appPackageIds.size(); i++) {
+            String appPackageId = appPackageIds.get(i);
+            allAppFunctionsSpec.addFilterSchemas(
+                    AppFunctionStaticMetadata.getSchemaNameForPackage(appPackageId));
+        }
+
+        SyncSearchResults results =
+                mSyncAppSearchAppsDbSession.search("", allAppFunctionsSpec.build());
+
+        return collectAppFunctionDocumentsFromAllPages(results);
+    }
+
+    /**
+     * Iterates through result pages and returns a mapping of package names to a mapping of function
+     * ids to the corresponding app function currently indexed into AppSearch.
+     */
+    @NonNull
+    @WorkerThread
+    private Map<String, Map<String, AppFunctionStaticMetadata>>
+            collectAppFunctionDocumentsFromAllPages(@NonNull SyncSearchResults results) {
+        Map<String, Map<String, AppFunctionStaticMetadata>> appFunctionsMap = new ArrayMap<>();
+        // TODO(b/357551503): If possible, use pagination instead of building a map containing all
+        // function docs.
+        try {
+            List<SearchResult> resultList = results.getNextPage();
+            while (!resultList.isEmpty()) {
+                for (int i = 0; i < resultList.size(); i++) {
+                    GenericDocument genericDocument = resultList.get(i).getGenericDocument();
+                    String packageName =
+                            genericDocument.getPropertyString(
+                                    AppFunctionStaticMetadata.PROPERTY_PACKAGE_NAME);
+
+                    Map<String, AppFunctionStaticMetadata> functionsForPackage =
+                            appFunctionsMap.get(packageName);
+                    if (functionsForPackage == null) {
+                        functionsForPackage = new ArrayMap<>();
+                        appFunctionsMap.put(packageName, functionsForPackage);
+                    }
+                    functionsForPackage.put(
+                            genericDocument.getPropertyString(
+                                    AppFunctionStaticMetadata.PROPERTY_FUNCTION_ID),
+                            new AppFunctionStaticMetadata(genericDocument));
+                }
+                resultList = results.getNextPage();
+            }
+        } catch (AppSearchException e) {
+            Log.e(TAG, "Error while searching for all app documents", e);
+        }
+        return appFunctionsMap;
+    }
+
+    /**
      * Searches AppSearch and returns a Map with the package ids and their last updated times. This
      * helps us determine which app documents need to be re-indexed.
      *
@@ -451,6 +584,8 @@ public class AppSearchHelper implements Closeable {
 
     // TODO(b/357551503): Refactor/combine these two methods with the above to simplify code.
 
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
     /**
      * Searches AppSearch and returns a list of app function GenericDocuments.
      *
@@ -488,6 +623,8 @@ public class AppSearchHelper implements Closeable {
         return appFunctions;
     }
 
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
     /**
      * Iterates through result pages and returns a set of package name corresponding to the packages
      * that have app functions currently indexed into AppSearch.

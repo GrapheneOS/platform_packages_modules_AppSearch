@@ -28,6 +28,8 @@ import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackag
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static junit.framework.Assert.assertEquals;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +45,7 @@ import android.content.res.Resources;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
@@ -385,5 +388,120 @@ public class AppsIndexerImplTest {
             // Verify the state of the indexed apps after the first update
             assertThat(indexedFunctionIds).containsExactlyElementsIn(expectedFunctionIds);
         }
+    }
+
+    // This does not have the @RequiresFlagEnabled annotation as it directly calls the "incremental
+    // update" path.
+    @Test
+    public void testAppsIndexerImpl_incrementalPut_doesNotPutAllDocs() throws Exception {
+        // Index a package with 1 function, modify the function document timestamp, re-index the app
+        // with an additional function, ensure the modification to the original document hasn't
+        // changed.
+
+        // Simulate the first update: no changes, just adding initial apps
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        List<PackageInfo> fakePackages = ImmutableList.of(createFakePackageInfo(0));
+        List<ResolveInfo> fakeActivities = ImmutableList.of(createFakeLaunchResolveInfo(0));
+        List<ResolveInfo> fakeAppFunctionServices =
+                ImmutableList.of(createFakeAppFunctionResolveInfo(0));
+
+        when(pm1.getProperty(any(String.class), any(ComponentName.class)))
+                .thenReturn(new PackageManager.Property("", "", "", ""));
+        AssetManager assetManager = Mockito.mock(AssetManager.class);
+
+        // One functions initially
+        String xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#print</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>";
+
+        when(assetManager.open(any(String.class)))
+                .thenReturn(new ByteArrayInputStream(xml.getBytes()));
+
+        Resources resources = Mockito.mock(Resources.class);
+        when(resources.getAssets()).thenReturn(assetManager);
+        when(pm1.getResourcesForApplication(any(String.class))).thenReturn(resources);
+        setupMockPackageManager(pm1, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Context context1 =
+                new ContextWrapper(mContext) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm1;
+                    }
+                };
+
+        List<String> packages = ImmutableList.of("com.fake.package0");
+
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+
+            // Check the stats object after the first update
+            assertThat(stats1.mNumberOfAppsAdded).isEqualTo(1);
+            assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0);
+
+            // Verify the state of the indexed apps after the first update
+            assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet())
+                    .containsExactlyElementsIn(packages);
+        }
+
+        // Manually modify the AppSearch function document timestamp
+        Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
+                mAppSearchHelper.getAppFunctionsFromAppSearch(packages);
+        GenericDocument original =
+                indexedFunctions.get("com.fake.package0").get("com.example.utils#print");
+        long firstPutTimestamp = original.getCreationTimestampMillis();
+
+        // Simulate an update
+        fakePackages.get(0).lastUpdateTime = 1000;
+
+        // Add a function without modifying the first
+        String xml2 =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#print</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#search</function_id>\n"
+                        + "    <schema_category>utils</schema_category>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>";
+
+        when(assetManager.open(any(String.class)))
+                .thenReturn(new ByteArrayInputStream(xml2.getBytes()));
+
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+
+            // Check the stats object after the first update
+            assertThat(stats1.mNumberOfAppsAdded).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
+            assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(1);
+
+            assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet())
+                    .containsExactlyElementsIn(packages);
+        }
+        indexedFunctions = mAppSearchHelper.getAppFunctionsFromAppSearch(packages);
+        GenericDocument unchangedFunctions =
+                indexedFunctions.get("com.fake.package0").get("com.example.utils#print");
+        GenericDocument addedFunction =
+                indexedFunctions.get("com.fake.package0").get("com.example.utils#search");
+
+        assertEquals(unchangedFunctions.getCreationTimestampMillis(), firstPutTimestamp);
+        assertThat(addedFunction.getCreationTimestampMillis()).isGreaterThan(firstPutTimestamp);
     }
 }

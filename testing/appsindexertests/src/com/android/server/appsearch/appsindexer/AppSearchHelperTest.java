@@ -138,8 +138,11 @@ public class AppSearchHelperTest {
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         GetSchemaResponse response = session.getSchemaAsync().get();
 
-        assertThat(response.getSchemas().stream().map(AppSearchSchema::getSchemaType).toList())
-                .doesNotContain(AppFunctionStaticMetadata.SCHEMA_TYPE);
+        List<String> schemaTypes = new ArrayList<>();
+        for (AppSearchSchema schema : response.getSchemas()) {
+            schemaTypes.add(schema.getSchemaType());
+        }
+        assertThat(schemaTypes).doesNotContain(AppFunctionStaticMetadata.SCHEMA_TYPE);
     }
 
     @Test
@@ -497,8 +500,11 @@ public class AppSearchHelperTest {
         AppSearchSessionShim session =
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         GetSchemaResponse response = session.getSchemaAsync().get();
-        assertThat(response.getSchemas().stream().map(AppSearchSchema::getSchemaType).toList())
-                .contains(AppFunctionStaticMetadata.SCHEMA_TYPE);
+        List<String> schemaTypes = new ArrayList<>();
+        for (AppSearchSchema schema : response.getSchemas()) {
+            schemaTypes.add(schema.getSchemaType());
+        }
+        assertThat(schemaTypes).contains(AppFunctionStaticMetadata.SCHEMA_TYPE);
     }
 
     @Test

@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 import android.annotation.NonNull;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
@@ -31,6 +32,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -56,6 +58,8 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         mMaxAppFunctions = maxAppFunctions;
     }
 
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
     @NonNull
     @Override
     public List<AppFunctionStaticMetadata> parse(
@@ -66,13 +70,8 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(assetFilePath);
         try {
-            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
-            factory.setNamespaceAware(true);
-            XmlPullParser parser = factory.newPullParser();
-            AssetManager assetManager =
-                    packageManager.getResourcesForApplication(packageName).getAssets();
-            parser.setInput(new InputStreamReader(assetManager.open(assetFilePath)));
-            return parseAppFunctions(parser, packageName);
+            return parseAppFunctions(
+                    initializeParser(packageManager, packageName, assetFilePath), packageName);
         } catch (Exception ex) {
             // The code parses an XML file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
@@ -86,8 +85,56 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         return Collections.emptyList();
     }
 
+    @NonNull
+    @Override
+    public Map<String, AppFunctionStaticMetadata> parseIntoMap(
+            @NonNull PackageManager packageManager,
+            @NonNull String packageName,
+            @NonNull String assetFilePath) {
+        Objects.requireNonNull(packageManager);
+        Objects.requireNonNull(packageName);
+        Objects.requireNonNull(assetFilePath);
+        try {
+            return parseAppFunctionsIntoMap(
+                    initializeParser(packageManager, packageName, assetFilePath), packageName);
+        } catch (Exception ex) {
+            // The code parses an XML file from another app's assets, using a broad try-catch to
+            // handle potential errors since the XML structure might be unpredictable.
+            Log.e(
+                    TAG,
+                    String.format(
+                            "Failed to parse XML from package '%s', asset file '%s'",
+                            packageName, assetFilePath),
+                    ex);
+        }
+        return Collections.emptyMap();
+    }
+
     /**
-     * Parses a sequence of `appfunction` elements from the XML into an a list of {@link
+     * Initializes an {@link XmlPullParser} to parse xml based on the packageName and assetFilePath.
+     */
+    @NonNull
+    private XmlPullParser initializeParser(
+            @NonNull PackageManager packageManager,
+            @NonNull String packageName,
+            @NonNull String assetFilePath)
+            throws XmlPullParserException, PackageManager.NameNotFoundException, IOException {
+        Objects.requireNonNull(packageManager);
+        Objects.requireNonNull(packageName);
+        Objects.requireNonNull(assetFilePath);
+        XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+        factory.setNamespaceAware(true);
+        XmlPullParser parser = factory.newPullParser();
+        AssetManager assetManager =
+                packageManager.getResourcesForApplication(packageName).getAssets();
+        parser.setInput(new InputStreamReader(assetManager.open(assetFilePath)));
+        return parser;
+    }
+
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
+    /**
+     * Parses a sequence of `appfunction` elements from the XML into a list of {@link
      * AppFunctionStaticMetadata}.
      *
      * @param parser the XmlPullParser positioned at the start of the xml file
@@ -105,6 +152,35 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
             if (eventType == XmlPullParser.START_TAG && TAG_APPFUNCTION.equals(tagName)) {
                 AppFunctionStaticMetadata appFunction = parseAppFunction(parser, packageName);
                 appFunctions.add(appFunction);
+                if (appFunctions.size() >= mMaxAppFunctions) {
+                    Log.d(TAG, "Exceeding the max number of app functions: " + packageName);
+                    return appFunctions;
+                }
+            }
+            eventType = parser.next();
+        }
+        return appFunctions;
+    }
+
+    /**
+     * Parses a sequence of `appfunction` elements from the XML into a map of function ids to their
+     * corresponding {@link AppFunctionStaticMetadata}.
+     *
+     * @param parser the XmlPullParser positioned at the start of the xml file
+     */
+    @NonNull
+    private Map<String, AppFunctionStaticMetadata> parseAppFunctionsIntoMap(
+            @NonNull XmlPullParser parser, @NonNull String packageName)
+            throws XmlPullParserException, IOException {
+        Map<String, AppFunctionStaticMetadata> appFunctions = new ArrayMap<>();
+
+        int eventType = parser.getEventType();
+
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            String tagName = parser.getName();
+            if (eventType == XmlPullParser.START_TAG && TAG_APPFUNCTION.equals(tagName)) {
+                AppFunctionStaticMetadata appFunction = parseAppFunction(parser, packageName);
+                appFunctions.put(appFunction.getFunctionId(), appFunction);
                 if (appFunctions.size() >= mMaxAppFunctions) {
                     Log.d(TAG, "Exceeding the max number of app functions: " + packageName);
                     return appFunctions;

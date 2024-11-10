@@ -27,6 +27,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.util.Slog;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
@@ -224,7 +225,13 @@ public final class AppsIndexerUserInstance {
             if (firstRun && mSettings.getLastUpdateTimestampMillis() != 0) {
                 return;
             }
-            mAppsIndexerImpl.doUpdate(mSettings, appsUpdateStats);
+            if (Flags.enableAppsIndexerIncrementalPut()) {
+                mAppsIndexerImpl.doUpdateIncrementalPut(mSettings, appsUpdateStats);
+            } else {
+                // TODO(b/367410454): Remove this method and related code paths once
+                //  enable_apps_indexer_incremental_put flag is rolled out.
+                mAppsIndexerImpl.doUpdate(mSettings, appsUpdateStats);
+            }
             mSettings.persist();
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);

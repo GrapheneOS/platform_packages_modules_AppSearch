@@ -220,6 +220,8 @@ public final class AppsUtil {
         return mobileApplications;
     }
 
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
     /**
      * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
      * build AppSearch {@link AppFunctionStaticMetadata} documents. Info from both are required to
@@ -241,6 +243,8 @@ public final class AppsUtil {
         return buildAppFunctionStaticMetadata(packageManager, packageInfos, parser);
     }
 
+    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
+    //  rolled out
     /**
      * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
      * provide a custom parser. This is for testing purposes.
@@ -278,6 +282,78 @@ public final class AppsUtil {
             if (assetFilePath != null) {
                 appFunctions.addAll(
                         parser.parse(packageManager, packageInfo.packageName, assetFilePath));
+            }
+        }
+        return appFunctions;
+    }
+
+    /**
+     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
+     * build AppSearch {@link AppFunctionStaticMetadata} documents. Info from both are required to
+     * build app documents.
+     *
+     * <p>App documents will be returned as a mapping of packages to a mapping of function ids to
+     * AppFunctionStaticMetadata documents. This is useful for determining what has changed during
+     * an update.
+     *
+     * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
+     *     ResolveInfo} for the packages launch activity.
+     * @param indexerPackageName the name of the package performing the indexing. This should be the
+     *     same as the package running the apps indexer so that qualified ids are correctly created.
+     * @param maxAppFunctions the max number of app functions to be indexed per package.
+     * @return A mapping of packages to a mapping of function ids to AppFunctionStaticMetadata
+     *     documents
+     */
+    public static Map<String, Map<String, AppFunctionStaticMetadata>>
+            buildAppFunctionStaticMetadataIntoMap(
+                    @NonNull PackageManager packageManager,
+                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+                    @NonNull String indexerPackageName,
+                    int maxAppFunctions) {
+        AppFunctionStaticMetadataParser parser =
+                new AppFunctionStaticMetadataParserImpl(indexerPackageName, maxAppFunctions);
+        return buildAppFunctionStaticMetadataIntoMap(packageManager, packageInfos, parser);
+    }
+
+    /**
+     * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
+     * provide a custom parser. This is for testing purposes.
+     */
+    @VisibleForTesting
+    static Map<String, Map<String, AppFunctionStaticMetadata>>
+            buildAppFunctionStaticMetadataIntoMap(
+                    @NonNull PackageManager packageManager,
+                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+                    @NonNull AppFunctionStaticMetadataParser parser) {
+        Objects.requireNonNull(packageManager);
+        Objects.requireNonNull(packageInfos);
+        Objects.requireNonNull(parser);
+        Map<String, Map<String, AppFunctionStaticMetadata>> appFunctions = new ArrayMap<>();
+        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
+            PackageInfo packageInfo = entry.getKey();
+            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
+            if (resolveInfo == null) {
+                continue;
+            }
+
+            String assetFilePath;
+            try {
+                PackageManager.Property property =
+                        packageManager.getProperty(
+                                "android.app.appfunctions",
+                                new ComponentName(
+                                        resolveInfo.serviceInfo.packageName,
+                                        resolveInfo.serviceInfo.name));
+                assetFilePath = property.getString();
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.w(TAG, "buildAppFunctionMetadataFromPackageInfo: Failed to get property", e);
+                continue;
+            }
+            if (assetFilePath != null) {
+                appFunctions.put(
+                        packageInfo.packageName,
+                        parser.parseIntoMap(
+                                packageManager, packageInfo.packageName, assetFilePath));
             }
         }
         return appFunctions;
