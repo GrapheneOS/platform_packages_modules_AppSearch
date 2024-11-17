@@ -240,6 +240,7 @@ public final class AppOpenEventIndexerUserInstance {
             long currentTimeMillis = System.currentTimeMillis();
 
             if (currentTimeMillis - lastUpdateMillis < MIN_TIME_BETWEEN_UPDATES_MILLIS) {
+                Log.w(TAG, "Skipping update because last update was too recent");
                 return;
             }
             mAppOpenEventIndexerImpl.doUpdate(mAppOpenEventIndexerSettings);

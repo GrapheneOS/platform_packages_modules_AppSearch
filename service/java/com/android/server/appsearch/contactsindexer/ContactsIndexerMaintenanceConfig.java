@@ -18,14 +18,11 @@ package com.android.server.appsearch.contactsindexer;
 
 import android.annotation.NonNull;
 
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerLocalService;
 import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
 
 /** Singleton class containing configuration for the contacts indexer maintenance task. */
 public class ContactsIndexerMaintenanceConfig implements IndexerMaintenanceConfig {
-    @VisibleForTesting
-    static final int MIN_CONTACTS_INDEXER_JOB_ID = 16942831; // corresponds to ag/16942831
 
     public static final IndexerMaintenanceConfig INSTANCE = new ContactsIndexerMaintenanceConfig();
 

@@ -20,22 +20,23 @@ import android.annotation.NonNull;
 import com.android.server.appsearch.indexer.IndexerLocalService;
 import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
 
-/** Singleton class containing configuration for the apps indexer maintenance task. */
-public class AppsIndexerMaintenanceConfig implements IndexerMaintenanceConfig {
+/** Singleton class containing configuration for the app open event indexer maintenance task. */
+public class AppOpenEventIndexerMaintenanceConfig implements IndexerMaintenanceConfig {
 
-    public static final IndexerMaintenanceConfig INSTANCE = new AppsIndexerMaintenanceConfig();
+    public static final IndexerMaintenanceConfig INSTANCE =
+            new AppOpenEventIndexerMaintenanceConfig();
 
     /** Enforces singleton class pattern. */
-    private AppsIndexerMaintenanceConfig() {}
+    private AppOpenEventIndexerMaintenanceConfig() {}
 
     @NonNull
     @Override
     public Class<? extends IndexerLocalService> getLocalService() {
-        return AppsIndexerManagerService.LocalService.class;
+        return AppOpenEventIndexerManagerService.LocalService.class;
     }
 
     @Override
     public int getMinJobId() {
-        return MIN_APPS_INDEXER_JOB_ID;
+        return MIN_APP_OPEN_EVENT_INDEXER_JOB_ID;
     }
 }

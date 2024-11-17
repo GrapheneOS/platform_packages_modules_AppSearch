@@ -20,6 +20,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 
 import com.android.server.LocalManagerRegistry;
+import com.android.server.appsearch.appsindexer.AppOpenEventIndexerMaintenanceConfig;
 import com.android.server.appsearch.appsindexer.AppsIndexerMaintenanceConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceConfig;
 
@@ -30,11 +31,19 @@ import java.lang.annotation.RetentionPolicy;
 public interface IndexerMaintenanceConfig {
     int APPS_INDEXER = 0;
     int CONTACTS_INDEXER = 1;
+    int APP_OPEN_EVENT_INDEXER = 2;
+
+    int MIN_CONTACTS_INDEXER_JOB_ID = 16942831; // corresponds to ag/16942831
+
+    int MIN_APPS_INDEXER_JOB_ID = 16964307; // Contacts Indexer Max Job Id + 1
+
+    int MIN_APP_OPEN_EVENT_INDEXER_JOB_ID = 16985783; // Apps Indexer Max Job Id + 1
 
     @IntDef(
             value = {
                 APPS_INDEXER,
                 CONTACTS_INDEXER,
+                APP_OPEN_EVENT_INDEXER,
             })
     @Retention(RetentionPolicy.SOURCE)
     @interface IndexerType {}
@@ -46,6 +55,8 @@ public interface IndexerMaintenanceConfig {
             return AppsIndexerMaintenanceConfig.INSTANCE;
         } else if (indexerType == CONTACTS_INDEXER) {
             return ContactsIndexerMaintenanceConfig.INSTANCE;
+        } else if (indexerType == APP_OPEN_EVENT_INDEXER) {
+            return AppOpenEventIndexerMaintenanceConfig.INSTANCE;
         } else {
             throw new IllegalArgumentException(
                     "Attempted to get config for invalid indexer type: " + indexerType);
