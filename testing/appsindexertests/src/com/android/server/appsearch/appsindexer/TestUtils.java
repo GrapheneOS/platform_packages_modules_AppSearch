@@ -401,7 +401,7 @@ class TestUtils {
      */
     @NonNull
     public static AppOpenEvent createFakeAppOpenEvent(@CurrentTimeMillisLong long timestamp) {
-        return new AppOpenEvent.Builder(FAKE_PACKAGE_PREFIX, timestamp).build();
+        return AppOpenEvent.create(FAKE_PACKAGE_PREFIX, timestamp);
     }
 
     /**

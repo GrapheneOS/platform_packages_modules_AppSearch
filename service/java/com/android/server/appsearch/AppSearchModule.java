@@ -17,6 +17,7 @@
 package com.android.server.appsearch;
 
 import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APPS_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APP_OPEN_EVENT_INDEXER;
 import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
 
 import android.annotation.BinderThread;
@@ -31,8 +32,11 @@ import android.util.Log;
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.SystemService;
+import com.android.server.appsearch.appsindexer.AppOpenEventIndexerConfig;
+import com.android.server.appsearch.appsindexer.AppOpenEventIndexerManagerService;
 import com.android.server.appsearch.appsindexer.AppsIndexerConfig;
 import com.android.server.appsearch.appsindexer.AppsIndexerManagerService;
+import com.android.server.appsearch.appsindexer.FrameworkAppOpenEventIndexerConfig;
 import com.android.server.appsearch.appsindexer.FrameworkAppsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerService;
@@ -52,6 +56,9 @@ public class AppSearchModule {
         @VisibleForTesting @Nullable ContactsIndexerManagerService mContactsIndexerManagerService;
 
         @VisibleForTesting @Nullable AppsIndexerManagerService mAppsIndexerManagerService;
+
+        @VisibleForTesting @Nullable
+        AppOpenEventIndexerManagerService mAppOpenEventIndexerManagerService;
 
         public Lifecycle(Context context) {
             super(context);
@@ -85,6 +92,16 @@ public class AppSearchModule {
             Objects.requireNonNull(context);
             Objects.requireNonNull(config);
             return new ContactsIndexerManagerService(context, config);
+        }
+
+        /** Added primarily for testing purposes. */
+        @VisibleForTesting
+        @NonNull
+        AppOpenEventIndexerManagerService createAppOpenEventIndexerManagerService(
+                @NonNull Context context, @NonNull AppOpenEventIndexerConfig config) {
+            Objects.requireNonNull(context);
+            Objects.requireNonNull(config);
+            return new AppOpenEventIndexerManagerService(context, config);
         }
 
         @Override
@@ -138,6 +155,27 @@ public class AppSearchModule {
             } else if (LogUtil.INFO) {
                 Log.i(TAG, "AppsIndexer service is disabled.");
             }
+
+            AppOpenEventIndexerConfig appOpenEventIndexerConfig =
+                    new FrameworkAppOpenEventIndexerConfig();
+            // Flags.appOpenEventIndexerEnabled will be rolled out through gantry, and this check
+            // will be removed once it is fully rolled out.
+            // appOpenEventIndexerConfig.isAppOpenEventIndexerEnabled checks DeviceConfig, so we can
+            // keep this check here in case we need to turn off app open event indexer.
+            if (Flags.appOpenEventIndexerEnabled()
+                    && appOpenEventIndexerConfig.isAppOpenEventIndexerEnabled()) {
+                mAppOpenEventIndexerManagerService =
+                        createAppOpenEventIndexerManagerService(
+                                getContext(), appOpenEventIndexerConfig);
+                try {
+                    mAppOpenEventIndexerManagerService.onStart();
+                } catch (Throwable t) {
+                    Log.e(TAG, "Failed to start app open event indexer service", t);
+                    mAppOpenEventIndexerManagerService = null;
+                }
+            } else if (LogUtil.INFO) {
+                Log.i(TAG, "AppOpenEventIndexer service is disabled.");
+            }
         }
 
         /** Dumps ContactsIndexer internal state for the user. */
@@ -157,6 +195,16 @@ public class AppSearchModule {
                 mAppsIndexerManagerService.dumpAppsIndexerForUser(userHandle, pw);
             } else {
                 pw.println("No dumpsys for AppsIndexer as it is disabled");
+            }
+        }
+
+        @BinderThread
+        void dumpAppOpenEventIndexerForUser(
+                @NonNull UserHandle userHandle, @NonNull PrintWriter pw) {
+            if (mAppOpenEventIndexerManagerService != null) {
+                mAppOpenEventIndexerManagerService.dumpAppOpenEventIndexerForUser(userHandle, pw);
+            } else {
+                pw.println("No dumpsys for AppOpenEventIndexer as it is disabled");
             }
         }
 
@@ -181,6 +229,15 @@ public class AppSearchModule {
             } else {
                 mAppsIndexerManagerService.onUserUnlocking(user);
             }
+
+            if (mAppOpenEventIndexerManagerService == null) {
+                IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                        getContext(), user.getUserHandle(), APP_OPEN_EVENT_INDEXER);
+            } else {
+                // App Open Event Indexer only schedules a periodic update job on user unlock and
+                // does not run an update
+                mAppOpenEventIndexerManagerService.onUserUnlocking(user);
+            }
         }
 
         @Override
@@ -191,6 +248,9 @@ public class AppSearchModule {
             }
             if (mAppsIndexerManagerService != null) {
                 mAppsIndexerManagerService.onUserStopping(user);
+            }
+            if (mAppOpenEventIndexerManagerService != null) {
+                mAppOpenEventIndexerManagerService.onUserStopping(user);
             }
         }
     }

@@ -22,9 +22,10 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
+
 import java.io.Closeable;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -59,15 +60,15 @@ public final class AppOpenEventIndexerImpl implements Closeable {
 
         long currentTimeMillis = System.currentTimeMillis();
         long lastAppOpenIndexerUpdateTimeMillis = settings.getLastUpdateTimestampMillis();
-        Map<String, List<Long>> appOpenTimestamps =
-                AppsUtil.getAppOpenTimestamps(
+        List<AppOpenEvent> appOpenEvents =
+                AppsUtil.getAppOpenEvents(
                         usageStatsManager, lastAppOpenIndexerUpdateTimeMillis, currentTimeMillis);
 
         try {
             // This should be a no-op if the schema is already set and unchanged.
             mAppSearchHelper.setSchemaForAppOpenEvents();
 
-            mAppSearchHelper.indexAppOpenEvents(appOpenTimestamps);
+            mAppSearchHelper.indexAppOpenEvents(appOpenEvents);
             settings.setLastUpdateTimestampMillis(currentTimeMillis);
         } catch (AppSearchException e) {
             // Reset the last update time stamp and app update timestamp so we can try again later.

@@ -16,13 +16,10 @@
 package com.android.server.appsearch;
 
 import static android.app.appsearch.AppSearchResult.RESULT_DENIED;
-import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
-import static android.app.appsearch.AppSearchResult.RESULT_INVALID_ARGUMENT;
 import static android.app.appsearch.AppSearchResult.RESULT_NOT_FOUND;
 import static android.app.appsearch.AppSearchResult.RESULT_OK;
 import static android.app.appsearch.AppSearchResult.RESULT_RATE_LIMITED;
 import static android.app.appsearch.AppSearchResult.RESULT_SECURITY_ERROR;
-import static android.app.appsearch.AppSearchResult.RESULT_TIMED_OUT;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 import static android.os.Process.INVALID_UID;
 
@@ -52,14 +49,12 @@ import android.app.appsearch.SetSchemaResponse.MigrationFailure;
 import android.app.appsearch.StorageInfo;
 import android.app.appsearch.aidl.AppSearchBatchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcel;
-import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
 import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
 import android.app.appsearch.aidl.GetNextPageAidlRequest;
 import android.app.appsearch.aidl.GetSchemaAidlRequest;
 import android.app.appsearch.aidl.GetStorageInfoAidlRequest;
 import android.app.appsearch.aidl.GlobalSearchAidlRequest;
-import android.app.appsearch.aidl.IAppFunctionService;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchObserverProxy;
@@ -79,33 +74,23 @@ import android.app.appsearch.aidl.SetSchemaAidlRequest;
 import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.app.appsearch.functions.AppFunctionService;
-import android.app.appsearch.functions.ExecuteAppFunctionRequest;
-import android.app.appsearch.functions.SafeOneTimeAppSearchResultCallback;
-import android.app.appsearch.functions.ServiceCallHelper;
-import android.app.appsearch.functions.ServiceCallHelper.ServiceUsageCompleteListener;
-import android.app.appsearch.functions.ServiceCallHelperImpl;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.app.role.RoleManager;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageStats;
-import android.content.pm.ResolveInfo;
-import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
-import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
@@ -126,7 +111,6 @@ import com.android.server.appsearch.transformer.EnterpriseSearchSpecTransformer;
 import com.android.server.appsearch.util.AdbDumpUtil;
 import com.android.server.appsearch.util.ApiCallRecord;
 import com.android.server.appsearch.util.ExecutorManager;
-import com.android.server.appsearch.util.PackageManagerUtil;
 import com.android.server.appsearch.util.ServiceImplHelper;
 import com.android.server.appsearch.visibilitystore.FrameworkCallerAccess;
 import com.android.server.usage.StorageStatsManagerLocal;
@@ -183,26 +167,15 @@ public class AppSearchManagerService extends SystemService {
     // Keep a reference for the lifecycle instance, so we can access other services like
     // ContactsIndexer for dumpsys purpose.
     private final AppSearchModule.Lifecycle mLifecycle;
-    private final ServiceCallHelper<IAppFunctionService> mAppFunctionServiceCallHelper;
     private final SearchSessionStatsExtractor mSearchSessionStatsExtractor;
 
     public AppSearchManagerService(Context context, AppSearchModule.Lifecycle lifecycle) {
-        this(context, lifecycle, new ServiceCallHelperImpl<>(
-                context, IAppFunctionService.Stub::asInterface, SHARED_EXECUTOR));
-    }
-
-    @VisibleForTesting
-    public AppSearchManagerService(
-            Context context,
-            AppSearchModule.Lifecycle lifecycle,
-            ServiceCallHelper<IAppFunctionService> appFunctionServiceCallHelper) {
         super(context);
         mContext = Objects.requireNonNull(context);
         mLifecycle = Objects.requireNonNull(lifecycle);
         mAppSearchEnvironment = AppSearchEnvironmentFactory.getEnvironmentInstance();
         mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR);
         mExecutorManager = new ExecutorManager(mAppSearchConfig);
-        mAppFunctionServiceCallHelper = Objects.requireNonNull(appFunctionServiceCallHelper);
         mSearchSessionStatsExtractor = new SearchSessionStatsExtractor();
     }
 
@@ -2307,217 +2280,6 @@ public class AppSearchManagerService extends SystemService {
             });
         }
 
-        @Override
-        public void executeAppFunction(
-                @NonNull ExecuteAppFunctionAidlRequest request,
-                @NonNull IAppSearchResultCallback callback) {
-            Objects.requireNonNull(request);
-            Objects.requireNonNull(callback);
-
-            long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
-
-            String callingPackageName = request.getCallerAttributionSource().getPackageName();
-            UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
-                    request.getCallerAttributionSource(), request.getUserHandle(), callback);
-            if (targetUser == null) {
-                return;  // Verification failed; verifyIncomingCall triggered callback.
-            }
-            if (checkCallDenied(
-                    callingPackageName, /* databaseName= */ null,
-                    CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION, callback, targetUser,
-                    request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
-                    /* numOperations= */ 1)) {
-                return;
-            }
-
-            // Log the stats as well whenever we invoke the AppSearchResultCallback.
-            final SafeOneTimeAppSearchResultCallback safeCallback =
-                    new SafeOneTimeAppSearchResultCallback(callback, result -> {
-                        AppSearchUserInstance instance =
-                                mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                        int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
-                        int estimatedBinderLatencyMillis =
-                                2 * (int) (totalLatencyStartTimeMillis
-                                        - request.getBinderCallStartTimeMillis());
-                        instance.getLogger().logStats(new CallStats.Builder()
-                                .setPackageName(callingPackageName)
-                                .setStatusCode(result.getResultCode())
-                                .setTotalLatencyMillis(totalLatencyMillis)
-                                .setCallType(CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION)
-                                .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
-                                .build());
-                    });
-
-            // TODO(b/327134039): Add a new policy for this in W timeframe.
-            if (mServiceImplHelper.isUserOrganizationManaged(targetUser)) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_SECURITY_ERROR,
-                        "Cannot run on a device with a device owner or from the managed profile."));
-                return;
-            }
-
-            String targetPackageName = request.getClientRequest().getTargetPackageName();
-            if (TextUtils.isEmpty(targetPackageName)) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_INVALID_ARGUMENT,
-                        "targetPackageName cannot be empty."));
-                return;
-            }
-            if (!verifyExecuteAppFunctionCaller(
-                    callingPackageName,
-                    targetPackageName,
-                    targetUser)) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_SECURITY_ERROR,
-                        callingPackageName + " is not allowed to call executeAppFunction"));
-                return;
-            }
-
-            boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(
-                    targetUser, callback, callingPackageName,
-                    CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION,
-                    () -> executeAppFunctionUnchecked(
-                            request.getClientRequest(),
-                            targetUser,
-                            safeCallback));
-            if (!callAccepted) {
-                logRateLimitedOrCallDeniedCallStats(callingPackageName, /* databaseName= */ null,
-                        CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION, targetUser,
-                        request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
-                        /*numOperations=*/ 1, RESULT_RATE_LIMITED);
-            }
-        }
-
-        /**
-         * The same as {@link #executeAppFunction}, except this is without the caller check.
-         * This method runs on the user-local thread pool.
-         */
-        @WorkerThread
-        private void executeAppFunctionUnchecked(
-                @NonNull ExecuteAppFunctionRequest request,
-                @NonNull UserHandle userHandle,
-                @NonNull SafeOneTimeAppSearchResultCallback safeCallback) {
-            Intent serviceIntent = new Intent(AppFunctionService.SERVICE_INTERFACE);
-            serviceIntent.setPackage(request.getTargetPackageName());
-
-            Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
-            ResolveInfo resolveInfo = userContext.getPackageManager()
-                    .resolveService(serviceIntent, 0);
-            if (resolveInfo == null || resolveInfo.serviceInfo == null) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_NOT_FOUND, "Cannot find the target service."));
-                return;
-            }
-            ServiceInfo serviceInfo = resolveInfo.serviceInfo;
-            // TODO(b/359911502): Commenting out this permission check since the
-            //   BIND_APP_FUNCTION_SERVICE permission is deleted from app search.
-            //   This whole app function functionality should be removed once the new app function
-            //   manager is submitted.
-            // if (!PERMISSION_BIND_APP_FUNCTION_SERVICE.equals(serviceInfo.permission)) {
-            //     safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-            //             RESULT_NOT_FOUND,
-            //             "Failed to find a valid target service. The resolved service is missing "
-            //                     + "the BIND_APP_FUNCTION_SERVICE permission."));
-            //     return;
-            // }
-            serviceIntent.setComponent(
-                    new ComponentName(serviceInfo.packageName, serviceInfo.name));
-
-            if (request.getSha256Certificate() != null) {
-                if (!PackageManagerUtil.hasSigningCertificate(
-                        mContext, request.getTargetPackageName(), request.getSha256Certificate())) {
-                    safeCallback.onFailedResult(
-                            AppSearchResult.newFailedResult(
-                                    RESULT_NOT_FOUND, "Cannot find the target service"));
-                    return;
-                }
-            }
-
-            boolean bindServiceResult = mAppFunctionServiceCallHelper.runServiceCall(
-                    serviceIntent,
-                    Context.BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS | Context.BIND_AUTO_CREATE,
-                    mAppSearchConfig.getAppFunctionCallTimeoutMillis(),
-                    userHandle,
-                    new ServiceCallHelper.RunServiceCallCallback<>() {
-                        @Override
-                        public void onServiceConnected(
-                                @NonNull IAppFunctionService service,
-                                @NonNull ServiceUsageCompleteListener completeListener) {
-                            try {
-                                service.executeAppFunction(
-                                        request,
-                                        new IAppSearchResultCallback.Stub() {
-                                            @Override
-                                            public void onResult(
-                                                    AppSearchResultParcel resultParcel) {
-                                                safeCallback.onResult(resultParcel);
-                                                completeListener.onCompleted();
-                                            }
-                                        });
-                            } catch (Exception e) {
-                                safeCallback.onFailedResult(AppSearchResult
-                                        .throwableToFailedResult(e));
-                                completeListener.onCompleted();
-                            }
-                        }
-
-                        @Override
-                        public void onFailedToConnect() {
-                            safeCallback.onFailedResult(
-                                    AppSearchResult.newFailedResult(RESULT_INTERNAL_ERROR, null));
-                        }
-
-                        @Override
-                        public void onTimedOut() {
-                            safeCallback.onFailedResult(
-                                    AppSearchResult.newFailedResult(RESULT_TIMED_OUT, null));
-                        }
-                    });
-            if (!bindServiceResult) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_INTERNAL_ERROR, "Failed to bind the target service."));
-            }
-        }
-
-        /**
-         * Determines whether the caller is authorized to execute an app function via
-         * {@link #executeAppFunction}.
-         * <p>
-         * Authorization is granted under the following conditions:
-         * <ul>
-         *     <li>The caller is the same app that owns the target function.</li>
-         *     <li>The caller possesses the SYSTEM_UI_INTELLIGENCE role for the target user. </li>
-         * </ul>
-         *
-         * @param callingPackage The validated package name of the calling app.
-         * @param targetPackage  The package name of the target app.
-         * @param targetUser     The target user.
-         * @return               {@code true} if the caller is authorized, {@code false} otherwise.
-         */
-        private boolean verifyExecuteAppFunctionCaller(
-                @NonNull String callingPackage,
-                @NonNull String targetPackage,
-                @NonNull UserHandle targetUser) {
-            // While adding new system role-based permissions through mainline updates is possible,
-            // granting them to system apps in previous android versions is not. System apps must
-            // request permissions in their prebuilt APKs included in the system image. We cannot
-            // modify prebuilts in older images anymore.
-            // TODO(b/327134039): Enforce permission checking for Android V+ or W+, depending on
-            // whether the new prebuilt can be included in the system image on time.
-            if (callingPackage.equals(targetPackage)) {
-                return true;
-            }
-            long originalToken = Binder.clearCallingIdentity();
-            try {
-                List<String> systemUiIntelligencePackages =
-                        mRoleManager.getRoleHoldersAsUser(SYSTEM_UI_INTELLIGENCE, targetUser);
-                return systemUiIntelligencePackages.contains(callingPackage);
-            } finally {
-                Binder.restoreCallingIdentity(originalToken);
-            }
-        }
-
         @BinderThread
         private void dumpContactsIndexer(@NonNull PrintWriter pw, boolean verbose) {
             Objects.requireNonNull(pw);
@@ -2528,6 +2290,38 @@ public class AppSearchManagerService extends SystemService {
             } catch (Exception e) {
                 String errorMessage =
                         "Unable to dump the internal contacts indexer state for the user: "
+                                + currentUser;
+                Log.e(TAG, errorMessage, e);
+                pw.println(errorMessage);
+            }
+        }
+
+        @BinderThread
+        private void dumpAppsIndexer(@NonNull PrintWriter pw) {
+            Objects.requireNonNull(pw);
+            UserHandle currentUser = UserHandle.getUserHandleForUid(Binder.getCallingUid());
+            try {
+                pw.println("AppsIndexer stats for " + currentUser);
+                mLifecycle.dumpAppsIndexerForUser(currentUser, pw);
+            } catch (Exception e) {
+                String errorMessage =
+                        "Unable to dump the internal app indexer state for the user: "
+                                + currentUser;
+                Log.e(TAG, errorMessage, e);
+                pw.println(errorMessage);
+            }
+        }
+
+        @BinderThread
+        private void dumpAppOpenEventIndexer(@NonNull PrintWriter pw) {
+            Objects.requireNonNull(pw);
+            UserHandle currentUser = UserHandle.getUserHandleForUid(Binder.getCallingUid());
+            try {
+                pw.println("AppOpenEventIndexer stats for " + currentUser);
+                mLifecycle.dumpAppOpenEventIndexerForUser(currentUser, pw);
+            } catch (Exception e) {
+                String errorMessage =
+                        "Unable to dump the internal app open event indexer state for the user: "
                                 + currentUser;
                 Log.e(TAG, errorMessage, e);
                 pw.println(errorMessage);
@@ -2606,6 +2400,8 @@ public class AppSearchManagerService extends SystemService {
             }
             dumpAppSearch(pw, verbose);
             dumpContactsIndexer(pw, verbose);
+            dumpAppsIndexer(pw);
+            dumpAppOpenEventIndexer(pw);
         }
     }
 

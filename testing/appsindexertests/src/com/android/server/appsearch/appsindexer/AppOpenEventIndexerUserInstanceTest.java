@@ -24,8 +24,12 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
+import android.annotation.Nullable;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageEvents.Event;
 import android.app.usage.UsageStatsManager;
@@ -41,6 +45,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 
 import java.io.File;
 import java.util.concurrent.CountDownLatch;
@@ -57,16 +62,27 @@ public class AppOpenEventIndexerUserInstanceTest {
     private ExecutorService mSingleThreadedExecutor;
     private File mAppsDir;
     private AppOpenEventIndexerUserInstance mInstance;
+    private AppOpenEventIndexerConfig mAppOpenEventIndexerConfig =
+            new TestAppOpenEventIndexerConfig();
 
     class TestContext extends ContextWrapper {
+        @Nullable JobScheduler mJobScheduler;
+
         TestContext(Context base) {
             super(base);
+        }
+
+        public void setJobScheduler(@Nullable JobScheduler jobScheduler) {
+            mJobScheduler = jobScheduler;
         }
 
         @Override
         public Object getSystemService(String name) {
             if (name.equals(Context.USAGE_STATS_SERVICE)) {
                 return mMockUsageStatsManager;
+            }
+            if (mJobScheduler != null && Context.JOB_SCHEDULER_SERVICE.equals(name)) {
+                return mJobScheduler;
             }
             return super.getSystemService(name);
         }
@@ -84,7 +100,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         mAppsDir = new File(mTemporaryFolder.newFolder(), "app-open-events");
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mSingleThreadedExecutor);
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
         TestUtils.removeFakeAppOpenEventDocuments(mContext, mSingleThreadedExecutor);
     }
 
@@ -100,7 +116,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mSingleThreadedExecutor);
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -112,7 +128,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         mInstance.updateAsync(latch::countDown);
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isEqualTo(true);
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         AppOpenEvent appOpenEvent =
@@ -124,10 +140,9 @@ public class AppOpenEventIndexerUserInstanceTest {
     @Test
     public void testSecondRun_noOpOnSecondUpdate() throws Exception {
         long currentTimeMillis = System.currentTimeMillis();
-
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mSingleThreadedExecutor);
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -142,7 +157,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         mInstance.updateAsync(latch1::countDown);
-        latch1.await(1, TimeUnit.SECONDS);
+        assertThat(latch1.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         AppOpenEvent appOpenEvent =
@@ -151,7 +166,7 @@ public class AppOpenEventIndexerUserInstanceTest {
                 .isEqualTo("com.fake.package" + (currentTimeMillis + 1000L));
 
         mInstance.updateAsync(latch2::countDown);
-        latch2.await(1, TimeUnit.SECONDS);
+        assertThat(latch2.await(1, TimeUnit.SECONDS)).isTrue();
 
         event =
                 createIndividualUsageEvent(
@@ -171,5 +186,37 @@ public class AppOpenEventIndexerUserInstanceTest {
                 appSearchHelper.getSubsequentAppOpenEventAfterThreshold(currentTimeMillis + 100L);
         assertThat(appOpenEvent2.getId())
                 .isEqualTo("com.fake.package" + (currentTimeMillis + 1000L)); // Unchanged
+    }
+
+    @Test
+    public void testStart_initialRun_schedulesUpdateJob() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+
+        Event event =
+                createIndividualUsageEvent(
+                        UsageEvents.Event.MOVE_TO_FOREGROUND,
+                        currentTimeMillis + 1000L,
+                        "com.fake.package");
+        UsageEvents events = createUsageEvents(event);
+        setupMockUsageStatsManager(mMockUsageStatsManager, events);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        mInstance.updateAsync(latch::countDown);
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        JobInfo updateJob = jobInfoArgumentCaptor.getValue();
+        assertThat(updateJob.isRequireBatteryNotLow()).isTrue();
+        assertThat(updateJob.isRequireDeviceIdle()).isTrue();
+        assertThat(updateJob.isPersisted()).isTrue();
+        assertThat(updateJob.isPeriodic()).isTrue();
     }
 }

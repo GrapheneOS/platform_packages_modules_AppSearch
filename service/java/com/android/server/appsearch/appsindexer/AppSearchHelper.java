@@ -19,8 +19,6 @@ package com.android.server.appsearch.appsindexer;
 import static android.app.appsearch.AppSearchResult.RESULT_INVALID_ARGUMENT;
 import static android.app.appsearch.AppSearchResult.RESULT_IO_ERROR;
 
-import static com.android.server.appsearch.appsindexer.AppsUtil.convertMapToAppOpenEvents;
-
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
@@ -312,19 +310,17 @@ public class AppSearchHelper implements Closeable {
      * Indexes a collection of app open events into AppSearch. This requires that the AppOpenEvent
      * schema is already set by a previous call to {@link setSchemaForAppOpenEvents}.
      *
-     * @param appOpenEvents a map of package names to a list of app open event timestamps.
+     * @param appOpenEvents a list of {@link AppOpenEvent}s.
      * @throws AppSearchException if indexing results in a {@link
      *     AppSearchResult#RESULT_OUT_OF_SPACE} result code.
      */
     @WorkerThread
     public AppSearchBatchResult<String, Void> indexAppOpenEvents(
-            @NonNull Map<String, List<Long>> appOpenEvents) throws AppSearchException {
+            @NonNull List<AppOpenEvent> appOpenEvents) throws AppSearchException {
         Objects.requireNonNull(appOpenEvents);
 
-        List<AppOpenEvent> documents = convertMapToAppOpenEvents(appOpenEvents);
-
         PutDocumentsRequest request =
-                new PutDocumentsRequest.Builder().addGenericDocuments(documents).build();
+                new PutDocumentsRequest.Builder().addGenericDocuments(appOpenEvents).build();
 
         AppSearchBatchResult<String, Void> result =
                 mSyncAppSearchAppOpenEventDbSession.put(request);

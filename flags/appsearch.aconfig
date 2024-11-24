@@ -239,3 +239,21 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+flag {
+    name: "enable_abstract_syntax_trees"
+    namespace: "appsearch"
+    description: " Enables abstract syntax trees to be built and used within AppSearch."
+    bug: "356661489"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_search_spec_filter_document_ids"
+    namespace: "appsearch"
+    description: "Enables the addFilterDocumentId API in the SearchSpec."
+    bug: "367464836"
+    is_fixed_read_only: true
+    is_exported: true
+}

@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
+import android.app.appsearch.util.IndentingStringBuilder;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -30,17 +31,13 @@ import com.android.internal.util.Preconditions;
 import java.util.Arrays;
 import java.util.Objects;
 
-/**
- * An identifier to represent a Blob in AppSearch.
- *
- * @hide
- */
-// TODO(b/273591938) improve the java doc when we support set blob property in GenericDocument
-// TODO(b/273591938) unhide the API once it read for API review.
-
+/** An identifier to represent a Blob in AppSearch. */
+// TODO(b/273591938) improve the java doc about how AppSearchBlobHandle will be used together with
+//  GenericDocument as a property when we support set blob property in GenericDocument
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "AppSearchBlobHandleCreator")
-public class AppSearchBlobHandle extends AbstractSafeParcelable {
+public final class AppSearchBlobHandle extends AbstractSafeParcelable {
     /** The length of the SHA-256 digest in bytes. SHA-256 produces a 256-bit (32-byte) digest. */
     private static final int SHA_256_DIGEST_BYTE_LENGTH = 32;
 
@@ -53,8 +50,16 @@ public class AppSearchBlobHandle extends AbstractSafeParcelable {
     private final byte[] mSha256Digest;
 
     @NonNull
-    @Field(id = 2, getter = "getLabel")
-    private final String mLabel;
+    @Field(id = 2, getter = "getPackageName")
+    private final String mPackageName;
+
+    @NonNull
+    @Field(id = 3, getter = "getDatabaseName")
+    private final String mDatabaseName;
+
+    @NonNull
+    @Field(id = 4, getter = "getNamespace")
+    private final String mNamespace;
 
     @Nullable private Integer mHashCode;
 
@@ -65,19 +70,24 @@ public class AppSearchBlobHandle extends AbstractSafeParcelable {
      */
     @Constructor
     AppSearchBlobHandle(
-            @Param(id = 1) @NonNull byte[] sha256Digest, @Param(id = 2) @NonNull String label) {
+            @Param(id = 1) @NonNull byte[] sha256Digest,
+            @Param(id = 2) @NonNull String packageName,
+            @Param(id = 3) @NonNull String databaseName,
+            @Param(id = 4) @NonNull String namespace) {
         mSha256Digest = Objects.requireNonNull(sha256Digest);
         Preconditions.checkState(
                 sha256Digest.length == SHA_256_DIGEST_BYTE_LENGTH,
                 "The input digest isn't a sha-256 digest.");
-        mLabel = Objects.requireNonNull(label);
+        mPackageName = Objects.requireNonNull(packageName);
+        mDatabaseName = Objects.requireNonNull(databaseName);
+        mNamespace = Objects.requireNonNull(namespace);
     }
 
     /**
      * Returns the SHA-256 hash of the blob that this object is representing.
      *
-     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code digest}
-     * and {@code label} must be equal.
+     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
+     * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      */
     @NonNull
     public byte[] getSha256Digest() {
@@ -85,20 +95,37 @@ public class AppSearchBlobHandle extends AbstractSafeParcelable {
     }
 
     /**
-     * Returns the label indicating what the blob is with the blob that this object is representing.
+     * Returns the package name indicating the owner app of the blob that this object is
+     * representing.
      *
-     * <p>The label is just a simple string which contains more readable information for the digest.
-     * The string is used to indicate and describe the content represented by the digest. The label
-     * cannot be used to search {@link AppSearchBlobHandle}.
-     *
-     * <p>If the label is not set, then this method will return an empty string.
-     *
-     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code digest}
-     * and {@code label} must be equal.
+     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
+     * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      */
     @NonNull
-    public String getLabel() {
-        return mLabel;
+    public String getPackageName() {
+        return mPackageName;
+    }
+
+    /**
+     * Returns the name of database stored the blob that this object is representing.
+     *
+     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
+     * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
+     */
+    @NonNull
+    public String getDatabaseName() {
+        return mDatabaseName;
+    }
+
+    /**
+     * Returns the app-defined namespace this blob resides in.
+     *
+     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
+     * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
+     */
+    @NonNull
+    public String getNamespace() {
+        return mNamespace;
     }
 
     @Override
@@ -108,54 +135,76 @@ public class AppSearchBlobHandle extends AbstractSafeParcelable {
 
         AppSearchBlobHandle that = (AppSearchBlobHandle) o;
         if (!Arrays.equals(mSha256Digest, that.mSha256Digest)) return false;
-        return mLabel.equals(that.mLabel);
+        return mPackageName.equals(that.mPackageName)
+                && mDatabaseName.equals(that.mDatabaseName)
+                && mNamespace.equals(that.mNamespace);
     }
 
     @Override
     public int hashCode() {
         if (mHashCode == null) {
-            mHashCode = Objects.hash(Arrays.hashCode(mSha256Digest), mLabel);
+            mHashCode =
+                    Objects.hash(
+                            Arrays.hashCode(mSha256Digest),
+                            mPackageName,
+                            mDatabaseName,
+                            mNamespace);
         }
         return mHashCode;
     }
 
-    /**
-     * Create a new AppSearch blob identifier with given digest and empty label.
-     *
-     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code digest}
-     * and {@code label} must be equal.
-     *
-     * @param digest the SHA-256 hash of the blob this is representing.
-     * @return a new instance of {@link AppSearchBlobHandle} object.
-     */
     @NonNull
-    public static AppSearchBlobHandle createWithSha256(@NonNull byte[] digest) {
-        return new AppSearchBlobHandle(digest, /* label= */ "");
+    @Override
+    public String toString() {
+        IndentingStringBuilder builder = new IndentingStringBuilder();
+        builder.append("{\n");
+        builder.increaseIndentLevel();
+        builder.append("packageName: \"").append(mPackageName).append("\",\n");
+        builder.append("databaseName: \"").append(mDatabaseName).append("\",\n");
+        builder.append("namespace: \"").append(mNamespace).append("\",\n");
+        builder.append("digest: \"");
+        for (byte b : mSha256Digest) {
+            String hex = Integer.toHexString(0xFF & b);
+            if (hex.length() == 1) {
+                builder.append('0');
+            }
+            builder.append(hex);
+        }
+        builder.append("\",\n").decreaseIndentLevel();
+        builder.append("}");
+
+        return builder.toString();
     }
 
     /**
-     * Create a new AppSearch blob identifier with given digest and label.
+     * Create a new AppSearch blob identifier with given digest, package, database and namespace.
      *
-     * <p>The label is just a simple string which contains more readable information for the digest.
-     * The string is used to indicate and describe the content represented by the digest. The label
-     * cannot be used to search {@link AppSearchBlobHandle}.
+     * <p>The package name and database name indicated where this blob will be stored. To write,
+     * commit or read this blob via {@link AppSearchSession}, it must match the package name and
+     * database name of {@link AppSearchSession}.
      *
-     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code digest}
-     * and {@code label} must be equal.
+     * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
+     * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      *
-     * @param digest the SHA-256 hash of the blob this is representing.
-     * @param label a label indicating what the blob is, that can be surfaced to the user. It is
-     *     recommended to keep this brief. The label doesn't need to be distinct.
+     * @param digest The SHA-256 hash of the blob this is representing.
+     * @param packageName The package name of the owner of this Blob.
+     * @param databaseName The database name of this blob to stored into.
+     * @param namespace The namespace of this blob resides in.
      * @return a new instance of {@link AppSearchBlobHandle} object.
      */
     @NonNull
     public static AppSearchBlobHandle createWithSha256(
-            @NonNull byte[] digest, @NonNull String label) {
+            @NonNull byte[] digest,
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @NonNull String namespace) {
         Objects.requireNonNull(digest);
         Preconditions.checkArgument(
                 digest.length == SHA_256_DIGEST_BYTE_LENGTH, "The digest is not a SHA-256 digest");
-        Objects.requireNonNull(label);
-        return new AppSearchBlobHandle(digest, label);
+        Objects.requireNonNull(packageName);
+        Objects.requireNonNull(databaseName);
+        Objects.requireNonNull(namespace);
+        return new AppSearchBlobHandle(digest, packageName, databaseName, namespace);
     }
 
     @Override

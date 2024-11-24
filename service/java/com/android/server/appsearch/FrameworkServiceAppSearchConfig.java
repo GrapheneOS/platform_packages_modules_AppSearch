@@ -68,6 +68,10 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             "limit_config_max_document_size_bytes";
     public static final String KEY_LIMIT_CONFIG_MAX_DOCUMENT_COUNT =
             "limit_config_max_document_count";
+    public static final String KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT =
+            "limit_config_per_package_document_count_limit";
+    public static final String KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD =
+            "limit_config_document_count_limit_start_threshold";
     public static final String KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT =
             "limit_config_max_suggestion_count";
     public static final String KEY_BYTES_OPTIMIZE_THRESHOLD = "bytes_optimize_threshold";
@@ -128,6 +132,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_SAMPLING_INTERVAL_FOR_OPTIMIZE_STATS,
         KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
         KEY_LIMIT_CONFIG_MAX_DOCUMENT_COUNT,
+        KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT,
+        KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD,
         KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT,
         KEY_BYTES_OPTIMIZE_THRESHOLD,
         KEY_TIME_OPTIMIZE_THRESHOLD_MILLIS,
@@ -677,6 +683,23 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 synchronized (mLock) {
                     mBundleLocked.putInt(
                             key, properties.getInt(key, DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT));
+                }
+                break;
+            case KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(
+                            key,
+                            properties.getInt(
+                                    key, DEFAULT_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT));
+                }
+                break;
+            case KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(
+                            key,
+                            properties.getInt(
+                                    key,
+                                    DEFAULT_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD));
                 }
                 break;
             case KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT:

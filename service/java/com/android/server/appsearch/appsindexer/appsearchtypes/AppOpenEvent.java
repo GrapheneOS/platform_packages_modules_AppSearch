@@ -20,7 +20,10 @@ import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
-import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.util.DocumentIdUtil;
+
+import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.appsindexer.AppSearchHelper;
 
 import java.util.Objects;
 
@@ -34,6 +37,7 @@ public class AppOpenEvent extends GenericDocument {
     // Properties
     public static final String SCHEMA_TYPE = "builtin:AppOpenEvent";
 
+    public static final String ANDROID_PACKAGE_NAME = "android";
     public static final String APP_OPEN_EVENT_NAMESPACE = "app-open-event";
 
     public static final String APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME = "packageName";
@@ -106,56 +110,61 @@ public class AppOpenEvent extends GenericDocument {
         return getPropertyLong(APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS);
     }
 
-    /** Builder for {@link AppOpenEvent}. */
-    public static final class Builder extends GenericDocument.Builder<Builder> {
-        public Builder(
-                @NonNull String packageName,
-                @CurrentTimeMillisLong long appOpenEventTimestampMillis) {
-            // Package name + timestamp is unique, since if an app was somehow opened twice at the
-            // same time, it would be considered the same event.
-            super(
-                    APP_OPEN_EVENT_NAMESPACE,
-                    /* id= */ packageName + appOpenEventTimestampMillis,
-                    SCHEMA_TYPE);
-            setPropertyString(APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME, packageName);
-            setPropertyLong(
-                    APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS, appOpenEventTimestampMillis);
-        }
+    /**
+     * Creates a new {@link AppOpenEvent} instance using the provided package name, timestamp, and
+     * context. This version of the method uses the package name and timestamp to generate a unique
+     * identifier for the app open event, and links it to the application using a qualified ID based
+     * on the context's package name.
+     *
+     * @param packageName The package name of the app being opened, e.g., "com.android.settings".
+     * @param appOpenEventTimestampMillis The timestamp when the app open event occurred, in
+     *     milliseconds.
+     * @param contextPackageName The name of the package that is indexing the app open event. ID.
+     * @return A new {@link AppOpenEvent} instance populated with the provided information.
+     */
+    @VisibleForTesting
+    public static AppOpenEvent create(
+            @NonNull String packageName,
+            @CurrentTimeMillisLong long appOpenEventTimestampMillis,
+            @NonNull String contextPackageName) {
+        Objects.requireNonNull(packageName);
+        Objects.requireNonNull(contextPackageName);
 
-        /** Sets the app open event timestamp. */
-        @NonNull
-        @CanIgnoreReturnValue
-        public Builder setAppOpenEventTimestampMillis(
-                @CurrentTimeMillisLong long appOpenEventTimestampMillis) {
-            setPropertyLong(
-                    APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS, appOpenEventTimestampMillis);
-            return this;
-        }
+        String id = packageName + appOpenEventTimestampMillis;
+        String qualifiedId =
+                DocumentIdUtil.createQualifiedId(
+                        contextPackageName,
+                        AppSearchHelper.APP_DATABASE,
+                        MobileApplication.APPS_NAMESPACE,
+                        packageName);
 
-        /** Sets the mobile application qualified id */
-        @NonNull
-        @CanIgnoreReturnValue
-        public Builder setMobileApplicationQualifiedId(
-                @NonNull String mobileApplicationQualifiedId) {
-            setPropertyString(
-                    APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID,
-                    Objects.requireNonNull(mobileApplicationQualifiedId));
-            return this;
-        }
+        GenericDocument document =
+                new GenericDocument.Builder(APP_OPEN_EVENT_NAMESPACE, id, SCHEMA_TYPE)
+                        .setPropertyString(APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME, packageName)
+                        .setPropertyLong(
+                                APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS,
+                                appOpenEventTimestampMillis)
+                        .setPropertyString(
+                                APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID,
+                                qualifiedId)
+                        .build();
 
-        /** Sets the package name. */
-        @NonNull
-        @CanIgnoreReturnValue
-        public Builder setPackageName(@NonNull String packageName) {
-            setPropertyString(
-                    APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME, Objects.requireNonNull(packageName));
-            return this;
-        }
+        return new AppOpenEvent(document);
+    }
 
-        @NonNull
-        @CanIgnoreReturnValue
-        public AppOpenEvent build() {
-            return new AppOpenEvent(super.build());
-        }
+    /**
+     * Creates a new {@link AppOpenEvent} instance using the provided package name and timestamp,
+     * with a default qualified ID based on the Android package name. This method does not require a
+     * context and uses the android package name for the qualified ID since this should be the
+     * standard usage.
+     *
+     * @param packageName The package name of the app being opened, e.g., "com.android.settings".
+     * @param appOpenEventTimestampMillis The timestamp when the app open event occurred, in
+     *     milliseconds.
+     * @return A new {@link AppOpenEvent} instance populated with the provided information.
+     */
+    public static AppOpenEvent create(
+            @NonNull String packageName, @CurrentTimeMillisLong long appOpenEventTimestampMillis) {
+        return create(packageName, appOpenEventTimestampMillis, ANDROID_PACKAGE_NAME);
     }
 }

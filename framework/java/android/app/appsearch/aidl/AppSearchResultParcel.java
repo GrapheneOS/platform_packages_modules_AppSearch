@@ -27,11 +27,11 @@ import android.app.appsearch.SearchSuggestionResult;
 import android.app.appsearch.SetSchemaResponse.MigrationFailure;
 import android.app.appsearch.StorageInfo;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-import android.app.appsearch.functions.ExecuteAppFunctionResponse;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
+import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
 
 import java.util.List;
@@ -120,7 +120,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
 
     @Field(id = 11)
     @Nullable
-    ExecuteAppFunctionResponse mExecuteAppFunctionResponse;
+    ParcelFileDescriptor mParcelFileDescriptor;
 
     @NonNull AppSearchResult<ValueType> mResultCached;
 
@@ -151,7 +151,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
             @Param(id = 8) @Nullable List<MigrationFailure> migrationFailures,
             @Param(id = 9) @Nullable List<SearchSuggestionResult> searchSuggestionResults,
             @Param(id = 10) @Nullable StorageInfo storageInfo,
-            @Param(id = 11) @Nullable ExecuteAppFunctionResponse executeAppFunctionResponse) {
+            @Param(id = 11) @Nullable ParcelFileDescriptor parcelFileDescriptor) {
         mResultCode = resultCode;
         mErrorMessage = errorMessage;
         if (resultCode == AppSearchResult.RESULT_OK) {
@@ -163,7 +163,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
             mMigrationFailures = migrationFailures;
             mSearchSuggestionResults = searchSuggestionResults;
             mStorageInfo = storageInfo;
-            mExecuteAppFunctionResponse = executeAppFunctionResponse;
+            mParcelFileDescriptor = parcelFileDescriptor;
             if (mInternalSetSchemaResponse != null) {
                 mResultCached =
                         (AppSearchResult<ValueType>)
@@ -195,10 +195,10 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
                 mResultCached =
                         (AppSearchResult<ValueType>)
                                 AppSearchResult.newSuccessfulResult(mStorageInfo);
-            } else if (mExecuteAppFunctionResponse != null) {
+            } else if (mParcelFileDescriptor != null) {
                 mResultCached =
                         (AppSearchResult<ValueType>)
-                                AppSearchResult.newSuccessfulResult(mExecuteAppFunctionResponse);
+                                AppSearchResult.newSuccessfulResult(mParcelFileDescriptor);
             } else {
                 // Default case where code is OK and value is null.
                 mResultCached = AppSearchResult.newSuccessfulResult(null);
@@ -318,15 +318,15 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
                 .build();
     }
 
+
     /**
      * Creates a new {@link AppSearchResultParcel} from the given result in case a successful {@link
-     * ExecuteAppFunctionResponse}.
+     * ParcelFileDescriptor}.
      */
-    public static AppSearchResultParcel<ExecuteAppFunctionResponse> fromExecuteAppFunctionResponse(
-            ExecuteAppFunctionResponse executeAppFunctionResponse) {
-        return new AppSearchResultParcel.Builder<ExecuteAppFunctionResponse>(
-                        AppSearchResult.RESULT_OK)
-                .setExecuteAppFunctionResponse(executeAppFunctionResponse)
+    public static AppSearchResultParcel<ParcelFileDescriptor> fromParcelFileDescriptor(
+            ParcelFileDescriptor parcelFileDescriptor) {
+        return new AppSearchResultParcel.Builder<ParcelFileDescriptor>(AppSearchResult.RESULT_OK)
+                .setParcelFileDescriptor(parcelFileDescriptor)
                 .build();
     }
 
@@ -379,7 +379,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
         @Nullable private List<MigrationFailure> mMigrationFailures;
         @Nullable private List<SearchSuggestionResult> mSearchSuggestionResults;
         @Nullable private StorageInfo mStorageInfo;
-        @Nullable private ExecuteAppFunctionResponse mExecuteAppFunctionResponse;
+        @Nullable private ParcelFileDescriptor mParcelFileDescriptor;
 
         /** Builds an {@link AppSearchResultParcel.Builder}. */
         Builder(int resultCode) {
@@ -442,10 +442,10 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
             return this;
         }
 
+
         @CanIgnoreReturnValue
-        Builder<ValueType> setExecuteAppFunctionResponse(
-                ExecuteAppFunctionResponse executeAppFunctionResponse) {
-            mExecuteAppFunctionResponse = executeAppFunctionResponse;
+        Builder<ValueType> setParcelFileDescriptor(ParcelFileDescriptor parcelFileDescriptor) {
+            mParcelFileDescriptor = parcelFileDescriptor;
             return this;
         }
 
@@ -466,7 +466,7 @@ public final class AppSearchResultParcel<ValueType> extends AbstractSafeParcelab
                     mMigrationFailures,
                     mSearchSuggestionResults,
                     mStorageInfo,
-                    mExecuteAppFunctionResponse);
+                    mParcelFileDescriptor);
         }
     }
 }

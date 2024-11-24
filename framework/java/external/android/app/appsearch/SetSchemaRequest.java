@@ -25,8 +25,10 @@ import android.annotation.SuppressLint;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+
 import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
@@ -380,6 +382,29 @@ public final class SetSchemaRequest {
         private int mVersion = DEFAULT_VERSION;
         private boolean mBuilt = false;
 
+        /** Creates a new {@link SetSchemaRequest.Builder}. */
+        public Builder() {}
+
+        /** Creates a {@link SetSchemaRequest.Builder} from the given {@link SetSchemaRequest}. */
+        @FlaggedApi(Flags.FLAG_ENABLE_ADDITIONAL_BUILDER_COPY_CONSTRUCTORS)
+        public Builder(@NonNull SetSchemaRequest request) {
+            mSchemas.addAll(request.mSchemas);
+            mSchemasNotDisplayedBySystem.addAll(request.mSchemasNotDisplayedBySystem);
+            for (Map.Entry<String, Set<PackageIdentifier>> entry :
+                    request.mSchemasVisibleToPackages.entrySet()) {
+                mSchemasVisibleToPackages.put(entry.getKey(), new ArraySet<>(entry.getValue()));
+            }
+            mSchemasVisibleToPermissions = deepCopy(request.mSchemasVisibleToPermissions);
+            mPubliclyVisibleSchemas.putAll(request.mPubliclyVisibleSchemas);
+            for (Map.Entry<String, Set<SchemaVisibilityConfig>> entry :
+                    request.mSchemasVisibleToConfigs.entrySet()) {
+                mSchemaVisibleToConfigs.put(entry.getKey(), new ArraySet<>(entry.getValue()));
+            }
+            mMigrators.putAll(request.mMigrators);
+            mForceOverride = request.mForceOverride;
+            mVersion = request.mVersion;
+        }
+
         /**
          * Adds one or more {@link AppSearchSchema} types to the schema.
          *
@@ -406,6 +431,16 @@ public final class SetSchemaRequest {
             Objects.requireNonNull(schemas);
             resetIfBuilt();
             mSchemas.addAll(schemas);
+            return this;
+        }
+
+        /** Clears all {@link AppSearchSchema}s from the list of schemas. */
+        @FlaggedApi(Flags.FLAG_ENABLE_ADDITIONAL_BUILDER_COPY_CONSTRUCTORS)
+        @CanIgnoreReturnValue
+        @NonNull
+        public Builder clearSchemas() {
+            resetIfBuilt();
+            mSchemas.clear();
             return this;
         }
 
@@ -715,6 +750,16 @@ public final class SetSchemaRequest {
             Objects.requireNonNull(migrators);
             resetIfBuilt();
             mMigrators.putAll(migrators);
+            return this;
+        }
+
+        /** Clears all {@link Migrator}s. */
+        @FlaggedApi(Flags.FLAG_ENABLE_ADDITIONAL_BUILDER_COPY_CONSTRUCTORS)
+        @CanIgnoreReturnValue
+        @NonNull
+        public Builder clearMigrators() {
+            resetIfBuilt();
+            mMigrators.clear();
             return this;
         }
 

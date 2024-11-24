@@ -76,6 +76,15 @@ public class SchemaToProtoConverterTest {
                                         .setCardinality(
                                                 AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
                                         .build())
+                        .addProperty(
+                                new AppSearchSchema.EmbeddingPropertyConfig.Builder("embedding")
+                                        .setDescription("The embedding that represents this email.")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.EmbeddingPropertyConfig
+                                                        .INDEXING_TYPE_SIMILARITY)
+                                        .build())
                         // We don't need to actually define the Person type for this test because
                         // the converter will process each schema individually.
                         .addProperty(
@@ -136,6 +145,19 @@ public class SchemaToProtoConverterTest {
                                         .setDataType(PropertyConfigProto.DataType.Code.BYTES)
                                         .setCardinality(
                                                 PropertyConfigProto.Cardinality.Code.REPEATED))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("embedding")
+                                        .setDescription("The embedding that represents this email.")
+                                        .setDataType(PropertyConfigProto.DataType.Code.VECTOR)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setEmbeddingIndexingConfig(
+                                                EmbeddingIndexingConfig.newBuilder()
+                                                        .setEmbeddingIndexingType(
+                                                                EmbeddingIndexingConfig
+                                                                        .EmbeddingIndexingType.Code
+                                                                        .LINEAR_SEARCH)))
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("sender")

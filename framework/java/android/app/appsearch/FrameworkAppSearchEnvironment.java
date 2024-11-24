@@ -100,4 +100,10 @@ public class FrameworkAppSearchEnvironment implements AppSearchEnvironment {
     public boolean isInfoLoggingEnabled() {
         return true;
     }
+
+    /** Returns the {@code EnvironmentType} for this environment. */
+    @Override
+    public int getEnvironment() {
+        return FRAMEWORK_ENVIRONMENT;
+    }
 }

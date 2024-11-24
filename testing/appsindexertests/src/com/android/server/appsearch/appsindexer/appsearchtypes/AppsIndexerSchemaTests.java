@@ -54,14 +54,11 @@ public class AppsIndexerSchemaTests {
     @Test
     public void testAppOpenEvent() {
         String packageName = "com.android.apps.food";
-        String mobileApplicationQualifiedId = "appsearch$internal/db#food";
+        String mobileApplicationQualifiedId = "android$apps-db/apps#com.android.apps.food";
         long appOpenEventTimestampMillis = System.currentTimeMillis();
 
         AppOpenEvent appOpenEvent =
-                new AppOpenEvent.Builder(packageName, appOpenEventTimestampMillis)
-                        .setPackageName(packageName)
-                        .setMobileApplicationQualifiedId(mobileApplicationQualifiedId)
-                        .build();
+                AppOpenEvent.create(packageName, appOpenEventTimestampMillis);
 
         assertThat(appOpenEvent.getPackageName()).isEqualTo(packageName);
         assertThat(appOpenEvent.getMobileApplicationQualifiedId())

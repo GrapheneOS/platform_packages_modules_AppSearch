@@ -274,6 +274,7 @@ public final class SchemaToProtoConverter {
             @NonNull PropertyConfigProto proto) {
         AppSearchSchema.EmbeddingPropertyConfig.Builder builder =
                 new AppSearchSchema.EmbeddingPropertyConfig.Builder(proto.getPropertyName())
+                        .setDescription(proto.getDescription())
                         .setCardinality(proto.getCardinality().getNumber());
 
         // Set indexingType

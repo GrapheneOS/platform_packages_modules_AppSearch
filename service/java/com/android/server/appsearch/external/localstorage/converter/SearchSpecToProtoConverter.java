@@ -41,6 +41,7 @@ import com.android.server.appsearch.external.localstorage.visibilitystore.Visibi
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityUtil;
 
 import com.google.android.icing.proto.JoinSpecProto;
+import com.google.android.icing.proto.NamespaceDocumentUriGroup;
 import com.google.android.icing.proto.PropertyWeight;
 import com.google.android.icing.proto.ResultSpecProto;
 import com.google.android.icing.proto.SchemaTypeConfigProto;
@@ -316,6 +317,18 @@ public final class SearchSpecToProtoConverter {
                                         .build());
                     }
                 }
+            }
+        }
+
+        // Convert document id filters.
+        List<String> filterDocumentIds = mSearchSpec.getFilterDocumentIds();
+        if (!filterDocumentIds.isEmpty()) {
+            for (String targetPrefixedNamespaceFilter : mTargetPrefixedNamespaceFilters) {
+                protoBuilder.addDocumentUriFilters(
+                        NamespaceDocumentUriGroup.newBuilder()
+                                .setNamespace(targetPrefixedNamespaceFilter)
+                                .addAllDocumentUris(filterDocumentIds)
+                                .build());
             }
         }
 

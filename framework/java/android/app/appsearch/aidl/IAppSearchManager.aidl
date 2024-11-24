@@ -23,7 +23,6 @@ import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchObserverProxy;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
-import android.app.appsearch.aidl.ExecuteAppFunctionAidlRequest;
 import android.app.appsearch.aidl.DocumentsParcel;
 import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
@@ -322,15 +321,5 @@ interface IAppSearchManager {
         in UnregisterObserverCallbackAidlRequest request,
         in IAppSearchObserverProxy observerProxy) = 19;
 
-    /**
-     * Executes an app function provided by {@link AppFunctionService} through the system.
-     *
-     * @param request the request to execute an app function.
-     * @param callback the callback to report the result.
-     */
-   void executeAppFunction(
-       in ExecuteAppFunctionAidlRequest request,
-       in IAppSearchResultCallback callback) = 20;
-
-    // next function transaction ID = 21;
+    // next function transaction ID = 20;
 }

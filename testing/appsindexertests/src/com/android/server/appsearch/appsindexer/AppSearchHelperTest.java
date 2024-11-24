@@ -16,7 +16,6 @@
 
 package com.android.server.appsearch.appsindexer;
 
-import static com.android.server.appsearch.appsindexer.AppsUtil.convertAppOpenEventsToMap;
 import static com.android.server.appsearch.appsindexer.TestUtils.COMPATIBLE_APP_OPEN_EVENT_SCHEMA;
 import static com.android.server.appsearch.appsindexer.TestUtils.COMPATIBLE_APP_SCHEMA;
 import static com.android.server.appsearch.appsindexer.TestUtils.FAKE_PACKAGE_PREFIX;
@@ -34,6 +33,8 @@ import static com.android.server.appsearch.appsindexer.TestUtils.createMockPacka
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakeAppOpenEventDocuments;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakePackageDocuments;
 import static com.android.server.appsearch.appsindexer.TestUtils.searchAppSearchForApps;
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent.APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID;
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent.APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -43,14 +44,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchBatchResult;
+import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSessionShim;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetSchemaResponse;
+import android.app.appsearch.JoinSpec;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.PutDocumentsRequest;
 import android.app.appsearch.SearchResult;
+import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
@@ -206,7 +210,7 @@ public class AppSearchHelperTest {
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         appSearchHelper.setSchemaForAppOpenEvents();
         AppOpenEvent fakeAppOpenEvent = createFakeAppOpenEvent(currentTimeMillis);
-        appSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(List.of(fakeAppOpenEvent)));
+        appSearchHelper.indexAppOpenEvents(ImmutableList.of(fakeAppOpenEvent));
 
         assertThat(appSearchHelper).isNotNull();
         AppOpenEvent appOpenEvent =
@@ -278,7 +282,7 @@ public class AppSearchHelperTest {
         appSearchHelper.setSchemaForAppOpenEvents();
         AppOpenEvent fakeAppOpenEvent = createFakeAppOpenEvent(currentTimeMillis);
         appSearchHelper.indexAppOpenEvents(
-                convertAppOpenEventsToMap(List.of(createFakeAppOpenEvent(currentTimeMillis))));
+                ImmutableList.of(createFakeAppOpenEvent(currentTimeMillis)));
 
         assertThat(appSearchHelper).isNotNull();
         AppOpenEvent appOpenEvent =
@@ -562,11 +566,11 @@ public class AppSearchHelperTest {
         long currentTimeMillis = System.currentTimeMillis();
         AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
         mAppSearchHelper.setSchemaForAppOpenEvents();
-        mAppSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(ImmutableList.of(event1)));
+        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1));
 
         AppOpenEvent event2 = createFakeAppOpenEvent(currentTimeMillis + 200L);
         mAppSearchHelper.setSchemaForAppOpenEvents();
-        mAppSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(ImmutableList.of(event2)));
+        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event2));
 
         assertThat(
                         mAppSearchHelper
@@ -587,7 +591,7 @@ public class AppSearchHelperTest {
         AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
         mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
 
-        mAppSearchHelper.indexAppOpenEvents(convertAppOpenEventsToMap(ImmutableList.of(event1)));
+        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1));
         assertThat(
                         mAppSearchHelper
                                 .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
@@ -606,8 +610,7 @@ public class AppSearchHelperTest {
                 AppSearchException.class,
                 () -> mAppSearchHelper.getSubsequentAppOpenEventAfterThreshold(currentTimeMillis));
 
-        mAppSearchHelper.indexAppOpenEvents(
-                convertAppOpenEventsToMap(ImmutableList.of(event1, event2)));
+        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1, event2));
         assertThat(
                         mAppSearchHelper
                                 .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
@@ -623,5 +626,63 @@ public class AppSearchHelperTest {
                 () ->
                         mAppSearchHelper.getSubsequentAppOpenEventAfterThreshold(
                                 currentTimeMillis + 300L));
+    }
+
+    @Test
+    public void testAppOpenEventJoinsToMobileApplication() throws Exception {
+        mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
+        List<MobileApplication> apps = createMobileApplications(1);
+        mAppSearchHelper.indexApps(
+                apps,
+                /* appFunctions= */ ImmutableList.of(),
+                /* existingAppFunctions= */ ImmutableList.of(),
+                /* appsUpdateStats= */ new AppsUpdateStats());
+
+        long currentTimeMillis = System.currentTimeMillis();
+        AppOpenEvent event1 =
+                AppOpenEvent.create(
+                        apps.get(0).getPackageName(), currentTimeMillis, mContext.getPackageName());
+        mAppSearchHelper.setSchemaForAppOpenEvents();
+        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1));
+
+        SearchSpec nestedSearchSpec =
+                new SearchSpec.Builder()
+                        .addFilterSchemas(AppOpenEvent.SCHEMA_TYPE)
+                        .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
+                        .build();
+
+        JoinSpec joinSpec =
+                new JoinSpec.Builder(
+                                AppOpenEvent
+                                        .APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID)
+                        .setNestedSearch("", nestedSearchSpec)
+                        .build();
+
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
+                        .addFilterNamespaces(MobileApplication.APPS_NAMESPACE)
+                        .setResultCountPerPage(1000)
+                        .setJoinSpec(joinSpec)
+                        .build();
+
+        try (SyncGlobalSearchSession globalSession =
+                new SyncGlobalSearchSessionImpl(
+                        mContext.getSystemService(AppSearchManager.class),
+                        mSingleThreadedExecutor)) {
+
+            SyncSearchResults searchResults = globalSession.search("", searchSpec);
+            List<SearchResult> joinedResults =
+                    searchResults.getNextPage().get(0).getJoinedResults();
+
+            GenericDocument appOpenEventDocument = joinedResults.get(0).getGenericDocument();
+
+            assertThat(appOpenEventDocument.getPropertyString(APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME))
+                    .isEqualTo(apps.get(0).getPackageName());
+            assertThat(
+                            appOpenEventDocument.getPropertyString(
+                                    APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID))
+                    .isEqualTo(event1.getMobileApplicationQualifiedId());
+        }
     }
 }

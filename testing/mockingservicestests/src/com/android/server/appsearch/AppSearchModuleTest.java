@@ -16,6 +16,9 @@
 
 package com.android.server.appsearch;
 
+import static android.provider.DeviceConfig.NAMESPACE_APPSEARCH;
+
+import static com.android.server.appsearch.appsindexer.AppOpenEventIndexerConfig.DEFAULT_APP_OPEN_EVENT_INDEXER_ENABLED;
 import static com.android.server.appsearch.appsindexer.AppsIndexerConfig.DEFAULT_APPS_INDEXER_ENABLED;
 import static com.android.server.appsearch.contactsindexer.ContactsIndexerConfig.DEFAULT_CONTACTS_INDEXER_ENABLED;
 
@@ -25,6 +28,7 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.annotation.NonNull;
@@ -41,10 +45,14 @@ import com.android.appsearch.flags.Flags;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.SystemService.TargetUser;
 import com.android.server.appsearch.AppSearchModule.Lifecycle;
+import com.android.server.appsearch.appsindexer.AppOpenEventIndexerConfig;
+import com.android.server.appsearch.appsindexer.AppOpenEventIndexerManagerService;
 import com.android.server.appsearch.appsindexer.AppsIndexerConfig;
 import com.android.server.appsearch.appsindexer.AppsIndexerManagerService;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerService;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import org.junit.After;
 import org.junit.Before;
@@ -55,9 +63,14 @@ import org.mockito.quality.Strictness;
 
 @RequiresFlagsEnabled(Flags.FLAG_APPS_INDEXER_ENABLED)
 public class AppSearchModuleTest {
-    private static final String NAMESPACE_APPSEARCH = "appsearch";
-    private static final String KEY_CONTACTS_INDEXER_ENABLED = "contacts_indexer_enabled";
-    private static final String KEY_APPS_INDEXER_ENABLED = "apps_indexer_enabled";
+    @VisibleForTesting
+    public static final String KEY_CONTACTS_INDEXER_ENABLED = "contacts_indexer_enabled";
+
+    @VisibleForTesting public static final String KEY_APPS_INDEXER_ENABLED = "apps_indexer_enabled";
+
+    @VisibleForTesting
+    public static final String KEY_APP_OPEN_EVENT_INDEXER_ENABLED =
+            "app_open_event_indexer_enabled";
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -66,11 +79,15 @@ public class AppSearchModuleTest {
             mock(ContactsIndexerManagerService.class);
     private final AppsIndexerManagerService mAppsIndexerService =
             mock(AppsIndexerManagerService.class);
+    private final AppOpenEventIndexerManagerService mAppOpenEventIndexerService =
+            mock(AppOpenEventIndexerManagerService.class);
     private final AppSearchManagerService mAppSearchService = mock(AppSearchManagerService.class);
 
     private TargetUser mUser;
     private Lifecycle mLifecycle;
     private MockitoSession mMockitoSession;
+
+    private Context mContext;
 
     @Before
     public void setUp() {
@@ -79,35 +96,43 @@ public class AppSearchModuleTest {
                         .mockStatic(DeviceConfig.class)
                         .strictness(Strictness.LENIENT)
                         .startMocking();
-        Context context = ApplicationProvider.getApplicationContext();
-        UserInfo userInfo = new UserInfo(context.getUserId(), "default", 0);
+        mContext = ApplicationProvider.getApplicationContext();
+        UserInfo userInfo = new UserInfo(mContext.getUserId(), "default", 0);
         mUser = new TargetUser(userInfo);
 
         mLifecycle =
-                new Lifecycle(context) {
+                new Lifecycle(mContext) {
                     @NonNull
                     @Override
                     AppsIndexerManagerService createAppsIndexerManagerService(
-                            @NonNull Context context, @NonNull AppsIndexerConfig config) {
+                            @NonNull Context mContext, @NonNull AppsIndexerConfig config) {
                         return mAppsIndexerService;
                     }
 
                     @NonNull
                     @Override
                     ContactsIndexerManagerService createContactsIndexerManagerService(
-                            @NonNull Context context, @NonNull ContactsIndexerConfig config) {
+                            @NonNull Context mContext, @NonNull ContactsIndexerConfig config) {
                         return mContactsIndexerService;
                     }
 
                     @NonNull
                     @Override
                     AppSearchManagerService createAppSearchManagerService(
-                            @NonNull Context context, @NonNull Lifecycle lifecycle) {
+                            @NonNull Context mContext, @NonNull Lifecycle lifecycle) {
                         return mAppSearchService;
+                    }
+
+                    @NonNull
+                    @Override
+                    AppOpenEventIndexerManagerService createAppOpenEventIndexerManagerService(
+                            @NonNull Context mContext, @NonNull AppOpenEventIndexerConfig config) {
+                        return mAppOpenEventIndexerService;
                     }
                 };
 
-        // Enable contacts indexer and apps indexer by default. Some tests will turn them off
+        // Enable contacts + apps + app open event indexers by default. Some tests will turn them
+        // off
         ExtendedMockito.doReturn(true)
                 .when(
                         () ->
@@ -122,6 +147,13 @@ public class AppSearchModuleTest {
                                         NAMESPACE_APPSEARCH,
                                         KEY_APPS_INDEXER_ENABLED,
                                         DEFAULT_APPS_INDEXER_ENABLED));
+        ExtendedMockito.doReturn(true)
+                .when(
+                        () ->
+                                DeviceConfig.getBoolean(
+                                        NAMESPACE_APPSEARCH,
+                                        KEY_APP_OPEN_EVENT_INDEXER_ENABLED,
+                                        DEFAULT_APP_OPEN_EVENT_INDEXER_ENABLED));
     }
 
     @After
@@ -130,7 +162,26 @@ public class AppSearchModuleTest {
     }
 
     @Test
-    public void testBothIndexersEnabled() {
+    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED)
+    public void testAllIndexersEnabled_withAppOpenEventIndexer() {
+        mLifecycle.onStart();
+        assertThat(mLifecycle.mAppsIndexerManagerService).isNotNull();
+        assertThat(mLifecycle.mContactsIndexerManagerService).isNotNull();
+        assertThat(mLifecycle.mAppOpenEventIndexerManagerService).isNotNull();
+
+        mLifecycle.onUserUnlocking(mUser);
+        verify(mContactsIndexerService).onUserUnlocking(mUser);
+        verify(mAppsIndexerService).onUserUnlocking(mUser);
+        verify(mAppOpenEventIndexerService).onStart();
+
+        mLifecycle.onUserStopping(mUser);
+        verify(mContactsIndexerService).onUserStopping(mUser);
+        verify(mAppsIndexerService).onUserStopping(mUser);
+        verify(mAppOpenEventIndexerService).onUserStopping(mUser);
+    }
+
+    @Test
+    public void testContactsAndAppsIndexersEnabled() {
         mLifecycle.onStart();
         assertThat(mLifecycle.mAppsIndexerManagerService).isNotNull();
         assertThat(mLifecycle.mContactsIndexerManagerService).isNotNull();
@@ -189,6 +240,30 @@ public class AppSearchModuleTest {
     }
 
     @Test
+    public void testAppOpenEventIndexerDisabled() {
+        ExtendedMockito.doReturn(false)
+                .when(
+                        () ->
+                                DeviceConfig.getBoolean(
+                                        NAMESPACE_APPSEARCH,
+                                        KEY_APP_OPEN_EVENT_INDEXER_ENABLED,
+                                        DEFAULT_APP_OPEN_EVENT_INDEXER_ENABLED));
+
+        mLifecycle.onStart();
+        assertNull(mLifecycle.mAppOpenEventIndexerManagerService);
+
+        mLifecycle.onUserUnlocking(mUser);
+        verify(mContactsIndexerService).onUserUnlocking(mUser);
+        verify(mAppOpenEventIndexerService, never()).onStart();
+        assertNull(mLifecycle.mAppOpenEventIndexerManagerService);
+
+        mLifecycle.onUserStopping(mUser);
+        verify(mContactsIndexerService).onUserStopping(mUser);
+        verify(mAppOpenEventIndexerService, never()).onUserStopping(mUser);
+        assertNull(mLifecycle.mAppOpenEventIndexerManagerService);
+    }
+
+    @Test
     public void testServicesSetToNullWhenDisabled() {
         ExtendedMockito.doReturn(false)
                 .when(
@@ -204,18 +279,28 @@ public class AppSearchModuleTest {
                                         NAMESPACE_APPSEARCH,
                                         KEY_APPS_INDEXER_ENABLED,
                                         DEFAULT_APPS_INDEXER_ENABLED));
+        ExtendedMockito.doReturn(false)
+                .when(
+                        () ->
+                                DeviceConfig.getBoolean(
+                                        NAMESPACE_APPSEARCH,
+                                        KEY_APP_OPEN_EVENT_INDEXER_ENABLED,
+                                        DEFAULT_APP_OPEN_EVENT_INDEXER_ENABLED));
 
         mLifecycle.onStart();
         assertNull(mLifecycle.mContactsIndexerManagerService);
         assertNull(mLifecycle.mAppsIndexerManagerService);
+        assertNull(mLifecycle.mAppOpenEventIndexerManagerService);
 
         mLifecycle.onUserUnlocking(mUser);
         assertNull(mLifecycle.mContactsIndexerManagerService);
         assertNull(mLifecycle.mAppsIndexerManagerService);
+        assertNull(mLifecycle.mAppOpenEventIndexerManagerService);
 
         mLifecycle.onUserStopping(mUser);
         assertNull(mLifecycle.mContactsIndexerManagerService);
         assertNull(mLifecycle.mAppsIndexerManagerService);
+        assertNull(mLifecycle.mAppOpenEventIndexerManagerService);
     }
 
     @Test

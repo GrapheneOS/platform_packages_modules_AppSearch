@@ -123,7 +123,7 @@ public class AppOpenEventIndexerRealDocumentsTest {
         CountDownLatch latch = new CountDownLatch(1);
         AppOpenEventIndexerManagerService appOpenEventIndexerManagerService =
                 new AppOpenEventIndexerManagerService(
-                        mContext, latch::countDown);
+                        mContext, new TestAppOpenEventIndexerConfig(), latch::countDown);
         appOpenEventIndexerManagerService.mLocalService.doUpdateForUser(
                 new SystemService.TargetUser(mUserInfo).getUserHandle(), new CancellationSignal());
         assertThat(latch.await(10, TimeUnit.SECONDS)).isEqualTo(true);

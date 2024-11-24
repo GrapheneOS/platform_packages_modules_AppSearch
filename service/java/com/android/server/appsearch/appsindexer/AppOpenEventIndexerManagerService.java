@@ -57,14 +57,18 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
     @VisibleForTesting final LocalService mLocalService;
     @VisibleForTesting @Nullable final Runnable mCallback;
 
+    private final AppOpenEventIndexerConfig mAppOpenEventIndexerConfig;
+
     // Map of AppOpenEventIndexerUserInstances indexed by the UserHandle
     @GuardedBy("mAppOpenEventIndexersLocked")
     private final Map<UserHandle, AppOpenEventIndexerUserInstance> mAppOpenEventIndexersLocked =
             new ArrayMap<>();
 
     /** Constructs a {@link AppOpenEventIndexerManagerService}. */
-    public AppOpenEventIndexerManagerService(@NonNull Context context) {
-        this(context, /* callback= */ null);
+    public AppOpenEventIndexerManagerService(
+            @NonNull Context context,
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig) {
+        this(context, appOpenEventIndexerConfig, /* callback= */ null);
     }
 
     /**
@@ -73,11 +77,14 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
      */
     @VisibleForTesting
     public AppOpenEventIndexerManagerService(
-            @NonNull Context context, @Nullable Runnable callback) {
+            @NonNull Context context,
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig,
+            @Nullable Runnable callback) {
         super(context);
         mContext = Objects.requireNonNull(context);
-        mLocalService = new LocalService();
+        mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
         mCallback = callback;
+        mLocalService = new LocalService();
     }
 
     @Override
@@ -135,6 +142,57 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
         }
     }
 
+    /** Schedules the periodic update job for all users we have an instance for. */
+    @Override
+    public void onUserUnlocking(@NonNull TargetUser user) {
+        synchronized (mAppOpenEventIndexersLocked) {
+            try {
+                AppOpenEventIndexerUserInstance instance =
+                        getOrCreateUserInstance(user.getUserHandle());
+                if (instance != null) {
+                    instance.schedulePeriodicUpdate();
+                }
+            } catch (RuntimeException e) {
+                Slog.wtf(TAG, "AppOpenEventIndexerManagerService.onUserUnlocking() failed", e);
+            }
+        }
+    }
+
+    /** Retrieves or creates the {@link AppOpenEventIndexerUserInstance} for the specified user. */
+    private AppOpenEventIndexerUserInstance getOrCreateUserInstance(
+            @NonNull UserHandle userHandle) {
+        synchronized (mAppOpenEventIndexersLocked) {
+            Objects.requireNonNull(userHandle);
+            AppOpenEventIndexerUserInstance instance = mAppOpenEventIndexersLocked.get(userHandle);
+
+            if (instance == null) {
+                if (LogUtil.INFO) {
+                    Log.i(TAG, "Creating AppOpenEventIndexerUserInstance for " + userHandle);
+                }
+                try {
+                    AppSearchEnvironment appSearchEnvironment =
+                            AppSearchEnvironmentFactory.getEnvironmentInstance();
+                    Context userContext =
+                            appSearchEnvironment.createContextAsUser(mContext, userHandle);
+                    File appSearchDir =
+                            appSearchEnvironment.getAppSearchDir(userContext, userHandle);
+                    File appOpenEventDir = new File(appSearchDir, "app-open-events");
+                    instance =
+                            AppOpenEventIndexerUserInstance.createInstance(
+                                    userContext, appOpenEventDir, mAppOpenEventIndexerConfig);
+                    mAppOpenEventIndexersLocked.put(userHandle, instance);
+                } catch (AppSearchException e) {
+                    Log.e(
+                            TAG,
+                            "Error while creating AppOpenEventIndexerUserInstance for "
+                                    + userHandle,
+                            e);
+                }
+            }
+            return instance;
+        }
+    }
+
     class LocalService implements IndexerLocalService {
         /** Runs an update for a user. */
         @Override
@@ -144,38 +202,17 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
             Objects.requireNonNull(userHandle);
             try {
                 synchronized (mAppOpenEventIndexersLocked) {
-                    AppOpenEventIndexerUserInstance instance =
-                            mAppOpenEventIndexersLocked.get(userHandle);
-                    if (instance == null) {
-                        if (LogUtil.INFO) {
-                            Log.i(
-                                    TAG,
-                                    "AppOpenEventIndexerUserInstance is not created for "
-                                            + userHandle);
+                    AppOpenEventIndexerUserInstance instance = getOrCreateUserInstance(userHandle);
+                    if (instance != null) {
+                        if (mCallback != null) {
+                            instance.updateAsync(mCallback);
+                        } else {
+                            instance.updateAsync();
                         }
-                        AppSearchEnvironment appSearchEnvironment =
-                                AppSearchEnvironmentFactory.getEnvironmentInstance();
-                        Context userContext =
-                                appSearchEnvironment.createContextAsUser(mContext, userHandle);
-                        File appSearchDir =
-                                appSearchEnvironment.getAppSearchDir(userContext, userHandle);
-                        File appOpenEventDir = new File(appSearchDir, "app-open-events");
-                        instance =
-                                AppOpenEventIndexerUserInstance.createInstance(
-                                        userContext, appOpenEventDir);
-                        mAppOpenEventIndexersLocked.put(userHandle, instance);
-                    }
-
-                    if (mCallback != null) {
-                        instance.updateAsync(mCallback);
-                    } else {
-                        instance.updateAsync();
                     }
                 }
             } catch (RuntimeException e) {
                 Slog.wtf(TAG, "AppOpenEventIndexerManagerService.doUpdateForUser() failed ", e);
-            } catch (AppSearchException e) {
-                Log.e(TAG, "Error while starting AppOpenEventIndexer", e);
             }
         }
     }

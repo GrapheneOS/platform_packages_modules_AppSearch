@@ -37,5 +37,11 @@ public final class ActionConstants {
     /** Click action type. */
     public static final int ACTION_TYPE_CLICK = 2;
 
+    /** Impression action type. */
+    public static final int ACTION_TYPE_IMPRESSION = 3;
+
+    /** Dismiss action type. */
+    public static final int ACTION_TYPE_DISMISS = 4;
+
     private ActionConstants() {}
 }

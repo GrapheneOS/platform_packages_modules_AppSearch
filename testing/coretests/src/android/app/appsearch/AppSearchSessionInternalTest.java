@@ -117,7 +117,7 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                 .addGenericDocuments(personDoc, artistDoc, emailDoc)
                                 .build()));
         GenericDocument artistDocWithParent =
-                artistDoc.toBuilder()
+                new GenericDocument.Builder<>(artistDoc)
                         .setPropertyString(PARENT_TYPES_SYNTHETIC_PROPERTY, "Person")
                         .build();
 
@@ -336,11 +336,13 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                 .addGenericDocuments(artistDoc, messageDoc)
                                 .build()));
         GenericDocument expectedArtistDoc =
-                artistDoc.toBuilder()
+                new GenericDocument.Builder<>(artistDoc)
                         .setPropertyString(PARENT_TYPES_SYNTHETIC_PROPERTY, "Person")
                         .build();
         GenericDocument expectedMessageDoc =
-                messageDoc.toBuilder().setPropertyDocument("sender", expectedArtistDoc).build();
+                new GenericDocument.Builder<>(messageDoc)
+                        .setPropertyDocument("sender", expectedArtistDoc)
+                        .build();
 
         // Query for the documents
         SearchResultsShim searchResults =
@@ -405,15 +407,15 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                 .build()));
 
         GenericDocument expectedDocA =
-                docA.toBuilder()
+                new GenericDocument.Builder<>(docA)
                         .setPropertyString(PARENT_TYPES_SYNTHETIC_PROPERTY, "C", "B", "D")
                         .build();
         GenericDocument expectedDocB =
-                docB.toBuilder()
+                new GenericDocument.Builder<>(docB)
                         .setPropertyString(PARENT_TYPES_SYNTHETIC_PROPERTY, "D")
                         .build();
         GenericDocument expectedDocC =
-                docC.toBuilder()
+                new GenericDocument.Builder<>(docC)
                         .setPropertyString(PARENT_TYPES_SYNTHETIC_PROPERTY, "B", "D")
                         .build();
         // Query for the documents

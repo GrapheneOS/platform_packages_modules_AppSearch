@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APP_OPEN_EVENT_INDEXER;
+
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -24,6 +26,7 @@ import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -57,6 +60,8 @@ public final class AppOpenEventIndexerUserInstance {
     private final File mDataDir;
     private final Context mContext;
 
+    private final AppOpenEventIndexerConfig mAppOpenEventIndexerConfig;
+
     /**
      * Single threaded executor to make sure there is only one active sync per {@link
      * BaseIndexerUserInstance}. Background tasks should be scheduled using {@link
@@ -77,14 +82,21 @@ public final class AppOpenEventIndexerUserInstance {
      */
     @NonNull
     public static AppOpenEventIndexerUserInstance createInstance(
-            @NonNull Context userContext, @NonNull File appOpenEventIndexerDir)
+            @NonNull Context userContext,
+            @NonNull File appOpenEventIndexerDir,
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(appOpenEventIndexerDir);
+        Objects.requireNonNull(appOpenEventIndexerConfig);
 
         ExecutorService singleThreadedExecutor =
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
-        return createInstance(userContext, appOpenEventIndexerDir, singleThreadedExecutor);
+        return createInstance(
+                userContext,
+                appOpenEventIndexerDir,
+                appOpenEventIndexerConfig,
+                singleThreadedExecutor);
     }
 
     @VisibleForTesting
@@ -92,10 +104,12 @@ public final class AppOpenEventIndexerUserInstance {
     static AppOpenEventIndexerUserInstance createInstance(
             @NonNull Context context,
             @NonNull File appOpenEventIndexerDir,
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig,
             @NonNull ExecutorService executorService)
             throws AppSearchException {
         Objects.requireNonNull(context);
         Objects.requireNonNull(appOpenEventIndexerDir);
+        Objects.requireNonNull(appOpenEventIndexerConfig);
         Objects.requireNonNull(executorService);
         AppOpenEventIndexerImpl appOpenEventIndexerImpl = new AppOpenEventIndexerImpl(context);
 
@@ -105,7 +119,8 @@ public final class AppOpenEventIndexerUserInstance {
                         executorService,
                         context,
                         appOpenEventIndexerImpl,
-                        new AppOpenEventIndexerSettings(appOpenEventIndexerDir));
+                        new AppOpenEventIndexerSettings(appOpenEventIndexerDir),
+                        appOpenEventIndexerConfig);
         indexer.loadSettingsAsync();
 
         return indexer;
@@ -123,12 +138,14 @@ public final class AppOpenEventIndexerUserInstance {
             @NonNull ExecutorService singleThreadedExecutor,
             @NonNull Context context,
             @NonNull AppOpenEventIndexerImpl appOpenEventIndexerImpl,
-            @NonNull AppOpenEventIndexerSettings appOpenEventIndexerSettings) {
+            @NonNull AppOpenEventIndexerSettings appOpenEventIndexerSettings,
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig) {
         mDataDir = Objects.requireNonNull(dataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
         mAppOpenEventIndexerImpl = Objects.requireNonNull(appOpenEventIndexerImpl);
         mAppOpenEventIndexerSettings = Objects.requireNonNull(appOpenEventIndexerSettings);
+        mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
     }
 
     /** Shuts down the AppOpenEventIndexerUserInstance */
@@ -153,7 +170,11 @@ public final class AppOpenEventIndexerUserInstance {
 
     /** Schedule an update on single threaded executor. */
     public void updateAsync() {
-        executeOnSingleThreadedExecutor(() -> doUpdate());
+        executeOnSingleThreadedExecutor(
+                () -> {
+                    doUpdate();
+                    schedulePeriodicUpdate();
+                });
     }
 
     /**
@@ -161,12 +182,12 @@ public final class AppOpenEventIndexerUserInstance {
      *
      * @param callback A callback to be invoked after the update is complete.
      */
-    @VisibleForTesting
     void updateAsync(@NonNull Runnable callback) {
         executeOnSingleThreadedExecutor(
                 () -> {
                     try {
                         doUpdate();
+                        schedulePeriodicUpdate();
                     } finally {
                         callback.run();
                     }
@@ -174,7 +195,7 @@ public final class AppOpenEventIndexerUserInstance {
     }
 
     /** Loads the persisted data from disk asynchronously. */
-    protected void loadSettingsAsync() {
+    private void loadSettingsAsync() {
         executeOnSingleThreadedExecutor(
                 () -> {
                     try {
@@ -211,7 +232,7 @@ public final class AppOpenEventIndexerUserInstance {
      *
      * @param command the runnable task
      */
-    protected void executeOnSingleThreadedExecutor(Runnable command) {
+    private void executeOnSingleThreadedExecutor(Runnable command) {
         synchronized (mSingleThreadedExecutor) {
             if (mSingleThreadedExecutor.isShutdown()) {
                 Log.w(TAG, "Executor is shutdown, not executing task");
@@ -250,5 +271,20 @@ public final class AppOpenEventIndexerUserInstance {
         } catch (AppSearchException e) {
             Log.e(TAG, "Failed to sync app open events to AppSearch", e);
         }
+    }
+
+    /**
+     * Schedules the next indexer update job. The {@link IndexerMaintenanceService} deduplicates
+     * this by checking the job info (which includes job ID). This ensures only 1 scheduled periodic
+     * task per indexer type per user.
+     */
+    public void schedulePeriodicUpdate() {
+        IndexerMaintenanceService.scheduleUpdateJob(
+                mContext,
+                mContext.getUser(),
+                APP_OPEN_EVENT_INDEXER,
+                /* periodic= */ true,
+                /* intervalMillis= */ mAppOpenEventIndexerConfig
+                        .getAppOpenEventMaintenanceUpdateIntervalMillis());
     }
 }

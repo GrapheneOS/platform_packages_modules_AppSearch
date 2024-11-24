@@ -27,6 +27,7 @@ import com.google.clearsilver.jsilver.JSilverOptions;
 import com.google.clearsilver.jsilver.autoescape.EscapeMode;
 import com.google.clearsilver.jsilver.data.Data;
 import com.google.clearsilver.jsilver.resourceloader.ClassLoaderResourceLoader;
+import com.google.common.base.Joiner;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -1515,7 +1516,8 @@ public class SafeParcelProcessor extends AbstractProcessor {
                         // then expectedAlternativeCreatorTypeName needs to trim <T> part as
                         // detectedAlternativeCreatorTypeName would only return Parcel resulting
                         // in an incorrect ParcelCreatorType failure.
-                        String type = declaredType.getTypeArguments().get(0).toString(); // T
+                        StringBuilder type = new StringBuilder();
+                        Joiner.on(',').appendTo(type, declaredType.getTypeArguments());
                         expectedAlternativeCreatorTypeName =
                                 expectedAlternativeCreatorTypeName.replace("<" + type + ">", "");
                     }

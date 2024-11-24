@@ -583,7 +583,7 @@ public class AppSearchImplTest {
                 .hasMessageThat()
                 .isEqualTo(
                         "The prefixed value \"invalidNamespace\" doesn't contain a valid database"
-                            + " name");
+                                + " name");
 
         // Insert the invalid doc with an invalid namespace right into icing
         PutResultProto putResultProto = mAppSearchImpl.mIcingSearchEngineLocked.put(invalidDoc);
@@ -3666,7 +3666,7 @@ public class AppSearchImplTest {
                 .hasMessageThat()
                 .contains(
                         "Document \"id\" for package \"package\" serialized to 99 bytes, which"
-                            + " exceeds limit of 80 bytes");
+                                + " exceeds limit of 80 bytes");
 
         // Make sure this failure didn't increase our document count. We should still be able to
         // index 1 document.

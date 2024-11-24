@@ -16,10 +16,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.android.appsearch.apk">
 
-    <!-- TODO(b/359911502): Remove this permission along with the other app functionality that
-           exists in app search once the new app function implementation is done.
-         Allows system applications to execute app functions provided by apps through AppSearch. -->
-    <permission android:name="android.permission.EXECUTE_APP_FUNCTION"
-                android:protectionLevel="internal|role" />
-
 </manifest>

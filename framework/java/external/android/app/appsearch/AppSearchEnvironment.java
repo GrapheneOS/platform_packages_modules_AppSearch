@@ -16,12 +16,15 @@
 
 package android.app.appsearch;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.os.UserHandle;
 
 import java.io.File;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -67,4 +70,27 @@ public interface AppSearchEnvironment {
 
     /** Returns if we can log INFO level logs. */
     boolean isInfoLoggingEnabled();
+
+    /** The different environments that AppSearch code might be built in. */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(
+            value = {
+                JETPACK_ENVIRONMENT,
+                FRAMEWORK_ENVIRONMENT,
+                PLAY_SERVICES_ENVIRONMENT,
+            })
+    @interface EnvironmentType {}
+
+    /** This code is being built in the Jetpack Environment */
+    int JETPACK_ENVIRONMENT = 1;
+
+    /** This code is being built in the Android Framework Environment */
+    int FRAMEWORK_ENVIRONMENT = 2;
+
+    /** This code is being built in the internal environment for Play Services code. */
+    int PLAY_SERVICES_ENVIRONMENT = 3;
+
+    /** Returns the {@code EnvironmentType} for this environment. */
+    @EnvironmentType
+    int getEnvironment();
 }
