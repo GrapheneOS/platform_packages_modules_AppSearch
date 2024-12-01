@@ -785,6 +785,9 @@ public final class PlatformLogger implements InternalAppSearchLogger {
             case CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK:
             case CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK:
             case CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE:
+            case CallStats.CALL_TYPE_OPEN_WRITE_BLOB:
+            case CallStats.CALL_TYPE_COMMIT_BLOB:
+            case CallStats.CALL_TYPE_OPEN_READ_BLOB:
                 // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
             default:
                 return mConfig.getCachedSamplingIntervalDefault();

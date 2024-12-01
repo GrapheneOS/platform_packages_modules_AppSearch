@@ -31,7 +31,7 @@ import org.junit.Test;
 
 import java.io.File;
 
-public class AppSearchBatchResultGeneralKeyParcelTest {
+public class AppSearchBatchResultParcelV2Test {
 
     @Test
     public void testFromBlobHandleToPfd() throws Exception {
@@ -54,8 +54,8 @@ public class AppSearchBatchResultGeneralKeyParcelTest {
                         .setResult(blobHandle1, successResult)
                         .setResult(blobHandle2, failureResult)
                         .build();
-        AppSearchBatchResultGeneralKeyParcel<AppSearchBlobHandle, ParcelFileDescriptor>
-                resultParcel = AppSearchBatchResultGeneralKeyParcel.fromBlobHandleToPfd(result);
+        AppSearchBatchResultParcelV2<AppSearchBlobHandle, ParcelFileDescriptor> resultParcel =
+                AppSearchBatchResultParcelV2.fromBlobHandleToPfd(result);
 
         AppSearchBatchResult<AppSearchBlobHandle, ParcelFileDescriptor> outResult =
                 resultParcel.getResult();
@@ -82,8 +82,8 @@ public class AppSearchBatchResultGeneralKeyParcelTest {
                         .setResult(blobHandle1, successResult)
                         .setResult(blobHandle2, failureResult)
                         .build();
-        AppSearchBatchResultGeneralKeyParcel<AppSearchBlobHandle, Void> resultParcel =
-                AppSearchBatchResultGeneralKeyParcel.fromBlobHandleToVoid(result);
+        AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> resultParcel =
+                AppSearchBatchResultParcelV2.fromBlobHandleToVoid(result);
 
         AppSearchBatchResult<AppSearchBlobHandle, Void> outResult = resultParcel.getResult();
 

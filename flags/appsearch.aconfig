@@ -42,6 +42,15 @@ flag {
 }
 
 flag {
+    name: "enable_list_filter_match_score_expression_function"
+    is_exported: true
+    namespace: "appsearch"
+    description: "Enable the 'matchScoreExpression' function in list filter query expressions."
+    bug: "377215223"
+    is_fixed_read_only: true
+}
+
+flag {
     name: "enable_put_documents_request_add_taken_actions"
     is_exported: true
     namespace: "appsearch"
@@ -150,6 +159,15 @@ flag {
 }
 
 flag {
+    name: "enable_schema_embedding_quantization"
+    namespace: "appsearch"
+    description: "Enables embedding quantization."
+    bug: "359959345"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
     name: "enable_informational_ranking_expressions"
     namespace: "appsearch"
     description: "Enables the additional informational ranking expression API"
@@ -243,7 +261,7 @@ flag {
 flag {
     name: "enable_abstract_syntax_trees"
     namespace: "appsearch"
-    description: " Enables abstract syntax trees to be built and used within AppSearch."
+    description: "Enables abstract syntax trees to be built and used within AppSearch."
     bug: "356661489"
     is_fixed_read_only: true
     is_exported: true
@@ -254,6 +272,42 @@ flag {
     namespace: "appsearch"
     description: "Enables the addFilterDocumentId API in the SearchSpec."
     bug: "367464836"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_document_limiter_replace_tracking"
+    namespace: "appsearch"
+    description: "Enables the replacement of the calculation of doc limits."
+    bug: "363301147"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_scorable_property"
+    namespace: "appsearch"
+    description: "Enables the feature of scorable property."
+    bug: "357105964"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+     name: "enable_search_result_parent_types"
+     namespace: "appsearch"
+     description: "Enables wrapping the parent types of a document in the SearchResult instead of GenericDocument."
+     bug: "371610934"
+     is_fixed_read_only: true
+     is_exported: true
+ }
+
+flag {
+    name: "enable_delete_propagation_type"
+    namespace: "appsearch"
+    description: "Enables delete propagation type related APIs."
+    bug: "376913014"
     is_fixed_read_only: true
     is_exported: true
 }

@@ -430,9 +430,12 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
          */
         @CanIgnoreReturnValue
         @NonNull
-        public Builder setParentTypes(@NonNull List<String> parentTypes) {
-            Objects.requireNonNull(parentTypes);
-            mParentTypes = new ArrayList<>(parentTypes);
+        public Builder setParentTypes(@Nullable List<String> parentTypes) {
+            if (parentTypes == null) {
+                mParentTypes = null;
+            } else {
+                mParentTypes = new ArrayList<>(parentTypes);
+            }
             return this;
         }
 

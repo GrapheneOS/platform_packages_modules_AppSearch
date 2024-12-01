@@ -30,6 +30,7 @@ import android.app.appsearch.SchemaVisibilityConfig;
 import android.app.appsearch.VisibilityPermissionConfig;
 import android.app.appsearch.exceptions.AppSearchException;
 
+import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
@@ -63,13 +64,16 @@ public class VisibilityStoreTest {
     @Before
     public void setUp() throws Exception {
         File appSearchDir = mTemporaryFolder.newFolder();
+        AppSearchConfig config =
+                new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
         mAppSearchImpl =
                 AppSearchImpl.create(
                         appSearchDir,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        config,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
         mVisibilityStore = new VisibilityStore(mAppSearchImpl);
     }

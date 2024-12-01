@@ -27,7 +27,10 @@ import static com.google.common.truth.Truth.assertThat;
 import android.app.appsearch.JoinSpec;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.testutil.AppSearchTestUtils;
+import android.util.ArrayMap;
+import android.util.ArraySet;
 
+import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
@@ -42,7 +45,9 @@ import com.android.server.appsearch.icing.proto.JoinSpecProto;
 import com.android.server.appsearch.icing.proto.NamespaceDocumentUriGroup;
 import com.android.server.appsearch.icing.proto.PropertyWeight;
 import com.android.server.appsearch.icing.proto.ResultSpecProto;
+import com.android.server.appsearch.icing.proto.SchemaTypeAliasMapProto;
 import com.android.server.appsearch.icing.proto.SchemaTypeConfigProto;
+import com.android.server.appsearch.icing.proto.ScoringFeatureType;
 import com.android.server.appsearch.icing.proto.ScoringSpecProto;
 import com.android.server.appsearch.icing.proto.SearchSpecProto;
 import com.android.server.appsearch.icing.proto.TypePropertyWeights;
@@ -72,15 +77,30 @@ public class SearchSpecToProtoConverterTest {
 
     private AppSearchImpl mAppSearchImpl;
 
+    private Map<String, Set<String>> extractSchemaToPrefixedSchemasMap(
+            ScoringSpecProto scoringSpecProto) {
+        Map<String, Set<String>> schemaToSchemaTypesMap = new ArrayMap<>();
+        for (SchemaTypeAliasMapProto schemaTypeAliasMapProto :
+                scoringSpecProto.getSchemaTypeAliasMapProtosList()) {
+            schemaToSchemaTypesMap.put(
+                    schemaTypeAliasMapProto.getAliasSchemaType(),
+                    new ArraySet<>(schemaTypeAliasMapProto.getSchemaTypesList()));
+        }
+        return schemaToSchemaTypesMap;
+    }
+
     @Before
     public void setUp() throws Exception {
+        AppSearchConfig config =
+                new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(), mLocalStorageIcingOptionsConfig);
         mAppSearchImpl =
                 AppSearchImpl.create(
                         mTemporaryFolder.newFolder(),
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), mLocalStorageIcingOptionsConfig),
+                        config,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
     }
 
@@ -292,7 +312,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testToScoringSpecProto() {
+    public void testToScoringSpecProto() throws Exception {
         String prefix = PrefixUtil.createPrefix("package", "database1");
         String schemaType = "schemaType";
         String namespace = "namespace";
@@ -335,6 +355,50 @@ public class SearchSpecToProtoConverterTest {
                 .isEqualTo(ScoringSpecProto.RankingStrategy.Code.RELEVANCE_SCORE.getNumber());
         assertThat(scoringSpecProto.getTypePropertyWeightsList())
                 .containsExactly(typePropertyWeights);
+    }
+
+    @Test
+    public void testGenerateScoringSpecProtoWhenScorableRankingIsEnabled() throws Exception {
+        String prefix1 = PrefixUtil.createPrefix("package1", "database2");
+        String prefix2 = PrefixUtil.createPrefix("package2", "database1");
+        String gmailSchemaType = "gmail";
+        String personSchemaType = "person";
+
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setRankingStrategy(RANKING_STRATEGY_RELEVANCE_SCORE)
+                        .setScorablePropertyRankingEnabled(true)
+                        .build();
+        SchemaTypeConfigProto configProto = SchemaTypeConfigProto.getDefaultInstance();
+        ScoringSpecProto scoringSpecProto =
+                new SearchSpecToProtoConverter(
+                                /* queryExpression= */ "",
+                                searchSpec,
+                                /* prefixes= */ ImmutableSet.of(prefix1, prefix2),
+                                /* namespaceMap= */ ImmutableMap.of(
+                                        prefix1, ImmutableSet.of(prefix1 + "namespace1"),
+                                        prefix2, ImmutableSet.of(prefix2 + "namespace1")),
+                                new SchemaCache(
+                                        /* schemaMap= */ ImmutableMap.of(
+                                                prefix1,
+                                                ImmutableMap.of(
+                                                        prefix1 + gmailSchemaType, configProto,
+                                                        prefix1 + personSchemaType, configProto),
+                                                prefix2,
+                                                ImmutableMap.of(
+                                                        prefix2 + gmailSchemaType, configProto))),
+                                mLocalStorageIcingOptionsConfig)
+                        .toScoringSpecProto();
+        assertThat(scoringSpecProto.getScoringFeatureTypesEnabledList())
+                .containsExactly(ScoringFeatureType.SCORABLE_PROPERTY_RANKING);
+        Map<String, Set<String>> schemaToPrefixedSchemasMap =
+                extractSchemaToPrefixedSchemasMap(scoringSpecProto);
+        assertThat(schemaToPrefixedSchemasMap)
+                .containsExactly(
+                        "person",
+                        ImmutableSet.of("package1$database2/person"),
+                        "gmail",
+                        ImmutableSet.of("package1$database2/gmail", "package2$database1/gmail"));
     }
 
     @Test
@@ -493,7 +557,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testToResultSpecProto_projection_withJoinSpec_packageFilter() {
+    public void testToResultSpecProto_projection_withJoinSpec_packageFilter() throws Exception {
         String personPrefix = PrefixUtil.createPrefix("contacts", "database");
         String actionPrefix = PrefixUtil.createPrefix("aiai", "database");
 
@@ -612,7 +676,8 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testToResultSpecProto_projection_removeSchemaWithoutParentInFilter() {
+    public void testToResultSpecProto_projection_removeSchemaWithoutParentInFilter()
+            throws Exception {
         SearchSpec searchSpec =
                 new SearchSpec.Builder()
                         .addFilterSchemas("Person")
@@ -664,7 +729,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testToSearchSpecProto_propertyFilter_withJoinSpec_packageFilter() {
+    public void testToSearchSpecProto_propertyFilter_withJoinSpec_packageFilter() throws Exception {
         String personPrefix = PrefixUtil.createPrefix("contacts", "database");
         String actionPrefix = PrefixUtil.createPrefix("aiai", "database");
 
@@ -750,7 +815,8 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testToSearchSpecProto_propertyFilter_removeSchemaWithoutParentInFilter() {
+    public void testToSearchSpecProto_propertyFilter_removeSchemaWithoutParentInFilter()
+            throws Exception {
         SearchSpec searchSpec =
                 new SearchSpec.Builder()
                         .addFilterSchemas("Person")
@@ -1389,7 +1455,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testGetTargetSchemaFilters_emptySearchingFilter() {
+    public void testGetTargetSchemaFilters_emptySearchingFilter() throws Exception {
         SearchSpec searchSpec = new SearchSpec.Builder().build();
         String prefix1 = createPrefix("package", "database1");
         String prefix2 = createPrefix("package", "database2");
@@ -1426,7 +1492,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testGetTargetSchemaFilters_searchPartialFilter() {
+    public void testGetTargetSchemaFilters_searchPartialFilter() throws Exception {
         SearchSpec searchSpec = new SearchSpec.Builder().build();
         String prefix1 = createPrefix("package", "database1");
         String prefix2 = createPrefix("package", "database2");
@@ -1462,7 +1528,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testGetTargetSchemaFilters_intersectionWithSearchingFilter() {
+    public void testGetTargetSchemaFilters_intersectionWithSearchingFilter() throws Exception {
         // Put some searching schemas.
         SearchSpec searchSpec =
                 new SearchSpec.Builder().addFilterSchemas("typeA", "nonExist").build();
@@ -1492,7 +1558,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testGetTargetSchemaFilters_polymorphismExpansion() {
+    public void testGetTargetSchemaFilters_polymorphismExpansion() throws Exception {
         SearchSpec searchSpec =
                 new SearchSpec.Builder().addFilterSchemas("Person", "nonExist").build();
         String prefix = createPrefix("package", "database");
@@ -1530,7 +1596,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testGetTargetSchemaFilters_polymorphismExpansion_multipleLevel() {
+    public void testGetTargetSchemaFilters_polymorphismExpansion_multipleLevel() throws Exception {
         SearchSpec searchSpec = new SearchSpec.Builder().addFilterSchemas("A", "B").build();
         String prefix = createPrefix("package", "database");
         SchemaTypeConfigProto schemaA =
@@ -1583,7 +1649,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testGetTargetSchemaFilters_intersectionWithNonExistFilter() {
+    public void testGetTargetSchemaFilters_intersectionWithNonExistFilter() throws Exception {
         // Put non-exist searching schema.
         SearchSpec searchSpec = new SearchSpec.Builder().addFilterSchemas("nonExist").build();
         String prefix1 = createPrefix("package", "database1");
@@ -1657,7 +1723,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testIsNothingToSearch() {
+    public void testIsNothingToSearch() throws Exception {
         String prefix = PrefixUtil.createPrefix("package", "database");
         SearchSpec nestedSearchSpec = new SearchSpec.Builder().build();
         JoinSpec joinSpec =
@@ -1765,7 +1831,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testConvertPropertyWeights() {
+    public void testConvertPropertyWeights() throws Exception {
         String prefix1 = PrefixUtil.createPrefix("package", "database1");
         String prefix2 = PrefixUtil.createPrefix("package", "database2");
         String schemaTypeA = "typeA";
@@ -1840,7 +1906,7 @@ public class SearchSpecToProtoConverterTest {
     }
 
     @Test
-    public void testConvertPropertyWeights_whenNoWeightsSet() {
+    public void testConvertPropertyWeights_whenNoWeightsSet() throws Exception {
         SearchSpec searchSpec = new SearchSpec.Builder().build();
         String prefix1 = PrefixUtil.createPrefix("package", "database1");
         SchemaTypeConfigProto schemaTypeConfigProto =

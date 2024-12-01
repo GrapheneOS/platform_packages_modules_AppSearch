@@ -23,8 +23,11 @@ import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.safeparcel.SafeParcelable;
+import android.app.appsearch.util.BundleUtil;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.ArrayMap;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
@@ -32,7 +35,9 @@ import com.android.internal.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * This class represents one of the results obtained from an AppSearch query.
@@ -80,6 +85,20 @@ public final class SearchResult extends AbstractSafeParcelable {
     @Field(id = 7, getter = "getInformationalRankingSignals")
     private final List<Double> mInformationalRankingSignals;
 
+    /**
+     * Holds the map from schema type names to the list of their parent types.
+     *
+     * <p>The map includes entries for the {@link GenericDocument}'s own type and all of the nested
+     * documents' types. Child types are guaranteed to appear before parent types in each list.
+     *
+     * <p>Parent types include transitive parents.
+     *
+     * <p>All schema names in this map are un-prefixed, for both keys and values.
+     */
+    @NonNull
+    @Field(id = 8)
+    final Bundle mParentTypeMap;
+
     /** Cache of the {@link GenericDocument}. Comes from mDocument at first use. */
     @Nullable private GenericDocument mDocumentCached;
 
@@ -95,7 +114,8 @@ public final class SearchResult extends AbstractSafeParcelable {
             @Param(id = 4) @NonNull String databaseName,
             @Param(id = 5) double rankingSignal,
             @Param(id = 6) @NonNull List<SearchResult> joinedResults,
-            @Param(id = 7) @Nullable List<Double> informationalRankingSignals) {
+            @Param(id = 7) @Nullable List<Double> informationalRankingSignals,
+            @Param(id = 8) @Nullable Bundle parentTypeMap) {
         mDocument = Objects.requireNonNull(document);
         mMatchInfos = Objects.requireNonNull(matchInfos);
         mPackageName = Objects.requireNonNull(packageName);
@@ -107,6 +127,11 @@ public final class SearchResult extends AbstractSafeParcelable {
                     Collections.unmodifiableList(informationalRankingSignals);
         } else {
             mInformationalRankingSignals = Collections.emptyList();
+        }
+        if (parentTypeMap != null) {
+            mParentTypeMap = parentTypeMap;
+        } else {
+            mParentTypeMap = Bundle.EMPTY;
         }
     }
 
@@ -211,6 +236,31 @@ public final class SearchResult extends AbstractSafeParcelable {
     }
 
     /**
+     * Returns the map from schema type names to the list of their parent types.
+     *
+     * <p>The map includes entries for the {@link GenericDocument}'s own type and all of the nested
+     * documents' types. Child types are guaranteed to appear before parent types in each list.
+     *
+     * <p>Parent types include transitive parents.
+     *
+     * <p>Calling this function repeatedly is inefficient. Prefer to retain the Map returned by this
+     * function, rather than calling it multiple times.
+     */
+    @NonNull
+    @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_RESULT_PARENT_TYPES)
+    public Map<String, List<String>> getParentTypeMap() {
+        Set<String> schemaTypes = mParentTypeMap.keySet();
+        Map<String, List<String>> parentTypeMap = new ArrayMap<>(schemaTypes.size());
+        for (String schemaType : schemaTypes) {
+            ArrayList<String> parentTypes = mParentTypeMap.getStringArrayList(schemaType);
+            if (parentTypes != null) {
+                parentTypeMap.put(schemaType, parentTypes);
+            }
+        }
+        return parentTypeMap;
+    }
+
+    /**
      * Gets a list of {@link SearchResult} joined from the join operation.
      *
      * <p>These joined documents match the outer document as specified in the {@link JoinSpec} with
@@ -243,6 +293,7 @@ public final class SearchResult extends AbstractSafeParcelable {
         private GenericDocument mGenericDocument;
         private double mRankingSignal;
         private List<Double> mInformationalRankingSignals = new ArrayList<>();
+        private Bundle mParentTypeMap = new Bundle();
         private List<SearchResult> mJoinedResults = new ArrayList<>();
         private boolean mBuilt = false;
 
@@ -266,6 +317,7 @@ public final class SearchResult extends AbstractSafeParcelable {
             mRankingSignal = searchResult.getRankingSignal();
             mInformationalRankingSignals =
                     new ArrayList<>(searchResult.getInformationalRankingSignals());
+            setParentTypeMap(searchResult.getParentTypeMap());
             List<MatchInfo> matchInfos = searchResult.getMatchInfos();
             for (int i = 0; i < matchInfos.size(); i++) {
                 addMatchInfo(new MatchInfo.Builder(matchInfos.get(i)).build());
@@ -319,6 +371,41 @@ public final class SearchResult extends AbstractSafeParcelable {
         }
 
         /**
+         * Sets the map from schema type names to the list of their parent types.
+         *
+         * <p>The map should include entries for the {@link GenericDocument}'s own type and all of
+         * the nested documents' types.
+         *
+         * <p>Child types must appear before parent types in each list. Otherwise, the
+         * GenericDocument's toDocumentClass method may not correctly identify the most concrete
+         * type. This could lead to unintended deserialization into a more general type instead of a
+         * more specific type.
+         *
+         * <p>Parent types should include transitive parents.
+         */
+        @CanIgnoreReturnValue
+        @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_RESULT_PARENT_TYPES)
+        @NonNull
+        public Builder setParentTypeMap(@NonNull Map<String, List<String>> parentTypeMap) {
+            Objects.requireNonNull(parentTypeMap);
+            resetIfBuilt();
+            mParentTypeMap.clear();
+
+            for (Map.Entry<String, List<String>> entry : parentTypeMap.entrySet()) {
+                Objects.requireNonNull(entry.getKey());
+                Objects.requireNonNull(entry.getValue());
+
+                ArrayList<String> parentTypes = new ArrayList<>(entry.getValue().size());
+                for (int i = 0; i < entry.getValue().size(); i++) {
+                    String parentType = entry.getValue().get(i);
+                    parentTypes.add(Objects.requireNonNull(parentType));
+                }
+                mParentTypeMap.putStringArrayList(entry.getKey(), parentTypes);
+            }
+            return this;
+        }
+
+        /**
          * Adds a {@link SearchResult} that was joined by the {@link JoinSpec}.
          *
          * @param joinedResult The joined SearchResult to add.
@@ -355,7 +442,8 @@ public final class SearchResult extends AbstractSafeParcelable {
                     mDatabaseName,
                     mRankingSignal,
                     mJoinedResults,
-                    mInformationalRankingSignals);
+                    mInformationalRankingSignals,
+                    mParentTypeMap);
         }
 
         private void resetIfBuilt() {
@@ -363,6 +451,7 @@ public final class SearchResult extends AbstractSafeParcelable {
                 mMatchInfos = new ArrayList<>(mMatchInfos);
                 mJoinedResults = new ArrayList<>(mJoinedResults);
                 mInformationalRankingSignals = new ArrayList<>(mInformationalRankingSignals);
+                mParentTypeMap = BundleUtil.deepCopy(mParentTypeMap);
                 mBuilt = false;
             }
         }

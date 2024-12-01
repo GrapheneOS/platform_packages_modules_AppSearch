@@ -28,6 +28,10 @@ public interface AppSearchConfig extends IcingOptionsConfig, LimitConfig {
      */
     boolean shouldStoreParentInfoAsSyntheticProperty();
 
-    /** Whether to include the list of parent types when returning a {@link GenericDocument}. */
+    /**
+     * Whether to include the list of parent types when returning a {@link GenericDocument} or a
+     * {@link android.app.appsearch.SearchResult} when {@link
+     * com.android.appsearch.flags.Flags#FLAG_ENABLE_SEARCH_RESULT_PARENT_TYPES} in on.
+     */
     boolean shouldRetrieveParentInfo();
 }

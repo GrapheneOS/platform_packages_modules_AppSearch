@@ -17,7 +17,7 @@ package android.app.appsearch;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
-import android.app.appsearch.aidl.AppSearchBatchResultGeneralKeyParcel;
+import android.app.appsearch.aidl.AppSearchBatchResultParcelV2;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
@@ -36,25 +36,24 @@ import java.util.Objects;
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
 @SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "CommitBlobResponseCreator")
-public final class AppSearchCommitBlobResponse extends AbstractSafeParcelable {
+public final class CommitBlobResponse extends AbstractSafeParcelable {
 
     @NonNull
-    public static final Parcelable.Creator<AppSearchCommitBlobResponse> CREATOR =
+    public static final Parcelable.Creator<CommitBlobResponse> CREATOR =
             new CommitBlobResponseCreator();
 
     @Field(id = 1, getter = "getResponseParcel")
-    private final AppSearchBatchResultGeneralKeyParcel<AppSearchBlobHandle, Void> mResultParcel;
+    private final AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> mResultParcel;
 
-    /** Creates a {@link AppSearchCommitBlobResponse} with given {@link AppSearchBatchResult}. */
-    public AppSearchCommitBlobResponse(
-            @NonNull AppSearchBatchResult<AppSearchBlobHandle, Void> result) {
-        this(AppSearchBatchResultGeneralKeyParcel.fromBlobHandleToVoid(result));
+    /** Creates a {@link CommitBlobResponse} with given {@link AppSearchBatchResult}. */
+    public CommitBlobResponse(@NonNull AppSearchBatchResult<AppSearchBlobHandle, Void> result) {
+        this(AppSearchBatchResultParcelV2.fromBlobHandleToVoid(result));
     }
 
     @Constructor
-    AppSearchCommitBlobResponse(
+    CommitBlobResponse(
             @Param(id = 1) @NonNull
-                    AppSearchBatchResultGeneralKeyParcel<AppSearchBlobHandle, Void> resultParcel) {
+                    AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> resultParcel) {
         mResultParcel = Objects.requireNonNull(resultParcel);
     }
 
@@ -78,7 +77,7 @@ public final class AppSearchCommitBlobResponse extends AbstractSafeParcelable {
      * @hide
      */
     @NonNull
-    public AppSearchBatchResultGeneralKeyParcel<AppSearchBlobHandle, Void> getResponseParcel() {
+    public AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> getResponseParcel() {
         return mResultParcel;
     }
 

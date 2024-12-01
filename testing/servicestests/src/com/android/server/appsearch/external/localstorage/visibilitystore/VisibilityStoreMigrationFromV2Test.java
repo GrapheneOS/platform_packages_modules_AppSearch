@@ -30,6 +30,7 @@ import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.VisibilityPermissionConfig;
 import android.app.appsearch.exceptions.AppSearchException;
 
+import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
@@ -59,6 +60,9 @@ public class VisibilityStoreMigrationFromV2Test {
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
     private File mFile;
+    private AppSearchConfig mConfig =
+            new AppSearchConfigImpl(
+                    new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
 
     @Before
     public void setUp() throws Exception {
@@ -87,10 +91,10 @@ public class VisibilityStoreMigrationFromV2Test {
         AppSearchImpl appSearchImplInV2 =
                 AppSearchImpl.create(
                         mFile,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
 
         // Erase overlay schemas since it doesn't exist in released V2 schema.
@@ -168,10 +172,10 @@ public class VisibilityStoreMigrationFromV2Test {
         AppSearchImpl appSearchImpl =
                 AppSearchImpl.create(
                         mFile,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
 
         InternalVisibilityConfig actualConfig =

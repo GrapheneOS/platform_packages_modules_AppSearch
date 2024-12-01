@@ -27,8 +27,10 @@ import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.aidl.AppSearchResultParcel;
+import android.app.appsearch.aidl.AppSearchResultParcelV2;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
+import android.app.appsearch.aidl.IAppSearchResultV2Callback;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.os.UserHandle;
 import android.util.ArrayMap;
@@ -182,6 +184,59 @@ public class ExecutorManager {
             AppSearchResult failedResult = throwableToFailedResult(e);
             invokeCallbackOnResult(
                     errorCallback, AppSearchResultParcel.fromFailedResult(failedResult));
+        }
+        return true;
+    }
+
+    /**
+     * Helper to execute the implementation of some AppSearch functionality on the executor for that
+     * user.
+     *
+     * @param targetUser The verified user the call should run as.
+     * @param errorCallback Callback to complete with an error if starting the lambda fails.
+     *     Otherwise this callback is not triggered.
+     * @param callingPackageName Package making this lambda call.
+     * @param apiType Api type of this lambda call.
+     * @param lambda The lambda to execute on the user-provided executor.
+     * @return true if the call is accepted by the executor and false otherwise.
+     */
+    @BinderThread
+    @CanIgnoreReturnValue
+    // TODO(b/273591938) remove this method and IAppSearchResultV2Callback in the following CL.
+    public boolean executeLambdaForUserAsync(
+            @NonNull UserHandle targetUser,
+            @NonNull IAppSearchResultV2Callback errorCallback,
+            @NonNull String callingPackageName,
+            @CallStats.CallType int apiType,
+            @NonNull Runnable lambda) {
+        Objects.requireNonNull(targetUser);
+        Objects.requireNonNull(errorCallback);
+        Objects.requireNonNull(callingPackageName);
+        Objects.requireNonNull(lambda);
+        try {
+            synchronized (mPerUserExecutorsLocked) {
+                Executor executor = getOrCreateUserExecutor(targetUser);
+                if (executor instanceof RateLimitedExecutor) {
+                    boolean callAccepted =
+                            ((RateLimitedExecutor) executor)
+                                    .execute(lambda, callingPackageName, apiType);
+                    if (!callAccepted) {
+                        invokeCallbackOnResult(
+                                errorCallback,
+                                AppSearchResultParcelV2.fromFailedResult(
+                                        AppSearchResult.newFailedResult(
+                                                RESULT_RATE_LIMITED,
+                                                "AppSearch rate limit reached.")));
+                        return false;
+                    }
+                } else {
+                    executor.execute(lambda);
+                }
+            }
+        } catch (RuntimeException e) {
+            AppSearchResult failedResult = throwableToFailedResult(e);
+            invokeCallbackOnResult(
+                    errorCallback, AppSearchResultParcelV2.fromFailedResult(failedResult));
         }
         return true;
     }

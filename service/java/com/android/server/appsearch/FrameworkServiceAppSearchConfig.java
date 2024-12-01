@@ -66,8 +66,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             "sampling_interval_for_optimize_stats";
     public static final String KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES =
             "limit_config_max_document_size_bytes";
-    public static final String KEY_LIMIT_CONFIG_MAX_DOCUMENT_COUNT =
-            "limit_config_max_document_count";
     public static final String KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT =
             "limit_config_per_package_document_count_limit";
     public static final String KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD =
@@ -113,6 +111,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS =
             "app_function_call_timeout_millis";
     public static final String KEY_FULLY_PERSIST_JOB_INTERVAL = "fully_persist_job_interval";
+    public static final String KEY_MAX_OPEN_BLOB_COUNT = "max_open_blob_count";
+    public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -131,7 +131,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_SAMPLING_INTERVAL_FOR_GLOBAL_SEARCH_STATS,
         KEY_SAMPLING_INTERVAL_FOR_OPTIMIZE_STATS,
         KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
-        KEY_LIMIT_CONFIG_MAX_DOCUMENT_COUNT,
         KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT,
         KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD,
         KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT,
@@ -161,7 +160,9 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX,
         KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
         KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
-        KEY_FULLY_PERSIST_JOB_INTERVAL
+        KEY_FULLY_PERSIST_JOB_INTERVAL,
+        KEY_MAX_OPEN_BLOB_COUNT,
+        KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS
     };
 
     // Lock needed for all the operations in this class.
@@ -366,11 +367,22 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
-    public int getMaxDocumentCount() {
+    public int getPerPackageDocumentCountLimit() {
         synchronized (mLock) {
             throwIfClosedLocked();
             return mBundleLocked.getInt(
-                    KEY_LIMIT_CONFIG_MAX_DOCUMENT_COUNT, DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT);
+                    KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT,
+                    DEFAULT_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT);
+        }
+    }
+
+    @Override
+    public int getDocumentCountLimitStartThreshold() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(
+                    KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD,
+                    DEFAULT_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD);
         }
     }
 
@@ -381,6 +393,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             return mBundleLocked.getInt(
                     KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT,
                     DEFAULT_LIMIT_CONFIG_MAX_SUGGESTION_COUNT);
+        }
+    }
+
+    @Override
+    public int getMaxOpenBlobCount() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(KEY_MAX_OPEN_BLOB_COUNT, DEFAULT_MAX_OPEN_BLOB_COUNT);
         }
     }
 
@@ -610,6 +630,15 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
+    public long getOrphanBlobTimeToLiveMs() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS, DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS);
+        }
+    }
+
+    @Override
     public boolean shouldStoreParentInfoAsSyntheticProperty() {
         // This option is always true in Framework.
         return true;
@@ -677,12 +706,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                     mBundleLocked.putInt(
                             key,
                             properties.getInt(key, DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES));
-                }
-                break;
-            case KEY_LIMIT_CONFIG_MAX_DOCUMENT_COUNT:
-                synchronized (mLock) {
-                    mBundleLocked.putInt(
-                            key, properties.getInt(key, DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT));
                 }
                 break;
             case KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT:
@@ -898,6 +921,17 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 synchronized (mLock) {
                     mBundleLocked.putLong(
                             key, properties.getLong(key, DEFAULT_FULLY_PERSIST_JOB_INTERVAL));
+                }
+                break;
+            case KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key, properties.getLong(key, DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS));
+                }
+                break;
+            case KEY_MAX_OPEN_BLOB_COUNT:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(key, properties.getInt(key, DEFAULT_MAX_OPEN_BLOB_COUNT));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:

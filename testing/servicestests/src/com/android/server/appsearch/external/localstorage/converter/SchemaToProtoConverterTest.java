@@ -121,7 +121,9 @@ public class SchemaToProtoConverterTest {
                                         .setDescription("The time at which the email was sent.")
                                         .setDataType(PropertyConfigProto.DataType.Code.INT64)
                                         .setCardinality(
-                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.DISABLED))
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("importanceScore")
@@ -129,7 +131,9 @@ public class SchemaToProtoConverterTest {
                                                 "A value representing this document's importance.")
                                         .setDataType(PropertyConfigProto.DataType.Code.DOUBLE)
                                         .setCardinality(
-                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.DISABLED))
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("read")
@@ -137,7 +141,9 @@ public class SchemaToProtoConverterTest {
                                                 "Whether the email has been read by the recipient")
                                         .setDataType(PropertyConfigProto.DataType.Code.BOOLEAN)
                                         .setCardinality(
-                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.DISABLED))
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("attachment")
@@ -157,7 +163,11 @@ public class SchemaToProtoConverterTest {
                                                         .setEmbeddingIndexingType(
                                                                 EmbeddingIndexingConfig
                                                                         .EmbeddingIndexingType.Code
-                                                                        .LINEAR_SEARCH)))
+                                                                        .LINEAR_SEARCH)
+                                                        .setQuantizationType(
+                                                                EmbeddingIndexingConfig
+                                                                        .QuantizationType.Code
+                                                                        .NONE)))
                         .addProperties(
                                 PropertyConfigProto.newBuilder()
                                         .setPropertyName("sender")
@@ -297,7 +307,9 @@ public class SchemaToProtoConverterTest {
                                         .setDescription("")
                                         .setDataType(PropertyConfigProto.DataType.Code.INT64)
                                         .setCardinality(
-                                                PropertyConfigProto.Cardinality.Code.OPTIONAL))
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.DISABLED))
                         .build();
 
         assertThat(
@@ -319,12 +331,17 @@ public class SchemaToProtoConverterTest {
                                         .setJoinableValueType(
                                                 AppSearchSchema.StringPropertyConfig
                                                         .JOINABLE_VALUE_TYPE_QUALIFIED_ID)
+                                        .setDeletePropagationType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .DELETE_PROPAGATION_TYPE_PROPAGATE_FROM)
                                         .build())
                         .build();
 
         JoinableConfig joinableConfig =
                 JoinableConfig.newBuilder()
                         .setValueType(JoinableConfig.ValueType.Code.QUALIFIED_ID)
+                        .setDeletePropagationType(
+                                JoinableConfig.DeletePropagationType.Code.PROPAGATE_FROM)
                         .build();
 
         SchemaTypeConfigProto expectedAlbumProto =
@@ -487,6 +504,21 @@ public class SchemaToProtoConverterTest {
                                         .setIndexingType(
                                                 AppSearchSchema.EmbeddingPropertyConfig
                                                         .INDEXING_TYPE_SIMILARITY)
+                                        .setQuantizationType(
+                                                AppSearchSchema.EmbeddingPropertyConfig
+                                                        .QUANTIZATION_TYPE_NONE)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.EmbeddingPropertyConfig.Builder(
+                                                "quantizedEmbedding")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.EmbeddingPropertyConfig
+                                                        .INDEXING_TYPE_SIMILARITY)
+                                        .setQuantizationType(
+                                                AppSearchSchema.EmbeddingPropertyConfig
+                                                        .QUANTIZATION_TYPE_8_BIT)
                                         .build())
                         .build();
 
@@ -542,7 +574,28 @@ public class SchemaToProtoConverterTest {
                                                         .setEmbeddingIndexingType(
                                                                 EmbeddingIndexingConfig
                                                                         .EmbeddingIndexingType.Code
-                                                                        .LINEAR_SEARCH)))
+                                                                        .LINEAR_SEARCH)
+                                                        .setQuantizationType(
+                                                                EmbeddingIndexingConfig
+                                                                        .QuantizationType.Code
+                                                                        .NONE)))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("quantizedEmbedding")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.VECTOR)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setEmbeddingIndexingConfig(
+                                                EmbeddingIndexingConfig.newBuilder()
+                                                        .setEmbeddingIndexingType(
+                                                                EmbeddingIndexingConfig
+                                                                        .EmbeddingIndexingType.Code
+                                                                        .LINEAR_SEARCH)
+                                                        .setQuantizationType(
+                                                                EmbeddingIndexingConfig
+                                                                        .QuantizationType.Code
+                                                                        .QUANTIZE_8_BIT)))
                         .build();
 
         assertThat(
@@ -551,5 +604,68 @@ public class SchemaToProtoConverterTest {
                 .isEqualTo(expectedEmailProto);
         assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedEmailProto))
                 .isEqualTo(emailSchema);
+    }
+
+    @Test
+    public void testGetProto_withScorablePropertyEnabled() {
+        AppSearchSchema emailSchema =
+                new AppSearchSchema.Builder("Email")
+                        .addProperty(
+                                new AppSearchSchema.LongPropertyConfig.Builder("viewTimes")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setScoringEnabled(true)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.DoublePropertyConfig.Builder("score")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setScoringEnabled(true)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.BooleanPropertyConfig.Builder("read")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setScoringEnabled(true)
+                                        .build())
+                        .build();
+
+        SchemaTypeConfigProto expectedProto =
+                SchemaTypeConfigProto.newBuilder()
+                        .setSchemaType("Email")
+                        .setDescription("")
+                        .setVersion(0)
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("viewTimes")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.INT64)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.ENABLED))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("score")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.DOUBLE)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.ENABLED))
+                        .addProperties(
+                                PropertyConfigProto.newBuilder()
+                                        .setPropertyName("read")
+                                        .setDescription("")
+                                        .setDataType(PropertyConfigProto.DataType.Code.BOOLEAN)
+                                        .setCardinality(
+                                                PropertyConfigProto.Cardinality.Code.OPTIONAL)
+                                        .setScorableType(
+                                                PropertyConfigProto.ScorableType.Code.ENABLED))
+                        .build();
+
+        assertThat(SchemaToProtoConverter.toSchemaTypeConfigProto(emailSchema, /* version= */ 0))
+                .isEqualTo(expectedProto);
+        assertThat(SchemaToProtoConverter.toAppSearchSchema(expectedProto)).isEqualTo(emailSchema);
     }
 }

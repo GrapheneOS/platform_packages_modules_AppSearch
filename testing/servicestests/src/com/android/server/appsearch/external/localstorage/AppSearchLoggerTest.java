@@ -72,16 +72,19 @@ public class AppSearchLoggerTest {
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
     private AppSearchImpl mAppSearchImpl;
     private SimpleTestLogger mLogger;
+    private AppSearchConfig mConfig =
+            new AppSearchConfigImpl(
+                    new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
 
     @Before
     public void setUp() throws Exception {
         mAppSearchImpl =
                 AppSearchImpl.create(
                         mTemporaryFolder.newFolder(),
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
         mLogger = new SimpleTestLogger();
     }
@@ -376,10 +379,10 @@ public class AppSearchLoggerTest {
         AppSearchImpl appSearchImpl =
                 AppSearchImpl.create(
                         mTemporaryFolder.newFolder(),
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
         appSearchImpl.close();
@@ -408,10 +411,10 @@ public class AppSearchLoggerTest {
         AppSearchImpl appSearchImpl =
                 AppSearchImpl.create(
                         folder,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
         List<AppSearchSchema> schemas =
                 ImmutableList.of(
@@ -440,10 +443,10 @@ public class AppSearchLoggerTest {
         appSearchImpl =
                 AppSearchImpl.create(
                         folder,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
 
@@ -473,10 +476,10 @@ public class AppSearchLoggerTest {
         AppSearchImpl appSearchImpl =
                 AppSearchImpl.create(
                         folder,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
 
         List<AppSearchSchema> schemas =
@@ -515,10 +518,10 @@ public class AppSearchLoggerTest {
         appSearchImpl =
                 AppSearchImpl.create(
                         folder,
-                        new AppSearchConfigImpl(
-                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        mConfig,
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
 

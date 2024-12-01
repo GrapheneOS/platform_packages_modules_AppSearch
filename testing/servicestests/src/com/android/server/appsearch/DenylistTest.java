@@ -48,7 +48,7 @@ public class DenylistTest {
                         + "localSearchSuggestion,globalReportUsage,localReportUsage,"
                         + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
                         + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize,executeAppFunction");
+                        + "initialize,executeAppFunction,openWriteBlob,commitBlob,openReadBlob");
         for (Integer apiType : CallStats.getAllApiCallTypes()) {
             assertThat(denylist.checkDeniedPackageDatabase("foo", "bar", apiType)).isTrue();
             assertThat(denylist.checkDeniedPackageDatabase("bar", "foo", apiType)).isFalse();

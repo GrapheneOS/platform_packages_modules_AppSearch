@@ -44,7 +44,9 @@ import com.google.android.icing.proto.JoinSpecProto;
 import com.google.android.icing.proto.NamespaceDocumentUriGroup;
 import com.google.android.icing.proto.PropertyWeight;
 import com.google.android.icing.proto.ResultSpecProto;
+import com.google.android.icing.proto.SchemaTypeAliasMapProto;
 import com.google.android.icing.proto.SchemaTypeConfigProto;
+import com.google.android.icing.proto.ScoringFeatureType;
 import com.google.android.icing.proto.ScoringSpecProto;
 import com.google.android.icing.proto.SearchSpecProto;
 import com.google.android.icing.proto.TermMatchType;
@@ -384,8 +386,10 @@ public final class SearchSpecToProtoConverter {
                             + "associated metadata has not yet been turned on.");
         }
 
-        // Set enabled features
-        protoBuilder.addAllEnabledFeatures(toIcingSearchFeatures(mSearchSpec.getEnabledFeatures()));
+        // Set enabled search features.
+        protoBuilder.addAllEnabledFeatures(
+                toIcingSearchFeatures(
+                        extractEnabledSearchFeatures(mSearchSpec.getEnabledFeatures())));
 
         return protoBuilder.build();
     }
@@ -561,6 +565,20 @@ public final class SearchSpecToProtoConverter {
         protoBuilder.addAllAdditionalAdvancedScoringExpressions(
                 mSearchSpec.getInformationalRankingExpressions());
 
+        if (mSearchSpec.isScorablePropertyRankingEnabled()) {
+            protoBuilder.addScoringFeatureTypesEnabled(
+                    ScoringFeatureType.SCORABLE_PROPERTY_RANKING);
+            Map<String, Set<String>> schemaToPrefixedSchemasMap =
+                    createSchemaToPrefixedSchemasMap(mTargetPrefixedSchemaFilters);
+            for (Map.Entry<String, Set<String>> entry : schemaToPrefixedSchemasMap.entrySet()) {
+                SchemaTypeAliasMapProto.Builder schemaTypeAliasMapProto =
+                        SchemaTypeAliasMapProto.newBuilder();
+                schemaTypeAliasMapProto.setAliasSchemaType(entry.getKey());
+                schemaTypeAliasMapProto.addAllSchemaTypes(entry.getValue());
+                protoBuilder.addSchemaTypeAliasMapProtos(schemaTypeAliasMapProto);
+            }
+        }
+
         return protoBuilder.build();
     }
 
@@ -606,6 +624,9 @@ public final class SearchSpecToProtoConverter {
             String appSearchFeature = appSearchFeatures.get(i);
             if (appSearchFeature.equals(FeatureConstants.LIST_FILTER_HAS_PROPERTY_FUNCTION)) {
                 result.add("HAS_PROPERTY_FUNCTION");
+            } else if (appSearchFeature.equals(
+                    FeatureConstants.LIST_FILTER_MATCH_SCORE_EXPRESSION_FUNCTION)) {
+                result.add("MATCH_SCORE_EXPRESSION_FUNCTION");
             } else {
                 result.add(appSearchFeature);
             }
@@ -725,6 +746,35 @@ public final class SearchSpecToProtoConverter {
             }
         }
         return schemaToPrefixedSchemas;
+    }
+
+    /**
+     * Returns a map of schema to a set of prefixedSchemas, grouped by ending schema string.
+     *
+     * <p>For example, an input of { "package1$database1/gmail", "package1$database2/gmail",
+     * "package1$database1/person", "package1$database2/person"} will return an output of: {
+     * "gmail": {"package1$database1/gmail", "package1$database2/gmail"}, "person":
+     * {"package1$database1/person", "package1$database2/person"}, }
+     */
+    private Map<String, Set<String>> createSchemaToPrefixedSchemasMap(Set<String> prefixedSchemas) {
+        Map<String, Set<String>> schemasToPrefixedSchemas = new ArrayMap<>();
+        for (String prefixedSchema : prefixedSchemas) {
+            String schema;
+            try {
+                schema = removePrefix(prefixedSchema);
+            } catch (AppSearchException e) {
+                // This should never happen. Skip this schema if it does.
+                Log.e(TAG, "Prefixed schema " + prefixedSchema + " is malformed.");
+                continue;
+            }
+            Set<String> prefixedSchemaSet = schemasToPrefixedSchemas.get(schema);
+            if (prefixedSchemaSet == null) {
+                prefixedSchemaSet = new ArraySet<>();
+                schemasToPrefixedSchemas.put(schema, prefixedSchemaSet);
+            }
+            prefixedSchemaSet.add(prefixedSchema);
+        }
+        return schemasToPrefixedSchemas;
     }
 
     /**
@@ -1085,5 +1135,17 @@ public final class SearchSpecToProtoConverter {
                 }
             }
         }
+    }
+
+    List<String> extractEnabledSearchFeatures(List<String> allEnabledFeatures) {
+        List<String> searchFeatures = new ArrayList<>();
+        for (int i = 0; i < allEnabledFeatures.size(); ++i) {
+            String feature = allEnabledFeatures.get(i);
+            if (FeatureConstants.SCORABLE_FEATURE_SET.contains(feature)) {
+                continue;
+            }
+            searchFeatures.add(feature);
+        }
+        return searchFeatures;
     }
 }

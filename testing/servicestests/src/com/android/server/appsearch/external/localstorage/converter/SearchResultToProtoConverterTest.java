@@ -26,6 +26,7 @@ import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.exceptions.AppSearchException;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
 import com.android.server.appsearch.external.localstorage.SchemaCache;
@@ -35,6 +36,7 @@ import com.android.server.appsearch.icing.proto.DocumentProto;
 import com.android.server.appsearch.icing.proto.SchemaTypeConfigProto;
 import com.android.server.appsearch.icing.proto.SearchResultProto;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.Test;
@@ -43,6 +45,7 @@ import java.util.Map;
 
 public class SearchResultToProtoConverterTest {
     @Test
+    @SuppressWarnings("deprecation")
     public void testToSearchResultProto() throws Exception {
         final String prefix =
                 "com.package.foo"
@@ -51,21 +54,30 @@ public class SearchResultToProtoConverterTest {
                         + PrefixUtil.DATABASE_DELIMITER;
         final String id = "id";
         final String namespace = prefix + "namespace";
-        final String schemaType = prefix + "schema";
+        String schemaType = "schema";
+        String parentSchemaType = "parentSchema";
+        final String prefixedSchemaType = prefix + schemaType;
+        final String prefixedParentSchemaType = prefix + parentSchemaType;
         final AppSearchConfigImpl config =
                 new AppSearchConfigImpl(
-                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
+                        new UnlimitedLimitConfig(),
+                        new LocalStorageIcingOptionsConfig(),
+                        /* storeParentInfoAsSyntheticProperty= */ false,
+                        /* shouldRetrieveParentInfo= */ true);
 
         // Building the SearchResult received from query.
         DocumentProto.Builder documentProtoBuilder =
-                DocumentProto.newBuilder().setUri(id).setNamespace(namespace).setSchema(schemaType);
+                DocumentProto.newBuilder()
+                        .setUri(id)
+                        .setNamespace(namespace)
+                        .setSchema(prefixedSchemaType);
 
         // A joined document
         DocumentProto.Builder joinedDocProtoBuilder =
                 DocumentProto.newBuilder()
                         .setUri("id2")
                         .setNamespace(namespace)
-                        .setSchema(schemaType);
+                        .setSchema(prefixedSchemaType);
 
         SearchResultProto.ResultProto joinedResultProto =
                 SearchResultProto.ResultProto.newBuilder()
@@ -81,16 +93,26 @@ public class SearchResultToProtoConverterTest {
         SearchResultProto searchResultProto =
                 SearchResultProto.newBuilder().addResults(resultProto).build();
 
+        SchemaTypeConfigProto parentSchemaTypeConfigProto =
+                SchemaTypeConfigProto.newBuilder().setSchemaType(prefixedParentSchemaType).build();
         SchemaTypeConfigProto schemaTypeConfigProto =
-                SchemaTypeConfigProto.newBuilder().setSchemaType(schemaType).build();
+                SchemaTypeConfigProto.newBuilder()
+                        .addParentTypes(prefixedParentSchemaType)
+                        .setSchemaType(prefixedSchemaType)
+                        .build();
         Map<String, Map<String, SchemaTypeConfigProto>> schemaMap =
-                ImmutableMap.of(prefix, ImmutableMap.of(schemaType, schemaTypeConfigProto));
+                ImmutableMap.of(
+                        prefix,
+                        ImmutableMap.of(
+                                prefixedSchemaType, schemaTypeConfigProto,
+                                prefixedParentSchemaType, parentSchemaTypeConfigProto));
+        SchemaCache schemaCache = new SchemaCache(schemaMap);
 
         removePrefixesFromDocument(documentProtoBuilder);
         removePrefixesFromDocument(joinedDocProtoBuilder);
         SearchResultPage searchResultPage =
                 SearchResultToProtoConverter.toSearchResultPage(
-                        searchResultProto, new SchemaCache(schemaMap), config);
+                        searchResultProto, schemaCache, config);
         assertThat(searchResultPage.getResults()).hasSize(1);
         SearchResult result = searchResultPage.getResults().get(0);
         assertThat(result.getPackageName()).isEqualTo("com.package.foo");
@@ -98,19 +120,20 @@ public class SearchResultToProtoConverterTest {
         assertThat(result.getGenericDocument())
                 .isEqualTo(
                         GenericDocumentToProtoConverter.toGenericDocument(
-                                documentProtoBuilder.build(),
-                                prefix,
-                                schemaMap.get(prefix),
-                                config));
+                                documentProtoBuilder.build(), prefix, schemaCache, config));
 
         assertThat(result.getJoinedResults()).hasSize(1);
         assertThat(result.getJoinedResults().get(0).getGenericDocument())
                 .isEqualTo(
                         GenericDocumentToProtoConverter.toGenericDocument(
-                                joinedDocProtoBuilder.build(),
-                                prefix,
-                                schemaMap.get(prefix),
-                                config));
+                                joinedDocProtoBuilder.build(), prefix, schemaCache, config));
+
+        if (Flags.enableSearchResultParentTypes()) {
+            assertThat(result.getParentTypeMap())
+                    .isEqualTo(ImmutableMap.of(schemaType, ImmutableList.of(parentSchemaType)));
+        } else {
+            assertThat(result.getParentTypeMap()).isEmpty();
+        }
     }
 
     @Test

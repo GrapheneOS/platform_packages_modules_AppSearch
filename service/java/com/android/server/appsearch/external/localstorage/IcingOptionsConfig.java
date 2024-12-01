@@ -72,6 +72,8 @@ public interface IcingOptionsConfig {
 
     boolean DEFAULT_BUILD_PROPERTY_EXISTENCE_METADATA_HITS = false;
 
+    long DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS = 7 * 24 * 60 * 60 * 1000L; // 1 week.
+
     /**
      * The maximum allowable token length. All tokens in excess of this size will be truncated to
      * max_token_length before being indexed.
@@ -220,4 +222,12 @@ public interface IcingOptionsConfig {
      * support the hasProperty function in advanced query.
      */
     boolean getBuildPropertyExistenceMetadataHits();
+
+    /**
+     * Config for {@link com.google.android.icing.proto.IcingSearchEngineOptions}.
+     *
+     * <p>The maximum time in millisecond for a orphan blob to get recycled and deleted if there is
+     * no reference document linked to it.
+     */
+    long getOrphanBlobTimeToLiveMs();
 }

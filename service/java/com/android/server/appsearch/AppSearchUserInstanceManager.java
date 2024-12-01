@@ -27,6 +27,7 @@ import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
@@ -226,12 +227,18 @@ public final class AppSearchUserInstanceManager {
         }
         VisibilityChecker visibilityCheckerImpl =
                 AppSearchComponentFactory.createVisibilityCheckerInstance(userContext);
+        FrameworkRevocableFileDescriptorStore frameworkRevocableFileDescriptorStore = null;
+        if (Flags.enableBlobStore()) {
+            frameworkRevocableFileDescriptorStore =
+                    new FrameworkRevocableFileDescriptorStore(userContext, config);
+        }
         AppSearchImpl appSearchImpl =
                 AppSearchImpl.create(
                         icingDir,
                         config,
                         initStatsBuilder,
                         visibilityCheckerImpl,
+                        frameworkRevocableFileDescriptorStore,
                         new ServiceOptimizeStrategy(config));
 
         // Update storage info file

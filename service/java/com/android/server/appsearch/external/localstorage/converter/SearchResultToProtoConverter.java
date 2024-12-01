@@ -26,12 +26,15 @@ import android.app.appsearch.GenericDocument;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.util.ArrayMap;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.SchemaCache;
 
 import com.google.android.icing.proto.DocumentProto;
-import com.google.android.icing.proto.SchemaTypeConfigProto;
+import com.google.android.icing.proto.DocumentProtoOrBuilder;
+import com.google.android.icing.proto.PropertyProto;
 import com.google.android.icing.proto.SearchResultProto;
 import com.google.android.icing.proto.SnippetMatchProto;
 import com.google.android.icing.proto.SnippetProto;
@@ -87,11 +90,9 @@ public class SearchResultToProtoConverter {
 
         DocumentProto.Builder documentBuilder = proto.getDocument().toBuilder();
         String prefix = removePrefixesFromDocument(documentBuilder);
-        Map<String, SchemaTypeConfigProto> schemaTypeMap =
-                schemaCache.getSchemaMapForPrefix(prefix);
         GenericDocument document =
                 GenericDocumentToProtoConverter.toGenericDocument(
-                        documentBuilder, prefix, schemaTypeMap, config);
+                        documentBuilder, prefix, schemaCache, config);
         SearchResult.Builder builder =
                 new SearchResult.Builder(getPackageName(prefix), getDatabaseName(prefix))
                         .setGenericDocument(document)
@@ -121,7 +122,36 @@ public class SearchResultToProtoConverter {
             builder.addJoinedResult(
                     toUnprefixedSearchResult(joinedResultProto, schemaCache, config));
         }
+        if (config.shouldRetrieveParentInfo() && Flags.enableSearchResultParentTypes()) {
+            Map<String, List<String>> parentTypeMap = new ArrayMap<>();
+            collectParentTypeMap(documentBuilder, prefix, schemaCache, parentTypeMap);
+            builder.setParentTypeMap(parentTypeMap);
+        }
         return builder.build();
+    }
+
+    private static void collectParentTypeMap(
+            @NonNull DocumentProtoOrBuilder proto,
+            @NonNull String prefix,
+            @NonNull SchemaCache schemaCache,
+            @NonNull Map<String, List<String>> parentTypeMap)
+            throws AppSearchException {
+        if (!parentTypeMap.containsKey(proto.getSchema())) {
+            List<String> parentSchemaTypes =
+                    schemaCache.getTransitiveUnprefixedParentSchemaTypes(
+                            prefix, prefix + proto.getSchema());
+            if (!parentSchemaTypes.isEmpty()) {
+                parentTypeMap.put(proto.getSchema(), parentSchemaTypes);
+            }
+        }
+        // Handling nested documents
+        for (int i = 0; i < proto.getPropertiesCount(); i++) {
+            PropertyProto property = proto.getProperties(i);
+            for (int j = 0; j < property.getDocumentValuesCount(); j++) {
+                collectParentTypeMap(
+                        property.getDocumentValues(j), prefix, schemaCache, parentTypeMap);
+            }
+        }
     }
 
     private static SearchResult.MatchInfo toMatchInfo(

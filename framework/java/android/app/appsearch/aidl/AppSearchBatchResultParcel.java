@@ -39,9 +39,11 @@ import java.util.Objects;
  * wraps an {@link AppSearchBatchResult} that has String keys and Parcelable values. It provides
  * parcelability of the whole structure.
  *
+ * @deprecated This class is deprecated, you should use {@link AppSearchBatchResultParcelV2}.
  * @param <ValueType> The type of result object for successful calls. Must be a parcelable type.
  * @hide
  */
+@Deprecated
 @SafeParcelable.Class(creator = "AppSearchBatchResultParcelCreator", creatorIsFinal = false)
 public final class AppSearchBatchResultParcel<ValueType> extends AbstractSafeParcelable {
 

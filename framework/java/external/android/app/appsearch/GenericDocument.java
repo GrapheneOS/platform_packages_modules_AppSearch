@@ -195,8 +195,11 @@ public class GenericDocument {
      *
      * <p>It is guaranteed that child types appear before parent types in the list.
      *
+     * @deprecated Parent types should no longer be set in {@link GenericDocument}. Use {@link
+     *     SearchResult.Builder#getParentTypeMap()} instead.
      * @hide
      */
+    @Deprecated
     @Nullable
     public List<String> getParentTypes() {
         List<String> result = mDocumentParcel.getParentTypes();
@@ -1185,12 +1188,14 @@ public class GenericDocument {
          *
          * <p>Child types must appear before parent types in the list.
          *
+         * @deprecated Parent types should no longer be set in {@link GenericDocument}. Use {@link
+         *     SearchResult.Builder#setParentTypeMap(Map)} instead.
          * @hide
          */
         @CanIgnoreReturnValue
+        @Deprecated
         @NonNull
-        public BuilderType setParentTypes(@NonNull List<String> parentTypes) {
-            Objects.requireNonNull(parentTypes);
+        public BuilderType setParentTypes(@Nullable List<String> parentTypes) {
             mDocumentParcelBuilder.setParentTypes(parentTypes);
             return mBuilderTypeInstance;
         }

@@ -46,7 +46,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     int DEFAULT_SAMPLING_INTERVAL = 10;
 
     int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES = 512 * 1024; // 512KiB
-    int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_COUNT = 80_000;
     int DEFAULT_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT = 80_000;
     int DEFAULT_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD = 2_000_000;
     int DEFAULT_LIMIT_CONFIG_MAX_SUGGESTION_COUNT = 20_000;
@@ -87,6 +86,12 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
 
     /** The default interval in millisecond to trigger fully persist job. */
     long DEFAULT_FULLY_PERSIST_JOB_INTERVAL = DAY_IN_MILLIS;
+
+    /**
+     * The default number of active fds an app is allowed to open for read and write blob from
+     * AppSearch.
+     */
+    int DEFAULT_MAX_OPEN_BLOB_COUNT = 250;
 
     /** Returns cached value for minTimeIntervalBetweenSamplesMillis. */
     long getCachedMinTimeIntervalBetweenSamplesMillis();
