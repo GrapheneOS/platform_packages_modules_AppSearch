@@ -18,6 +18,7 @@ package android.app.appsearch.aidl;
 
 import static android.app.appsearch.ParcelableUtil.WRITE_PARCEL_MODE_DIRECTLY_WRITE_TO_PARCEL;
 import static android.app.appsearch.ParcelableUtil.WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB;
+import static android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -313,7 +314,14 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
                 ParcelableUtil.writeBlob(dest, bytes);
                 break;
             case WRITE_PARCEL_MODE_DIRECTLY_WRITE_TO_PARCEL:
-                directlyWriteToParcel(this, dest, flags);
+                // It's important to add the PARCELABLE_WRITE_RETURN_VALUE flags to ensure
+                // resources, such as ParcelFileDescriptor, are released on the sender's side.
+                // Normally, PARCELABLE_WRITE_RETURN_VALUE is automatically added when a parcelable
+                // object is directly returned in a binder call.
+                // However, since AppSearch uses a callback mechanism and a void binder call
+                // pattern, we need to manually add the PARCELABLE_WRITE_RETURN_VALUE flag when
+                // parceling this object to invoke the callback.
+                directlyWriteToParcel(this, dest, flags | PARCELABLE_WRITE_RETURN_VALUE);
                 break;
             default:
                 throw new UnsupportedOperationException(
