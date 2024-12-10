@@ -91,7 +91,7 @@ public class VisibilityStoreMigrationHelperFromV1Test {
         InternalSetSchemaResponse internalSetSchemaResponse =
                 appSearchImplInV1.setSchema(
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                        VisibilityStore.VISIBILITY_DATABASE_NAME,
+                        VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         ImmutableList.of(VisibilityDocumentV1.SCHEMA),
                         /* prefixedVisibilityBundles= */ Collections.emptyList(),
                         /* forceOverride= */ true, // force push the old version into disk
@@ -128,7 +128,7 @@ public class VisibilityStoreMigrationHelperFromV1Test {
         // Put deprecated visibility documents in version 0 to AppSearchImpl
         appSearchImplInV1.putDocument(
                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                VisibilityStore.VISIBILITY_DATABASE_NAME,
+                VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                 visibilityDocumentV1,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
@@ -148,7 +148,7 @@ public class VisibilityStoreMigrationHelperFromV1Test {
                 VisibilityToDocumentConverter.createInternalVisibilityConfig(
                         appSearchImpl.getDocument(
                                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                                VisibilityStore.VISIBILITY_DATABASE_NAME,
+                                VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                                 VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                                 /* id= */ prefix + "Schema",
                                 /* typePropertyPaths= */ Collections.emptyMap()),

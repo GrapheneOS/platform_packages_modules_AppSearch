@@ -98,11 +98,13 @@ import com.google.android.icing.proto.GetSchemaResultProto;
 import com.google.android.icing.proto.IcingSearchEngineOptions;
 import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.LogSeverity;
+import com.google.android.icing.proto.NamespaceBlobStorageInfoProto;
 import com.google.android.icing.proto.NamespaceStorageInfoProto;
 import com.google.android.icing.proto.OptimizeResultProto;
 import com.google.android.icing.proto.PersistToDiskResultProto;
 import com.google.android.icing.proto.PersistType;
 import com.google.android.icing.proto.PropertyConfigProto;
+import com.google.android.icing.proto.PropertyProto;
 import com.google.android.icing.proto.PutResultProto;
 import com.google.android.icing.proto.ReportUsageResultProto;
 import com.google.android.icing.proto.ResetResultProto;
@@ -198,11 +200,8 @@ public final class AppSearchImpl implements Closeable {
     @GuardedBy("mReadWriteLock")
     private final SchemaCache mSchemaCacheLocked = new SchemaCache();
 
-    // This map contains namespaces for all package-database prefixes. All values in the map are
-    // prefixed with the package-database prefix.
-    // TODO(b/172360376): Check if this can be replaced with an ArrayMap
     @GuardedBy("mReadWriteLock")
-    private final Map<String, Set<String>> mNamespaceMapLocked = new HashMap<>();
+    private final NamespaceCache mNamespaceCacheLocked = new NamespaceCache();
 
     // Marked as volatile because a new instance may be assigned during resetLocked.
     @GuardedBy("mReadWriteLock")
@@ -234,7 +233,12 @@ public final class AppSearchImpl implements Closeable {
     @Nullable
     @VisibleForTesting
     @GuardedBy("mReadWriteLock")
-    final VisibilityStore mVisibilityStoreLocked;
+    final VisibilityStore mDocumentVisibilityStoreLocked;
+
+    @Nullable
+    @VisibleForTesting
+    @GuardedBy("mReadWriteLock")
+    final VisibilityStore mBlobVisibilityStoreLocked;
 
     @Nullable
     @GuardedBy("mReadWriteLock")
@@ -247,7 +251,7 @@ public final class AppSearchImpl implements Closeable {
     @GuardedBy("mReadWriteLock")
     private int mOptimizeIntervalCountLocked = 0;
 
-    @Nullable private RevocableFileDescriptorStore mRevocableFileDescriptorStore;
+    @Nullable private final RevocableFileDescriptorStore mRevocableFileDescriptorStore;
 
     /** Whether this instance has been closed, and therefore unusable. */
     @GuardedBy("mReadWriteLock")
@@ -414,7 +418,20 @@ public final class AppSearchImpl implements Closeable {
                         getAllNamespacesResultProto.getNamespacesList();
                 for (int i = 0; i < prefixedNamespaceList.size(); i++) {
                     String prefixedNamespace = prefixedNamespaceList.get(i);
-                    addToMap(mNamespaceMapLocked, getPrefix(prefixedNamespace), prefixedNamespace);
+                    mNamespaceCacheLocked.addToDocumentNamespaceMap(
+                            getPrefix(prefixedNamespace), prefixedNamespace);
+                }
+
+                // Populate blob namespace map
+                if (mRevocableFileDescriptorStore != null) {
+                    List<NamespaceBlobStorageInfoProto> namespaceBlobStorageInfoProto =
+                            storageInfoProto.getNamespaceBlobStorageInfoList();
+                    for (int i = 0; i < namespaceBlobStorageInfoProto.size(); i++) {
+                        String prefixedNamespace =
+                                namespaceBlobStorageInfoProto.get(i).getNamespace();
+                        mNamespaceCacheLocked.addToBlobNamespaceMap(
+                                getPrefix(prefixedNamespace), prefixedNamespace);
+                    }
                 }
 
                 // Populate document count map
@@ -445,8 +462,16 @@ public final class AppSearchImpl implements Closeable {
                 resetLocked(initStatsBuilder);
             }
 
+            // AppSearchImpl core parameters are initialized and we should be able to build
+            // VisibilityStores based on that. We shouldn't wipe out everything if we only failed to
+            // build VisibilityStores.
             long prepareVisibilityStoreLatencyStartMillis = SystemClock.elapsedRealtime();
-            mVisibilityStoreLocked = new VisibilityStore(this);
+            mDocumentVisibilityStoreLocked = VisibilityStore.createDocumentVisibilityStore(this);
+            if (mRevocableFileDescriptorStore != null) {
+                mBlobVisibilityStoreLocked = VisibilityStore.createBlobVisibilityStore(this);
+            } else {
+                mBlobVisibilityStoreLocked = null;
+            }
             long prepareVisibilityStoreLatencyEndMillis = SystemClock.elapsedRealtime();
             if (initStatsBuilder != null) {
                 initStatsBuilder.setPrepareVisibilityStoreLatencyMillis(
@@ -617,7 +642,7 @@ public final class AppSearchImpl implements Closeable {
                             packageName,
                             databaseName,
                             oldSchemaName,
-                            mVisibilityStoreLocked,
+                            mDocumentVisibilityStoreLocked,
                             mVisibilityCheckerLocked));
         }
         int getOldSchemaObserverLatencyMillis =
@@ -656,7 +681,7 @@ public final class AppSearchImpl implements Closeable {
                             packageName,
                             databaseName,
                             newSchemaName,
-                            mVisibilityStoreLocked,
+                            mDocumentVisibilityStoreLocked,
                             mVisibilityCheckerLocked));
         }
         long getNewSchemaObserverEndTimeMillis = SystemClock.elapsedRealtime();
@@ -847,38 +872,21 @@ public final class AppSearchImpl implements Closeable {
 
         // Since the constructor of VisibilityStore will set schema. Avoid call visibility
         // store before we have already created it.
-        if (mVisibilityStoreLocked != null) {
+        if (mDocumentVisibilityStoreLocked != null) {
             // Add prefix to all visibility documents.
             // Find out which Visibility document is deleted or changed to all-default settings.
             // We need to remove them from Visibility Store.
             Set<String> deprecatedVisibilityDocuments =
                     new ArraySet<>(rewrittenSchemaResults.mRewrittenPrefixedTypes.keySet());
             List<InternalVisibilityConfig> prefixedVisibilityConfigs =
-                    new ArrayList<>(visibilityConfigs.size());
-            for (int i = 0; i < visibilityConfigs.size(); i++) {
-                InternalVisibilityConfig visibilityConfig = visibilityConfigs.get(i);
-                // The VisibilityConfig is controlled by the client and it's untrusted but we
-                // make it safe by appending a prefix.
-                // We must control the package-database prefix. Therefore even if the client
-                // fake the id, they can only mess their own app. That's totally allowed and
-                // they can do this via the public API too.
-                // TODO(b/275592563): Move prefixing into VisibilityConfig.createVisibilityDocument
-                //  and createVisibilityOverlay
-                String schemaType = visibilityConfig.getSchemaType();
-                String prefixedSchemaType = prefix + schemaType;
-                prefixedVisibilityConfigs.add(
-                        new InternalVisibilityConfig.Builder(visibilityConfig)
-                                .setSchemaType(prefixedSchemaType)
-                                .build());
-                // This schema has visibility settings. We should keep it from the removal list.
-                deprecatedVisibilityDocuments.remove(visibilityConfig.getSchemaType());
-            }
+                    rewriteVisibilityConfigs(
+                            prefix, visibilityConfigs, deprecatedVisibilityDocuments);
             // Now deprecatedVisibilityDocuments contains those existing schemas that has
             // all-default visibility settings, add deleted schemas. That's all we need to
             // remove.
             deprecatedVisibilityDocuments.addAll(rewrittenSchemaResults.mDeletedPrefixedTypes);
-            mVisibilityStoreLocked.removeVisibility(deprecatedVisibilityDocuments);
-            mVisibilityStoreLocked.setVisibility(prefixedVisibilityConfigs);
+            mDocumentVisibilityStoreLocked.removeVisibility(deprecatedVisibilityDocuments);
+            mDocumentVisibilityStoreLocked.setVisibility(prefixedVisibilityConfigs);
         }
         long saveVisibilitySettingEndTimeMillis = SystemClock.elapsedRealtime();
         if (setSchemaStatsBuilder != null) {
@@ -938,7 +946,7 @@ public final class AppSearchImpl implements Closeable {
                         callerAccess,
                         packageName,
                         prefixedSchemaType,
-                        mVisibilityStoreLocked,
+                        mDocumentVisibilityStoreLocked,
                         mVisibilityCheckerLocked)) {
                     // Caller doesn't have access to this type.
                     continue;
@@ -955,10 +963,10 @@ public final class AppSearchImpl implements Closeable {
 
                 // Populate visibility info. Since the constructor of VisibilityStore will get
                 // schema. Avoid call visibility store before we have already created it.
-                if (mVisibilityStoreLocked != null) {
+                if (mDocumentVisibilityStoreLocked != null) {
                     String typeName = typeConfig.getSchemaType().substring(typePrefix.length());
                     InternalVisibilityConfig visibilityConfig =
-                            mVisibilityStoreLocked.getVisibility(prefixedSchemaType);
+                            mDocumentVisibilityStoreLocked.getVisibility(prefixedSchemaType);
                     if (visibilityConfig != null) {
                         if (visibilityConfig.isNotDisplayedBySystem()) {
                             responseBuilder.addSchemaTypeNotDisplayedBySystem(typeName);
@@ -1119,7 +1127,8 @@ public final class AppSearchImpl implements Closeable {
             checkSuccess(putResultProto.getStatus());
 
             // Only update caches if the document is successfully put to Icing.
-            addToMap(mNamespaceMapLocked, prefix, finalDocument.getNamespace());
+
+            mNamespaceCacheLocked.addToDocumentNamespaceMap(prefix, finalDocument.getNamespace());
             if (!Flags.enableDocumentLimiterReplaceTracking()
                     || !putResultProto.getWasReplacement()) {
                 // If the document was a replacement, then there is no need to report it because the
@@ -1144,7 +1153,7 @@ public final class AppSearchImpl implements Closeable {
                         document.getNamespace(),
                         document.getSchemaType(),
                         document.getId(),
-                        mVisibilityStoreLocked,
+                        mDocumentVisibilityStoreLocked,
                         mVisibilityCheckerLocked);
             }
         } finally {
@@ -1182,15 +1191,52 @@ public final class AppSearchImpl implements Closeable {
             throwIfClosedLocked();
             verifyCallingBlobHandle(packageName, databaseName, handle);
             mRevocableFileDescriptorStore.checkBlobStoreLimit(packageName);
-            BlobProto result =
-                    mIcingSearchEngineLocked.openWriteBlob(
-                            BlobHandleToProtoConverter.toBlobHandleProto(handle));
+            PropertyProto.BlobHandleProto blobHandleProto =
+                    BlobHandleToProtoConverter.toBlobHandleProto(handle);
+            BlobProto result = mIcingSearchEngineLocked.openWriteBlob(blobHandleProto);
 
             checkSuccess(result.getStatus());
             ParcelFileDescriptor pfd = ParcelFileDescriptor.adoptFd(result.getFileDescriptor());
 
+            mNamespaceCacheLocked.addToBlobNamespaceMap(
+                    createPrefix(packageName, databaseName), blobHandleProto.getNamespace());
+
             return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(
                     handle.getPackageName(), pfd);
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Remove and delete the blob file of given {@link AppSearchBlobHandle} from AppSearch storage.
+     *
+     * <p>This method will delete pending blob or committed blobs. Remove blobs that have reference
+     * documents linked to it will make those reference document has nothing to read.
+     *
+     * @param packageName The package name that owns this blob.
+     * @param databaseName The databaseName this blob resides in.
+     * @param handle The {@link AppSearchBlobHandle} represent the blob.
+     */
+    public void removeBlob(
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @NonNull AppSearchBlobHandle handle)
+            throws AppSearchException, IOException {
+        if (mRevocableFileDescriptorStore == null) {
+            throw new UnsupportedOperationException(
+                    "BLOB_STORAGE is not available on this AppSearch implementation.");
+        }
+        mReadWriteLock.writeLock().lock();
+        try {
+            throwIfClosedLocked();
+            verifyCallingBlobHandle(packageName, databaseName, handle);
+
+            BlobProto result =
+                    mIcingSearchEngineLocked.removeBlob(
+                            BlobHandleToProtoConverter.toBlobHandleProto(handle));
+
+            checkSuccess(result.getStatus());
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
@@ -1262,10 +1308,118 @@ public final class AppSearchImpl implements Closeable {
             checkSuccess(result.getStatus());
 
             ParcelFileDescriptor pfd = ParcelFileDescriptor.fromFd(result.getFileDescriptor());
-            return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(
-                    handle.getPackageName(), pfd);
+            return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(packageName, pfd);
         } finally {
             mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Gets the {@link ParcelFileDescriptor} for read only purpose of the given {@link
+     * AppSearchBlobHandle}.
+     *
+     * <p>The target must be committed via {@link #commitBlob};
+     *
+     * @param handle The {@link AppSearchBlobHandle} represent the blob.
+     */
+    @NonNull
+    public ParcelFileDescriptor globalOpenReadBlob(
+            @NonNull AppSearchBlobHandle handle, @NonNull CallerAccess access)
+            throws AppSearchException, IOException {
+        if (mRevocableFileDescriptorStore == null) {
+            throw new UnsupportedOperationException(
+                    "BLOB_STORAGE is not available on this AppSearch implementation.");
+        }
+
+        mReadWriteLock.readLock().lock();
+        try {
+            throwIfClosedLocked();
+            mRevocableFileDescriptorStore.checkBlobStoreLimit(access.getCallingPackageName());
+            String prefixedNamespace =
+                    createPrefix(handle.getPackageName(), handle.getDatabaseName())
+                            + handle.getNamespace();
+            PropertyProto.BlobHandleProto blobHandleProto =
+                    BlobHandleToProtoConverter.toBlobHandleProto(handle);
+            // We are using namespace to check blob's visibility.
+            if (!VisibilityUtil.isSchemaSearchableByCaller(
+                    access,
+                    handle.getPackageName(),
+                    prefixedNamespace,
+                    mBlobVisibilityStoreLocked,
+                    mVisibilityCheckerLocked)) {
+                // Caller doesn't have access to this namespace.
+                throw new AppSearchException(
+                        AppSearchResult.RESULT_NOT_FOUND,
+                        "Cannot find the blob for handle: "
+                                + blobHandleProto.getDigest().toStringUtf8());
+            }
+
+            BlobProto result = mIcingSearchEngineLocked.openReadBlob(blobHandleProto);
+
+            checkSuccess(result.getStatus());
+
+            ParcelFileDescriptor pfd = ParcelFileDescriptor.fromFd(result.getFileDescriptor());
+            return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(
+                    access.getCallingPackageName(), pfd);
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Updates the visibility configuration for a specified namespace within a blob storage.
+     *
+     * <p>This method configures the visibility blob namespaces in the given specific database.
+     *
+     * <p>After applying the new visibility configurations, the method identifies and removes any
+     * existing visibility settings that do not included in the new visibility configurations from
+     * the visibility store.
+     *
+     * @param packageName The package name that owns these blobs.
+     * @param databaseName The databaseName these blobs resides in.
+     * @param visibilityConfigs a list of {@link InternalVisibilityConfig} objects representing the
+     *     visibility configurations to be set for the specified namespace.
+     * @throws AppSearchException if an error occurs while updating the visibility configurations.
+     *     This could happen if the database is closed or in an invalid state.
+     */
+    public void setBlobNamespaceVisibility(
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @NonNull List<InternalVisibilityConfig> visibilityConfigs)
+            throws AppSearchException {
+        mReadWriteLock.writeLock().lock();
+        try {
+            throwIfClosedLocked();
+            if (mBlobVisibilityStoreLocked != null) {
+                String prefix = PrefixUtil.createPrefix(packageName, databaseName);
+                Set<String> removedVisibilityConfigs =
+                        mNamespaceCacheLocked.getPrefixedBlobNamespaces(prefix);
+                if (removedVisibilityConfigs == null) {
+                    removedVisibilityConfigs = new ArraySet<>();
+                } else {
+                    // wrap it to allow rewriteVisibilityConfigs modify it.
+                    removedVisibilityConfigs = new ArraySet<>(removedVisibilityConfigs);
+                }
+                List<InternalVisibilityConfig> prefixedVisibilityConfigs =
+                        rewriteVisibilityConfigs(
+                                prefix, visibilityConfigs, removedVisibilityConfigs);
+                for (int i = 0; i < prefixedVisibilityConfigs.size(); i++) {
+                    // We are using schema type to represent blob's namespace in
+                    // InternalVisibilityConfig.
+                    mNamespaceCacheLocked.addToBlobNamespaceMap(
+                            prefix, prefixedVisibilityConfigs.get(i).getSchemaType());
+                }
+                // Now removedVisibilityConfigs contains those existing schemas that has
+                // all-default visibility settings, add deleted schemas. That's all we need to
+                // remove.
+                mBlobVisibilityStoreLocked.setVisibility(prefixedVisibilityConfigs);
+                mBlobVisibilityStoreLocked.removeVisibility(removedVisibilityConfigs);
+            } else {
+                throw new UnsupportedOperationException(
+                        "BLOB_STORAGE is not available on this AppSearch implementation.");
+            }
+        } finally {
+            mReadWriteLock.writeLock().unlock();
         }
     }
 
@@ -1346,7 +1500,7 @@ public final class AppSearchImpl implements Closeable {
                         callerAccess,
                         packageName,
                         documentProto.getSchema(),
-                        mVisibilityStoreLocked,
+                        mDocumentVisibilityStoreLocked,
                         mVisibilityCheckerLocked)) {
                     throw new AppSearchException(AppSearchResult.RESULT_NOT_FOUND);
                 }
@@ -1523,7 +1677,7 @@ public final class AppSearchImpl implements Closeable {
                             queryExpression,
                             searchSpec,
                             Collections.singleton(prefix),
-                            mNamespaceMapLocked,
+                            mNamespaceCacheLocked,
                             mSchemaCacheLocked,
                             mConfig);
             if (searchSpecToProtoConverter.hasNothingToSearch()) {
@@ -1594,8 +1748,8 @@ public final class AppSearchImpl implements Closeable {
             // SearchSpec has package filters and there is no JoinSpec, or if both outer and
             // nested SearchSpecs have package filters. If outer SearchSpec has no package
             // filters or the nested SearchSpec has no package filters, then we pass the key set of
-            // mNamespaceMapLocked to the SearchSpecToProtoConverter, signifying that there is a
-            // SearchSpec that wants to query every visible package.
+            // documentNamespace map of mNamespaceCachedLocked to the SearchSpecToProtoConverter,
+            // signifying that there is a SearchSpec that wants to query every visible package.
             Set<String> packageFilters = new ArraySet<>();
             if (!searchSpec.getFilterPackageNames().isEmpty()) {
                 JoinSpec joinSpec = searchSpec.getJoinSpec();
@@ -1612,11 +1766,11 @@ public final class AppSearchImpl implements Closeable {
             if (packageFilters.isEmpty()) {
                 // Client didn't restrict their search over packages. Try to query over all
                 // packages/prefixes
-                prefixFilters = mNamespaceMapLocked.keySet();
+                prefixFilters = mNamespaceCacheLocked.getAllDocumentPrefixes();
             } else {
                 // Client did restrict their search over packages. Only include the prefixes that
                 // belong to the specified packages.
-                for (String prefix : mNamespaceMapLocked.keySet()) {
+                for (String prefix : mNamespaceCacheLocked.getAllDocumentPrefixes()) {
                     String packageName = getPackageName(prefix);
                     if (packageFilters.contains(packageName)) {
                         prefixFilters.add(prefix);
@@ -1628,12 +1782,12 @@ public final class AppSearchImpl implements Closeable {
                             queryExpression,
                             searchSpec,
                             prefixFilters,
-                            mNamespaceMapLocked,
+                            mNamespaceCacheLocked,
                             mSchemaCacheLocked,
                             mConfig);
             // Remove those inaccessible schemas.
             searchSpecToProtoConverter.removeInaccessibleSchemaFilter(
-                    callerAccess, mVisibilityStoreLocked, mVisibilityCheckerLocked);
+                    callerAccess, mDocumentVisibilityStoreLocked, mVisibilityCheckerLocked);
             if (searchSpecToProtoConverter.hasNothingToSearch()) {
                 // there is nothing to search over given their search filters, so we can return an
                 // empty SearchResult and skip sending request to Icing.
@@ -1670,7 +1824,7 @@ public final class AppSearchImpl implements Closeable {
         SearchSpecProto finalSearchSpec = searchSpecToProtoConverter.toSearchSpecProto();
         ResultSpecProto finalResultSpec =
                 searchSpecToProtoConverter.toResultSpecProto(
-                        mNamespaceMapLocked, mSchemaCacheLocked);
+                        mNamespaceCacheLocked, mSchemaCacheLocked);
         ScoringSpecProto scoringSpec = searchSpecToProtoConverter.toScoringSpecProto();
         if (sStatsBuilder != null) {
             sStatsBuilder.setRewriteSearchSpecLatencyMillis(
@@ -1769,7 +1923,7 @@ public final class AppSearchImpl implements Closeable {
                             suggestionQueryExpression,
                             searchSuggestionSpec,
                             Collections.singleton(prefix),
-                            mNamespaceMapLocked,
+                            mNamespaceCacheLocked,
                             mSchemaCacheLocked);
 
             if (searchSuggestionSpecToProtoConverter.hasNothingToSearch()) {
@@ -2058,7 +2212,7 @@ public final class AppSearchImpl implements Closeable {
                         namespace,
                         schemaType,
                         documentId,
-                        mVisibilityStoreLocked,
+                        mDocumentVisibilityStoreLocked,
                         mVisibilityCheckerLocked);
             }
         } finally {
@@ -2111,7 +2265,7 @@ public final class AppSearchImpl implements Closeable {
             }
 
             String prefix = createPrefix(packageName, databaseName);
-            if (!mNamespaceMapLocked.containsKey(prefix)) {
+            if (!mNamespaceCacheLocked.getAllDocumentPrefixes().contains(prefix)) {
                 // The target database is empty so we can return early and skip sending request to
                 // Icing.
                 return;
@@ -2122,7 +2276,7 @@ public final class AppSearchImpl implements Closeable {
                             queryExpression,
                             searchSpec,
                             Collections.singleton(prefix),
-                            mNamespaceMapLocked,
+                            mNamespaceCacheLocked,
                             mSchemaCacheLocked,
                             mConfig);
             if (searchSpecToProtoConverter.hasNothingToSearch()) {
@@ -2231,7 +2385,7 @@ public final class AppSearchImpl implements Closeable {
                         namespace,
                         schemaType,
                         uri,
-                        mVisibilityStoreLocked,
+                        mDocumentVisibilityStoreLocked,
                         mVisibilityCheckerLocked);
             }
         }
@@ -2245,27 +2399,33 @@ public final class AppSearchImpl implements Closeable {
         try {
             throwIfClosedLocked();
 
-            Map<String, Set<String>> packageToDatabases = getPackageToDatabases();
-            Set<String> databases = packageToDatabases.get(packageName);
-            if (databases == null) {
-                // Package doesn't exist, no storage info to report
-                return new StorageInfo.Builder().build();
-            }
-
-            // Accumulate all the namespaces we're interested in.
-            Set<String> wantedPrefixedNamespaces = new ArraySet<>();
-            for (String database : databases) {
-                Set<String> prefixedNamespaces =
-                        mNamespaceMapLocked.get(createPrefix(packageName, database));
-                if (prefixedNamespaces != null) {
-                    wantedPrefixedNamespaces.addAll(prefixedNamespaces);
+            StorageInfo.Builder storageInfoBuilder = new StorageInfo.Builder();
+            if (Flags.enableBlobStore()) {
+                StorageInfoProto storageInfoProto = getRawStorageInfoProto();
+                // read blob storage info and set to storageInfoBuilder
+                getBlobStorageInfoForPrefix(storageInfoProto, packageName, storageInfoBuilder);
+                // read document storage info and set to storageInfoBuilder
+                Set<String> wantedPrefixedDocumentNamespaces =
+                        mNamespaceCacheLocked.getAllPrefixedDocumentNamespaceForPackage(
+                                packageName);
+                if (!wantedPrefixedDocumentNamespaces.isEmpty()) {
+                    getDocumentStorageInfoForNamespaces(
+                            storageInfoProto, wantedPrefixedDocumentNamespaces, storageInfoBuilder);
+                }
+            } else {
+                // blob flag off, only read document storage info and set to storageInfoBuilder if
+                // the database exists.
+                Set<String> wantedPrefixedDocumentNamespaces =
+                        mNamespaceCacheLocked.getAllPrefixedDocumentNamespaceForPackage(
+                                packageName);
+                if (!wantedPrefixedDocumentNamespaces.isEmpty()) {
+                    getDocumentStorageInfoForNamespaces(
+                            getRawStorageInfoProto(),
+                            wantedPrefixedDocumentNamespaces,
+                            storageInfoBuilder);
                 }
             }
-            if (wantedPrefixedNamespaces.isEmpty()) {
-                return new StorageInfo.Builder().build();
-            }
-
-            return getStorageInfoForNamespaces(getRawStorageInfoProto(), wantedPrefixedNamespaces);
+            return storageInfoBuilder.build();
         } finally {
             mReadWriteLock.readLock().unlock();
         }
@@ -2279,24 +2439,45 @@ public final class AppSearchImpl implements Closeable {
         try {
             throwIfClosedLocked();
 
-            Map<String, Set<String>> packageToDatabases = getPackageToDatabases();
-            Set<String> databases = packageToDatabases.get(packageName);
-            if (databases == null) {
-                // Package doesn't exist, no storage info to report
-                return new StorageInfo.Builder().build();
-            }
-            if (!databases.contains(databaseName)) {
-                // Database doesn't exist, no storage info to report
-                return new StorageInfo.Builder().build();
-            }
+            StorageInfo.Builder storageInfoBuilder = new StorageInfo.Builder();
+            String prefix = createPrefix(packageName, databaseName);
+            if (Flags.enableBlobStore()) {
+                // read blob storage info and set to storageInfoBuilder
+                StorageInfoProto storageInfoProto = getRawStorageInfoProto();
+                getBlobStorageInfoForPrefix(storageInfoProto, prefix, storageInfoBuilder);
+                // read document storage info and set to storageInfoBuilder
+                Set<String> wantedPrefixedDocumentNamespaces =
+                        mNamespaceCacheLocked.getPrefixedDocumentNamespaces(prefix);
+                if (wantedPrefixedDocumentNamespaces == null
+                        || wantedPrefixedDocumentNamespaces.isEmpty()) {
+                    return storageInfoBuilder.build();
+                }
+                getDocumentStorageInfoForNamespaces(
+                        storageInfoProto, wantedPrefixedDocumentNamespaces, storageInfoBuilder);
+            } else {
+                Map<String, Set<String>> packageToDatabases = getPackageToDatabases();
+                Set<String> databases = packageToDatabases.get(packageName);
+                if (databases == null) {
+                    // Package doesn't exist, no storage info to report
+                    return storageInfoBuilder.build();
+                }
+                if (!databases.contains(databaseName)) {
+                    // Database doesn't exist, no storage info to report
+                    return storageInfoBuilder.build();
+                }
 
-            Set<String> wantedPrefixedNamespaces =
-                    mNamespaceMapLocked.get(createPrefix(packageName, databaseName));
-            if (wantedPrefixedNamespaces == null || wantedPrefixedNamespaces.isEmpty()) {
-                return new StorageInfo.Builder().build();
+                Set<String> wantedPrefixedDocumentNamespaces =
+                        mNamespaceCacheLocked.getPrefixedDocumentNamespaces(prefix);
+                if (wantedPrefixedDocumentNamespaces == null
+                        || wantedPrefixedDocumentNamespaces.isEmpty()) {
+                    return storageInfoBuilder.build();
+                }
+                getDocumentStorageInfoForNamespaces(
+                        getRawStorageInfoProto(),
+                        wantedPrefixedDocumentNamespaces,
+                        storageInfoBuilder);
             }
-
-            return getStorageInfoForNamespaces(getRawStorageInfoProto(), wantedPrefixedNamespaces);
+            return storageInfoBuilder.build();
         } finally {
             mReadWriteLock.readLock().unlock();
         }
@@ -2328,12 +2509,20 @@ public final class AppSearchImpl implements Closeable {
     /**
      * Extracts and returns {@link StorageInfo} from {@link StorageInfoProto} based on prefixed
      * namespaces.
+     *
+     * @param storageInfoProto The source {@link StorageInfoProto} containing storage information to
+     *     be analyzed.
+     * @param prefixedNamespaces A set of prefixed namespaces that the storage information will be
+     *     filtered against. Only namespaces in this set will be included in the analysis.
+     * @param storageInfoBuilder The {@link StorageInfo.Builder} used to and build the resulting
+     *     {@link StorageInfo}. This builder will be modified with calculated values.
      */
-    @NonNull
-    private static StorageInfo getStorageInfoForNamespaces(
-            @NonNull StorageInfoProto storageInfoProto, @NonNull Set<String> prefixedNamespaces) {
+    private static void getDocumentStorageInfoForNamespaces(
+            @NonNull StorageInfoProto storageInfoProto,
+            @NonNull Set<String> prefixedNamespaces,
+            @NonNull StorageInfo.Builder storageInfoBuilder) {
         if (!storageInfoProto.hasDocumentStorageInfo()) {
-            return new StorageInfo.Builder().build();
+            return;
         }
 
         long totalStorageSize = storageInfoProto.getTotalStorageSize();
@@ -2344,7 +2533,7 @@ public final class AppSearchImpl implements Closeable {
 
         if (totalStorageSize == 0 || totalDocuments == 0) {
             // Maybe we can exit early and also avoid a divide by 0 error.
-            return new StorageInfo.Builder().build();
+            return;
         }
 
         // Accumulate stats across the package's namespaces.
@@ -2370,11 +2559,42 @@ public final class AppSearchImpl implements Closeable {
         // that while the total storage takes into account schema, index, etc. in addition to
         // documents, we'll only calculate the percentage based on number of documents a
         // client has.
-        return new StorageInfo.Builder()
+        storageInfoBuilder
                 .setSizeBytes((long) (namespaceDocuments * 1.0 / totalDocuments * totalStorageSize))
                 .setAliveDocumentsCount(aliveDocuments)
-                .setAliveNamespacesCount(aliveNamespaces)
-                .build();
+                .setAliveNamespacesCount(aliveNamespaces);
+    }
+
+    /**
+     * Extracts and returns blob storage information from {@link StorageInfoProto} based on a
+     * namespace prefix.
+     *
+     * @param storageInfoProto The source {@link StorageInfoProto} containing blob storage
+     *     information to be analyzed.
+     * @param prefix The prefix to match namespaces against. Only blob storage for namespaces
+     *     starting with this prefix will be included.
+     * @param storageInfoBuilder The {@link StorageInfo.Builder} used to and build the resulting
+     *     {@link StorageInfo}. This builder will be modified with calculated values.
+     */
+    private static void getBlobStorageInfoForPrefix(
+            @NonNull StorageInfoProto storageInfoProto,
+            @NonNull String prefix,
+            @NonNull StorageInfo.Builder storageInfoBuilder) {
+        if (storageInfoProto.getNamespaceBlobStorageInfoCount() == 0) {
+            return;
+        }
+        List<NamespaceBlobStorageInfoProto> blobStorageInfoProtos =
+                storageInfoProto.getNamespaceBlobStorageInfoList();
+        long blobSizeBytes = 0;
+        int blobCount = 0;
+        for (int i = 0; i < blobStorageInfoProtos.size(); i++) {
+            NamespaceBlobStorageInfoProto blobStorageInfoProto = blobStorageInfoProtos.get(i);
+            if (blobStorageInfoProto.getNamespace().startsWith(prefix)) {
+                blobSizeBytes += blobStorageInfoProto.getBlobSize();
+                blobCount += blobStorageInfoProto.getNumBlobs();
+            }
+        }
+        storageInfoBuilder.setBlobCount(blobCount).setBlobSizeBytes(blobSizeBytes);
     }
 
     /**
@@ -2534,11 +2754,11 @@ public final class AppSearchImpl implements Closeable {
                     for (String databaseName : databaseNames) {
                         String removedPrefix = createPrefix(packageName, databaseName);
                         Set<String> removedSchemas = mSchemaCacheLocked.removePrefix(removedPrefix);
-                        if (mVisibilityStoreLocked != null) {
-                            mVisibilityStoreLocked.removeVisibility(removedSchemas);
+                        if (mDocumentVisibilityStoreLocked != null) {
+                            mDocumentVisibilityStoreLocked.removeVisibility(removedSchemas);
                         }
 
-                        mNamespaceMapLocked.remove(removedPrefix);
+                        mNamespaceCacheLocked.removeDocumentNamespaces(removedPrefix);
                     }
                 }
             }
@@ -2566,7 +2786,7 @@ public final class AppSearchImpl implements Closeable {
                 resetResultProto);
         mOptimizeIntervalCountLocked = 0;
         mSchemaCacheLocked.clear();
-        mNamespaceMapLocked.clear();
+        mNamespaceCacheLocked.clear();
 
         // We just reset the index. So there is no need to retrieve the actual storage info. We know
         // that there are no actual namespaces.
@@ -2674,6 +2894,44 @@ public final class AppSearchImpl implements Closeable {
         existingSchema.addAllTypes(newTypesToProto.values());
 
         return rewrittenSchemaResults;
+    }
+
+    /**
+     * Rewrite the {@link InternalVisibilityConfig} to add given prefix in the schemaType of the
+     * given List of {@link InternalVisibilityConfig}
+     *
+     * @param prefix The full prefix to prepend to the visibilityConfigs.
+     * @param visibilityConfigs The visibility configs that need to add prefix
+     * @param removedVisibilityConfigs The removed configs that is not included in the given
+     *     visibilityConfigs.
+     * @return The List of {@link InternalVisibilityConfig} that contains prefixed in its schema
+     *     types.
+     */
+    private List<InternalVisibilityConfig> rewriteVisibilityConfigs(
+            @NonNull String prefix,
+            @NonNull List<InternalVisibilityConfig> visibilityConfigs,
+            @NonNull Set<String> removedVisibilityConfigs) {
+        List<InternalVisibilityConfig> prefixedVisibilityConfigs =
+                new ArrayList<>(visibilityConfigs.size());
+        for (int i = 0; i < visibilityConfigs.size(); i++) {
+            InternalVisibilityConfig visibilityConfig = visibilityConfigs.get(i);
+            // The VisibilityConfig is controlled by the client and it's untrusted but we
+            // make it safe by appending a prefix.
+            // We must control the package-database prefix. Therefore even if the client
+            // fake the id, they can only mess their own app. That's totally allowed and
+            // they can do this via the public API too.
+            // TODO(b/275592563): Move prefixing into VisibilityConfig
+            //  .createVisibilityDocument and createVisibilityOverlay
+            String namespace = visibilityConfig.getSchemaType();
+            String prefixedNamespace = prefix + namespace;
+            prefixedVisibilityConfigs.add(
+                    new InternalVisibilityConfig.Builder(visibilityConfig)
+                            .setSchemaType(prefixedNamespace)
+                            .build());
+            // This schema has visibility settings. We should keep it from the removal list.
+            removedVisibilityConfigs.remove(prefixedNamespace);
+        }
+        return prefixedVisibilityConfigs;
     }
 
     @VisibleForTesting
@@ -2790,16 +3048,6 @@ public final class AppSearchImpl implements Closeable {
      */
     public void dispatchAndClearChangeNotifications() {
         mObserverManager.dispatchAndClearPendingNotifications();
-    }
-
-    private static void addToMap(
-            Map<String, Set<String>> map, String prefix, String prefixedValue) {
-        Set<String> values = map.get(prefix);
-        if (values == null) {
-            values = new ArraySet<>();
-            map.put(prefix, values);
-        }
-        values.add(prefixedValue);
     }
 
     /**
@@ -2967,6 +3215,21 @@ public final class AppSearchImpl implements Closeable {
         mReadWriteLock.readLock().lock();
         try {
             return mSchemaCacheLocked.getAllPrefixedSchemaTypes();
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Returns all prefixed blob namespaces saved in AppSearch.
+     *
+     * <p>This method is inefficient to call repeatedly.
+     */
+    @NonNull
+    public List<String> getAllPrefixedBlobNamespaces() {
+        mReadWriteLock.readLock().lock();
+        try {
+            return mNamespaceCacheLocked.getAllPrefixedBlobNamespaces();
         } finally {
             mReadWriteLock.readLock().unlock();
         }

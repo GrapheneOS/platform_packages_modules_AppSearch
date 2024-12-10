@@ -75,6 +75,16 @@ package android.app.appsearch {
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.AppSearchSchema> CREATOR;
   }
 
+  @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public static final class AppSearchSchema.BlobHandlePropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public static final class AppSearchSchema.BlobHandlePropertyConfig.Builder {
+    ctor public AppSearchSchema.BlobHandlePropertyConfig.Builder(@NonNull String);
+    method @NonNull public android.app.appsearch.AppSearchSchema.BlobHandlePropertyConfig build();
+    method @NonNull public android.app.appsearch.AppSearchSchema.BlobHandlePropertyConfig.Builder setCardinality(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_app_functions") @NonNull public android.app.appsearch.AppSearchSchema.BlobHandlePropertyConfig.Builder setDescription(@NonNull String);
+  }
+
   public static final class AppSearchSchema.BooleanPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
     method @FlaggedApi("com.android.appsearch.flags.enable_scorable_property") public boolean isScoringEnabled();
   }
@@ -223,9 +233,11 @@ package android.app.appsearch {
     method public void put(@NonNull android.app.appsearch.PutDocumentsRequest, @NonNull java.util.concurrent.Executor, @NonNull android.app.appsearch.BatchResultCallback<java.lang.String,java.lang.Void>);
     method public void remove(@NonNull android.app.appsearch.RemoveByDocumentIdRequest, @NonNull java.util.concurrent.Executor, @NonNull android.app.appsearch.BatchResultCallback<java.lang.String,java.lang.Void>);
     method public void remove(@NonNull String, @NonNull android.app.appsearch.SearchSpec, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<java.lang.Void>>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public void removeBlob(@NonNull java.util.Set<android.app.appsearch.AppSearchBlobHandle>, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.RemoveBlobResponse>>);
     method public void reportUsage(@NonNull android.app.appsearch.ReportUsageRequest, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<java.lang.Void>>);
     method @NonNull public android.app.appsearch.SearchResults search(@NonNull String, @NonNull android.app.appsearch.SearchSpec);
     method public void searchSuggestion(@NonNull String, @NonNull android.app.appsearch.SearchSuggestionSpec, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<java.util.List<android.app.appsearch.SearchSuggestionResult>>>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public void setBlobVisibility(@NonNull android.app.appsearch.SetBlobVisibilityRequest, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<java.lang.Void>>);
     method public void setSchema(@NonNull android.app.appsearch.SetSchemaRequest, @NonNull java.util.concurrent.Executor, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.SetSchemaResponse>>);
   }
 
@@ -254,6 +266,7 @@ package android.app.appsearch {
   @FlaggedApi("com.android.appsearch.flags.enable_enterprise_global_search_session") public class EnterpriseGlobalSearchSession {
     method public void getByDocumentId(@NonNull String, @NonNull String, @NonNull android.app.appsearch.GetByDocumentIdRequest, @NonNull java.util.concurrent.Executor, @NonNull android.app.appsearch.BatchResultCallback<java.lang.String,android.app.appsearch.GenericDocument>);
     method public void getSchema(@NonNull String, @NonNull String, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.GetSchemaResponse>>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public void openBlobForRead(@NonNull java.util.Set<android.app.appsearch.AppSearchBlobHandle>, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.OpenBlobForReadResponse>>);
     method @NonNull public android.app.appsearch.SearchResults search(@NonNull String, @NonNull android.app.appsearch.SearchSpec);
   }
 
@@ -264,6 +277,8 @@ package android.app.appsearch {
     method public static int getMaxIndexedProperties();
     method @NonNull public String getNamespace();
     method @Nullable public Object getProperty(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @Nullable public android.app.appsearch.AppSearchBlobHandle getPropertyBlobHandle(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @Nullable public android.app.appsearch.AppSearchBlobHandle[] getPropertyBlobHandleArray(@NonNull String);
     method public boolean getPropertyBoolean(@NonNull String);
     method @Nullable public boolean[] getPropertyBooleanArray(@NonNull String);
     method @Nullable public byte[] getPropertyBytes(@NonNull String);
@@ -292,6 +307,7 @@ package android.app.appsearch {
     method @NonNull public BuilderType setCreationTimestampMillis(long);
     method @FlaggedApi("com.android.appsearch.flags.enable_generic_document_builder_hidden_methods") @NonNull public BuilderType setId(@NonNull String);
     method @FlaggedApi("com.android.appsearch.flags.enable_generic_document_builder_hidden_methods") @NonNull public BuilderType setNamespace(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public BuilderType setPropertyBlobHandle(@NonNull String, @NonNull android.app.appsearch.AppSearchBlobHandle...);
     method @NonNull public BuilderType setPropertyBoolean(@NonNull String, @NonNull boolean...);
     method @NonNull public BuilderType setPropertyBytes(@NonNull String, @NonNull byte[]...);
     method @NonNull public BuilderType setPropertyDocument(@NonNull String, @NonNull android.app.appsearch.GenericDocument...);
@@ -343,8 +359,11 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder addSchema(@NonNull android.app.appsearch.AppSearchSchema);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder addSchemaTypeNotDisplayedBySystem(@NonNull String);
     method @NonNull public android.app.appsearch.GetSchemaResponse build();
-    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeVisibilityConfig(@NonNull String);
-    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeVisibilityConfigs();
+    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearPubliclyVisibleSchema(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearRequiredPermissionsForSchemaTypeVisibility(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeNotDisplayedBySystem(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeVisibleToConfigs(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeVisibleToPackages(@NonNull String);
     method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemas();
     method @FlaggedApi("com.android.appsearch.flags.enable_set_publicly_visible_schema") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setPubliclyVisibleSchema(@NonNull String, @NonNull android.app.appsearch.PackageIdentifier);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setRequiredPermissionsForSchemaTypeVisibility(@NonNull String, @NonNull java.util.Set<java.util.Set<java.lang.Integer>>);
@@ -357,6 +376,7 @@ package android.app.appsearch {
     method public void close();
     method public void getByDocumentId(@NonNull String, @NonNull String, @NonNull android.app.appsearch.GetByDocumentIdRequest, @NonNull java.util.concurrent.Executor, @NonNull android.app.appsearch.BatchResultCallback<java.lang.String,android.app.appsearch.GenericDocument>);
     method public void getSchema(@NonNull String, @NonNull String, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.GetSchemaResponse>>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public void openBlobForRead(@NonNull java.util.Set<android.app.appsearch.AppSearchBlobHandle>, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<android.app.appsearch.OpenBlobForReadResponse>>);
     method public void registerObserverCallback(@NonNull String, @NonNull android.app.appsearch.observer.ObserverSpec, @NonNull java.util.concurrent.Executor, @NonNull android.app.appsearch.observer.ObserverCallback) throws android.app.appsearch.exceptions.AppSearchException;
     method public void reportSystemUsage(@NonNull android.app.appsearch.ReportSystemUsageRequest, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.app.appsearch.AppSearchResult<java.lang.Void>>);
     method @NonNull public android.app.appsearch.SearchResults search(@NonNull String, @NonNull android.app.appsearch.SearchSpec);
@@ -449,6 +469,14 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_put_documents_request_add_taken_actions") @NonNull public android.app.appsearch.PutDocumentsRequest.Builder addTakenActionGenericDocuments(@NonNull android.app.appsearch.GenericDocument...) throws android.app.appsearch.exceptions.AppSearchException;
     method @FlaggedApi("com.android.appsearch.flags.enable_put_documents_request_add_taken_actions") @NonNull public android.app.appsearch.PutDocumentsRequest.Builder addTakenActionGenericDocuments(@NonNull java.util.Collection<? extends android.app.appsearch.GenericDocument>) throws android.app.appsearch.exceptions.AppSearchException;
     method @NonNull public android.app.appsearch.PutDocumentsRequest build();
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public final class RemoveBlobResponse implements android.os.Parcelable {
+    ctor public RemoveBlobResponse(@NonNull android.app.appsearch.AppSearchBatchResult<android.app.appsearch.AppSearchBlobHandle,java.lang.Void>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @NonNull public android.app.appsearch.AppSearchBatchResult<android.app.appsearch.AppSearchBlobHandle,java.lang.Void> getResult();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.RemoveBlobResponse> CREATOR;
   }
 
   public final class RemoveByDocumentIdRequest implements android.os.Parcelable {
@@ -735,6 +763,19 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.SearchSuggestionSpec.Builder setRankingStrategy(int);
   }
 
+  @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public class SetBlobVisibilityRequest {
+    method @NonNull public java.util.Set<java.lang.String> getNamespacesNotDisplayedBySystem();
+    method @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.SchemaVisibilityConfig>> getNamespacesVisibleToConfigs();
+  }
+
+  public static final class SetBlobVisibilityRequest.Builder {
+    ctor public SetBlobVisibilityRequest.Builder();
+    method @NonNull public android.app.appsearch.SetBlobVisibilityRequest.Builder addNamespaceVisibleToConfig(@NonNull String, @NonNull android.app.appsearch.SchemaVisibilityConfig);
+    method @NonNull public android.app.appsearch.SetBlobVisibilityRequest build();
+    method @NonNull public android.app.appsearch.SetBlobVisibilityRequest.Builder clearNamespaceVisibleToConfigs(@NonNull String);
+    method @NonNull public android.app.appsearch.SetBlobVisibilityRequest.Builder setNamespaceDisplayedBySystem(@NonNull String, boolean);
+  }
+
   public final class SetSchemaRequest {
     method @NonNull public java.util.Map<java.lang.String,android.app.appsearch.Migrator> getMigrators();
     method @FlaggedApi("com.android.appsearch.flags.enable_set_publicly_visible_schema") @NonNull public java.util.Map<java.lang.String,android.app.appsearch.PackageIdentifier> getPubliclyVisibleSchemas();
@@ -812,6 +853,8 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method public int getAliveDocumentsCount();
     method public int getAliveNamespacesCount();
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public int getBlobCount();
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public long getBlobSizeBytes();
     method public long getSizeBytes();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.StorageInfo> CREATOR;
@@ -822,6 +865,8 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.StorageInfo build();
     method @NonNull public android.app.appsearch.StorageInfo.Builder setAliveDocumentsCount(int);
     method @NonNull public android.app.appsearch.StorageInfo.Builder setAliveNamespacesCount(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public android.app.appsearch.StorageInfo.Builder setBlobCount(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public android.app.appsearch.StorageInfo.Builder setBlobSizeBytes(long);
     method @NonNull public android.app.appsearch.StorageInfo.Builder setSizeBytes(long);
   }
 
@@ -869,7 +914,8 @@ package android.app.appsearch.ast.operators {
     ctor public AndNode(@NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node...);
     method public void addChild(@NonNull android.app.appsearch.ast.Node);
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
-    method public void removeChild(int);
+    method public int getIndexOfChild(@NonNull android.app.appsearch.ast.Node);
+    method public boolean removeChild(@NonNull android.app.appsearch.ast.Node);
     method public void setChild(int, @NonNull android.app.appsearch.ast.Node);
     method public void setChildren(@NonNull java.util.List<android.app.appsearch.ast.Node>);
   }
@@ -894,7 +940,8 @@ package android.app.appsearch.ast.operators {
     ctor public OrNode(@NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node...);
     method public void addChild(@NonNull android.app.appsearch.ast.Node);
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
-    method public void removeChild(int);
+    method public int getIndexOfChild(@NonNull android.app.appsearch.ast.Node);
+    method public boolean removeChild(@NonNull android.app.appsearch.ast.Node);
     method public void setChild(int, @NonNull android.app.appsearch.ast.Node);
     method public void setChildren(@NonNull java.util.List<android.app.appsearch.ast.Node>);
   }

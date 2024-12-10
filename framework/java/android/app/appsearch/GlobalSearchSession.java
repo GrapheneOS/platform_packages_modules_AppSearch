@@ -19,12 +19,13 @@ package android.app.appsearch;
 import static android.app.appsearch.SearchSessionUtil.safeExecute;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
+import android.app.appsearch.aidl.AppSearchResultCallback;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.IAppSearchManager;
 import android.app.appsearch.aidl.IAppSearchObserverProxy;
-import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.aidl.PersistToDiskAidlRequest;
 import android.app.appsearch.aidl.RegisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.ReportUsageAidlRequest;
@@ -41,6 +42,7 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.Preconditions;
 
@@ -48,6 +50,7 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -130,6 +133,29 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
             @NonNull BatchResultCallback<String, GenericDocument> callback) {
         Preconditions.checkState(!mIsClosed, "GlobalSearchSession has already been closed");
         super.getByDocumentId(packageName, databaseName, request, executor, callback);
+    }
+
+    /**
+     * Opens a batch of AppSearch Blobs for reading.
+     *
+     * <p>See {@link AppSearchSession#openBlobForRead} for a general description when a blob is for
+     * read.
+     *
+     * <p class="caution">The returned {@link OpenBlobForReadResponse} must be closed after use to
+     * avoid resource leaks. Failing to close it will result in system file descriptor exhaustion.
+     *
+     * @param handles The {@link AppSearchBlobHandle}s that identifies the blobs.
+     * @param executor Executor on which to invoke the callback.
+     * @param callback Callback to receive the {@link OpenBlobForReadResponse}.
+     * @see GenericDocument.Builder#setPropertyBlobHandle
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void openBlobForRead(
+            @NonNull Set<AppSearchBlobHandle> handles,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull Consumer<AppSearchResult<OpenBlobForReadResponse>> callback) {
+        Preconditions.checkState(!mIsClosed, "GlobalSearchSession has already been closed");
+        super.openBlobForRead(handles, executor, callback);
     }
 
     /**
@@ -225,14 +251,10 @@ public class GlobalSearchSession extends ReadOnlyGlobalSearchSession implements 
                             /* systemUsage= */ true,
                             mUserHandle,
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()),
-                    new IAppSearchResultCallback.Stub() {
+                    new AppSearchResultCallback<Void>() {
                         @Override
-                        @SuppressWarnings({"rawtypes", "unchecked"})
-                        public void onResult(AppSearchResultParcel resultParcel) {
-                            safeExecute(
-                                    executor,
-                                    callback,
-                                    () -> callback.accept(resultParcel.getResult()));
+                        public void onResult(@NonNull AppSearchResult<Void> result) {
+                            safeExecute(executor, callback, () -> callback.accept(result));
                         }
                     });
             mIsMutated = true;

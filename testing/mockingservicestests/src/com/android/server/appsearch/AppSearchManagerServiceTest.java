@@ -68,6 +68,7 @@ import android.app.appsearch.SearchSuggestionSpec;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchBatchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcel;
+import android.app.appsearch.aidl.AppSearchResultParcelV2;
 import android.app.appsearch.aidl.DocumentsParcel;
 import android.app.appsearch.aidl.GetDocumentsAidlRequest;
 import android.app.appsearch.aidl.GetNamespacesAidlRequest;
@@ -1960,6 +1961,11 @@ public class AppSearchManagerServiceTest {
 
         @Override
         public void onResult(AppSearchResultParcel appSearchResultParcel) {
+            future.set(appSearchResultParcel.getResult());
+        }
+
+        @Override
+        public void onResultV2(AppSearchResultParcelV2 appSearchResultParcel) {
             future.set(appSearchResultParcel.getResult());
         }
 

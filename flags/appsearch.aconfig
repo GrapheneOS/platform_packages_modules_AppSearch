@@ -311,3 +311,12 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
+
+flag {
+    name: "enable_app_functions_schema_parser"
+    namespace: "appsearch"
+    description: "Enables the AppFunctionSchemaParser for dynamic schema parsing."
+    bug: "380729091"
+    is_fixed_read_only: true
+    is_exported: true
+}

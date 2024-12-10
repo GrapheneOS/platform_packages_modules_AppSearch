@@ -39,16 +39,19 @@ public class DenylistTest {
 
     @Test
     public void testDenyAllApis() {
-        Denylist denylist = Denylist.create(
-                "pkg=foo&apis=localSetSchema,globalGetSchema,localGetSchema,"
-                        + "localGetNamespaces,localPutDocuments,globalGetDocuments,"
-                        + "localGetDocuments,globalSearch,localSearch,globalGetNextPage,"
-                        + "localGetNextPage,invalidateNextPageToken,"
-                        + "localWriteSearchResultsToFile,localPutDocumentsFromFile,"
-                        + "localSearchSuggestion,globalReportUsage,localReportUsage,"
-                        + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,flush,"
-                        + "globalRegisterObserverCallback,globalUnregisterObserverCallback,"
-                        + "initialize,executeAppFunction,openWriteBlob,commitBlob,openReadBlob");
+        Denylist denylist =
+                Denylist.create(
+                        "pkg=foo&apis=localSetSchema,globalGetSchema,localGetSchema,"
+                            + "localGetNamespaces,localPutDocuments,globalGetDocuments,"
+                            + "localGetDocuments,globalSearch,localSearch,globalGetNextPage,"
+                            + "localGetNextPage,invalidateNextPageToken,"
+                            + "localWriteSearchResultsToFile,localPutDocumentsFromFile,"
+                            + "localSearchSuggestion,globalReportUsage,localReportUsage,"
+                            + "localRemoveByDocumentId,localRemoveBySearch,localGetStorageInfo,"
+                            + "flush,globalRegisterObserverCallback,"
+                            + "globalUnregisterObserverCallback,initialize,executeAppFunction,"
+                            + "openWriteBlob,commitBlob,openReadBlob,removeBlob,globalOpenReadBlob,"
+                            + "setBlobVisibility");
         for (Integer apiType : CallStats.getAllApiCallTypes()) {
             assertThat(denylist.checkDeniedPackageDatabase("foo", "bar", apiType)).isTrue();
             assertThat(denylist.checkDeniedPackageDatabase("bar", "foo", apiType)).isFalse();

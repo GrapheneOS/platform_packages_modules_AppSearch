@@ -18,7 +18,7 @@ package android.app.appsearch.aidl;
 
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
-import android.app.appsearch.AppSearchBlobHandle;
+import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
@@ -30,15 +30,16 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Encapsulates a request to make a binder call to commit a batch of blob to AppSearch
+ * Encapsulates a request to make a binder call to set visibility configs to all blob namespaces in
+ * a database to AppSearch
  *
  * @hide
  */
-@SafeParcelable.Class(creator = "CommitBlobAidlRequestCreator")
-public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
+@SafeParcelable.Class(creator = "SetBlobVisibilityAidlRequestCreator")
+public final class SetBlobVisibilityAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final Parcelable.Creator<CommitBlobAidlRequest> CREATOR =
-            new CommitBlobAidlRequestCreator();
+    public static final Parcelable.Creator<SetBlobVisibilityAidlRequest> CREATOR =
+            new SetBlobVisibilityAidlRequestCreator();
 
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
@@ -49,8 +50,8 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
     private final String mCallingDatabaseName;
 
     @NonNull
-    @Field(id = 3, getter = "getBlobHandles")
-    private final List<AppSearchBlobHandle> mBlobHandles;
+    @Field(id = 3, getter = "getVisibilityConfigs")
+    private final List<InternalVisibilityConfig> mVisibilityConfigs;
 
     @NonNull
     @Field(id = 4, getter = "getUserHandle")
@@ -60,25 +61,26 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
     private final long mBinderCallStartTimeMillis;
 
     /**
-     * Commit a batch of blob to AppSearch
+     * Sets visibility configs to all blob namespaces in a database to AppSearch
      *
      * @param callerAttributionSource The permission identity of the package that is getting this
      *     document.
-     * @param callingDatabaseName The database name of these blob stored in.
-     * @param blobHandles The blobs to commit
+     * @param callingDatabaseName The database name of these blob namespaces stored in.
+     * @param visibilityConfigs List of {@link InternalVisibilityConfig} objects defining the
+     *     visibility for the blob namespaces.
      * @param userHandle Handle of the calling user.
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis.
      */
     @Constructor
-    public CommitBlobAidlRequest(
+    public SetBlobVisibilityAidlRequest(
             @Param(id = 1) @NonNull AppSearchAttributionSource callerAttributionSource,
             @Param(id = 2) @NonNull String callingDatabaseName,
-            @Param(id = 3) @NonNull List<AppSearchBlobHandle> blobHandles,
+            @Param(id = 3) @NonNull List<InternalVisibilityConfig> visibilityConfigs,
             @Param(id = 4) @NonNull UserHandle userHandle,
             @Param(id = 5) long binderCallStartTimeMillis) {
         mCallerAttributionSource = Objects.requireNonNull(callerAttributionSource);
         mCallingDatabaseName = Objects.requireNonNull(callingDatabaseName);
-        mBlobHandles = Objects.requireNonNull(blobHandles);
+        mVisibilityConfigs = Objects.requireNonNull(visibilityConfigs);
         mUserHandle = Objects.requireNonNull(userHandle);
         mBinderCallStartTimeMillis = binderCallStartTimeMillis;
     }
@@ -93,10 +95,13 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
         return mCallingDatabaseName;
     }
 
-    /** Gets the {@code list} of {@link AppSearchBlobHandle} to commit blob to AppSearch. */
+    /**
+     * Gets the {@code list} of {@link InternalVisibilityConfig} contains visibility settings for
+     * blob namespaces.
+     */
     @NonNull
-    public List<AppSearchBlobHandle> getBlobHandles() {
-        return Collections.unmodifiableList(mBlobHandles);
+    public List<InternalVisibilityConfig> getVisibilityConfigs() {
+        return Collections.unmodifiableList(mVisibilityConfigs);
     }
 
     @NonNull
@@ -111,6 +116,6 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        CommitBlobAidlRequestCreator.writeToParcel(this, dest, flags);
+        SetBlobVisibilityAidlRequestCreator.writeToParcel(this, dest, flags);
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2020, The Android Open Source Project
+ * Copyright 2024, The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,5 @@
  */
 package android.app.appsearch.aidl;
 
-import android.app.appsearch.aidl.AppSearchResultParcelV2;
-
 /** {@hide} */
-//TODO(b/273591938) remove this class and merge it with IAppSearchResultCallback in the following CL
-oneway interface IAppSearchResultV2Callback {
-    void onResult(in AppSearchResultParcelV2 resultParcel);
-}
+parcelable RemoveBlobAidlRequest;

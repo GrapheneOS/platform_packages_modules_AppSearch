@@ -60,7 +60,9 @@ public class AppFunctionStaticMetadataTest {
     @Test
     public void testSchemaName() {
         String packageName = "com.example.message";
-        String schemaName = AppFunctionStaticMetadata.getSchemaNameForPackage(packageName);
+        String schemaName =
+                AppFunctionStaticMetadata.getSchemaNameForPackage(
+                        packageName, /** schemaType= */ null);
         assertThat(schemaName).isEqualTo("AppFunctionStaticMetadata-com.example.message");
     }
 

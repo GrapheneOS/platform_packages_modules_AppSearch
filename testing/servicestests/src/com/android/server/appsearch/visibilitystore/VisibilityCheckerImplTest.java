@@ -133,7 +133,7 @@ public class VisibilityCheckerImplTest {
                         mVisibilityChecker,
                         /* revocableFileDescriptorStore= */ null,
                         ALWAYS_OPTIMIZE);
-        mVisibilityStore = new VisibilityStore(appSearchImpl);
+        mVisibilityStore = VisibilityStore.createDocumentVisibilityStore(appSearchImpl);
     }
 
     @Test

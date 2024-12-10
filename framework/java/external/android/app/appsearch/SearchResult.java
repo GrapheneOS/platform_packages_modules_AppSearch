@@ -377,9 +377,9 @@ public final class SearchResult extends AbstractSafeParcelable {
          * the nested documents' types.
          *
          * <p>Child types must appear before parent types in each list. Otherwise, the
-         * GenericDocument's toDocumentClass method may not correctly identify the most concrete
-         * type. This could lead to unintended deserialization into a more general type instead of a
-         * more specific type.
+         * GenericDocument's toDocumentClass method (an AndroidX-only API) may not correctly
+         * identify the most concrete type. This could lead to unintended deserialization into a
+         * more general type instead of a more specific type.
          *
          * <p>Parent types should include transitive parents.
          */

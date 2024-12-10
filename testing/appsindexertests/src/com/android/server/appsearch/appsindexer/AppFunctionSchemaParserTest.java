@@ -16,7 +16,6 @@
 package com.android.server.appsearch.appsindexer;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertThrows;
 
 import static org.mockito.Mockito.when;
 
@@ -67,7 +66,7 @@ public class AppFunctionSchemaParserTest {
     public void parse_singleType_withNoAttributes() throws Exception {
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
-                        + "    <xs:documentType name=\"TestType\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
                         + "        <xs:element name=\"name\" type=\"xs:string\" />"
                         + "        <xs:element name=\"age\" type=\"xs:int\" />"
                         + "        <xs:element name=\"isActive\" type=\"xs:boolean\" />"
@@ -80,9 +79,9 @@ public class AppFunctionSchemaParserTest {
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
 
         assertThat(schemas).hasSize(1);
-        assertThat(schemas.get("TestType"))
+        assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
                 .isEqualTo(
-                        new AppSearchSchema.Builder("TestType")
+                        new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
                                 .addProperty(new StringPropertyConfig.Builder("name").build())
                                 .addProperty(new LongPropertyConfig.Builder("age").build())
                                 .addProperty(new BooleanPropertyConfig.Builder("isActive").build())
@@ -93,11 +92,13 @@ public class AppFunctionSchemaParserTest {
     public void parse_singleType_withAttributes() throws Exception {
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
-                        + "    <xs:documentType name=\"TestType\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
                         + "        <xs:element name=\"name\" type=\"xs:string\" indexingType=\""
                         + StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS
                         + "\" tokenizerType=\""
                         + StringPropertyConfig.TOKENIZER_TYPE_VERBATIM
+                        + "\" joinableValueType=\""
+                        + StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID
                         + "\" />"
                         + "        <xs:element name=\"age\" type=\"xs:int\" indexingType=\""
                         + LongPropertyConfig.INDEXING_TYPE_RANGE
@@ -114,9 +115,9 @@ public class AppFunctionSchemaParserTest {
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
 
         assertThat(schemas).hasSize(1);
-        assertThat(schemas.get("TestType"))
+        assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
                 .isEqualTo(
-                        new AppSearchSchema.Builder("TestType")
+                        new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
                                 .addProperty(
                                         new StringPropertyConfig.Builder("name")
                                                 .setIndexingType(
@@ -125,6 +126,9 @@ public class AppFunctionSchemaParserTest {
                                                 .setTokenizerType(
                                                         StringPropertyConfig
                                                                 .TOKENIZER_TYPE_VERBATIM)
+                                                .setJoinableValueType(
+                                                        StringPropertyConfig
+                                                                .JOINABLE_VALUE_TYPE_QUALIFIED_ID)
                                                 .build())
                                 .addProperty(
                                         new LongPropertyConfig.Builder("age")
@@ -142,7 +146,7 @@ public class AppFunctionSchemaParserTest {
     public void parse_multipleNestedTypes() throws Exception {
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
-                        + "    <xs:documentType name=\"OuterType\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
                         + "        <xs:element name=\"inner\" type=\"appfn:InnerType\" />"
                         + "    </xs:documentType>"
                         + "    <xs:documentType name=\"InnerType\">"
@@ -156,17 +160,17 @@ public class AppFunctionSchemaParserTest {
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
 
         assertThat(schemas).hasSize(2);
-        assertThat(schemas.get("InnerType"))
+        assertThat(schemas.get("InnerType-com.example.app"))
                 .isEqualTo(
-                        new AppSearchSchema.Builder("InnerType")
+                        new AppSearchSchema.Builder("InnerType-com.example.app")
                                 .addProperty(new StringPropertyConfig.Builder("value").build())
                                 .build());
-        assertThat(schemas.get("OuterType"))
+        assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
                 .isEqualTo(
-                        new AppSearchSchema.Builder("OuterType")
+                        new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
                                 .addProperty(
                                         new AppSearchSchema.DocumentPropertyConfig.Builder(
-                                                        "inner", "InnerType")
+                                                        "inner", "InnerType-com.example.app")
                                                 .setShouldIndexNestedProperties(true)
                                                 .build())
                                 .build());
@@ -188,19 +192,30 @@ public class AppFunctionSchemaParserTest {
                         + "</xs:schema>";
         setXmlInput(xsd);
 
-        Exception e =
-                assertThrows(
-                        IllegalStateException.class,
-                        () ->
-                                mParser.parseAndCreateSchemas(
-                                        mPackageManager,
-                                        TEST_PACKAGE_NAME,
-                                        TEST_XML_ASSET_FILE_PATH));
-        assertThat(e).hasMessageThat().contains("Exceeded max allowed document types: 2");
+        Map<String, AppSearchSchema> schemas =
+                mParser.parseAndCreateSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+        assertThat(schemas).isEmpty();
     }
 
     @Test
-    public void parse_unsupportedType_throwsException() throws Exception {
+    public void parse_unsupportedType_returnsEmptyMap() throws Exception {
+        String xsd =
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
+                        + "        <xs:element name=\"name\" type=\"xs:unsupportedType\" />"
+                        + "    </xs:documentType>"
+                        + "</xs:schema>";
+        setXmlInput(xsd);
+
+        Map<String, AppSearchSchema> schemas =
+                mParser.parseAndCreateSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+        assertThat(schemas).isEmpty();
+    }
+
+    @Test
+    public void parse_missingAppFunctionStaticMetadataType_returnsEmptyMap() throws Exception {
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                         + "    <xs:documentType name=\"TestType\">"
@@ -209,15 +224,10 @@ public class AppFunctionSchemaParserTest {
                         + "</xs:schema>";
         setXmlInput(xsd);
 
-        Exception e =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () ->
-                                mParser.parseAndCreateSchemas(
-                                        mPackageManager,
-                                        TEST_PACKAGE_NAME,
-                                        TEST_XML_ASSET_FILE_PATH));
-        assertThat(e).hasMessageThat().contains("Unsupported type: xs:unsupportedType");
+        Map<String, AppSearchSchema> schemas =
+                mParser.parseAndCreateSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+        assertThat(schemas).isEmpty();
     }
 
     private void setXmlInput(String xml) throws IOException {

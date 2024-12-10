@@ -19,6 +19,7 @@ package android.app.appsearch.safeparcel;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.EmbeddingVector;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.os.Parcel;
@@ -73,6 +74,10 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
     @Field(id = 8, getter = "getEmbeddingValues")
     private final EmbeddingVector[] mEmbeddingValues;
 
+    @Nullable
+    @Field(id = 9, getter = "getBlobHandleValues")
+    private final AppSearchBlobHandle[] mBlobHandleValues;
+
     @Nullable private Integer mHashCode;
 
     @Constructor
@@ -84,7 +89,8 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
             @Param(id = 5) @Nullable boolean[] booleanValues,
             @Param(id = 6) @Nullable byte[][] bytesValues,
             @Param(id = 7) @Nullable GenericDocumentParcel[] documentValues,
-            @Param(id = 8) @Nullable EmbeddingVector[] embeddingValues) {
+            @Param(id = 8) @Nullable EmbeddingVector[] embeddingValues,
+            @Param(id = 9) @Nullable AppSearchBlobHandle[] blobHandleValues) {
         mPropertyName = Objects.requireNonNull(propertyName);
         mStringValues = stringValues;
         mLongValues = longValues;
@@ -93,6 +99,7 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
         mBytesValues = bytesValues;
         mDocumentValues = documentValues;
         mEmbeddingValues = embeddingValues;
+        mBlobHandleValues = blobHandleValues;
         checkOnlyOneArrayCanBeSet();
     }
 
@@ -144,6 +151,12 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
         return mEmbeddingValues;
     }
 
+    /** Returns {@link AppSearchBlobHandle}s in an array. */
+    @Nullable
+    public AppSearchBlobHandle[] getBlobHandleValues() {
+        return mBlobHandleValues;
+    }
+
     /**
      * Returns the held values in an array for this property.
      *
@@ -171,6 +184,9 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
         }
         if (mEmbeddingValues != null) {
             return mEmbeddingValues;
+        }
+        if (mBlobHandleValues != null) {
+            return mBlobHandleValues;
         }
         return null;
     }
@@ -203,6 +219,9 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
         if (mEmbeddingValues != null) {
             ++notNullCount;
         }
+        if (mBlobHandleValues != null) {
+            ++notNullCount;
+        }
         if (notNullCount == 0 || notNullCount > 1) {
             throw new IllegalArgumentException(
                     "One and only one type array can be set in PropertyParcel");
@@ -227,6 +246,8 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
                 hashCode = Arrays.hashCode(mDocumentValues);
             } else if (mEmbeddingValues != null) {
                 hashCode = Arrays.deepHashCode(mEmbeddingValues);
+            } else if (mBlobHandleValues != null) {
+                hashCode = Arrays.deepHashCode(mBlobHandleValues);
             }
             mHashCode = Objects.hash(mPropertyName, hashCode);
         }
@@ -251,7 +272,8 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
                 && Arrays.equals(mBooleanValues, otherPropertyParcel.mBooleanValues)
                 && Arrays.deepEquals(mBytesValues, otherPropertyParcel.mBytesValues)
                 && Arrays.equals(mDocumentValues, otherPropertyParcel.mDocumentValues)
-                && Arrays.deepEquals(mEmbeddingValues, otherPropertyParcel.mEmbeddingValues);
+                && Arrays.deepEquals(mEmbeddingValues, otherPropertyParcel.mEmbeddingValues)
+                && Arrays.deepEquals(mBlobHandleValues, otherPropertyParcel.mBlobHandleValues);
     }
 
     @Override
@@ -269,6 +291,7 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
         private byte[][] mBytesValues;
         private GenericDocumentParcel[] mDocumentValues;
         private EmbeddingVector[] mEmbeddingValues;
+        private AppSearchBlobHandle[] mBlobHandleValues;
 
         public Builder(@NonNull String propertyName) {
             mPropertyName = Objects.requireNonNull(propertyName);
@@ -330,6 +353,14 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
             return this;
         }
 
+        /** Sets {@link AppSearchBlobHandle} values. */
+        @CanIgnoreReturnValue
+        @NonNull
+        public Builder setBlobHandleValues(@NonNull AppSearchBlobHandle[] blobHandleValues) {
+            mBlobHandleValues = Objects.requireNonNull(blobHandleValues);
+            return this;
+        }
+
         /** Builds a {@link PropertyParcel}. */
         @NonNull
         public PropertyParcel build() {
@@ -341,7 +372,8 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
                     mBooleanValues,
                     mBytesValues,
                     mDocumentValues,
-                    mEmbeddingValues);
+                    mEmbeddingValues,
+                    mBlobHandleValues);
         }
     }
 }

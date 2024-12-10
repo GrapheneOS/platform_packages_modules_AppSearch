@@ -31,4 +31,9 @@ public class TestAppsIndexerConfig implements AppsIndexerConfig {
     public int getMaxAppFunctionsPerPackage() {
         return 500;
     }
+
+    @Override
+    public int getMaxAllowedAppFunctionSchemasPerPackage() {
+        return 5;
+    }
 }

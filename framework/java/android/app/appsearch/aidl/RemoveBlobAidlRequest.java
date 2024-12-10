@@ -30,15 +30,15 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Encapsulates a request to make a binder call to commit a batch of blob to AppSearch
+ * Encapsulates a request to make a binder call to remove a batch of blob to AppSearch
  *
  * @hide
  */
-@SafeParcelable.Class(creator = "CommitBlobAidlRequestCreator")
-public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
+@SafeParcelable.Class(creator = "RemoveBlobAidlRequestCreator")
+public final class RemoveBlobAidlRequest extends AbstractSafeParcelable {
     @NonNull
-    public static final Parcelable.Creator<CommitBlobAidlRequest> CREATOR =
-            new CommitBlobAidlRequestCreator();
+    public static final Parcelable.Creator<RemoveBlobAidlRequest> CREATOR =
+            new RemoveBlobAidlRequestCreator();
 
     @NonNull
     @Field(id = 1, getter = "getCallerAttributionSource")
@@ -65,12 +65,12 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
      * @param callerAttributionSource The permission identity of the package that is getting this
      *     document.
      * @param callingDatabaseName The database name of these blob stored in.
-     * @param blobHandles The blobs to commit
+     * @param blobHandles The blobs to remove
      * @param userHandle Handle of the calling user.
      * @param binderCallStartTimeMillis start timestamp of binder call in Millis.
      */
     @Constructor
-    public CommitBlobAidlRequest(
+    public RemoveBlobAidlRequest(
             @Param(id = 1) @NonNull AppSearchAttributionSource callerAttributionSource,
             @Param(id = 2) @NonNull String callingDatabaseName,
             @Param(id = 3) @NonNull List<AppSearchBlobHandle> blobHandles,
@@ -93,7 +93,7 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
         return mCallingDatabaseName;
     }
 
-    /** Gets the {@code list} of {@link AppSearchBlobHandle} to commit blob to AppSearch. */
+    /** Gets the {@code list} of {@link AppSearchBlobHandle} to remove blobs from AppSearch. */
     @NonNull
     public List<AppSearchBlobHandle> getBlobHandles() {
         return Collections.unmodifiableList(mBlobHandles);
@@ -111,6 +111,6 @@ public final class CommitBlobAidlRequest extends AbstractSafeParcelable {
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        CommitBlobAidlRequestCreator.writeToParcel(this, dest, flags);
+        RemoveBlobAidlRequestCreator.writeToParcel(this, dest, flags);
     }
 }

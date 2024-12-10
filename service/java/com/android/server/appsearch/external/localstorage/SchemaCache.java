@@ -22,6 +22,7 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 
 import com.android.appsearch.flags.Flags;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.proto.SchemaTypeConfigProto;
@@ -68,6 +69,7 @@ public class SchemaCache {
 
     public SchemaCache() {}
 
+    @VisibleForTesting
     public SchemaCache(@NonNull Map<String, Map<String, SchemaTypeConfigProto>> schemaMap)
             throws AppSearchException {
         mSchemaMap.putAll(Objects.requireNonNull(schemaMap));

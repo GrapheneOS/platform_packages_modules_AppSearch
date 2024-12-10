@@ -57,9 +57,17 @@ public class AppFunctionStaticMetadata extends GenericDocument {
     public static final AppSearchSchema PARENT_TYPE_APPSEARCH_SCHEMA =
             createAppFunctionSchemaForPackage(/* packageName= */ null);
 
-    /** Returns a per-app schema name, to store all functions for that package. */
-    public static String getSchemaNameForPackage(@NonNull String pkg) {
-        return SCHEMA_TYPE + "-" + Objects.requireNonNull(pkg);
+    /**
+     * Returns a per-app schema name.
+     *
+     * @param pkg the package name of the app that owns the schema.
+     * @param schemaType the type of the schema. If null, {@link #SCHEMA_TYPE} will be used.
+     * @return the schema name by concatenating the type and the package name.
+     */
+    public static String getSchemaNameForPackage(@NonNull String pkg, @Nullable String schemaType) {
+        return ((schemaType == null) ? SCHEMA_TYPE : schemaType)
+                + "-"
+                + Objects.requireNonNull(pkg);
     }
 
     /**
@@ -73,7 +81,9 @@ public class AppFunctionStaticMetadata extends GenericDocument {
     public static AppSearchSchema createAppFunctionSchemaForPackage(@Nullable String packageName) {
         AppSearchSchema.Builder builder =
                 new AppSearchSchema.Builder(
-                        (packageName == null) ? SCHEMA_TYPE : getSchemaNameForPackage(packageName));
+                        (packageName == null)
+                                ? SCHEMA_TYPE
+                                : getSchemaNameForPackage(packageName, /* schemaType= */ null));
         if (shouldSetParentType() && packageName != null) {
             // This is a child schema, setting the parent type.
             builder.addParentType(SCHEMA_TYPE);
@@ -253,7 +263,7 @@ public class AppFunctionStaticMetadata extends GenericDocument {
             super(
                     APP_FUNCTION_NAMESPACE,
                     Objects.requireNonNull(packageName) + "/" + Objects.requireNonNull(functionId),
-                    getSchemaNameForPackage(packageName));
+                    getSchemaNameForPackage(packageName, /* schemaType= */ null));
             setPropertyString(PROPERTY_FUNCTION_ID, functionId);
             setPropertyString(PROPERTY_PACKAGE_NAME, packageName);
 

@@ -30,7 +30,6 @@ import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcelV2;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
-import android.app.appsearch.aidl.IAppSearchResultV2Callback;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -158,34 +157,6 @@ public class ServiceImplHelper {
             AppSearchResult failedResult = throwableToFailedResult(t);
             invokeCallbackOnResult(
                     errorCallback, AppSearchResultParcel.fromFailedResult(failedResult));
-            return null;
-        }
-    }
-
-    /**
-     * Verifies that the information about the caller matches Binder's settings, determines a final
-     * user that the call is allowed to run as, and checks that the user is unlocked.
-     *
-     * <p>If these checks fail, returns {@code null} and sends the error to the given callback.
-     *
-     * <p>This method must be called on the binder thread.
-     *
-     * @return The result containing the final verified user that the call should run as, if all
-     *     checks pass. Otherwise return null.
-     */
-    // TODO(b/273591938) remove this method and IAppSearchResultV2Callback in the following CL.
-    @BinderThread
-    @Nullable
-    public UserHandle verifyIncomingCallWithCallback(
-            @NonNull AppSearchAttributionSource callerAttributionSource,
-            @NonNull UserHandle userHandle,
-            @NonNull IAppSearchResultV2Callback errorCallback) {
-        try {
-            return verifyIncomingCall(callerAttributionSource, userHandle);
-        } catch (Throwable t) {
-            AppSearchResult failedResult = throwableToFailedResult(t);
-            invokeCallbackOnResult(
-                    errorCallback, AppSearchResultParcelV2.fromFailedResult(failedResult));
             return null;
         }
     }
@@ -398,12 +369,11 @@ public class ServiceImplHelper {
         }
     }
 
-    /** Invokes the {@link IAppSearchResultV2Callback} with the result parcel. */
-    // TODO(b/273591938) remove this method and IAppSearchResultV2Callback in the following CL.
+    /** Invokes the {@link IAppSearchResultCallback} with the result parcel. */
     public static void invokeCallbackOnResult(
-            IAppSearchResultV2Callback callback, AppSearchResultParcelV2<?> resultParcel) {
+            IAppSearchResultCallback callback, AppSearchResultParcelV2<?> resultParcel) {
         try {
-            callback.onResult(resultParcel);
+            callback.onResultV2(resultParcel);
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to send result to the callback", e);
         }
@@ -418,6 +388,7 @@ public class ServiceImplHelper {
             Log.e(TAG, "Unable to send result to the callback", e);
         }
     }
+
 
     /** Invokes the {@link IAppSearchBatchResultCallback} with the result. */
     public static void invokeCallbackOnResult(

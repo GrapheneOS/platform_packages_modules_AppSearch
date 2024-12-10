@@ -31,6 +31,8 @@ public class FrameworkAppsIndexerConfig implements AppsIndexerConfig {
     static final String KEY_APPS_INDEXER_ENABLED = "apps_indexer_enabled";
     static final String KEY_APPS_UPDATE_INTERVAL_MILLIS = "apps_update_interval_millis";
     static final String KEY_MAX_APP_FUNCTIONS_PER_PACKAGE = "max_app_functions_per_package";
+    static final String KEY_MAX_ALLOWED_APP_FUNCTION_SCHEMAS_PER_PACKAGE =
+            "max_allowed_app_function_schemas_per_package";
 
     @Override
     public boolean isAppsIndexerEnabled() {
@@ -54,6 +56,14 @@ public class FrameworkAppsIndexerConfig implements AppsIndexerConfig {
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_MAX_APP_FUNCTIONS_PER_PACKAGE,
                 DEFAULT_MAX_APP_FUNCTIONS_PER_PACKAGE);
+    }
+
+    @Override
+    public int getMaxAllowedAppFunctionSchemasPerPackage() {
+        return DeviceConfig.getInt(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_MAX_ALLOWED_APP_FUNCTION_SCHEMAS_PER_PACKAGE,
+                DEFAULT_MAX_ALLOWED_APP_FUNCTION_SCHEMAS_PER_PACKAGE);
     }
 }
 

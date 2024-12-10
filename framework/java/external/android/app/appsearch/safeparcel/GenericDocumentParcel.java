@@ -20,6 +20,7 @@ import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.EmbeddingVector;
@@ -454,7 +455,7 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** puts an array of {@link String} in property map. */
+        /** Puts an array of {@link String} in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(@NonNull String name, @NonNull String[] values)
@@ -464,7 +465,7 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** puts an array of boolean in property map. */
+        /** Puts an array of boolean in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(@NonNull String name, @NonNull boolean[] values) {
@@ -473,7 +474,7 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** puts an array of double in property map. */
+        /** Puts an array of double in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(@NonNull String name, @NonNull double[] values) {
@@ -482,7 +483,7 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** puts an array of long in property map. */
+        /** Puts an array of long in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(@NonNull String name, @NonNull long[] values) {
@@ -498,7 +499,7 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** puts an array of {@link GenericDocumentParcel} in property map. */
+        /** Puts an array of {@link GenericDocumentParcel} in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(
@@ -508,7 +509,7 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** puts an array of {@link EmbeddingVector} in property map. */
+        /** Puts an array of {@link EmbeddingVector} in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(@NonNull String name, @NonNull EmbeddingVector[] values) {
@@ -517,7 +518,18 @@ public final class GenericDocumentParcel extends AbstractSafeParcelable implemen
             return this;
         }
 
-        /** Directly puts a {@link PropertyParcel} in property map. */
+        /** Puts an array of {@link AppSearchBlobHandle} in the property map. */
+        @CanIgnoreReturnValue
+        @NonNull
+        public Builder putInPropertyMap(
+                @NonNull String name, @NonNull AppSearchBlobHandle[] values) {
+            Objects.requireNonNull(values);
+            putInPropertyMap(
+                    name, new PropertyParcel.Builder(name).setBlobHandleValues(values).build());
+            return this;
+        }
+
+        /** Directly puts a {@link PropertyParcel} in the property map. */
         @CanIgnoreReturnValue
         @NonNull
         public Builder putInPropertyMap(@NonNull String name, @NonNull PropertyParcel value) {

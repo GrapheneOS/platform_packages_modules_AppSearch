@@ -419,6 +419,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     DATA_TYPE_BYTES,
                     DATA_TYPE_DOCUMENT,
                     DATA_TYPE_EMBEDDING,
+                    DATA_TYPE_BLOB_HANDLE,
                 })
         @Retention(RetentionPolicy.SOURCE)
         public @interface DataType {}
@@ -473,6 +474,13 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * @hide
          */
         public static final int DATA_TYPE_EMBEDDING = 7;
+
+        /**
+         * Indicates that the property is an {@link AppSearchBlobHandle}.
+         *
+         * @hide
+         */
+        public static final int DATA_TYPE_BLOB_HANDLE = 8;
 
         /**
          * The cardinality of the property (whether it is required, optional or repeated).
@@ -572,6 +580,9 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                 case PropertyConfig.DATA_TYPE_EMBEDDING:
                     builder.append("dataType: DATA_TYPE_EMBEDDING,\n");
                     break;
+                case PropertyConfig.DATA_TYPE_BLOB_HANDLE:
+                    builder.append("dataType: DATA_TYPE_BLOB_HANDLE,\n");
+                    break;
                 default:
                     builder.append("dataType: DATA_TYPE_UNKNOWN,\n");
             }
@@ -666,6 +677,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     return new DocumentPropertyConfig(propertyConfigParcel);
                 case PropertyConfig.DATA_TYPE_EMBEDDING:
                     return new EmbeddingPropertyConfig(propertyConfigParcel);
+                case PropertyConfig.DATA_TYPE_BLOB_HANDLE:
+                    return new BlobHandlePropertyConfig(propertyConfigParcel);
                 default:
                     throw new IllegalArgumentException(
                             "Unsupported property bundle of type "
@@ -841,7 +854,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * (grandchild) documents will be deleted.
          *
          * <p>Since delete propagation works between the document and the referenced document, if
-         * setting the type for delete propagation, the string property should also be qualified id
+         * setting this type for delete propagation, the string property should also be qualified id
          * joinable (i.e. having {@link StringPropertyConfig#JOINABLE_VALUE_TYPE_QUALIFIED_ID} for
          * the joinable value type). Otherwise, throw {@link IllegalStateException} when building
          * (see {@link StringPropertyConfig.Builder#build}).
@@ -1978,6 +1991,68 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                                 mCardinality,
                                 mIndexingType,
                                 mQuantizationType));
+            }
+        }
+    }
+
+    /** Configuration for a property of type {@link AppSearchBlobHandle} in a Document. */
+    @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
+    public static final class BlobHandlePropertyConfig extends PropertyConfig {
+        BlobHandlePropertyConfig(@NonNull PropertyConfigParcel propertyConfigParcel) {
+            super(propertyConfigParcel);
+        }
+
+        /** Builder for {@link BlobHandlePropertyConfig}. */
+        @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
+        public static final class Builder {
+            private final String mPropertyName;
+            private String mDescription = "";
+            @Cardinality private int mCardinality = CARDINALITY_OPTIONAL;
+
+            /** Creates a new {@link BlobHandlePropertyConfig.Builder}. */
+            public Builder(@NonNull String propertyName) {
+                mPropertyName = Objects.requireNonNull(propertyName);
+            }
+
+            /**
+             * Sets a natural language description of this property.
+             *
+             * <p>For more details about the description field, see {@link
+             * AppSearchSchema.PropertyConfig#getDescription}.
+             */
+            @CanIgnoreReturnValue
+            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
+            @NonNull
+            public Builder setDescription(@NonNull String description) {
+                mDescription = Objects.requireNonNull(description);
+                return this;
+            }
+
+            /**
+             * Sets the cardinality of the property (whether it is optional, required or repeated).
+             *
+             * <p>If this method is not called, the default cardinality is {@link
+             * PropertyConfig#CARDINALITY_OPTIONAL}.
+             */
+            @CanIgnoreReturnValue
+            @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
+            @NonNull
+            public Builder setCardinality(@Cardinality int cardinality) {
+                Preconditions.checkArgumentInRange(
+                        cardinality, CARDINALITY_REPEATED, CARDINALITY_REQUIRED, "cardinality");
+                mCardinality = cardinality;
+                return this;
+            }
+
+            /**
+             * Constructs a new {@link BlobHandlePropertyConfig} from the contents of this builder.
+             */
+            @NonNull
+            public BlobHandlePropertyConfig build() {
+                return new BlobHandlePropertyConfig(
+                        PropertyConfigParcel.createForBlobHandle(
+                                mPropertyName, mDescription, mCardinality));
             }
         }
     }

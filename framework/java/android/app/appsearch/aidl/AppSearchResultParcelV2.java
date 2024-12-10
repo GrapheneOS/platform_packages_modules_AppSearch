@@ -26,6 +26,7 @@ import android.app.appsearch.CommitBlobResponse;
 import android.app.appsearch.OpenBlobForReadResponse;
 import android.app.appsearch.OpenBlobForWriteResponse;
 import android.app.appsearch.ParcelableUtil;
+import android.app.appsearch.RemoveBlobResponse;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
@@ -132,6 +133,10 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
     @Nullable
     OpenBlobForReadResponse mOpenBlobForReadResponse;
 
+    @Field(id = 8)
+    @Nullable
+    RemoveBlobResponse mRemoveBlobResponse;
+
     @NonNull AppSearchResult<ValueType> mResultCached;
 
     /**
@@ -149,7 +154,8 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
             @Param(id = 4) @Nullable ParcelFileDescriptor parcelFileDescriptor,
             @Param(id = 5) @Nullable OpenBlobForWriteResponse openBlobForWriteResponse,
             @Param(id = 6) @Nullable CommitBlobResponse commitBlobResponse,
-            @Param(id = 7) @Nullable OpenBlobForReadResponse openBlobForReadResponse) {
+            @Param(id = 7) @Nullable OpenBlobForReadResponse openBlobForReadResponse,
+            @Param(id = 8) @Nullable RemoveBlobResponse removeBlobResponse) {
         mWriteParcelMode = writeParcelMode;
         mResultCode = resultCode;
         mErrorMessage = errorMessage;
@@ -158,6 +164,7 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
             mOpenBlobForWriteResponse = openBlobForWriteResponse;
             mCommitBlobResponse = commitBlobResponse;
             mOpenBlobForReadResponse = openBlobForReadResponse;
+            mRemoveBlobResponse = removeBlobResponse;
             if (mParcelFileDescriptor != null) {
                 mResultCached =
                         (AppSearchResult<ValueType>)
@@ -174,6 +181,10 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
                 mResultCached =
                         (AppSearchResult<ValueType>)
                                 AppSearchResult.newSuccessfulResult(mOpenBlobForReadResponse);
+            } else if (mRemoveBlobResponse != null) {
+                mResultCached =
+                        (AppSearchResult<ValueType>)
+                                AppSearchResult.newSuccessfulResult(mRemoveBlobResponse);
             } else {
                 // Default case where code is OK and value is null.
                 mResultCached = AppSearchResult.newSuccessfulResult(null);
@@ -234,6 +245,18 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
         return new AppSearchResultParcelV2.Builder<OpenBlobForWriteResponse>(
                         WRITE_PARCEL_MODE_DIRECTLY_WRITE_TO_PARCEL, AppSearchResult.RESULT_OK)
                 .setOpenBlobForWriteResponse(openBlobForWriteResponse)
+                .build();
+    }
+
+    /**
+     * Creates a new {@link AppSearchResultParcelV2} from the given result in case a successful
+     * {@link RemoveBlobResponse}.
+     */
+    public static AppSearchResultParcelV2<RemoveBlobResponse> fromRemoveBlobResponseParcel(
+            RemoveBlobResponse removeBlobResponse) {
+        return new AppSearchResultParcelV2.Builder<RemoveBlobResponse>(
+                        WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB, AppSearchResult.RESULT_OK)
+                .setRemoveBlobResponse(removeBlobResponse)
                 .build();
     }
 
@@ -313,6 +336,7 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
         @Nullable private OpenBlobForWriteResponse mOpenBlobForWriteResponse;
         @Nullable private CommitBlobResponse mCommitBlobResponse;
         @Nullable private OpenBlobForReadResponse mOpenBlobForReadResponse;
+        @Nullable private RemoveBlobResponse mRemoveBlobResponse;
 
         /** Builds an {@link AppSearchResultParcelV2.Builder}. */
         Builder(@ParcelableUtil.WriteParcelMode int writeParcelMode, int resultCode) {
@@ -336,6 +360,12 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
         Builder<ValueType> setOpenBlobForWriteResponse(
                 OpenBlobForWriteResponse openBlobForWriteResponse) {
             mOpenBlobForWriteResponse = openBlobForWriteResponse;
+            return this;
+        }
+
+        @CanIgnoreReturnValue
+        Builder<ValueType> setRemoveBlobResponse(RemoveBlobResponse removeBlobResponse) {
+            mRemoveBlobResponse = removeBlobResponse;
             return this;
         }
 
@@ -365,7 +395,8 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
                     mParcelFileDescriptor,
                     mOpenBlobForWriteResponse,
                     mCommitBlobResponse,
-                    mOpenBlobForReadResponse);
+                    mOpenBlobForReadResponse,
+                    mRemoveBlobResponse);
         }
     }
 }

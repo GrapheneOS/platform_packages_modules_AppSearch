@@ -18,6 +18,7 @@ package android.app.appsearch.safeparcel;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSchema.PropertyConfig.Cardinality;
 import android.app.appsearch.AppSearchSchema.PropertyConfig.DataType;
@@ -262,6 +263,26 @@ public final class PropertyConfigParcel extends AbstractSafeParcelable {
                 /* joinableConfigParcel= */ null,
                 Objects.requireNonNull(description),
                 new EmbeddingIndexingConfigParcel(indexingType, quantizationType),
+                /* scoringEnabled= */ false);
+    }
+
+    /** Creates a {@link PropertyConfigParcel} for {@link AppSearchBlobHandle}. */
+    @NonNull
+    public static PropertyConfigParcel createForBlobHandle(
+            @NonNull String propertyName,
+            @NonNull String description,
+            @Cardinality int cardinality) {
+        return new PropertyConfigParcel(
+                Objects.requireNonNull(propertyName),
+                AppSearchSchema.PropertyConfig.DATA_TYPE_BLOB_HANDLE,
+                cardinality,
+                /* schemaType= */ null,
+                /* stringIndexingConfigParcel= */ null,
+                /* documentIndexingConfigParcel= */ null,
+                /* integerIndexingConfigParcel= */ null,
+                /* joinableConfigParcel= */ null,
+                Objects.requireNonNull(description),
+                /* embeddingIndexingConfigParcel= */ null,
                 /* scoringEnabled= */ false);
     }
 

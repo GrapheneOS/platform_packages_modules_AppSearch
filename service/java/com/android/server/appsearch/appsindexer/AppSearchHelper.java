@@ -421,7 +421,8 @@ public class AppSearchHelper implements Closeable {
         for (int i = 0; i < appPackageIds.size(); i++) {
             String appPackageId = appPackageIds.get(i);
             allAppFunctionsSpec.addFilterSchemas(
-                    AppFunctionStaticMetadata.getSchemaNameForPackage(appPackageId));
+                    AppFunctionStaticMetadata.getSchemaNameForPackage(
+                        appPackageId, /** schemaType= */ null));
         }
 
         SyncSearchResults results =

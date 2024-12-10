@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.app.appsearch.SearchSuggestionSpec;
 
+import com.android.server.appsearch.external.localstorage.NamespaceCache;
 import com.android.server.appsearch.external.localstorage.SchemaCache;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.icing.proto.NamespaceDocumentUriGroup;
@@ -53,9 +54,11 @@ public class SearchSuggestionSpecToProtoConverterTest {
                         /* queryExpression= */ "prefix",
                         searchSuggestionSpec,
                         /* prefixes= */ ImmutableSet.of(prefix1),
-                        /* namespaceMap= */ ImmutableMap.of(
-                                prefix1,
-                                ImmutableSet.of(prefix1 + "namespace1", prefix1 + "namespace2")),
+                        new NamespaceCache(
+                                ImmutableMap.of(
+                                        prefix1,
+                                        ImmutableSet.of(
+                                                prefix1 + "namespace1", prefix1 + "namespace2"))),
                         new SchemaCache(
                                 /* schemaMap= */ ImmutableMap.of(
                                         prefix1,
@@ -94,7 +97,7 @@ public class SearchSuggestionSpecToProtoConverterTest {
                         /* queryExpression= */ "prefix",
                         searchSuggestionSpec,
                         /* prefixes= */ ImmutableSet.of(prefix1),
-                        /* namespaceMap= */ ImmutableMap.of(),
+                        new NamespaceCache(ImmutableMap.of()),
                         new SchemaCache(
                                 /* schemaMap= */ ImmutableMap.of(
                                         prefix1,

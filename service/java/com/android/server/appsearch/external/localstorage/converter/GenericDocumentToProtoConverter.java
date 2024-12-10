@@ -17,6 +17,7 @@
 package com.android.server.appsearch.external.localstorage.converter;
 
 import android.annotation.NonNull;
+import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.EmbeddingVector;
 import android.app.appsearch.GenericDocument;
@@ -108,6 +109,12 @@ public final class GenericDocumentToProtoConverter {
                 EmbeddingVector[] embeddingValues = (EmbeddingVector[]) property;
                 for (int j = 0; j < embeddingValues.length; j++) {
                     propertyProto.addVectorValues(embeddingVectorToVectorProto(embeddingValues[j]));
+                }
+            } else if (property instanceof AppSearchBlobHandle[]) {
+                AppSearchBlobHandle[] blobHandleValues = (AppSearchBlobHandle[]) property;
+                for (int j = 0; j < blobHandleValues.length; j++) {
+                    propertyProto.addBlobHandleValues(
+                            BlobHandleToProtoConverter.toBlobHandleProto(blobHandleValues[j]));
                 }
             } else if (property == null) {
                 throw new IllegalStateException(
@@ -220,6 +227,15 @@ public final class GenericDocumentToProtoConverter {
                     values[j] = vectorProtoToEmbeddingVector(property.getVectorValues(j));
                 }
                 documentBuilder.setPropertyEmbedding(name, values);
+            } else if (property.getBlobHandleValuesCount() > 0) {
+                AppSearchBlobHandle[] values =
+                        new AppSearchBlobHandle[property.getBlobHandleValuesCount()];
+                for (int j = 0; j < values.length; j++) {
+                    values[j] =
+                            BlobHandleToProtoConverter.toAppSearchBlobHandle(
+                                    property.getBlobHandleValues(j));
+                }
+                documentBuilder.setPropertyBlobHandle(name, values);
             } else {
                 // TODO(b/184966497): Optimize by caching PropertyConfigProto
                 SchemaTypeConfigProto schema =

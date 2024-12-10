@@ -26,8 +26,12 @@ import android.app.appsearch.JoinSpec;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.SimpleTestLogger;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
@@ -53,6 +57,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -70,6 +75,9 @@ public class AppSearchLoggerTest {
     private static final OptimizeStrategy ALWAYS_OPTIMIZE = optimizeInfo -> true;
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+
     private AppSearchImpl mAppSearchImpl;
     private SimpleTestLogger mLogger;
     private AppSearchConfig mConfig =
@@ -403,6 +411,7 @@ public class AppSearchLoggerTest {
     }
 
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_BLOB_STORE)
     public void testLoggingStats_initializeWithDocuments_success() throws Exception {
         final String testPackageName = "testPackage";
         final String testDatabase = "testDatabase";
@@ -462,6 +471,75 @@ public class AppSearchLoggerTest {
         assertThat(iStats.getDocumentCount()).isEqualTo(2);
         // Type1 + Type2 +2 for VisibilitySchema, +1 for VisibilityOverlay
         assertThat(iStats.getSchemaTypeCount()).isEqualTo(5);
+        assertThat(iStats.hasReset()).isEqualTo(false);
+        assertThat(iStats.getResetStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
+        appSearchImpl.close();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testLoggingStats_enableBlobStore_initializeWithDocuments_success()
+            throws Exception {
+        final String testPackageName = "testPackage";
+        final String testDatabase = "testDatabase";
+        final File folder = mTemporaryFolder.newFolder();
+
+        AppSearchImpl appSearchImpl =
+                AppSearchImpl.create(
+                        folder,
+                        mConfig,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mConfig),
+                        ALWAYS_OPTIMIZE);
+
+        List<AppSearchSchema> schemas =
+                ImmutableList.of(
+                        new AppSearchSchema.Builder("Type1").build(),
+                        new AppSearchSchema.Builder("Type2").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                appSearchImpl.setSchema(
+                        testPackageName,
+                        testDatabase,
+                        schemas,
+                        /* visibilityDocuments= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        GenericDocument doc1 = new GenericDocument.Builder<>("namespace", "id1", "Type1").build();
+        GenericDocument doc2 = new GenericDocument.Builder<>("namespace", "id2", "Type1").build();
+        appSearchImpl.putDocument(
+                testPackageName, testDatabase, doc1, /* sendChangeNotifications= */ false, mLogger);
+        appSearchImpl.putDocument(
+                testPackageName, testDatabase, doc2, /* sendChangeNotifications= */ false, mLogger);
+        appSearchImpl.close();
+
+        // Create another appsearchImpl on the same folder
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        appSearchImpl =
+                AppSearchImpl.create(
+                        folder,
+                        mConfig,
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        ALWAYS_OPTIMIZE);
+        InitializeStats iStats = initStatsBuilder.build();
+
+        assertThat(iStats).isNotNull();
+        // If the process goes really fast, the total latency could be 0. Since the default of total
+        // latency is also 0, we just remove the assert about NativeLatencyMillis.
+        assertThat(iStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
+        // Total latency captured in LocalStorage
+        assertThat(iStats.getTotalLatencyMillis()).isEqualTo(0);
+        assertThat(iStats.hasDeSync()).isFalse();
+        assertThat(iStats.getDocumentStoreDataStatus())
+                .isEqualTo(InitializeStatsProto.DocumentStoreDataStatus.NO_DATA_LOSS_VALUE);
+        assertThat(iStats.getDocumentCount()).isEqualTo(2);
+        // Type1 + Type2 + 2(document and blob visibility db)
+        // * (2 for VisibilitySchema +1 for VisibilityOverlay)
+        assertThat(iStats.getSchemaTypeCount()).isEqualTo(8);
         assertThat(iStats.hasReset()).isEqualTo(false);
         assertThat(iStats.getResetStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
         appSearchImpl.close();

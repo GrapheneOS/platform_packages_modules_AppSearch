@@ -139,7 +139,7 @@ public class VisibilityStoreMigrationHelperFromV0Test {
         // Put deprecated visibility documents in version 0 to AppSearchImpl
         appSearchImplInV0.putDocument(
                 VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                VisibilityStore.VISIBILITY_DATABASE_NAME,
+                VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                 deprecatedVisibilityDocument,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
@@ -158,14 +158,14 @@ public class VisibilityStoreMigrationHelperFromV0Test {
         GenericDocument actualDocument1 =
                 appSearchImpl.getDocument(
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                        VisibilityStore.VISIBILITY_DATABASE_NAME,
+                        VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                         /* id= */ prefix + "Schema1",
                         /* typePropertyPaths= */ Collections.emptyMap());
         GenericDocument actualDocument2 =
                 appSearchImpl.getDocument(
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                        VisibilityStore.VISIBILITY_DATABASE_NAME,
+                        VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                         /* id= */ prefix + "Schema2",
                         /* typePropertyPaths= */ Collections.emptyMap());
@@ -251,7 +251,7 @@ public class VisibilityStoreMigrationHelperFromV0Test {
         InternalSetSchemaResponse internalSetSchemaResponse =
                 appSearchImpl.setSchema(
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
-                        VisibilityStore.VISIBILITY_DATABASE_NAME,
+                        VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         ImmutableList.of(visibilityDocumentSchemaV0, visibilityToPackagesSchemaV0),
                         /* prefixedVisibilityBundles= */ Collections.emptyList(),
                         /* forceOverride= */ true, // force push the old version into disk

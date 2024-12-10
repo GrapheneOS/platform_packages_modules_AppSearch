@@ -651,27 +651,50 @@ public class EnterpriseContactsTest {
     private String getCorpLookupUri(long contactId) {
         ContentResolver resolver = ApplicationProvider.getApplicationContext().getContentResolver();
         long enterpriseId = ENTERPRISE_CONTACT_ID_BASE + contactId;
-        String[] projection = new String[] { ContactsContract.Data.LOOKUP_KEY };
+        String[] projection =
+                new String[]{ContactsContract.Contacts._ID, ContactsContract.Data.LOOKUP_KEY};
         String selection = ContactsContract.Contacts._ID + " = " + contactId;
         try (Cursor cursor = resolver.query(ContactsContract.Contacts.ENTERPRISE_CONTENT_URI,
                 projection, selection, /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
             assertThat(cursor).isNotNull();
-            assertThat(cursor.moveToNext()).isTrue();
+            int contactIdIndex = cursor.getColumnIndex(ContactsContract.Data._ID);
+            int lookupKeyIndex = cursor.getColumnIndex(ContactsContract.Data.LOOKUP_KEY);
+            // Querying the enterprise contact uri by contact id can potentially return a matching
+            // main profile contact and an enterprise profile contact but the enterprise profile
+            // contact will have an enterprise id
+            while (cursor.moveToNext()) {
+                if (cursor.getLong(contactIdIndex) == enterpriseId) {
+                    break;
+                }
+            }
+            assertThat(cursor.isAfterLast()).isFalse();
             return ContactsContract.Contacts.getLookupUri(enterpriseId,
-                    cursor.getString(0)).toString();
+                    cursor.getString(lookupKeyIndex)).toString();
         }
     }
 
     /** Returns the corp image uri of the given contact through enterprise contacts CP2. */
     private String getCorpImageUri(long contactId) {
         ContentResolver resolver = ApplicationProvider.getApplicationContext().getContentResolver();
-        String[] projection = new String[] { ContactsContract.Data.PHOTO_THUMBNAIL_URI };
+        long enterpriseId = ENTERPRISE_CONTACT_ID_BASE + contactId;
+        String[] projection = new String[]{ContactsContract.Contacts._ID,
+                ContactsContract.Data.PHOTO_THUMBNAIL_URI};
         String selection = ContactsContract.Contacts._ID + " = " + contactId;
         try (Cursor cursor = resolver.query(ContactsContract.Contacts.ENTERPRISE_CONTENT_URI,
                 projection, selection, /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
             assertThat(cursor).isNotNull();
-            assertThat(cursor.moveToNext()).isTrue();
-            return cursor.getString(0);
+            int contactIdIndex = cursor.getColumnIndex(ContactsContract.Data._ID);
+            int photoUriIndex = cursor.getColumnIndex(ContactsContract.Data.PHOTO_THUMBNAIL_URI);
+            // Querying the enterprise contact uri by contact id can potentially return a matching
+            // main profile contact and an enterprise profile contact but the enterprise profile
+            // contact will have an enterprise id
+            while (cursor.moveToNext()) {
+                if (cursor.getLong(contactIdIndex) == enterpriseId) {
+                    break;
+                }
+            }
+            assertThat(cursor.isAfterLast()).isFalse();
+            return cursor.getString(photoUriIndex);
         }
     }
 }

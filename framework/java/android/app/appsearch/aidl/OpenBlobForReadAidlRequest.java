@@ -78,7 +78,7 @@ public class OpenBlobForReadAidlRequest extends AbstractSafeParcelable {
             @Param(id = 4) @NonNull UserHandle userHandle,
             @Param(id = 5) long binderCallStartTimeMillis) {
         mCallerAttributionSource = Objects.requireNonNull(callerAttributionSource);
-        mCallingDatabaseName = Objects.requireNonNull(callingDatabaseName);
+        mCallingDatabaseName = callingDatabaseName;
         mBlobHandles = Objects.requireNonNull(blobHandles);
         mUserHandle = Objects.requireNonNull(userHandle);
         mBinderCallStartTimeMillis = binderCallStartTimeMillis;

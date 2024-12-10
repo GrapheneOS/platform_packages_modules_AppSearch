@@ -16,10 +16,13 @@
 
 package com.android.server.appsearch.external.localstorage.converter;
 
+import static android.app.appsearch.testutil.AppSearchTestUtils.calculateDigest;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assume.assumeTrue;
 
+import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.EmbeddingVector;
 import android.app.appsearch.GenericDocument;
 
@@ -28,6 +31,7 @@ import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
 import com.android.server.appsearch.external.localstorage.SchemaCache;
 import com.android.server.appsearch.external.localstorage.UnlimitedLimitConfig;
+import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.icing.proto.DocumentProto;
 import com.android.server.appsearch.icing.proto.PropertyConfigProto;
 import com.android.server.appsearch.icing.proto.PropertyProto;
@@ -525,6 +529,84 @@ public class GenericDocumentToProtoConverterTest {
                                 PropertyProto.VectorProto.newBuilder()
                                         .addAllValues(Arrays.asList(4.4f, 5.5f, 6.6f, 7.7f))
                                         .setModelSignature("my_model_v2")));
+        List<String> sortedKey = new ArrayList<>(propertyProtoMap.keySet());
+        Collections.sort(sortedKey);
+        for (String key : sortedKey) {
+            documentProtoBuilder.addProperties(propertyProtoMap.get(key));
+        }
+        DocumentProto documentProto = documentProtoBuilder.build();
+
+        GenericDocument convertedGenericDocument =
+                GenericDocumentToProtoConverter.toGenericDocument(
+                        documentProto,
+                        PREFIX,
+                        new SchemaCache(SCHEMA_MAP),
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()));
+        DocumentProto convertedDocumentProto =
+                GenericDocumentToProtoConverter.toDocumentProto(document);
+
+        assertThat(convertedDocumentProto).isEqualTo(documentProto);
+        assertThat(convertedGenericDocument).isEqualTo(document);
+    }
+
+    @Test
+    public void testDocumentProtoConvert_blobHandleProperty() throws Exception {
+        byte[] data1 = {(byte) 1};
+        byte[] data2 = {(byte) 2};
+        byte[] digest1 = calculateDigest(data1);
+        byte[] digest2 = calculateDigest(data2);
+        AppSearchBlobHandle blobHandle1 =
+                AppSearchBlobHandle.createWithSha256(digest1, "package1", "db1", "namespace");
+        AppSearchBlobHandle blobHandle2 =
+                AppSearchBlobHandle.createWithSha256(digest2, "package1", "db1", "namespace");
+
+        GenericDocument document =
+                new GenericDocument.Builder<GenericDocument.Builder<?>>(
+                                "namespace", "id1", SCHEMA_TYPE_1)
+                        .setCreationTimestampMillis(5L)
+                        .setScore(1)
+                        .setTtlMillis(1L)
+                        .setPropertyBlobHandle("blobKey1", blobHandle1)
+                        .setPropertyBlobHandle("blobKey2", blobHandle2)
+                        .build();
+
+        // Create the Document proto. Need to sort the property order by key.
+        DocumentProto.Builder documentProtoBuilder =
+                DocumentProto.newBuilder()
+                        .setUri("id1")
+                        .setSchema(SCHEMA_TYPE_1)
+                        .setCreationTimestampMs(5L)
+                        .setScore(1)
+                        .setTtlMs(1L)
+                        .setNamespace("namespace");
+
+        // Create the BlobHandle proto.
+        HashMap<String, PropertyProto.Builder> propertyProtoMap = new HashMap<>();
+        String prefix = PrefixUtil.createPrefix("package1", "db1");
+
+        PropertyProto.BlobHandleProto.Builder blobHandleProto1 =
+                PropertyProto.BlobHandleProto.newBuilder()
+                        .setNamespace(prefix + "namespace")
+                        .setDigest(ByteString.copyFrom(blobHandle1.getSha256Digest()));
+
+        PropertyProto.BlobHandleProto.Builder blobHandleProto2 =
+                PropertyProto.BlobHandleProto.newBuilder()
+                        .setNamespace(prefix + "namespace")
+                        .setDigest(ByteString.copyFrom(blobHandle2.getSha256Digest()));
+
+        propertyProtoMap.put(
+                "blobKey1",
+                PropertyProto.newBuilder()
+                        .setName("blobKey1")
+                        .addBlobHandleValues(blobHandleProto1));
+        propertyProtoMap.put(
+                "blobKey2",
+                PropertyProto.newBuilder()
+                        .setName("blobKey2")
+                        .addBlobHandleValues(blobHandleProto2));
+
+        // Sort property by keys
         List<String> sortedKey = new ArrayList<>(propertyProtoMap.keySet());
         Collections.sort(sortedKey);
         for (String key : sortedKey) {
