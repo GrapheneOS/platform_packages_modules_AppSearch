@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchSchema;
-import android.app.appsearch.GenericDocument;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
@@ -229,6 +228,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
@@ -243,8 +243,7 @@ public class AppFunctionStaticMetadataParserImplTest {
         assertThat(appFunctions).containsKey("com.example.utils#print");
         AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
         assertThat(actualAppFunction.getNamespace()).isEqualTo("app_functions");
-        assertThat(actualAppFunction.getId())
-                .isEqualTo("com.example.app/AppFunctionStaticMetadata");
+        assertThat(actualAppFunction.getId()).isEqualTo("com.example/com.example.utils#print");
         assertThat(actualAppFunction.getSchemaType())
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
         assertThat(actualAppFunction.getPropertyString("functionId"))
@@ -259,11 +258,13 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print1</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print2</id>\n"
                         + "    <functionId>com.example.utils#print2</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
@@ -309,16 +310,19 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print1</id>\n"
                         + "    <functionId>com.example.utils#print1</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print2</id>\n"
                         + "    <functionId>com.example.utils#print2</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print3</id>\n"
                         + "    <functionId>com.example.utils#print3</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
@@ -341,8 +345,11 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <appFunctionParameterMetadata>\n"
+                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
+                        + "</id>\n"
                         + "      <parameterName>test</parameterName>\n"
                         + "    </appFunctionParameterMetadata>\n"
                         + "  </AppFunctionStaticMetadata>\n"
@@ -361,6 +368,31 @@ public class AppFunctionStaticMetadataParserImplTest {
                         actualAppFunction.getPropertyString(
                                 "appFunctionParameterMetadata.parameterName"))
                 .isEqualTo("test");
+        assertThat(actualAppFunction.getPropertyDocument("appFunctionParameterMetadata").getId())
+                .isEqualTo("com.example.utils#print/appFunctionParameterMetadata-0");
+    }
+
+    @Test
+    public void
+            parseIntoMapForGivenSchemas_singleFunctionWithDocumentProperties_missingIdInNestedDoc()
+                    throws Exception {
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <functionId>com.example.utils#print</functionId>\n"
+                        + "    <appFunctionParameterMetadata>\n"
+                        + "      <parameterName>test</parameterName>\n"
+                        + "    </appFunctionParameterMetadata>\n"
+                        + "  </AppFunctionStaticMetadata>\n"
+                        + "</appfunctions>");
+
+        Map<String, AppFunctionStaticMetadata> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+
+        assertThat(appFunctions).isEmpty();
     }
 
     @Test
@@ -370,12 +402,17 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <appFunctionParameterMetadata>\n"
+                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
+                        + "</id>\n"
                         + "      <parameterName>test1</parameterName>\n"
                         + "      <parameterName>test2</parameterName>\n"
                         + "    </appFunctionParameterMetadata>\n"
                         + "    <appFunctionParameterMetadata>\n"
+                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-1"
+                        + "</id>\n"
                         + "      <parameterName>test3</parameterName>\n"
                         + "    </appFunctionParameterMetadata>\n"
                         + "  </AppFunctionStaticMetadata>\n"
