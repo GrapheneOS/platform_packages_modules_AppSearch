@@ -485,6 +485,60 @@ public class AppsIndexerImplTest {
     }
 
     @Test
+    public void testAppsIndexerImpl_incrementalPut_allFunctionsRemovedButAppFunctionServicePresent()
+            throws Exception {
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        List<PackageInfo> fakePackages = ImmutableList.of(createFakePackageInfo(0));
+        List<ResolveInfo> fakeActivities = ImmutableList.of(createFakeLaunchResolveInfo(0));
+        List<ResolveInfo> fakeAppFunctionServices =
+                ImmutableList.of(createFakeAppFunctionResolveInfo(0));
+        when(pm1.getProperty(any(String.class), any(ComponentName.class)))
+                .thenThrow(PackageManager.NameNotFoundException.class);
+        when(pm1.getProperty(eq("android.app.appfunctions"), any(ComponentName.class)))
+                .thenReturn(new PackageManager.Property("", "app_functions.xml", "", ""));
+        AssetManager assetManager = Mockito.mock(AssetManager.class);
+        // One functions initially
+        String xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#print</function_id>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>";
+        when(assetManager.open(eq("app_functions.xml")))
+                .thenReturn(new ByteArrayInputStream(xml.getBytes()));
+        setUpResourcesForApp(assetManager, pm1, fakePackages.getFirst().packageName);
+        setupMockPackageManager(pm1, fakePackages, fakeActivities, fakeAppFunctionServices);
+        Context context1 = createContextWithPackageManager(pm1);
+        List<String> packages = ImmutableList.of("com.fake.package0");
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+        }
+
+        // Simulate an update
+        fakePackages.get(0).lastUpdateTime = 1000;
+        // Remove the function
+        String xmlWithNoFunctions =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "</appfunctions>";
+        when(assetManager.open(eq("app_functions.xml")))
+                .thenReturn(new ByteArrayInputStream(xmlWithNoFunctions.getBytes()));
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+        }
+
+        assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet()).isEmpty();
+    }
+
+    @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_FUNCTIONS_SCHEMA_PARSER)
     public void testAppsIndexerImpl_withDynamicAndNoSchemasDefinedInApp_indexesAppFunctions()
             throws Exception {

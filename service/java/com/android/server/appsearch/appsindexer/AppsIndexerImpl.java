@@ -229,7 +229,10 @@ public final class AppsIndexerImpl implements Closeable {
                 // Since dynamic schemas are enabled, we need to account for schema changes in
                 // both updated packages and newly added packages.
                 Pair<List<PackageIdentifier>, List<PackageIdentifier>>
-                        mobileAppAndAppFunctionIdentifiers = getPackageIdentifiers(packagesToIndex);
+                        mobileAppAndAppFunctionIdentifiers =
+                                getPackageIdentifiers(
+                                        packagesToIndex,
+                                        currentAppFunctionsForAddedUpdatedPackages);
 
                 long beforeSetSchemaTimestamp = SystemClock.elapsedRealtime();
                 mAppSearchHelper.setSchemasForPackages(
@@ -243,7 +246,10 @@ public final class AppsIndexerImpl implements Closeable {
                 // added or removed to keep the AppSearch schema in sync with
                 // PackageManager.
                 Pair<List<PackageIdentifier>, List<PackageIdentifier>>
-                        mobileAppAndAppFunctionIdentifiers = getPackageIdentifiers(packagesToIndex);
+                        mobileAppAndAppFunctionIdentifiers =
+                                getPackageIdentifiers(
+                                        packagesToIndex,
+                                        currentAppFunctionsForAddedUpdatedPackages);
 
                 // The certificate is necessary along with the package name as it is used in
                 // visibility settings.
@@ -306,11 +312,15 @@ public final class AppsIndexerImpl implements Closeable {
      *
      * @param packagesToIndex a mapping of {@link PackageInfo}s with their corresponding {@link
      *     ResolveInfos} for the packages launch activity and maybe app function resolve info.
+     * @param currentAppFunctionsForAddedUpdatedPackages a mapping of package name to a map of all
+     *     app functions for the packages that were either updated or added.
      * @return a pair of lists of {@link PackageIdentifier}s, the first list representing all
      *     packages, and the second list representing packages with app functions.
      */
     private Pair<List<PackageIdentifier>, List<PackageIdentifier>> getPackageIdentifiers(
-            @NonNull Map<PackageInfo, ResolveInfos> packagesToIndex) {
+            @NonNull Map<PackageInfo, ResolveInfos> packagesToIndex,
+            Map<String, Map<String, AppFunctionStaticMetadata>>
+                    currentAppFunctionsForAddedUpdatedPackages) {
         List<PackageIdentifier> packageIdentifiers = new ArrayList<>();
         List<PackageIdentifier> packageIdentifiersWithAppFunctions = new ArrayList<>();
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packagesToIndex.entrySet()) {
@@ -325,7 +335,16 @@ public final class AppsIndexerImpl implements Closeable {
             PackageIdentifier packageIdentifier =
                     new PackageIdentifier(packageInfo.packageName, certificate);
             packageIdentifiers.add(packageIdentifier);
-            if (entry.getValue().getAppFunctionServiceInfo() != null) {
+            // Check if the package was updated and all app functions were removed. The map only
+            // contains entries for packages that updated or newly added, for packages with no
+            // change we would rely solely on presence of AppFunctionServiceInfo to decide if it's
+            // an app function package.
+            boolean appFunctionsRemoved =
+                    currentAppFunctionsForAddedUpdatedPackages.containsKey(packageInfo.packageName)
+                            && currentAppFunctionsForAddedUpdatedPackages
+                                    .get(packageInfo.packageName)
+                                    .isEmpty();
+            if (entry.getValue().getAppFunctionServiceInfo() != null && !appFunctionsRemoved) {
                 packageIdentifiersWithAppFunctions.add(packageIdentifier);
             }
         }
