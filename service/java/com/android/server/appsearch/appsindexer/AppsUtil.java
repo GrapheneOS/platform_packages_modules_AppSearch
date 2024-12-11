@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.util.LogUtil;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
@@ -44,6 +45,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -292,11 +294,19 @@ public final class AppsUtil {
      * AppFunctionStaticMetadata documents. This is useful for determining what has changed during
      * an update.
      *
+     * <p>The parser will parse app functions based on schemas if schemasPerPackage is not null or
+     * the map of schemas for a package is not empty, else it will default to predefined schema
+     * properties created by {@link AppFunctionStaticMetadata#createAppFunctionSchemaForPackage} to
+     * create the {@link AppFunctionStaticMetadata} documents.
+     *
      * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
      *     ResolveInfo} for the packages launch activity.
      * @param indexerPackageName the name of the package performing the indexing. This should be the
      *     same as the package running the apps indexer so that qualified ids are correctly created.
      * @param maxAppFunctions the max number of app functions to be indexed per package.
+     * @param schemasPerPackage a mapping of packages to a mapping of schema types to their
+     *     corresponding {@link AppSearchSchema} objects, or null if there are no schemas to
+     *     consider.
      * @return A mapping of packages to a mapping of function ids to AppFunctionStaticMetadata
      *     documents
      */
@@ -305,22 +315,27 @@ public final class AppsUtil {
                     @NonNull PackageManager packageManager,
                     @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
                     @NonNull String indexerPackageName,
-                    int maxAppFunctions) {
+                    int maxAppFunctions,
+                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
         AppFunctionStaticMetadataParser parser =
                 new AppFunctionStaticMetadataParserImpl(indexerPackageName, maxAppFunctions);
-        return buildAppFunctionStaticMetadataIntoMap(packageManager, packageInfos, parser);
+        return buildAppFunctionStaticMetadataIntoMap(
+                packageManager, packageInfos, parser, schemasPerPackage);
     }
 
     /**
      * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
      * provide a custom parser. This is for testing purposes.
+     *
+     * @see #buildAppFunctionStaticMetadataIntoMap(PackageManager, Map, String, int, Map)
      */
     @VisibleForTesting
     static Map<String, Map<String, AppFunctionStaticMetadata>>
             buildAppFunctionStaticMetadataIntoMap(
                     @NonNull PackageManager packageManager,
                     @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-                    @NonNull AppFunctionStaticMetadataParser parser) {
+                    @NonNull AppFunctionStaticMetadataParser parser,
+                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
         Objects.requireNonNull(parser);
@@ -346,10 +361,23 @@ public final class AppsUtil {
                 continue;
             }
             if (assetFilePath != null) {
-                appFunctions.put(
-                        packageInfo.packageName,
-                        parser.parseIntoMap(
-                                packageManager, packageInfo.packageName, assetFilePath));
+                if (schemasPerPackage == null
+                        || schemasPerPackage
+                                .getOrDefault(packageInfo.packageName, Collections.emptyMap())
+                                .isEmpty()) {
+                    appFunctions.put(
+                            packageInfo.packageName,
+                            parser.parseIntoMap(
+                                    packageManager, packageInfo.packageName, assetFilePath));
+                } else {
+                    appFunctions.put(
+                            packageInfo.packageName,
+                            parser.parseIntoMapForGivenSchemas(
+                                    packageManager,
+                                    packageInfo.packageName,
+                                    assetFilePath,
+                                    schemasPerPackage.get(packageInfo.packageName)));
+                }
             }
         }
         return appFunctions;
@@ -459,5 +487,67 @@ public final class AppsUtil {
             builder.setClassName(resolveInfo.activityInfo.name);
         }
         return builder.build();
+    }
+
+    /**
+     * Creates dynamic app function schemas defined by the app per package.
+     *
+     * <p>Packages which don't have a AppFunctionService will not have an entry in the returned map.
+     *
+     * @param packageManager the {@link PackageManager} to use to get the schema file path.
+     * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
+     *     ResolveInfo} for the packages launch activity.
+     * @param maxAllowedAppFunctionSchemasPerPackage the max number of schema definitions allowed
+     *     per package.
+     * @return A mapping of packages to a mapping of schema types to their corresponding {@link
+     *     AppSearchSchema} objects or an empty map for a package if there's an error during parsing
+     *     or no schema file is found.
+     */
+    @NonNull
+    public static Map<String, Map<String, AppSearchSchema>> getDynamicAppFunctionSchemasForPackages(
+            @NonNull PackageManager packageManager,
+            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+            int maxAllowedAppFunctionSchemasPerPackage) {
+        Objects.requireNonNull(packageInfos);
+
+        Map<String, Map<String, AppSearchSchema>> schemasPerPackage = new ArrayMap<>();
+        AppFunctionSchemaParser parser =
+                new AppFunctionSchemaParser(maxAllowedAppFunctionSchemasPerPackage);
+        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
+            PackageInfo packageInfo = entry.getKey();
+            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
+            if (resolveInfo == null) {
+                continue;
+            }
+
+            String assetFilePath = null;
+            try {
+                PackageManager.Property property =
+                        packageManager.getProperty(
+                                /* propertyName= */ "android.app.appfunctions.schema",
+                                new ComponentName(
+                                        resolveInfo.serviceInfo.packageName,
+                                        resolveInfo.serviceInfo.name));
+                assetFilePath = property.getString();
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.w(
+                        TAG,
+                        "getDynamicAppFunctionSchemasForPackages: Failed to get schema "
+                                + "property for package: "
+                                + resolveInfo.serviceInfo.packageName,
+                        e);
+            }
+
+            if (assetFilePath != null) {
+                schemasPerPackage.put(
+                        packageInfo.packageName,
+                        parser.parseAndCreateSchemas(
+                                packageManager, packageInfo.packageName, assetFilePath));
+            } else {
+                schemasPerPackage.put(packageInfo.packageName, Collections.emptyMap());
+            }
+        }
+
+        return schemasPerPackage;
     }
 }

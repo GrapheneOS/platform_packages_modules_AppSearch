@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
+import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -30,7 +31,9 @@ import android.os.SystemClock;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
+import android.util.Pair;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
@@ -164,6 +167,17 @@ public final class AppsIndexerImpl implements Closeable {
             }
         }
 
+        Map<String, Map<String, AppSearchSchema>> dynamicAppFunctionSchemasForPackages = null;
+        if (Flags.enableAppFunctionsSchemaParser()) {
+            // TODO(b/382254638): Skip XML parsing for packages that were not updated by using
+            // AppSearchSessio#getSchema.
+            dynamicAppFunctionSchemasForPackages =
+                    AppsUtil.getDynamicAppFunctionSchemasForPackages(
+                            packageManager,
+                            packagesToIndex,
+                            mAppsIndexerConfig.getMaxAllowedAppFunctionSchemasPerPackage());
+        }
+
         // Parse and build all necessary AppFunctionStaticMetadata from PackageManager.
         Map<String, Map<String, AppFunctionStaticMetadata>>
                 currentAppFunctionsForAddedUpdatedPackages =
@@ -171,7 +185,8 @@ public final class AppsIndexerImpl implements Closeable {
                                 packageManager,
                                 packagesToBeAddedOrUpdated,
                                 /* indexerPackageName= */ mContext.getPackageName(),
-                                mAppsIndexerConfig.getMaxAppFunctionsPerPackage());
+                                mAppsIndexerConfig.getMaxAppFunctionsPerPackage(),
+                                dynamicAppFunctionSchemasForPackages);
 
         // Get all currently indexed AppFunctionStaticMetadata docs for the necessary packages.
         Map<String, Map<String, AppFunctionStaticMetadata>> appFunctionsFromAppSearch =
@@ -209,33 +224,33 @@ public final class AppsIndexerImpl implements Closeable {
         }
 
         try {
-            if (addedOrRemovedFlag) {
-                // This boolean will be turned on if we need to call setSchema to keep AppSearch in
-                // sync with PackageManager.
-                List<PackageIdentifier> packageIdentifiers = new ArrayList<>();
-                List<PackageIdentifier> packageIdentifiersWithAppFunctions = new ArrayList<>();
+            // TODO(b/382254638): Skip set schema calls if no packages have an updated schema.
+            if (dynamicAppFunctionSchemasForPackages != null) {
+                // Since dynamic schemas are enabled, we need to account for schema changes in
+                // both updated packages and newly added packages.
+                Pair<List<PackageIdentifier>, List<PackageIdentifier>>
+                        mobileAppAndAppFunctionIdentifiers = getPackageIdentifiers(packagesToIndex);
 
-                for (Map.Entry<PackageInfo, ResolveInfos> entry : packagesToIndex.entrySet()) {
-                    // We get certificates here as getting the certificates during the previous for
-                    // loop would be wasteful if we end up not needing to call set schema
-                    PackageInfo packageInfo = entry.getKey();
-                    byte[] certificate = AppsUtil.getCertificate(packageInfo);
-                    if (certificate == null) {
-                        Log.e(TAG, "Certificate not found for package: " + packageInfo.packageName);
-                        continue;
-                    }
-                    PackageIdentifier packageIdentifier =
-                            new PackageIdentifier(packageInfo.packageName, certificate);
-                    packageIdentifiers.add(packageIdentifier);
-                    if (entry.getValue().getAppFunctionServiceInfo() != null) {
-                        packageIdentifiersWithAppFunctions.add(packageIdentifier);
-                    }
-                }
+                long beforeSetSchemaTimestamp = SystemClock.elapsedRealtime();
+                mAppSearchHelper.setSchemasForPackages(
+                        /* mobileAppPkgs= */ mobileAppAndAppFunctionIdentifiers.first,
+                        /* appFunctionPkgs= */ mobileAppAndAppFunctionIdentifiers.second,
+                        dynamicAppFunctionSchemasForPackages);
+                appsUpdateStats.mAppSearchSetSchemaLatencyMillis =
+                        SystemClock.elapsedRealtime() - beforeSetSchemaTimestamp;
+            } else if (addedOrRemovedFlag) {
+                // This branch is executed when dynamic schemas are disabled and new packages are
+                // added or removed to keep the AppSearch schema in sync with
+                // PackageManager.
+                Pair<List<PackageIdentifier>, List<PackageIdentifier>>
+                        mobileAppAndAppFunctionIdentifiers = getPackageIdentifiers(packagesToIndex);
+
                 // The certificate is necessary along with the package name as it is used in
                 // visibility settings.
                 long beforeSetSchemaTimestamp = SystemClock.elapsedRealtime();
                 mAppSearchHelper.setSchemasForPackages(
-                        packageIdentifiers, packageIdentifiersWithAppFunctions);
+                        /* mobileAppPkgs= */ mobileAppAndAppFunctionIdentifiers.first,
+                        /* appFunctionPkgs= */ mobileAppAndAppFunctionIdentifiers.second);
                 appsUpdateStats.mAppSearchSetSchemaLatencyMillis =
                         SystemClock.elapsedRealtime() - beforeSetSchemaTimestamp;
             }
@@ -281,6 +296,40 @@ public final class AppsIndexerImpl implements Closeable {
             appsUpdateStats.mUpdateStatusCodes.add(e.getResultCode());
             throw e;
         }
+    }
+
+    /**
+     * Return a pair of lists of {@link PackageIdentifier}s, the first list representing all
+     * packages, and the second list representing packages with app functions.
+     *
+     * <p>The second list is always a subset of the first list.
+     *
+     * @param packagesToIndex a mapping of {@link PackageInfo}s with their corresponding {@link
+     *     ResolveInfos} for the packages launch activity and maybe app function resolve info.
+     * @return a pair of lists of {@link PackageIdentifier}s, the first list representing all
+     *     packages, and the second list representing packages with app functions.
+     */
+    private Pair<List<PackageIdentifier>, List<PackageIdentifier>> getPackageIdentifiers(
+            @NonNull Map<PackageInfo, ResolveInfos> packagesToIndex) {
+        List<PackageIdentifier> packageIdentifiers = new ArrayList<>();
+        List<PackageIdentifier> packageIdentifiersWithAppFunctions = new ArrayList<>();
+        for (Map.Entry<PackageInfo, ResolveInfos> entry : packagesToIndex.entrySet()) {
+            // We get certificates here as getting the certificates during the previous for
+            // loop would be wasteful if we end up not needing to call set schema
+            PackageInfo packageInfo = entry.getKey();
+            byte[] certificate = AppsUtil.getCertificate(packageInfo);
+            if (certificate == null) {
+                Log.e(TAG, "Certificate not found for package: " + packageInfo.packageName);
+                continue;
+            }
+            PackageIdentifier packageIdentifier =
+                    new PackageIdentifier(packageInfo.packageName, certificate);
+            packageIdentifiers.add(packageIdentifier);
+            if (entry.getValue().getAppFunctionServiceInfo() != null) {
+                packageIdentifiersWithAppFunctions.add(packageIdentifier);
+            }
+        }
+        return new Pair<>(packageIdentifiers, packageIdentifiersWithAppFunctions);
     }
 
     /**
