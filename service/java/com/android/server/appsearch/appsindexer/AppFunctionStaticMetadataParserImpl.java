@@ -17,11 +17,8 @@ package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
-import android.app.appsearch.AppSearchSchema.BooleanPropertyConfig;
-import android.app.appsearch.AppSearchSchema.LongPropertyConfig;
-import android.app.appsearch.AppSearchSchema.PropertyConfig;
-import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
 import android.app.appsearch.AppSearchSchema.DocumentPropertyConfig;
+import android.app.appsearch.AppSearchSchema.PropertyConfig;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.util.LogUtil;
 import android.content.pm.PackageManager;
@@ -52,6 +49,7 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
     private static final String XML_TAG_APPFUNCTION = "appfunction";
     private static final String XML_TAG_APPFUNCTIONS_ROOT = "appfunctions";
     private static final String XML_TAG_ID = "id";
+    private static final String SNAKE_CASE_SEPARATOR = "_";
 
     @NonNull private final String mIndexerPackageName;
     private final int mMaxAppFunctions;
@@ -329,23 +327,26 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
 
         while (eventType != XmlPullParser.END_DOCUMENT) {
             String tagName = parser.getName();
+            // In previous document formats <appfunction> XML tag was used for denoting
+            // AppFunctionStaticMetadata type.
+            String schemaType =
+                    XML_TAG_APPFUNCTION.equals(tagName)
+                            ? AppFunctionStaticMetadata.SCHEMA_TYPE
+                            : tagName;
             String schemaName =
-                    AppFunctionStaticMetadata.getSchemaNameForPackage(packageName, tagName);
+                    AppFunctionStaticMetadata.getSchemaNameForPackage(packageName, schemaType);
             if (eventType == XmlPullParser.START_TAG && schemas.containsKey(schemaName)) {
                 GenericDocument appFnMetadata =
                         parseXmlElementToGenericDocument(
                                 parser,
                                 packageName,
-                                tagName,
+                                schemaType,
                                 qualifiedPropertyNamesToPropertyConfig);
-                if (appFnMetadata != null) {
-                    appFnMetadatas.put(
-                            appFnMetadata.getPropertyString(
-                                    AppFunctionStaticMetadata.PROPERTY_FUNCTION_ID),
-                            new AppFunctionStaticMetadata(appFnMetadata));
-                } else if (!XML_TAG_APPFUNCTIONS_ROOT.equals(tagName)) {
-                    throw new XmlPullParserException("Unknwown tag: " + tagName);
-                }
+
+                appFnMetadatas.put(
+                        appFnMetadata.getPropertyString(
+                                AppFunctionStaticMetadata.PROPERTY_FUNCTION_ID),
+                        new AppFunctionStaticMetadata(appFnMetadata));
                 if (appFnMetadatas.size() >= mMaxAppFunctions) {
                     if (LogUtil.DEBUG) {
                         Log.d(TAG, "Exceeding the max number of app functions: " + packageName);
@@ -397,7 +398,10 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
             switch (parser.getEventType()) {
                 case XmlPullParser.START_TAG:
-                    currentPropertyPath = createQualifiedPropertyName(schemaType, parser.getName());
+                    currentPropertyPath =
+                            createQualifiedPropertyName(
+                                    schemaType,
+                                    toLowerCamelCase(parser.getName(), SNAKE_CASE_SEPARATOR));
                     PropertyConfig propertyConfig =
                             qualifiedPropertyNamesToPropertyConfig.get(currentPropertyPath);
                     if (propertyConfig instanceof DocumentPropertyConfig) {
@@ -439,8 +443,8 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                             docBuilder.setPropertyDocument(
                                     propertyName, entry.getValue().toArray(new GenericDocument[0]));
                         }
-                        GenericDocument doc =  docBuilder.build();
-                        if(doc.getId().isEmpty()) {
+                        GenericDocument doc = docBuilder.build();
+                        if (doc.getId().isEmpty()) {
                             throw new XmlPullParserException(
                                     "No id found for document of type: " + schemaType);
                         }
@@ -488,6 +492,43 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         }
 
         return propertyMap;
+    }
+
+    /**
+     * Converts a string of words separated by separator to lowerCamelCase.
+     *
+     * <p>Returns the same string if string doesn't contain the separator.
+     */
+    private static String toLowerCamelCase(@NonNull String str, @NonNull String separator) {
+        if (str.isEmpty()) {
+            return "";
+        }
+
+        // Return the original string if the separator is not present
+        if (!str.contains(separator)) {
+            return str;
+        }
+
+        StringBuilder builder = new StringBuilder(str.length());
+        boolean capitalizeNext = false;
+
+        for (int i = 0; i < str.length(); i++) {
+            char currentChar = str.charAt(i);
+            // skip multiple consecutive separators
+            if (str.startsWith(separator, i)) {
+                capitalizeNext = true;
+                i += separator.length() - 1;
+            } else {
+                if (capitalizeNext) {
+                    builder.append(Character.toUpperCase(currentChar));
+                    capitalizeNext = false;
+                } else {
+                    builder.append(Character.toLowerCase(currentChar));
+                }
+            }
+        }
+
+        return builder.toString();
     }
 
     /**

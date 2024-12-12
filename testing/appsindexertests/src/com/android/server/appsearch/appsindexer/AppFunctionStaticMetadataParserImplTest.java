@@ -438,4 +438,65 @@ public class AppFunctionStaticMetadataParserImplTest {
                                         "appFunctionParameterMetadata[1].parameterName")))
                 .containsExactly("test3");
     }
+
+    @Test
+    public void parseIntoMapForGivenSchemas_validXmlWithUnderscores_worksWithDynamicSchemas()
+            throws Exception {
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <function__id>com.example.utils#print</function__id>\n"
+                        + "    <enabled_by_default>true</enabled_by_default>\n"
+                        + "    <scHema_veRsion>10</scHema_veRsion>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>");
+
+        Map<String, AppFunctionStaticMetadata> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+
+        assertThat(appFunctions).hasSize(1);
+        assertThat(appFunctions).containsKey("com.example.utils#print");
+        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(actualAppFunction.getNamespace()).isEqualTo("app_functions");
+        assertThat(actualAppFunction.getId()).isEqualTo("com.example/com.example.utils#print");
+        assertThat(actualAppFunction.getSchemaType())
+                .isEqualTo("AppFunctionStaticMetadata-com.example.app");
+        assertThat(actualAppFunction.getPropertyString("functionId"))
+                .isEqualTo("com.example.utils#print");
+        assertThat(actualAppFunction.getPropertyBoolean("enabledByDefault")).isEqualTo(true);
+        assertThat(actualAppFunction.getPropertyLong("schemaVersion")).isEqualTo(10);
+    }
+
+    @Test
+    public void parseIntoMapForGivenSchemas_xmlTagWithStartingOrOnlyUnderscores_propertiesIgnored()
+            throws Exception {
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <functionId>com.example.utils#print</functionId>\n"
+                        + "    <___>test</___>\n"
+                        + "    <_schema_version_>test</_schema_version_>\n"
+                        + "  </AppFunctionStaticMetadata>\n"
+                        + "</appfunctions>");
+
+        Map<String, AppFunctionStaticMetadata> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+
+        assertThat(appFunctions).hasSize(1);
+        assertThat(appFunctions).containsKey("com.example.utils#print");
+        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(actualAppFunction.getNamespace()).isEqualTo("app_functions");
+        assertThat(actualAppFunction.getId()).isEqualTo("com.example/com.example.utils#print");
+        assertThat(actualAppFunction.getSchemaType())
+                .isEqualTo("AppFunctionStaticMetadata-com.example.app");
+        assertThat(actualAppFunction.getPropertyString("functionId"))
+                .isEqualTo("com.example.utils#print");
+        assertThat(actualAppFunction.getPropertyNames()).containsExactly("functionId");
+    }
 }
