@@ -21,10 +21,10 @@ import android.app.appsearch.AppSearchSchema.BooleanPropertyConfig;
 import android.app.appsearch.AppSearchSchema.LongPropertyConfig;
 import android.app.appsearch.AppSearchSchema.PropertyConfig;
 import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
-import android.app.appsearch.util.LogUtil;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
@@ -38,6 +38,7 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * This class parses the XSD file from an app's assets and creates AppSearch schemas from document
@@ -76,6 +77,8 @@ public class AppFunctionSchemaParser {
      */
     private final int mMaxAllowedDocumentType;
 
+    private final Set<String> mNestedSchemaTypes;
+
     /**
      * @param maxAllowedDocumentType The maximum number of document types allowed in the XSD file.
      *     This is to prevent malicious apps from creating too many schema types in AppSearch by
@@ -83,6 +86,25 @@ public class AppFunctionSchemaParser {
      */
     public AppFunctionSchemaParser(int maxAllowedDocumentType) {
         mMaxAllowedDocumentType = maxAllowedDocumentType;
+        mNestedSchemaTypes = new ArraySet<>();
+    }
+
+    private static boolean getAttributeBoolOrDefault(
+            @NonNull XmlPullParser parser, @NonNull String attributeName, boolean defaultValue) {
+        Objects.requireNonNull(parser);
+        Objects.requireNonNull(attributeName);
+
+        String value = parser.getAttributeValue(/* namespace= */ null, attributeName);
+        return value == null ? defaultValue : Boolean.parseBoolean(value);
+    }
+
+    private static int getAttributeIntOrDefault(
+            @NonNull XmlPullParser parser, @NonNull String attributeName, int defaultValue) {
+        Objects.requireNonNull(parser);
+        Objects.requireNonNull(attributeName);
+
+        String value = parser.getAttributeValue(/* namespace= */ null, attributeName);
+        return value == null ? defaultValue : Integer.parseInt(value);
     }
 
     /**
@@ -111,16 +133,9 @@ public class AppFunctionSchemaParser {
             AssetManager assetManager =
                     packageManager.getResourcesForApplication(packageName).getAssets();
             InputStream xsdInputStream = assetManager.open(assetFilePath);
-            String appFunctionStaticMetadataType =
-                    AppFunctionStaticMetadata.getSchemaNameForPackage(
-                            packageName, /* schemaType= */ null);
             Map<String, AppSearchSchema> schemas =
                     parseDocumentTypeAndCreateSchemas(packageName, xsdInputStream);
-            if (schemas.containsKey(appFunctionStaticMetadataType)) {
-                return schemas;
-            } else if (LogUtil.DEBUG) {
-                Log.d(TAG, "AppFunctionStaticMetadata schema not found.");
-            }
+            return getValidatedSchemas(schemas, packageName);
         } catch (Exception ex) {
             // The code parses an XSD file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
@@ -136,7 +151,7 @@ public class AppFunctionSchemaParser {
 
     private Map<String, AppSearchSchema> parseDocumentTypeAndCreateSchemas(
             @NonNull String packageName, @NonNull InputStream xsdInputStream)
-            throws XmlPullParserException, IOException {
+            throws XmlPullParserException, IOException, InvalidAppFunctionSchemaException {
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(xsdInputStream);
 
@@ -195,12 +210,13 @@ public class AppFunctionSchemaParser {
         return schemas;
     }
 
-    private static PropertyConfig computePropertyConfigFromXsdType(
+    private PropertyConfig computePropertyConfigFromXsdType(
             @NonNull XmlPullParser parser, @NonNull String packageName)
-            throws XmlPullParserException, IOException {
+            throws InvalidAppFunctionSchemaException {
         Objects.requireNonNull(parser);
 
         String name = parser.getAttributeValue(null, XML_ATTRIBUTE_NAME);
+        validatePropertyName(name);
         String type = parser.getAttributeValue(null, XML_ATTRIBUTE_TYPE);
 
         if (name == null || type == null) return null;
@@ -244,10 +260,11 @@ public class AppFunctionSchemaParser {
             default:
                 if (type.contains(XML_APPFN_NAMESPACE_PREFIX)) {
                     String localType = type.substring(type.indexOf(':') + 1);
-                    return new AppSearchSchema.DocumentPropertyConfig.Builder(
-                            name,
+                    String schemaType =
                             AppFunctionStaticMetadata.getSchemaNameForPackage(
-                                    packageName, localType))
+                                    packageName, localType);
+                    mNestedSchemaTypes.add(schemaType);
+                    return new AppSearchSchema.DocumentPropertyConfig.Builder(name, schemaType)
                             .setCardinality(cardinality)
                             .setShouldIndexNestedProperties(
                                     getAttributeBoolOrDefault(
@@ -260,21 +277,81 @@ public class AppFunctionSchemaParser {
         }
     }
 
-    private static boolean getAttributeBoolOrDefault(
-            @NonNull XmlPullParser parser, @NonNull String attributeName, boolean defaultValue) {
-        Objects.requireNonNull(parser);
-        Objects.requireNonNull(attributeName);
-
-        String value = parser.getAttributeValue(null, attributeName);
-        return value == null ? defaultValue : Boolean.parseBoolean(value);
+    /**
+     * Validates the given property name to ensure it is not null, empty, and contains only
+     * alphanumeric characters (letters and digits).
+     *
+     * @param name the property name to validate
+     * @throws InvalidAppFunctionSchemaException if the name is empty, or contains non-alphanumeric
+     *     characters
+     */
+    private static void validatePropertyName(@NonNull String name)
+            throws InvalidAppFunctionSchemaException {
+        Objects.requireNonNull(name);
+        if (name.isEmpty()) {
+            throw new InvalidAppFunctionSchemaException(
+                    "Property name in the schema cannot be null or empty.");
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (!Character.isLetterOrDigit(c)) {
+                throw new InvalidAppFunctionSchemaException(
+                        "Property name must contain only alphanumeric characters: " + name);
+            }
+        }
     }
 
-    private static int getAttributeIntOrDefault(
-            @NonNull XmlPullParser parser, @NonNull String attributeName, int defaultValue) {
-        Objects.requireNonNull(parser);
-        Objects.requireNonNull(attributeName);
+    /**
+     * Validates and returns the provided schema map for a given package.
+     *
+     * <p>This method ensures that the required schemas and properties are present in the schema
+     * map. Specifically:
+     *
+     * <ul>
+     *   <li>It verifies that the schema for {@link AppFunctionStaticMetadata} exists for the given
+     *       package and checks for the presence of required properties from {@link
+     *       AppFunctionStaticMetadata#PARENT_TYPE_APPSEARCH_SCHEMA}.
+     *   <li>It checks for any missing schema definitions for nested schema types.
+     * </ul>
+     *
+     * @param schemaMap A map where the key is the schema type name, and the value is the
+     *     corresponding {@link AppSearchSchema}.
+     * @param packageName The name of the package for which the schemas are being validated.
+     * @return The validated schema map.
+     * @throws InvalidAppFunctionSchemaException If any required schema or properties are missing.
+     */
+    private Map<String, AppSearchSchema> getValidatedSchemas(
+            @NonNull Map<String, AppSearchSchema> schemaMap, @NonNull String packageName)
+            throws InvalidAppFunctionSchemaException {
+        Objects.requireNonNull(schemaMap);
+        Objects.requireNonNull(packageName);
 
-        String value = parser.getAttributeValue(null, attributeName);
-        return value == null ? defaultValue : Integer.parseInt(value);
+        String appFunctionStaticMetadataSchemaType =
+                AppFunctionStaticMetadata.getSchemaNameForPackage(
+                        packageName, /* schemaType= */ null);
+        if (!schemaMap.containsKey(appFunctionStaticMetadataSchemaType)) {
+            throw new InvalidAppFunctionSchemaException(
+                    "Missing schema definition for AppFunctionStaticMetadata in package: "
+                            + packageName);
+        }
+
+        Set<String> undefinedSchemas = new ArraySet<>(mNestedSchemaTypes);
+        undefinedSchemas.removeAll(schemaMap.keySet());
+        if (!undefinedSchemas.isEmpty()) {
+            throw new InvalidAppFunctionSchemaException(
+                    "In package: "
+                            + packageName
+                            + ", missing schema definitions for following nested schema types: "
+                            + undefinedSchemas);
+        }
+
+        return schemaMap;
+    }
+
+    /** Exception thrown when the parsed schema fails any of the validations. */
+    private static class InvalidAppFunctionSchemaException extends Exception {
+        InvalidAppFunctionSchemaException(String message) {
+            super(message);
+        }
     }
 }
