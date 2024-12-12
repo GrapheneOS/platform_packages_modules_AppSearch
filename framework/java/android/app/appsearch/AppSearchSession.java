@@ -547,8 +547,8 @@ public final class AppSearchSession implements Closeable {
      * content or rewrite via {@link #openBlobForWrite} of this blob won't be allowed.
      *
      * <p>If the blob is already stored in AppSearch and committed. A failed {@link AppSearchResult}
-     * with error code {@link AppSearchResult#I} will be associated with the {@link
-     * AppSearchBlobHandle}.
+     * with error code {@link AppSearchResult#RESULT_ALREADY_EXISTS} will be associated with the
+     * {@link AppSearchBlobHandle}.
      *
      * <p>If the blob content doesn't match the digest in {@link AppSearchBlobHandle}, a failed
      * {@link AppSearchResult} with error code {@link AppSearchResult#RESULT_INVALID_ARGUMENT} will
