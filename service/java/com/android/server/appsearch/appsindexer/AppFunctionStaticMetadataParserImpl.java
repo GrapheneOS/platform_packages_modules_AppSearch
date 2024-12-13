@@ -51,6 +51,7 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
     private static final String TAG = "AppSearchMetadataParser";
     private static final String XML_TAG_APPFUNCTION = "appfunction";
     private static final String XML_TAG_APPFUNCTIONS_ROOT = "appfunctions";
+    private static final String XML_TAG_ID = "id";
 
     @NonNull private final String mIndexerPackageName;
     private final int mMaxAppFunctions;
@@ -381,10 +382,11 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         Objects.requireNonNull(schemaType);
         Objects.requireNonNull(qualifiedPropertyNamesToPropertyConfig);
 
+        // Id of the document will be set after parsing the value.
         GenericDocument.Builder docBuilder =
                 new GenericDocument.Builder(
                         AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE,
-                        packageName + "/" + schemaType,
+                        "",
                         AppFunctionStaticMetadata.getSchemaNameForPackage(packageName, schemaType));
 
         Map<String, List<String>> primitivePropertyValues = new ArrayMap<>();
@@ -414,6 +416,8 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                         primitivePropertyValues
                                 .computeIfAbsent(currentPropertyPath, k -> new ArrayList<>())
                                 .add(parser.nextText().trim());
+                    } else if (parser.getName().equals(XML_TAG_ID)) {
+                        docBuilder.setId(parser.nextText().trim());
                     }
                     break;
 
@@ -435,7 +439,12 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                             docBuilder.setPropertyDocument(
                                     propertyName, entry.getValue().toArray(new GenericDocument[0]));
                         }
-                        return docBuilder.build();
+                        GenericDocument doc =  docBuilder.build();
+                        if(doc.getId().isEmpty()) {
+                            throw new XmlPullParserException(
+                                    "No id found for document of type: " + schemaType);
+                        }
+                        return doc;
                     }
                     break;
             }

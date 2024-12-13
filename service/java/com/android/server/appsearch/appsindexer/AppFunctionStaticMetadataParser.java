@@ -2,7 +2,6 @@ package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
-import android.app.appsearch.GenericDocument;
 import android.content.pm.PackageManager;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
@@ -57,17 +56,23 @@ public interface AppFunctionStaticMetadataParser {
      * Parses static metadata about App Functions from the given XML asset file, using type
      * information from the given schemas.
      *
-     * <p>Note: The root schema should have property with name {@link
-     * AppFunctionStaticMetadata#PROPERTY_FUNCTION_ID} to construct the mapping of function id to
-     * {@link AppFunctionStaticMetadata} else an empty map is returned.
+     * <p>Note: The following requirements must be met for successful parsing:
      *
-     * @param packageManager The PackageManager used to access app resources.
-     * @param packageName The package name of the app whose assets contain the XML file.
-     * @param assetFilePath The path to the XML file within the app's assets.
-     * @param schemas The mapping of schema types to their corresponding {@link AppSearchSchema}
+     * <ul>
+     *   <li>The root schema must have a property with the name {@link
+     *       AppFunctionStaticMetadata#PROPERTY_FUNCTION_ID} to construct the mapping of function
+     *       IDs to {@link AppFunctionStaticMetadata}.
+     *   <li>Each document must contain an `id` tag; otherwise, an empty map is returned.
+     * </ul>
+     *
+     * @param packageManager the PackageManager used to access app resources.
+     * @param packageName the package name of the app whose assets contain the XML file.
+     * @param assetFilePath the path to the XML file within the app's assets.
+     * @param schemas the mapping of schema types to their corresponding {@link AppSearchSchema}
      *     objects.
-     * @return A mapping of function ids to their corresponding {@link AppFunctionStaticMetadata}
-     *     objects. An empty map is returned if there's an error during parsing.
+     * @return a mapping of function IDs to their corresponding {@link AppFunctionStaticMetadata}
+     *     objects. Returns an empty map if there's an error during parsing or if no `id` tags are
+     *     found.
      */
     @NonNull
     Map<String, AppFunctionStaticMetadata> parseIntoMapForGivenSchemas(
