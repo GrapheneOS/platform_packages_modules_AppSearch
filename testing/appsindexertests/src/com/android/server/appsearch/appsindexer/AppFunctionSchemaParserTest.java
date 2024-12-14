@@ -17,13 +17,14 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.AppSearchSchema.BooleanPropertyConfig;
+import android.app.appsearch.AppSearchSchema.LongPropertyConfig;
 import android.app.appsearch.AppSearchSchema.PropertyConfig;
 import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
-import android.app.appsearch.AppSearchSchema.LongPropertyConfig;
-import android.app.appsearch.AppSearchSchema.BooleanPropertyConfig;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
@@ -39,7 +40,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 import java.util.Map;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -64,6 +64,7 @@ public class AppFunctionSchemaParserTest {
 
     @Test
     public void parse_singleType_withNoAttributes() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                         + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
@@ -82,6 +83,7 @@ public class AppFunctionSchemaParserTest {
         assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
                 .isEqualTo(
                         new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
+                                .addParentType("AppFunctionStaticMetadata")
                                 .addProperty(new StringPropertyConfig.Builder("name").build())
                                 .addProperty(new LongPropertyConfig.Builder("age").build())
                                 .addProperty(new BooleanPropertyConfig.Builder("isActive").build())
@@ -90,6 +92,7 @@ public class AppFunctionSchemaParserTest {
 
     @Test
     public void parse_singleType_withAttributes() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                         + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
@@ -118,6 +121,7 @@ public class AppFunctionSchemaParserTest {
         assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
                 .isEqualTo(
                         new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
+                                .addParentType("AppFunctionStaticMetadata")
                                 .addProperty(
                                         new StringPropertyConfig.Builder("name")
                                                 .setIndexingType(
@@ -144,6 +148,7 @@ public class AppFunctionSchemaParserTest {
 
     @Test
     public void parse_multipleNestedTypes() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                         + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
@@ -168,6 +173,7 @@ public class AppFunctionSchemaParserTest {
         assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
                 .isEqualTo(
                         new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
+                                .addParentType("AppFunctionStaticMetadata")
                                 .addProperty(
                                         new AppSearchSchema.DocumentPropertyConfig.Builder(
                                                         "inner", "InnerType-com.example.app")
@@ -178,6 +184,7 @@ public class AppFunctionSchemaParserTest {
 
     @Test
     public void parse_exceedMaxAllowedDocumentTypes() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                         + "    <xs:documentType name=\"OuterType\">"
