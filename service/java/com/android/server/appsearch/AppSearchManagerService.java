@@ -3140,11 +3140,11 @@ public class AppSearchManagerService extends SystemService {
     }
 
     private void checkUnsupportedEmbeddingUse(@NonNull List<AppSearchSchema> schemas) {
-        // Embedding support currently only allowed on W+. This is because embedding properties are
-        // a rollback compatibility issue. Therefore, we cannot allow it to be used on devices that
-        // could be rolled back to a pre-Embedding binary until we have landed rollback
-        // compatibility work.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+        // Embedding support currently only allowed on Baklava+. This is because embedding
+        // properties are a rollback compatibility issue. Therefore, we cannot allow it to be used
+        // on devices that could be rolled back to a pre-Embedding binary until we have landed
+        // rollback compatibility work.
+        if (isAtLeastBaklava()) {
             return;
         }
         for (int i = 0; i < schemas.size(); ++i) {
@@ -3162,11 +3162,11 @@ public class AppSearchManagerService extends SystemService {
     }
 
     private void checkUnsupportedEmbeddingUse(@NonNull SearchSpec spec) {
-        // Embedding support currently only allowed on W+. This is because embedding properties are
-        // a rollback compatibility issue. Therefore, we cannot allow it to be used on devices that
-        // could be rolled back to a pre-Embedding binary until we have landed rollback
-        // compatibility work.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+        // Embedding support currently only allowed on Baklava+. This is because embedding
+        // properties are a rollback compatibility issue. Therefore, we cannot allow it to be used
+        // on devices that could be rolled back to a pre-Embedding binary until we have landed
+        // rollback compatibility work.
+        if (isAtLeastBaklava()) {
             return;
         }
         if (!spec.getEmbeddingParameters().isEmpty()) {
@@ -3177,6 +3177,11 @@ public class AppSearchManagerService extends SystemService {
         if (spec.getJoinSpec() != null) {
             checkUnsupportedEmbeddingUse(spec.getJoinSpec().getNestedSearchSpec());
         }
+    }
+
+    private static boolean isAtLeastBaklava() {
+        return Build.VERSION.SDK_INT >= 36
+                || (Build.VERSION.SDK_INT == 35 && Build.VERSION.CODENAME.equals("Baklava"));
     }
 
     /**
