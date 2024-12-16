@@ -151,6 +151,8 @@ public final class AppOpenEventIndexerUserInstance {
     /** Shuts down the AppOpenEventIndexerUserInstance */
     public void shutdown() throws InterruptedException {
         mAppOpenEventIndexerImpl.close();
+        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                mContext, mContext.getUser(), APP_OPEN_EVENT_INDEXER);
         synchronized (mSingleThreadedExecutor) {
             mSingleThreadedExecutor.shutdown();
         }

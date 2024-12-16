@@ -17,6 +17,7 @@ package com.android.server.appsearch.appsindexer;
 
 import static android.Manifest.permission.OBSERVE_APP_USAGE;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
+import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppOpenEventsIndexerSession;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakeAppOpenEventDocuments;
@@ -37,7 +38,6 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.UserInfo;
-import android.os.CancellationSignal;
 import android.os.UserHandle;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -91,7 +91,8 @@ public class AppOpenEventIndexerRealDocumentsTest {
         removeFakeAppOpenEventDocuments(mContext, Executors.newSingleThreadExecutor());
 
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        mUiAutomation.adoptShellPermissionIdentity(PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE);
+        mUiAutomation.adoptShellPermissionIdentity(
+                PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE, RECEIVE_BOOT_COMPLETED);
     }
 
     @After
@@ -152,8 +153,10 @@ public class AppOpenEventIndexerRealDocumentsTest {
         AppOpenEventIndexerManagerService appOpenEventIndexerManagerService =
                 new AppOpenEventIndexerManagerService(
                         mContext, new TestAppOpenEventIndexerConfig(), latch::countDown);
+        SystemService.TargetUser targetUser = new SystemService.TargetUser(mUserInfo);
+        appOpenEventIndexerManagerService.onUserUnlocking(targetUser);
         appOpenEventIndexerManagerService.mLocalService.doUpdateForUser(
-                new SystemService.TargetUser(mUserInfo).getUserHandle(), new CancellationSignal());
+                targetUser.getUserHandle(), null);
         assertThat(latch.await(10, TimeUnit.SECONDS)).isEqualTo(true);
 
         // Search for all app open events for the package opened earlier

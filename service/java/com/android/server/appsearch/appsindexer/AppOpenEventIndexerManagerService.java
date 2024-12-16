@@ -92,6 +92,22 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
         LocalManagerRegistry.addManager(LocalService.class, mLocalService);
     }
 
+    /** Schedules the periodic update job for all users we have an instance for. */
+    @Override
+    public void onUserUnlocking(@NonNull TargetUser user) {
+        synchronized (mAppOpenEventIndexersLocked) {
+            try {
+                AppOpenEventIndexerUserInstance instance =
+                        getOrCreateUserInstance(user.getUserHandle());
+                if (instance != null) {
+                    instance.schedulePeriodicUpdate();
+                }
+            } catch (RuntimeException e) {
+                Slog.wtf(TAG, "AppOpenEventIndexerManagerService.onUserUnlocking() failed", e);
+            }
+        }
+    }
+
     /** Handles user stopping by shutting down the instance for the user. */
     @Override
     public void onUserStopping(@NonNull TargetUser user) {
@@ -142,22 +158,6 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
         }
     }
 
-    /** Schedules the periodic update job for all users we have an instance for. */
-    @Override
-    public void onUserUnlocking(@NonNull TargetUser user) {
-        synchronized (mAppOpenEventIndexersLocked) {
-            try {
-                AppOpenEventIndexerUserInstance instance =
-                        getOrCreateUserInstance(user.getUserHandle());
-                if (instance != null) {
-                    instance.schedulePeriodicUpdate();
-                }
-            } catch (RuntimeException e) {
-                Slog.wtf(TAG, "AppOpenEventIndexerManagerService.onUserUnlocking() failed", e);
-            }
-        }
-    }
-
     /** Retrieves or creates the {@link AppOpenEventIndexerUserInstance} for the specified user. */
     private AppOpenEventIndexerUserInstance getOrCreateUserInstance(
             @NonNull UserHandle userHandle) {
@@ -202,7 +202,10 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
             Objects.requireNonNull(userHandle);
             try {
                 synchronized (mAppOpenEventIndexersLocked) {
-                    AppOpenEventIndexerUserInstance instance = getOrCreateUserInstance(userHandle);
+                    // Jobs are created onUserUnlocking, so unless the user is removed, this should
+                    // be non-null.
+                    AppOpenEventIndexerUserInstance instance =
+                            mAppOpenEventIndexersLocked.get(userHandle);
                     if (instance != null) {
                         if (mCallback != null) {
                             instance.updateAsync(mCallback);
