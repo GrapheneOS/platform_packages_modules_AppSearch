@@ -25,6 +25,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.annotation.Nullable;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -218,5 +219,30 @@ public class AppOpenEventIndexerUserInstanceTest {
         assertThat(updateJob.isRequireDeviceIdle()).isTrue();
         assertThat(updateJob.isPersisted()).isTrue();
         assertThat(updateJob.isPeriodic()).isTrue();
+    }
+
+    @Test
+    public void testStart_onShutdown_cancelsUpdateJob() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+
+        mInstance.schedulePeriodicUpdate();
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        JobInfo updateJob = jobInfoArgumentCaptor.getValue();
+        assertThat(updateJob.isRequireBatteryNotLow()).isTrue();
+        assertThat(updateJob.isRequireDeviceIdle()).isTrue();
+        assertThat(updateJob.isPersisted()).isTrue();
+        assertThat(updateJob.isPeriodic()).isTrue();
+
+        // Mock the pending job to return the job we just scheduled
+        when(mockJobScheduler.getPendingJob(updateJob.getId())).thenReturn(updateJob);
+        mInstance.shutdown();
+        verify(mockJobScheduler).cancel(jobInfoArgumentCaptor.getValue().getId());
     }
 }

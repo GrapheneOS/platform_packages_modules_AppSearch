@@ -30,6 +30,7 @@ java_library_host {
     static_libs: [
         "androidx.annotation_annotation",
         "guava",
+        "javapoet",
         "jsilver",
     ],
     use_tools_jar: true,

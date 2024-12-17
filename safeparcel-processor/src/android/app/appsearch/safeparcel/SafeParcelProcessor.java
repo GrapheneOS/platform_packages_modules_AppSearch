@@ -28,6 +28,7 @@ import com.google.clearsilver.jsilver.autoescape.EscapeMode;
 import com.google.clearsilver.jsilver.data.Data;
 import com.google.clearsilver.jsilver.resourceloader.ClassLoaderResourceLoader;
 import com.google.common.base.Joiner;
+import com.squareup.javapoet.TypeName;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -1492,21 +1493,23 @@ public class SafeParcelProcessor extends AbstractProcessor {
                 // class is not a type that is known by the annotation processor.  Hence, we must
                 // manually qualify the package.  The expected name of the CREATOR class is the
                 // value of generatedClassName.
+                String fieldTypeName = TypeName.get(field.asType()).toString();
                 String detectedCreatorTypeName =
                         mElements.getPackageOf(parcelableClass).getQualifiedName()
                                 + "."
-                                + field.asType();
+                                + fieldTypeName;
                 // If the type of the CREATOR field is the generic form, Parcelable.Creator<T>
                 // then we don't need to manually qualify the type.
-                String detectedAlternativeCreatorTypeName = field.asType().toString();
+                String detectedAlternativeCreatorTypeName = fieldTypeName;
 
                 // This represents the expected type of the CREATOR object in the alternative form.
                 // The expected name is in this form is the value of
                 // expectedAlternativeCreatorTypeName.
                 String expectedAlternativeCreatorTypeName =
-                        mTypes.getDeclaredType(
+                        TypeName.get(
+                                mTypes.getDeclaredType(
                                         (TypeElement) mTypes.asElement(mParcelableCreatorType),
-                                        parcelableClass.asType())
+                                        parcelableClass.asType()))
                                 .toString();
                 TypeMirror parcelableType = parcelableClass.asType();
                 if (parcelableType instanceof DeclaredType) {
@@ -1517,7 +1520,7 @@ public class SafeParcelProcessor extends AbstractProcessor {
                         // detectedAlternativeCreatorTypeName would only return Parcel resulting
                         // in an incorrect ParcelCreatorType failure.
                         StringBuilder type = new StringBuilder();
-                        Joiner.on(',').appendTo(type, declaredType.getTypeArguments());
+                        Joiner.on(", ").appendTo(type, declaredType.getTypeArguments());
                         expectedAlternativeCreatorTypeName =
                                 expectedAlternativeCreatorTypeName.replace("<" + type + ">", "");
                     }
