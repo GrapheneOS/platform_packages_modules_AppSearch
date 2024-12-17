@@ -26,6 +26,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.AppSearchHelper;
 
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Represents an app open event in AppSearch. App open events track when a user opens an application
@@ -45,6 +46,10 @@ public class AppOpenEvent extends GenericDocument {
             "mobileApplicationQualifiedId"; // Joins to MobileApplication
     public static final String APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS =
             "appOpenTimestampMillis";
+
+    // App Open events are user's activity, which is both privacy and recency sensitive. 14 days was
+    // chosen as a reasonable duration to maintain this type of user activity.
+    public static final long APP_OPEN_EVENT_TTL_MILLIS = TimeUnit.DAYS.toMillis(14);
 
     // Schema
     public static final AppSearchSchema SCHEMA =
@@ -70,7 +75,8 @@ public class AppOpenEvent extends GenericDocument {
                                     .setCardinality(
                                             AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                     .build())
-                    .addProperty(
+                    .addProperty( // TODO: Consider using matchScoreExpression to eliminate the need
+                                  // for this field.
                             new AppSearchSchema.LongPropertyConfig.Builder(
                                             APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS)
                                     .setIndexingType(
@@ -147,6 +153,8 @@ public class AppOpenEvent extends GenericDocument {
                         .setPropertyString(
                                 APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID,
                                 qualifiedId)
+                        .setCreationTimestampMillis(appOpenEventTimestampMillis)
+                        .setTtlMillis(APP_OPEN_EVENT_TTL_MILLIS)
                         .build();
 
         return new AppOpenEvent(document);

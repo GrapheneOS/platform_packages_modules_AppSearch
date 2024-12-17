@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer.appsearchtypes;
 
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent.APP_OPEN_EVENT_TTL_MILLIS;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.net.Uri;
@@ -57,13 +59,15 @@ public class AppsIndexerSchemaTests {
         String mobileApplicationQualifiedId = "android$apps-db/apps#com.android.apps.food";
         long appOpenEventTimestampMillis = System.currentTimeMillis();
 
-        AppOpenEvent appOpenEvent =
-                AppOpenEvent.create(packageName, appOpenEventTimestampMillis);
+        AppOpenEvent appOpenEvent = AppOpenEvent.create(packageName, appOpenEventTimestampMillis);
 
         assertThat(appOpenEvent.getPackageName()).isEqualTo(packageName);
         assertThat(appOpenEvent.getMobileApplicationQualifiedId())
                 .isEqualTo(mobileApplicationQualifiedId);
         assertThat(appOpenEvent.getAppOpenEventTimestampMillis())
+                .isEqualTo(appOpenEventTimestampMillis);
+        assertThat(appOpenEvent.getTtlMillis()).isEqualTo(APP_OPEN_EVENT_TTL_MILLIS);
+        assertThat(appOpenEvent.getCreationTimestampMillis())
                 .isEqualTo(appOpenEventTimestampMillis);
     }
 }
