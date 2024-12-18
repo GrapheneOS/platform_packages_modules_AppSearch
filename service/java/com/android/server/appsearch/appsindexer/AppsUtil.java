@@ -229,15 +229,15 @@ public final class AppsUtil {
      *     ResolveInfo} for the packages launch activity.
      * @param indexerPackageName the name of the package performing the indexing. This should be the
      *     same as the package running the apps indexer so that qualified ids are correctly created.
-     * @param maxAppFunctions the max number of app functions to be indexed per package.
+     * @param config the app indexer config used to enforce various limits during parsing.
      */
     public static List<AppFunctionStaticMetadata> buildAppFunctionStaticMetadata(
             @NonNull PackageManager packageManager,
             @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
             @NonNull String indexerPackageName,
-            int maxAppFunctions) {
+            AppsIndexerConfig config) {
         AppFunctionStaticMetadataParser parser =
-                new AppFunctionStaticMetadataParserImpl(indexerPackageName, maxAppFunctions);
+                new AppFunctionStaticMetadataParserImpl(indexerPackageName, config);
         return buildAppFunctionStaticMetadata(packageManager, packageInfos, parser);
     }
 
@@ -303,7 +303,7 @@ public final class AppsUtil {
      *     ResolveInfo} for the packages launch activity.
      * @param indexerPackageName the name of the package performing the indexing. This should be the
      *     same as the package running the apps indexer so that qualified ids are correctly created.
-     * @param maxAppFunctions the max number of app functions to be indexed per package.
+     * @param config the app indexer config used to enforce various limits during parsing.
      * @param schemasPerPackage a mapping of packages to a mapping of schema types to their
      *     corresponding {@link AppSearchSchema} objects, or null if there are no schemas to
      *     consider.
@@ -315,10 +315,10 @@ public final class AppsUtil {
                     @NonNull PackageManager packageManager,
                     @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
                     @NonNull String indexerPackageName,
-                    int maxAppFunctions,
+                    AppsIndexerConfig config,
                     @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
         AppFunctionStaticMetadataParser parser =
-                new AppFunctionStaticMetadataParserImpl(indexerPackageName, maxAppFunctions);
+                new AppFunctionStaticMetadataParserImpl(indexerPackageName, config);
         return buildAppFunctionStaticMetadataIntoMap(
                 packageManager, packageInfos, parser, schemasPerPackage);
     }

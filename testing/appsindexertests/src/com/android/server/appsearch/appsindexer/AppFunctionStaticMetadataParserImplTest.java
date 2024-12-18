@@ -83,7 +83,7 @@ public class AppFunctionStaticMetadataParserImplTest {
     public void setUp() throws Exception {
         mParser =
                 new AppFunctionStaticMetadataParserImpl(
-                        TEST_INDEXER_PACKAGE_NAME, /* maxAppFunctions= */ 2);
+                        TEST_INDEXER_PACKAGE_NAME, new TestAppsIndexerConfig());
 
         when(mPackageManager.getResourcesForApplication(TEST_PACKAGE_NAME)).thenReturn(mResources);
         when(mResources.getAssets()).thenReturn(mAssetManager);
@@ -197,7 +197,15 @@ public class AppFunctionStaticMetadataParserImplTest {
 
     @Test
     public void parse_exceedMaxNumAppFunctions() throws Exception {
-        // maxAppFunctions was set to be 2.
+        mParser =
+                new AppFunctionStaticMetadataParserImpl(
+                        TEST_INDEXER_PACKAGE_NAME,
+                        new TestAppsIndexerConfig() {
+                            @Override
+                            public int getMaxAppFunctionsPerPackage() {
+                                return 2;
+                            }
+                        });
         setXmlInput(
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<version>1</version>\n"
@@ -306,6 +314,15 @@ public class AppFunctionStaticMetadataParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_exceedMaxNumAppFunctions_parsesOnlyMaxNumAppFunctions()
             throws Exception {
+        mParser =
+                new AppFunctionStaticMetadataParserImpl(
+                        TEST_INDEXER_PACKAGE_NAME,
+                        new TestAppsIndexerConfig() {
+                            @Override
+                            public int getMaxAppFunctionsPerPackage() {
+                                return 2;
+                            }
+                        });
         setXmlInput(
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
@@ -498,5 +515,35 @@ public class AppFunctionStaticMetadataParserImplTest {
         assertThat(actualAppFunction.getPropertyString("functionId"))
                 .isEqualTo("com.example.utils#print");
         assertThat(actualAppFunction.getPropertyNames()).containsExactly("functionId");
+    }
+
+    @Test
+    public void parseIntoMapForGivenSchemas_exceedMaxAllowedDocSize_skipsTheAppFunction()
+            throws Exception {
+        mParser =
+                new AppFunctionStaticMetadataParserImpl(
+                        TEST_INDEXER_PACKAGE_NAME,
+                        new TestAppsIndexerConfig() {
+                            @Override
+                            public int getMaxAllowedAppFunctionDocSizeInBytes() {
+                                return 0;
+                            }
+                        });
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <functionId>com.example.utils#print</functionId>\n"
+                        + "    <enabledByDefault>true</enabledByDefault>\n"
+                        + "    <schemaVersion>10</schemaVersion>\n"
+                        + "  </AppFunctionStaticMetadata>\n"
+                        + "</appfunctions>");
+
+        Map<String, AppFunctionStaticMetadata> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+
+        assertThat(appFunctions).isEmpty();
     }
 }
