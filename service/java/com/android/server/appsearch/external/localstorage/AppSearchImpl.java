@@ -2594,7 +2594,7 @@ public final class AppSearchImpl implements Closeable {
                 blobCount += blobStorageInfoProto.getNumBlobs();
             }
         }
-        storageInfoBuilder.setBlobCount(blobCount).setBlobSizeBytes(blobSizeBytes);
+        storageInfoBuilder.setBlobsCount(blobCount).setBlobsSizeBytes(blobSizeBytes);
     }
 
     /**

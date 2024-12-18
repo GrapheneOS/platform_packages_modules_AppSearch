@@ -853,8 +853,8 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method public int getAliveDocumentsCount();
     method public int getAliveNamespacesCount();
-    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public int getBlobCount();
-    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public long getBlobSizeBytes();
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public int getBlobsCount();
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public long getBlobsSizeBytes();
     method public long getSizeBytes();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.StorageInfo> CREATOR;
@@ -865,8 +865,8 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.StorageInfo build();
     method @NonNull public android.app.appsearch.StorageInfo.Builder setAliveDocumentsCount(int);
     method @NonNull public android.app.appsearch.StorageInfo.Builder setAliveNamespacesCount(int);
-    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public android.app.appsearch.StorageInfo.Builder setBlobCount(int);
-    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public android.app.appsearch.StorageInfo.Builder setBlobSizeBytes(long);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public android.app.appsearch.StorageInfo.Builder setBlobsCount(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_blob_store") @NonNull public android.app.appsearch.StorageInfo.Builder setBlobsSizeBytes(long);
     method @NonNull public android.app.appsearch.StorageInfo.Builder setSizeBytes(long);
   }
 
