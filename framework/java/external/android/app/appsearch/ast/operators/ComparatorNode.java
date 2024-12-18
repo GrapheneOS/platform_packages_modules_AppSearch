@@ -18,12 +18,13 @@ package android.app.appsearch.ast.operators;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
-import android.annotation.NonNull;
 import android.app.appsearch.PropertyPath;
 import android.app.appsearch.ast.Node;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
+
+import org.jspecify.annotations.NonNull;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -101,8 +102,7 @@ public final class ComparatorNode implements Node {
      *
      * <p>I.e. left hand side of the comparison represented by this node.
      */
-    @NonNull
-    public PropertyPath getPropertyPath() {
+    public @NonNull PropertyPath getPropertyPath() {
         return mPropertyPath;
     }
 
@@ -139,9 +139,8 @@ public final class ComparatorNode implements Node {
      * the left to the value being compared with the string representation of the {@link
      * Comparator}.
      */
-    @NonNull
     @Override
-    public String toString() {
+    public @NonNull String toString() {
         String comparatorString = "";
         switch (mComparator) {
             case ComparatorNode.EQUALS:

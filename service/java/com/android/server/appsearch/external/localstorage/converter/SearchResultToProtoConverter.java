@@ -20,7 +20,6 @@ import static com.android.server.appsearch.external.localstorage.util.PrefixUtil
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getPackageName;
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.removePrefixesFromDocument;
 
-import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.SearchResult;
@@ -38,6 +37,8 @@ import com.google.android.icing.proto.PropertyProto;
 import com.google.android.icing.proto.SearchResultProto;
 import com.google.android.icing.proto.SnippetMatchProto;
 import com.google.android.icing.proto.SnippetProto;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,8 +59,7 @@ public class SearchResultToProtoConverter {
      * @param schemaCache The SchemaCache instance held in AppSearch.
      * @return {@link SearchResultPage} of results.
      */
-    @NonNull
-    public static SearchResultPage toSearchResultPage(
+    public static @NonNull SearchResultPage toSearchResultPage(
             @NonNull SearchResultProto proto,
             @NonNull SchemaCache schemaCache,
             @NonNull AppSearchConfig config)
@@ -81,9 +81,8 @@ public class SearchResultToProtoConverter {
      * @param schemaCache The SchemaCache instance held in AppSearch.
      * @return A {@link SearchResult}.
      */
-    @NonNull
-    private static SearchResult toUnprefixedSearchResult(
-            @NonNull SearchResultProto.ResultProto proto,
+    private static @NonNull SearchResult toUnprefixedSearchResult(
+            SearchResultProto.@NonNull ResultProto proto,
             @NonNull SchemaCache schemaCache,
             @NonNull AppSearchConfig config)
             throws AppSearchException {

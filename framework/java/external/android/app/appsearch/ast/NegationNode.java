@@ -17,9 +17,10 @@
 package android.app.appsearch.ast;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,8 +74,7 @@ public final class NegationNode implements Node {
      *     logically negated that could be cast to a type that implements {@link Node}
      */
     @Override
-    @NonNull
-    public List<Node> getChildren() {
+    public @NonNull List<Node> getChildren() {
         return Collections.unmodifiableList(mChildren);
     }
 
@@ -88,8 +88,7 @@ public final class NegationNode implements Node {
      * @return The child {@link Node} representing a query that is being logically negated that
      *     could be cast to a type that implements {@link Node}
      */
-    @NonNull
-    public Node getChild() {
+    public @NonNull Node getChild() {
         return mChildren.get(0);
     }
 
@@ -111,9 +110,8 @@ public final class NegationNode implements Node {
      * <p>The string representation of {@link NegationNode} is "NOT" prepended to the string
      * representation of the child {@link Node}.
      */
-    @NonNull
     @Override
-    public String toString() {
+    public @NonNull String toString() {
         return "NOT " + getChild();
     }
 
