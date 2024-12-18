@@ -38,6 +38,8 @@ import java.util.Set;
  *
  * @see AppSearchSession#put
  */
+// TODO(b/384721898): Switch to JSpecify annotations
+@SuppressWarnings("JSpecifyNullness")
 public final class PutDocumentsRequest {
     private final List<GenericDocument> mDocuments;
 
@@ -49,8 +51,7 @@ public final class PutDocumentsRequest {
     }
 
     /** Returns a list of {@link GenericDocument} objects that are part of this request. */
-    @NonNull
-    public List<GenericDocument> getGenericDocuments() {
+    public @NonNull List<GenericDocument> getGenericDocuments() {
         return Collections.unmodifiableList(mDocuments);
     }
 
@@ -60,9 +61,8 @@ public final class PutDocumentsRequest {
      *
      * <p>See {@link Builder#addTakenActionGenericDocuments(GenericDocument...)}.
      */
-    @NonNull
     @FlaggedApi(Flags.FLAG_ENABLE_PUT_DOCUMENTS_REQUEST_ADD_TAKEN_ACTIONS)
-    public List<GenericDocument> getTakenActionGenericDocuments() {
+    public @NonNull List<GenericDocument> getTakenActionGenericDocuments() {
         return Collections.unmodifiableList(mTakenActions);
     }
 
@@ -74,8 +74,7 @@ public final class PutDocumentsRequest {
 
         /** Adds one or more {@link GenericDocument} objects to the request. */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder addGenericDocuments(@NonNull GenericDocument... documents) {
+        public @NonNull Builder addGenericDocuments(@NonNull GenericDocument... documents) {
             Objects.requireNonNull(documents);
             resetIfBuilt();
             return addGenericDocuments(Arrays.asList(documents));
@@ -83,8 +82,7 @@ public final class PutDocumentsRequest {
 
         /** Adds a collection of {@link GenericDocument} objects to the request. */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder addGenericDocuments(
+        public @NonNull Builder addGenericDocuments(
                 @NonNull Collection<? extends GenericDocument> documents) {
             Objects.requireNonNull(documents);
             resetIfBuilt();
@@ -170,9 +168,8 @@ public final class PutDocumentsRequest {
          *     taken action metric fields.
          */
         @CanIgnoreReturnValue
-        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_PUT_DOCUMENTS_REQUEST_ADD_TAKEN_ACTIONS)
-        public Builder addTakenActionGenericDocuments(
+        public @NonNull Builder addTakenActionGenericDocuments(
                 @NonNull GenericDocument... takenActionGenericDocuments) throws AppSearchException {
             Objects.requireNonNull(takenActionGenericDocuments);
             resetIfBuilt();
@@ -188,9 +185,8 @@ public final class PutDocumentsRequest {
          *     containing taken action metric fields.
          */
         @CanIgnoreReturnValue
-        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_PUT_DOCUMENTS_REQUEST_ADD_TAKEN_ACTIONS)
-        public Builder addTakenActionGenericDocuments(
+        public @NonNull Builder addTakenActionGenericDocuments(
                 @NonNull Collection<? extends GenericDocument> takenActionGenericDocuments)
                 throws AppSearchException {
             Objects.requireNonNull(takenActionGenericDocuments);
@@ -205,8 +201,7 @@ public final class PutDocumentsRequest {
          * @throws IllegalArgumentException if there is any id collision between normal and action
          *     documents.
          */
-        @NonNull
-        public PutDocumentsRequest build() {
+        public @NonNull PutDocumentsRequest build() {
             mBuilt = true;
 
             // Verify there is no id collision between normal documents and action documents.

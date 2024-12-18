@@ -16,8 +16,6 @@
 
 package com.android.server.appsearch.external.localstorage.visibilitystore;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.InternalVisibilityConfig;
@@ -33,6 +31,9 @@ import com.google.android.appsearch.proto.VisibilityConfigProto;
 import com.google.android.appsearch.proto.VisibleToPermissionProto;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -182,8 +183,7 @@ public class VisibilityToDocumentConverter {
      * @param androidVOverlayDocument a {@link GenericDocument} holding visibility properties in
      *     {@link #ANDROID_V_OVERLAY_SCHEMA}
      */
-    @NonNull
-    public static InternalVisibilityConfig createInternalVisibilityConfig(
+    public static @NonNull InternalVisibilityConfig createInternalVisibilityConfig(
             @NonNull GenericDocument visibilityDocument,
             @Nullable GenericDocument androidVOverlayDocument) {
         Objects.requireNonNull(visibilityDocument);
@@ -241,8 +241,7 @@ public class VisibilityToDocumentConverter {
      *     than publiclyVisibleTargetPackage.
      * @param androidVOverlayProto the proto containing post-V visibility settings
      */
-    @NonNull
-    private static SchemaVisibilityConfig createVisibilityConfig(
+    private static @NonNull SchemaVisibilityConfig createVisibilityConfig(
             @NonNull GenericDocument visibilityDocument,
             @Nullable AndroidVOverlayProto androidVOverlayProto) {
         Objects.requireNonNull(visibilityDocument);
@@ -292,8 +291,7 @@ public class VisibilityToDocumentConverter {
     }
 
     /** Convert {@link VisibilityConfigProto} into {@link SchemaVisibilityConfig}. */
-    @NonNull
-    public static SchemaVisibilityConfig convertVisibilityConfigFromProto(
+    public static @NonNull SchemaVisibilityConfig convertVisibilityConfigFromProto(
             @NonNull VisibilityConfigProto proto) {
         SchemaVisibilityConfig.Builder builder = new SchemaVisibilityConfig.Builder();
 
@@ -323,8 +321,7 @@ public class VisibilityToDocumentConverter {
     }
 
     /** Convert {@link SchemaVisibilityConfig} into {@link VisibilityConfigProto}. */
-    @NonNull
-    public static VisibilityConfigProto convertSchemaVisibilityConfigToProto(
+    public static @NonNull VisibilityConfigProto convertSchemaVisibilityConfigToProto(
             @NonNull SchemaVisibilityConfig schemaVisibilityConfig) {
         VisibilityConfigProto.Builder builder = VisibilityConfigProto.newBuilder();
 
@@ -358,8 +355,7 @@ public class VisibilityToDocumentConverter {
      *
      * @param config the configuration to populate into the document
      */
-    @NonNull
-    public static GenericDocument createVisibilityDocument(
+    public static @NonNull GenericDocument createVisibilityDocument(
             @NonNull InternalVisibilityConfig config) {
         GenericDocument.Builder<?> builder =
                 new GenericDocument.Builder<>(
@@ -406,8 +402,7 @@ public class VisibilityToDocumentConverter {
      * Returns the {@link GenericDocument} for the Android V overlay schema if it is provided, null
      * otherwise.
      */
-    @Nullable
-    public static GenericDocument createAndroidVOverlay(
+    public static @Nullable GenericDocument createAndroidVOverlay(
             @NonNull InternalVisibilityConfig internalVisibilityConfig) {
         PackageIdentifier publiclyVisibleTargetPackage =
                 internalVisibilityConfig.getVisibilityConfig().getPubliclyVisibleTargetPackage();
@@ -454,8 +449,7 @@ public class VisibilityToDocumentConverter {
         return androidVOverlayBuilder.build();
     }
 
-    @NonNull
-    private static PackageIdentifierProto convertPackageIdentifierToProto(
+    private static @NonNull PackageIdentifierProto convertPackageIdentifierToProto(
             @NonNull PackageIdentifier packageIdentifier) {
         return PackageIdentifierProto.newBuilder()
                 .setPackageName(packageIdentifier.getPackageName())
@@ -463,8 +457,7 @@ public class VisibilityToDocumentConverter {
                 .build();
     }
 
-    @NonNull
-    private static PackageIdentifier convertPackageIdentifierFromProto(
+    private static @NonNull PackageIdentifier convertPackageIdentifierFromProto(
             @NonNull PackageIdentifierProto packageIdentifierProto) {
         return new PackageIdentifier(
                 packageIdentifierProto.getPackageName(),

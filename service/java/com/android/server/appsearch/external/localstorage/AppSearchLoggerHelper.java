@@ -16,8 +16,6 @@
 
 package com.android.server.appsearch.external.localstorage;
 
-import android.annotation.NonNull;
-
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
@@ -32,6 +30,8 @@ import com.google.android.icing.proto.OptimizeStatsProto;
 import com.google.android.icing.proto.PutDocumentStatsProto;
 import com.google.android.icing.proto.QueryStatsProto;
 import com.google.android.icing.proto.SetSchemaResultProto;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -53,7 +53,7 @@ public final class AppSearchLoggerHelper {
      */
     static void copyNativeStats(
             @NonNull PutDocumentStatsProto fromNativeStats,
-            @NonNull PutDocumentStats.Builder toStatsBuilder) {
+            PutDocumentStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
@@ -79,7 +79,7 @@ public final class AppSearchLoggerHelper {
      */
     static void copyNativeStats(
             @NonNull InitializeStatsProto fromNativeStats,
-            @NonNull InitializeStats.Builder toStatsBuilder) {
+            InitializeStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
@@ -107,7 +107,7 @@ public final class AppSearchLoggerHelper {
      * @param toStatsBuilder Stats copied to.
      */
     static void copyNativeStats(
-            @NonNull QueryStatsProto fromNativeStats, @NonNull SearchStats.Builder toStatsBuilder) {
+            @NonNull QueryStatsProto fromNativeStats, SearchStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
@@ -144,7 +144,7 @@ public final class AppSearchLoggerHelper {
      */
     static void copyNativeStats(
             @NonNull DeleteStatsProto fromNativeStats,
-            @NonNull RemoveStats.Builder toStatsBuilder) {
+            RemoveStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
@@ -161,7 +161,7 @@ public final class AppSearchLoggerHelper {
      */
     static void copyNativeStats(
             @NonNull DeleteByQueryStatsProto fromNativeStats,
-            @NonNull RemoveStats.Builder toStatsBuilder) {
+            RemoveStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
 
@@ -179,7 +179,7 @@ public final class AppSearchLoggerHelper {
      */
     static void copyNativeStats(
             @NonNull OptimizeStatsProto fromNativeStats,
-            @NonNull OptimizeStats.Builder toStatsBuilder) {
+            OptimizeStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
@@ -203,7 +203,7 @@ public final class AppSearchLoggerHelper {
      */
     static void copyNativeStats(
             @NonNull SetSchemaResultProto fromProto,
-            @NonNull SetSchemaStats.Builder toStatsBuilder) {
+            SetSchemaStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromProto);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
