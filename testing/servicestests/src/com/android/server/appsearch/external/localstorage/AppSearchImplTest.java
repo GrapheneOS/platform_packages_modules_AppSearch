@@ -4191,11 +4191,11 @@ public class AppSearchImplTest {
         }
 
         StorageInfo storageInfo1 = mAppSearchImpl.getStorageInfoForPackage("package1");
-        assertThat(storageInfo1.getBlobSizeBytes()).isEqualTo(15 * 1024);
-        assertThat(storageInfo1.getBlobCount()).isEqualTo(2);
+        assertThat(storageInfo1.getBlobsSizeBytes()).isEqualTo(15 * 1024);
+        assertThat(storageInfo1.getBlobsCount()).isEqualTo(2);
         StorageInfo storageInfo2 = mAppSearchImpl.getStorageInfoForPackage("package2");
-        assertThat(storageInfo2.getBlobSizeBytes()).isEqualTo(20 * 1024);
-        assertThat(storageInfo2.getBlobCount()).isEqualTo(1);
+        assertThat(storageInfo2.getBlobsSizeBytes()).isEqualTo(20 * 1024);
+        assertThat(storageInfo2.getBlobsCount()).isEqualTo(1);
     }
 
     @Test
@@ -4244,11 +4244,11 @@ public class AppSearchImplTest {
         }
 
         StorageInfo storageInfo1 = mAppSearchImpl.getStorageInfoForDatabase("package", "db1");
-        assertThat(storageInfo1.getBlobSizeBytes()).isEqualTo(15 * 1024);
-        assertThat(storageInfo1.getBlobCount()).isEqualTo(2);
+        assertThat(storageInfo1.getBlobsSizeBytes()).isEqualTo(15 * 1024);
+        assertThat(storageInfo1.getBlobsCount()).isEqualTo(2);
         StorageInfo storageInfo2 = mAppSearchImpl.getStorageInfoForDatabase("package", "db2");
-        assertThat(storageInfo2.getBlobSizeBytes()).isEqualTo(20 * 1024);
-        assertThat(storageInfo2.getBlobCount()).isEqualTo(1);
+        assertThat(storageInfo2.getBlobsSizeBytes()).isEqualTo(20 * 1024);
+        assertThat(storageInfo2.getBlobsCount()).isEqualTo(1);
     }
 
     @Test

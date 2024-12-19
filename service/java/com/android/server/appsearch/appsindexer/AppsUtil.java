@@ -52,10 +52,6 @@ import java.util.Objects;
 public final class AppsUtil {
     public static final String TAG = "AppSearchAppsUtil";
 
-    // App Open events are user's activity, which is both privacy and recency sensitive. 14 days was
-    // chosen as a reasonable duration to maintain this type of user activity.
-    private static final long APP_OPEN_EVENT_TTL_MILLIS = 1000 * 60 * 60 * 24 * 14; // 14 days
-
     private AppsUtil() {}
 
     /** Gets the resource Uri given a resource id. */
