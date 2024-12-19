@@ -17,8 +17,6 @@
 package android.app.appsearch;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
@@ -27,6 +25,9 @@ import android.os.Parcelable;
 import android.util.ArraySet;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,13 +43,12 @@ import java.util.Set;
  */
 @SafeParcelable.Class(creator = "InternalVisibilityConfigCreator")
 public final class InternalVisibilityConfig extends AbstractSafeParcelable {
-    @NonNull
-    public static final Parcelable.Creator<InternalVisibilityConfig> CREATOR =
+
+    public static final Parcelable.@NonNull Creator<InternalVisibilityConfig> CREATOR =
             new InternalVisibilityConfigCreator();
 
     /** Build the List of {@link InternalVisibilityConfig}s from given {@link SetSchemaRequest}. */
-    @NonNull
-    public static List<InternalVisibilityConfig> toInternalVisibilityConfigs(
+    public static @NonNull List<InternalVisibilityConfig> toInternalVisibilityConfigs(
             @NonNull SetSchemaRequest setSchemaRequest) {
         Set<AppSearchSchema> searchSchemas = setSchemaRequest.getSchemas();
         Set<String> schemasNotDisplayedBySystem = setSchemaRequest.getSchemasNotDisplayedBySystem();
@@ -104,8 +104,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
      * Build the List of {@link InternalVisibilityConfig}s from given {@link
      * SetBlobVisibilityRequest}.
      */
-    @NonNull
-    public static List<InternalVisibilityConfig> toInternalVisibilityConfigs(
+    public static @NonNull List<InternalVisibilityConfig> toInternalVisibilityConfigs(
             @NonNull SetBlobVisibilityRequest setBlobVisibilityRequest) {
 
         Set<String> blobNamespacesNotDisplayedBySystem =
@@ -136,22 +135,19 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
         return result;
     }
 
-    @NonNull
     @Field(id = 1, getter = "getSchemaType")
-    private final String mSchemaType;
+    private final @NonNull String mSchemaType;
 
     @Field(id = 2, getter = "isNotDisplayedBySystem")
     private final boolean mIsNotDisplayedBySystem;
 
     /** The public visibility settings available in VisibilityConfig. */
-    @NonNull
     @Field(id = 3, getter = "getVisibilityConfig")
-    private final SchemaVisibilityConfig mVisibilityConfig;
+    private final @NonNull SchemaVisibilityConfig mVisibilityConfig;
 
     /** Extended visibility settings from {@link SetSchemaRequest#getSchemasVisibleToConfigs()} */
-    @NonNull
     @Field(id = 4)
-    final List<SchemaVisibilityConfig> mVisibleToConfigs;
+    final @NonNull List<SchemaVisibilityConfig> mVisibleToConfigs;
 
     @Constructor
     InternalVisibilityConfig(
@@ -171,8 +167,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
      * <p>This is being used as the document id when we convert a {@link InternalVisibilityConfig}
      * to a {@link GenericDocument}.
      */
-    @NonNull
-    public String getSchemaType() {
+    public @NonNull String getSchemaType() {
         return mSchemaType;
     }
 
@@ -184,8 +179,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
     /**
      * Returns the visibility settings stored in the public {@link SchemaVisibilityConfig} object.
      */
-    @NonNull
-    public SchemaVisibilityConfig getVisibilityConfig() {
+    public @NonNull SchemaVisibilityConfig getVisibilityConfig() {
         return mVisibilityConfig;
     }
 
@@ -193,8 +187,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
      * Returns required {@link SchemaVisibilityConfig} sets for a caller need to match to access the
      * schema this {@link InternalVisibilityConfig} represents.
      */
-    @NonNull
-    public Set<SchemaVisibilityConfig> getVisibleToConfigs() {
+    public @NonNull Set<SchemaVisibilityConfig> getVisibleToConfigs() {
         return new ArraySet<>(mVisibleToConfigs);
     }
 
@@ -262,9 +255,8 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
         }
 
         /** Sets schemaType, which will be as the id when converting to {@link GenericDocument}. */
-        @NonNull
         @CanIgnoreReturnValue
-        public Builder setSchemaType(@NonNull String schemaType) {
+        public @NonNull Builder setSchemaType(@NonNull String schemaType) {
             resetIfBuilt();
             mSchemaType = Objects.requireNonNull(schemaType);
             return this;
@@ -274,9 +266,9 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          * Resets all values contained in the VisibilityConfig with the values from the given
          * VisibiltiyConfig.
          */
-        @NonNull
         @CanIgnoreReturnValue
-        public Builder setVisibilityConfig(@NonNull SchemaVisibilityConfig schemaVisibilityConfig) {
+        public @NonNull Builder setVisibilityConfig(
+                @NonNull SchemaVisibilityConfig schemaVisibilityConfig) {
             resetIfBuilt();
             mVisibilityConfigBuilder = new SchemaVisibilityConfig.Builder(schemaVisibilityConfig);
             return this;
@@ -284,8 +276,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
 
         /** Sets whether this schema has opted out of platform surfacing. */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder setNotDisplayedBySystem(boolean notDisplayedBySystem) {
+        public @NonNull Builder setNotDisplayedBySystem(boolean notDisplayedBySystem) {
             resetIfBuilt();
             mIsNotDisplayedBySystem = notDisplayedBySystem;
             return this;
@@ -297,8 +288,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          * @see SchemaVisibilityConfig.Builder#addAllowedPackage
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder addVisibleToPackage(@NonNull PackageIdentifier packageIdentifier) {
+        public @NonNull Builder addVisibleToPackage(@NonNull PackageIdentifier packageIdentifier) {
             resetIfBuilt();
             mVisibilityConfigBuilder.addAllowedPackage(packageIdentifier);
             return this;
@@ -310,8 +300,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          * @see SchemaVisibilityConfig.Builder#clearAllowedPackages
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder clearVisibleToPackages() {
+        public @NonNull Builder clearVisibleToPackages() {
             resetIfBuilt();
             mVisibilityConfigBuilder.clearAllowedPackages();
             return this;
@@ -324,8 +313,8 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          * @see SchemaVisibilityConfig.Builder#addRequiredPermissions
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder addVisibleToPermissions(@NonNull Set<Integer> visibleToPermissions) {
+        public @NonNull Builder addVisibleToPermissions(
+                @NonNull Set<Integer> visibleToPermissions) {
             resetIfBuilt();
             mVisibilityConfigBuilder.addRequiredPermissions(visibleToPermissions);
             return this;
@@ -337,8 +326,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          * @see SchemaVisibilityConfig.Builder#clearRequiredPermissions
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder clearVisibleToPermissions() {
+        public @NonNull Builder clearVisibleToPermissions() {
             resetIfBuilt();
             mVisibilityConfigBuilder.clearRequiredPermissions();
             return this;
@@ -352,8 +340,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          * @see SchemaVisibilityConfig.Builder#setPubliclyVisibleTargetPackage
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder setPubliclyVisibleTargetPackage(
+        public @NonNull Builder setPubliclyVisibleTargetPackage(
                 @Nullable PackageIdentifier packageIdentifier) {
             resetIfBuilt();
             mVisibilityConfigBuilder.setPubliclyVisibleTargetPackage(packageIdentifier);
@@ -371,8 +358,8 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
          *     that a call must match to access the schema.
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder addVisibleToConfig(@NonNull SchemaVisibilityConfig schemaVisibilityConfig) {
+        public @NonNull Builder addVisibleToConfig(
+                @NonNull SchemaVisibilityConfig schemaVisibilityConfig) {
             Objects.requireNonNull(schemaVisibilityConfig);
             resetIfBuilt();
             mVisibleToConfigs.add(schemaVisibilityConfig);
@@ -381,8 +368,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
 
         /** Clears the set of {@link SchemaVisibilityConfig} which have access to this schema. */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder clearVisibleToConfig() {
+        public @NonNull Builder clearVisibleToConfig() {
             resetIfBuilt();
             mVisibleToConfigs.clear();
             return this;
@@ -396,8 +382,7 @@ public final class InternalVisibilityConfig extends AbstractSafeParcelable {
         }
 
         /** Build a {@link InternalVisibilityConfig} */
-        @NonNull
-        public InternalVisibilityConfig build() {
+        public @NonNull InternalVisibilityConfig build() {
             mBuilt = true;
             return new InternalVisibilityConfig(
                     mSchemaType,

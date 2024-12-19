@@ -17,10 +17,11 @@
 package android.app.appsearch.ast;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 import android.annotation.StringDef;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -80,7 +81,6 @@ public interface FunctionNode extends Node {
     String FUNCTION_NAME_SEMANTIC_SEARCH = "semanticSearch";
 
     /** Gets the name of the node that extends the {@link FunctionNode}. */
-    @NonNull
     @FunctionName
-    String getFunctionName();
+    @NonNull String getFunctionName();
 }

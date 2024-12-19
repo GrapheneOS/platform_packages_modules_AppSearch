@@ -131,6 +131,7 @@ public class SearchResultToProtoConverterTest {
         if (Flags.enableSearchResultParentTypes()) {
             assertThat(result.getParentTypeMap())
                     .isEqualTo(ImmutableMap.of(schemaType, ImmutableList.of(parentSchemaType)));
+
         } else {
             assertThat(result.getParentTypeMap()).isEmpty();
         }
