@@ -1,9 +1,10 @@
 package: "com.android.appsearch.flags"
 container: "com.android.appsearch"
 
-#
-# all the flags we are adding in V have to be is_fixed_read_only true.
-#
+# Mainline flags had to be is_fixed_read_only in the past but this is no longer true in Android B+
+# Flags going forward can be created read-write by leaving out is_fixed_read_only.
+# Note, trunk stable does NOT support changing flags from read-only to read-write or vice versa.
+# If you want to change a flag's read type, a new flag must be created.
 
 flag {
     name: "enable_safe_parcelable_2"
@@ -319,4 +320,15 @@ flag {
     bug: "380729091"
     is_fixed_read_only: true
     is_exported: true
+}
+
+flag {
+    name: "enable_check_contacts_indexer_delta_timestamps"
+    namespace: "appsearch"
+    description: "Enables checking Contacts Indexer delta timestamps before delta updates."
+    bug: "329108459"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

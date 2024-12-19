@@ -28,6 +28,8 @@ import android.provider.ContactsContract.Contacts;
 import android.provider.ContactsContract.DeletedContacts;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -78,20 +80,12 @@ public final class ContactsProviderUtil {
 
         String[] selectionArgs = new String[] {Long.toString(sinceFilter)};
         long newTimestamp = sinceFilter;
-        Cursor cursor = null;
-        try {
-            // TODO(b/203605504) We could optimize the query by setting the sortOrder:
-            //  LAST_DELETED_TIMESTAMP DESC. This way the 1st contact would have the last deleted
-            //  timestamp.
-            cursor =
-                    context.getContentResolver()
-                            .query(
-                                    DeletedContacts.CONTENT_URI,
-                                    DELETION_SELECTION,
-                                    DELETION_SINCE,
-                                    selectionArgs,
-                                    /* sortOrder= */ null);
-
+        // TODO(b/203605504) We could optimize the query by setting the sortOrder:
+        //  LAST_DELETED_TIMESTAMP DESC. This way the 1st contact would have the last deleted
+        //  timestamp.
+        try (Cursor cursor = context.getContentResolver().query(DeletedContacts.CONTENT_URI,
+                DELETION_SELECTION, DELETION_SINCE, selectionArgs,
+                /* sortOrder= */ null)) {
             if (cursor == null) {
                 Log.e(TAG, "Could not fetch deleted contacts - no contacts provider present?");
                 if (updateStats != null) {
@@ -103,12 +97,27 @@ public final class ContactsProviderUtil {
             int contactIdIndex = cursor.getColumnIndex(DeletedContacts.CONTACT_ID);
             int timestampIndex = cursor.getColumnIndex(DeletedContacts.CONTACT_DELETED_TIMESTAMP);
             long rows = 0;
+            // When the checkDeltaTimestamps flag is enabled, we return the timestamp for the
+            // contact most recently deleted _before_ the current system time. This timestamp is
+            // where we will begin fetching contact deletions from in the following delta update. If
+            // we return a timestamp that is ahead of the current system time, any contact deletions
+            // made in CP2 between now and that future time will be ignored by any following delta
+            // updates. Note, under normal circumstances, we will never have contacts with a
+            // deletion timestamp ahead of the current system time.
+            long currentTimeMillis = System.currentTimeMillis();
             while (cursor.moveToNext()) {
                 contactIds.add(String.valueOf(cursor.getLong(contactIdIndex)));
                 // We still get max value between those two here just in case cursor.getLong
                 // returns something unexpected(e.g. somehow it returns an invalid value like
                 // -1 or 0 due to an invalid index).
-                newTimestamp = Math.max(newTimestamp, cursor.getLong(timestampIndex));
+                if (Flags.enableCheckContactsIndexerDeltaTimestamps()) {
+                    long timestamp = cursor.getLong(timestampIndex);
+                    if (timestamp <= currentTimeMillis) {
+                        newTimestamp = Math.max(newTimestamp, timestamp);
+                    }
+                } else {
+                    newTimestamp = Math.max(newTimestamp, cursor.getLong(timestampIndex));
+                }
                 ++rows;
             }
             if (LogUtil.DEBUG) {
@@ -122,10 +131,6 @@ public final class ContactsProviderUtil {
             if (updateStats != null) {
                 updateStats.mDeleteStatuses.add(
                         ContactsUpdateStats.ERROR_CODE_CP2_RUNTIME_EXCEPTION);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
             }
         }
 
@@ -181,10 +186,17 @@ public final class ContactsProviderUtil {
                 }
                 return newTimestamp;
             }
-
             int contactIdIndex = cursor.getColumnIndex(Contacts._ID);
             int timestampIndex = cursor.getColumnIndex(Contacts.CONTACT_LAST_UPDATED_TIMESTAMP);
             int numContacts = 0;
+            // When the checkDeltaTimestamps flag is enabled, we return the timestamp for the
+            // contact most recently updated _before_ the current system time. This timestamp is
+            // where we will begin fetching contact updates from in the following delta update. If
+            // we return a timestamp that is ahead of the current system time, any contact updates
+            // made in CP2 between now and that future time will be ignored by any following delta
+            // updates. Note, under normal circumstances, we will never have contacts with an update
+            // timestamp ahead of the current system time.
+            long currentTimeMillis = System.currentTimeMillis();
             while (cursor.moveToNext()) {
                 // Just in case the LIMIT parameter doesn't work in the query to CP2.
                 if (limit >= 0 && numContacts >= limit) {
@@ -194,7 +206,14 @@ public final class ContactsProviderUtil {
                 long contactId = cursor.getLong(contactIdIndex);
                 contactIds.add(String.valueOf(contactId));
                 numContacts++;
-                newTimestamp = Math.max(newTimestamp, cursor.getLong(timestampIndex));
+                if (Flags.enableCheckContactsIndexerDeltaTimestamps()) {
+                    long timestamp = cursor.getLong(timestampIndex);
+                    if (timestamp <= currentTimeMillis) {
+                        newTimestamp = Math.max(newTimestamp, timestamp);
+                    }
+                } else {
+                    newTimestamp = Math.max(newTimestamp, cursor.getLong(timestampIndex));
+                }
             }
 
             if (LogUtil.DEBUG) {
