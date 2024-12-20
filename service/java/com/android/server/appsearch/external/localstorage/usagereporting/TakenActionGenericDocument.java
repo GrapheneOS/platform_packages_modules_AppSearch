@@ -16,13 +16,12 @@
 
 package com.android.server.appsearch.external.localstorage.usagereporting;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.usagereporting.ActionConstants;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -43,7 +42,8 @@ public abstract class TakenActionGenericDocument extends GenericDocument {
      * @throws IllegalArgumentException if the integer value of property {@code actionType} is
      *     invalid.
      */
-    public static @NonNull TakenActionGenericDocument create(@NonNull GenericDocument document)
+    @NonNull
+    public static TakenActionGenericDocument create(@NonNull GenericDocument document)
             throws IllegalArgumentException {
         Objects.requireNonNull(document);
         int actionType = (int) document.getPropertyLong(PROPERTY_PATH_ACTION_TYPE);

@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage.util;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.Log;
@@ -26,8 +27,6 @@ import com.google.android.icing.proto.DocumentProto;
 import com.google.android.icing.proto.PropertyConfigProto;
 import com.google.android.icing.proto.PropertyProto;
 import com.google.android.icing.proto.SchemaTypeConfigProto;
-
-import org.jspecify.annotations.NonNull;
 
 /**
  * Provides utility functions for working with package + database prefixes.
@@ -44,13 +43,14 @@ public class PrefixUtil {
     private PrefixUtil() {}
 
     /** Creates prefix string for given package name and database name. */
-    public static @NonNull String createPrefix(
-            @NonNull String packageName, @NonNull String databaseName) {
+    @NonNull
+    public static String createPrefix(@NonNull String packageName, @NonNull String databaseName) {
         return packageName + PACKAGE_DELIMITER + databaseName + DATABASE_DELIMITER;
     }
 
     /** Creates prefix string for given package name. */
-    public static @NonNull String createPackagePrefix(@NonNull String packageName) {
+    @NonNull
+    public static String createPackagePrefix(@NonNull String packageName) {
         return packageName + PACKAGE_DELIMITER;
     }
 
@@ -62,7 +62,8 @@ public class PrefixUtil {
      *     {@link #PACKAGE_DELIMITER}.
      * @return Valid package name.
      */
-    public static @NonNull String getPackageName(@NonNull String prefix) {
+    @NonNull
+    public static String getPackageName(@NonNull String prefix) {
         int delimiterIndex = prefix.indexOf(PACKAGE_DELIMITER);
         if (delimiterIndex == -1) {
             // This should never happen if we construct our prefixes properly
@@ -79,7 +80,8 @@ public class PrefixUtil {
      *     must be between the {@link #PACKAGE_DELIMITER} and {@link #DATABASE_DELIMITER}
      * @return Valid database name.
      */
-    public static @NonNull String getDatabaseName(@NonNull String prefix) {
+    @NonNull
+    public static String getDatabaseName(@NonNull String prefix) {
         int packageDelimiterIndex = prefix.indexOf(PACKAGE_DELIMITER);
         if (packageDelimiterIndex == -1) {
             // This should never happen if we construct our prefixes properly
@@ -102,8 +104,8 @@ public class PrefixUtil {
      * @return a string with the package and database prefix removed.
      * @throws AppSearchException if the prefixed value does not contain a valid database name.
      */
-    public static @NonNull String removePrefix(@NonNull String prefixedString)
-            throws AppSearchException {
+    @NonNull
+    public static String removePrefix(@NonNull String prefixedString) throws AppSearchException {
         // The prefix is made up of the package, then the database. So we only need to find the
         // database cutoff.
         int delimiterIndex = prefixedString.indexOf(DATABASE_DELIMITER);
@@ -126,8 +128,8 @@ public class PrefixUtil {
      * @return a string with the package and database prefix
      * @throws AppSearchException if the prefixed value does not contain a valid database name.
      */
-    public static @NonNull String getPrefix(@NonNull String prefixedString)
-            throws AppSearchException {
+    @NonNull
+    public static String getPrefix(@NonNull String prefixedString) throws AppSearchException {
         int delimiterIndex = prefixedString.indexOf(DATABASE_DELIMITER);
         if (delimiterIndex == -1) {
             throw new AppSearchException(
@@ -149,7 +151,7 @@ public class PrefixUtil {
      * @param prefix The prefix to add
      */
     public static void addPrefixToDocument(
-            DocumentProto.@NonNull Builder documentBuilder, @NonNull String prefix) {
+            @NonNull DocumentProto.Builder documentBuilder, @NonNull String prefix) {
         // Rewrite the type name to include/remove the prefix.
         String newSchema = prefix + documentBuilder.getSchema();
         documentBuilder.setSchema(newSchema);
@@ -183,8 +185,9 @@ public class PrefixUtil {
      * @return Prefix name that was removed from the document.
      * @throws AppSearchException if there are unexpected database prefixing errors.
      */
-    public static @NonNull String removePrefixesFromDocument(
-            DocumentProto.@NonNull Builder documentBuilder) throws AppSearchException {
+    @NonNull
+    public static String removePrefixesFromDocument(@NonNull DocumentProto.Builder documentBuilder)
+            throws AppSearchException {
         // Rewrite the type name and namespace to remove the prefix.
         String schemaPrefix = getPrefix(documentBuilder.getSchema());
         String namespacePrefix = getPrefix(documentBuilder.getNamespace());
@@ -238,8 +241,9 @@ public class PrefixUtil {
      * @return Prefix name that was removed from the schema type.
      * @throws AppSearchException if there are unexpected database prefixing errors.
      */
-    public static @NonNull String removePrefixesFromSchemaType(
-            SchemaTypeConfigProto.@NonNull Builder typeConfigBuilder) throws AppSearchException {
+    @NonNull
+    public static String removePrefixesFromSchemaType(
+            @NonNull SchemaTypeConfigProto.Builder typeConfigBuilder) throws AppSearchException {
         String typePrefix = PrefixUtil.getPrefix(typeConfigBuilder.getSchemaType());
         // Rewrite SchemaProto.types.schema_type
         String newSchemaType = typeConfigBuilder.getSchemaType().substring(typePrefix.length());

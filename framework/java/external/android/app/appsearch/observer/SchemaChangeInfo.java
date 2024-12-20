@@ -16,8 +16,8 @@
 
 package android.app.appsearch.observer;
 
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Objects;
@@ -58,12 +58,14 @@ public final class SchemaChangeInfo {
     }
 
     /** Returns the package name of the app which owns the schema that changed. */
-    public @NonNull String getPackageName() {
+    @NonNull
+    public String getPackageName() {
         return mPackageName;
     }
 
     /** Returns the database in which the schema that was changed resides. */
-    public @NonNull String getDatabaseName() {
+    @NonNull
+    public String getDatabaseName() {
         return mDatabaseName;
     }
 
@@ -72,7 +74,8 @@ public final class SchemaChangeInfo {
      *
      * <p>This will never be empty.
      */
-    public @NonNull Set<String> getChangedSchemaNames() {
+    @NonNull
+    public Set<String> getChangedSchemaNames() {
         return mChangedSchemaNames;
     }
 
@@ -97,8 +100,9 @@ public final class SchemaChangeInfo {
         return Objects.hash(mPackageName, mDatabaseName, mChangedSchemaNames);
     }
 
+    @NonNull
     @Override
-    public @NonNull String toString() {
+    public String toString() {
         return "SchemaChangeInfo{"
                 + "packageName='"
                 + mPackageName

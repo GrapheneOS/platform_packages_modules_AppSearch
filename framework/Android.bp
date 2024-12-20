@@ -63,7 +63,6 @@ java_sdk_library {
     static_libs: [
         // This list must be kept in sync with jarjar.txt
         "appsearch_flags_java_lib",
-        "jspecify",
         "modules-utils-preconditions",
     ],
     optimize: {
@@ -78,7 +77,6 @@ java_sdk_library {
     defaults: ["framework-module-defaults"],
     permitted_packages: [
         "android.app.appsearch",
-        "org.jspecify.annotations",
     ],
     jarjar_rules: "jarjar-rules.txt",
     apex_available: ["com.android.appsearch"],

@@ -17,12 +17,11 @@
 package com.android.server.appsearch.external.localstorage.stats;
 
 import android.annotation.IntDef;
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-
-import org.jspecify.annotations.NonNull;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -65,8 +64,8 @@ public final class RemoveStats {
     /** Delete by schema type. */
     public static final int SCHEMA_TYPE = 4;
 
-    private final @NonNull String mPackageName;
-    private final @NonNull String mDatabase;
+    @NonNull private final String mPackageName;
+    @NonNull private final String mDatabase;
 
     /**
      * The status code returned by {@link AppSearchResult#getResultCode()} for the call or internal
@@ -91,12 +90,14 @@ public final class RemoveStats {
     }
 
     /** Returns calling package name. */
-    public @NonNull String getPackageName() {
+    @NonNull
+    public String getPackageName() {
         return mPackageName;
     }
 
     /** Returns calling database name. */
-    public @NonNull String getDatabase() {
+    @NonNull
+    public String getDatabase() {
         return mDatabase;
     }
 
@@ -129,8 +130,8 @@ public final class RemoveStats {
 
     /** Builder for {@link RemoveStats}. */
     public static class Builder {
-        final @NonNull String mPackageName;
-        final @NonNull String mDatabase;
+        @NonNull final String mPackageName;
+        @NonNull final String mDatabase;
         @AppSearchResult.ResultCode int mStatusCode;
         int mTotalLatencyMillis;
         int mNativeLatencyMillis;
@@ -145,41 +146,47 @@ public final class RemoveStats {
 
         /** Sets the status code. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
+        @NonNull
+        public Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
             mStatusCode = statusCode;
             return this;
         }
 
         /** Sets total latency in millis. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalLatencyMillis(int totalLatencyMillis) {
+        @NonNull
+        public Builder setTotalLatencyMillis(int totalLatencyMillis) {
             mTotalLatencyMillis = totalLatencyMillis;
             return this;
         }
 
         /** Sets native latency in millis. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setNativeLatencyMillis(int nativeLatencyMillis) {
+        @NonNull
+        public Builder setNativeLatencyMillis(int nativeLatencyMillis) {
             mNativeLatencyMillis = nativeLatencyMillis;
             return this;
         }
 
         /** Sets delete type for this call. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDeleteType(@DeleteType int nativeDeleteType) {
+        @NonNull
+        public Builder setDeleteType(@DeleteType int nativeDeleteType) {
             mNativeDeleteType = nativeDeleteType;
             return this;
         }
 
         /** Sets how many documents get deleted for this call. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDeletedDocumentCount(int nativeNumDocumentsDeleted) {
+        @NonNull
+        public Builder setDeletedDocumentCount(int nativeNumDocumentsDeleted) {
             mNativeNumDocumentsDeleted = nativeNumDocumentsDeleted;
             return this;
         }
 
         /** Creates a {@link RemoveStats}. */
-        public @NonNull RemoveStats build() {
+        @NonNull
+        public RemoveStats build() {
             return new RemoveStats(/* builder= */ this);
         }
     }

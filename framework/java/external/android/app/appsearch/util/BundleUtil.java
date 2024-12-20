@@ -16,12 +16,11 @@
 
 package android.app.appsearch.util;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.util.SparseArray;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -237,7 +236,8 @@ public final class BundleUtil {
      *
      * <p>Values which are Bundles, Lists or Arrays are deeply copied themselves.
      */
-    public static @NonNull Bundle deepCopy(@NonNull Bundle bundle) {
+    @NonNull
+    public static Bundle deepCopy(@NonNull Bundle bundle) {
         // Write bundle to bytes
         Parcel parcel = Parcel.obtain();
         try {

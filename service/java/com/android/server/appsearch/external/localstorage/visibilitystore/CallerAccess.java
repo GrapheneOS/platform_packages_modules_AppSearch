@@ -16,8 +16,8 @@
 
 package com.android.server.appsearch.external.localstorage.visibilitystore;
 
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -39,7 +39,8 @@ public class CallerAccess {
     }
 
     /** Returns the name of the package which wants to access data. */
-    public @NonNull String getCallingPackageName() {
+    @NonNull
+    public String getCallingPackageName() {
         return mCallingPackageName;
     }
 

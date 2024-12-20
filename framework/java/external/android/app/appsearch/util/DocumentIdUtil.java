@@ -16,9 +16,8 @@
 
 package android.app.appsearch.util;
 
+import android.annotation.NonNull;
 import android.app.appsearch.GenericDocument;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -44,7 +43,8 @@ public class DocumentIdUtil {
      * @return the qualified id of a document.
      * @see #createQualifiedId(String, String, String, String)
      */
-    public static @NonNull String createQualifiedId(
+    @NonNull
+    public static String createQualifiedId(
             @NonNull String packageName,
             @NonNull String databaseName,
             @NonNull GenericDocument document) {
@@ -66,7 +66,8 @@ public class DocumentIdUtil {
      * @return the qualified id of a document
      */
     // TODO(b/256022027): Add @link to QUALIFIED_ID and JoinSpec
-    public static @NonNull String createQualifiedId(
+    @NonNull
+    public static String createQualifiedId(
             @NonNull String packageName,
             @NonNull String databaseName,
             @NonNull String namespace,

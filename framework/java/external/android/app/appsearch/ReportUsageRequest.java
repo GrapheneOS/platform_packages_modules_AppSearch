@@ -36,20 +36,22 @@ import java.util.Objects;
  *
  * @see AppSearchSession#reportUsage
  */
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "ReportUsageRequestCreator")
 public final class ReportUsageRequest extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<ReportUsageRequest> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<ReportUsageRequest> CREATOR =
             new ReportUsageRequestCreator();
 
+    @NonNull
     @Field(id = 1, getter = "getNamespace")
-    private final @NonNull String mNamespace;
+    private final String mNamespace;
 
+    @NonNull
     @Field(id = 2, getter = "getDocumentId")
-    private final @NonNull String mDocumentId;
+    private final String mDocumentId;
 
     @Field(id = 3, getter = "getUsageTimestampMillis")
     private final long mUsageTimestampMillis;
@@ -65,12 +67,14 @@ public final class ReportUsageRequest extends AbstractSafeParcelable {
     }
 
     /** Returns the namespace of the document that was used. */
-    public @NonNull String getNamespace() {
+    @NonNull
+    public String getNamespace() {
         return mNamespace;
     }
 
     /** Returns the ID of document that was used. */
-    public @NonNull String getDocumentId() {
+    @NonNull
+    public String getDocumentId() {
         return mDocumentId;
     }
 
@@ -120,14 +124,16 @@ public final class ReportUsageRequest extends AbstractSafeParcelable {
          * ReportUsageRequest} is constructed.
          */
         @CanIgnoreReturnValue
-        public @NonNull ReportUsageRequest.Builder setUsageTimestampMillis(
+        @NonNull
+        public ReportUsageRequest.Builder setUsageTimestampMillis(
                 @CurrentTimeMillisLong long usageTimestampMillis) {
             mUsageTimestampMillis = usageTimestampMillis;
             return this;
         }
 
         /** Builds a new {@link ReportUsageRequest}. */
-        public @NonNull ReportUsageRequest build() {
+        @NonNull
+        public ReportUsageRequest build() {
             if (mUsageTimestampMillis == null) {
                 mUsageTimestampMillis = System.currentTimeMillis();
             }

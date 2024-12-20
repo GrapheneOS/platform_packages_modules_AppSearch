@@ -17,12 +17,11 @@
 package android.app.appsearch.ast.query;
 
 import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
 import android.app.appsearch.PropertyPath;
 import android.app.appsearch.ast.FunctionNode;
 
 import com.android.appsearch.flags.Flags;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -34,25 +33,26 @@ import java.util.Objects;
  */
 @FlaggedApi(Flags.FLAG_ENABLE_ABSTRACT_SYNTAX_TREES)
 public final class HasPropertyNode implements FunctionNode {
-    private PropertyPath mPropertyPath;
+    private PropertyPath mProperty;
 
     /**
      * Constructor for a {@link HasPropertyNode} representing the query function `hasProperty`.
      *
-     * @param propertyPath A {@link PropertyPath} representing the property to check whether or not
-     *     it contains a value in the document.
+     * @param property A {@link PropertyPath} representing the property to check whether or not it
+     *     contains a value in the document.
      */
-    public HasPropertyNode(@NonNull PropertyPath propertyPath) {
-        mPropertyPath = Objects.requireNonNull(propertyPath);
+    public HasPropertyNode(@NonNull PropertyPath property) {
+        mProperty = Objects.requireNonNull(property);
     }
 
     /**
      * Returns the name of the function represented by {@link HasPropertyNode}, stored in the enum
      * {@link FunctionNode#FUNCTION_NAME_HAS_PROPERTY}.
      */
+    @NonNull
     @Override
     @FunctionName
-    public @NonNull String getFunctionName() {
+    public String getFunctionName() {
         return FunctionNode.FUNCTION_NAME_HAS_PROPERTY;
     }
 
@@ -60,16 +60,17 @@ public final class HasPropertyNode implements FunctionNode {
      * Gets the {@link PropertyPath} representing the property being checked for some value in the
      * document.
      */
-    public @NonNull PropertyPath getPropertyPath() {
-        return mPropertyPath;
+    @NonNull
+    public PropertyPath getProperty() {
+        return mProperty;
     }
 
     /**
      * Sets the {@link PropertyPath} representing the property being checked for some value in the
      * document.
      */
-    public void setPropertyPath(@NonNull PropertyPath property) {
-        mPropertyPath = Objects.requireNonNull(property);
+    public void setProperty(@NonNull PropertyPath property) {
+        mProperty = Objects.requireNonNull(property);
     }
 
     /**
@@ -78,9 +79,10 @@ public final class HasPropertyNode implements FunctionNode {
      * <p>The string representation of {@link HasPropertyNode} is the function name followed by the
      * property path in quotes.
      */
+    @NonNull
     @Override
-    public @NonNull String toString() {
-        return FunctionNode.FUNCTION_NAME_HAS_PROPERTY + "(\"" + mPropertyPath + "\")";
+    public String toString() {
+        return FunctionNode.FUNCTION_NAME_HAS_PROPERTY + "(\"" + mProperty + "\")";
     }
 
     @Override
@@ -88,11 +90,11 @@ public final class HasPropertyNode implements FunctionNode {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         HasPropertyNode that = (HasPropertyNode) o;
-        return Objects.equals(mPropertyPath, that.mPropertyPath);
+        return Objects.equals(mProperty, that.mProperty);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(mPropertyPath);
+        return Objects.hashCode(mProperty);
     }
 }

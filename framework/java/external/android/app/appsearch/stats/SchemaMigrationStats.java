@@ -17,6 +17,7 @@
 package android.app.appsearch.stats;
 
 import android.annotation.IntDef;
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
@@ -24,8 +25,6 @@ import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import org.jspecify.annotations.NonNull;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -38,7 +37,8 @@ import java.util.Objects;
  */
 @SafeParcelable.Class(creator = "SchemaMigrationStatsCreator")
 public final class SchemaMigrationStats extends AbstractSafeParcelable {
-    public static final Parcelable.@NonNull Creator<SchemaMigrationStats> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<SchemaMigrationStats> CREATOR =
             new SchemaMigrationStatsCreator();
 
     /** Indicate the SetSchema call type relative to SchemaMigration case. */
@@ -61,10 +61,12 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
     public static final int SECOND_CALL_APPLY_NEW_SCHEMA = 2;
 
     @Field(id = 1, getter = "getPackageName")
-    private final @NonNull String mPackageName;
+    @NonNull
+    private final String mPackageName;
 
     @Field(id = 2, getter = "getDatabase")
-    private final @NonNull String mDatabase;
+    @NonNull
+    private final String mDatabase;
 
     @Field(id = 3, getter = "getStatusCode")
     private final int mStatusCode;
@@ -136,12 +138,14 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
     }
 
     /** Returns calling package name. */
-    public @NonNull String getPackageName() {
+    @NonNull
+    public String getPackageName() {
         return mPackageName;
     }
 
     /** Returns calling database name. */
-    public @NonNull String getDatabase() {
+    @NonNull
+    public String getDatabase() {
         return mDatabase;
     }
 
@@ -278,29 +282,32 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
 
         /** Sets status code for the schema migration action. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
+        @NonNull
+        public Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
             mStatusCode = statusCode;
             return this;
         }
 
         /** Sets the latency for waiting the executor. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setExecutorAcquisitionLatencyMillis(
-                int executorAcquisitionLatencyMillis) {
+        @NonNull
+        public Builder setExecutorAcquisitionLatencyMillis(int executorAcquisitionLatencyMillis) {
             mExecutorAcquisitionLatencyMillis = executorAcquisitionLatencyMillis;
             return this;
         }
 
         /** Sets total latency for the schema migration action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalLatencyMillis(int totalLatencyMillis) {
+        @NonNull
+        public Builder setTotalLatencyMillis(int totalLatencyMillis) {
             mTotalLatencyMillis = totalLatencyMillis;
             return this;
         }
 
         /** Sets latency for the GetSchema action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setGetSchemaLatencyMillis(int getSchemaLatencyMillis) {
+        @NonNull
+        public Builder setGetSchemaLatencyMillis(int getSchemaLatencyMillis) {
             mGetSchemaLatencyMillis = getSchemaLatencyMillis;
             return this;
         }
@@ -310,58 +317,64 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
          * transforming documents to new version in milliseconds.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setQueryAndTransformLatencyMillis(
-                int queryAndTransformLatencyMillis) {
+        @NonNull
+        public Builder setQueryAndTransformLatencyMillis(int queryAndTransformLatencyMillis) {
             mQueryAndTransformLatencyMillis = queryAndTransformLatencyMillis;
             return this;
         }
 
         /** Sets latency of first SetSchema action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setFirstSetSchemaLatencyMillis(int firstSetSchemaLatencyMillis) {
+        @NonNull
+        public Builder setFirstSetSchemaLatencyMillis(int firstSetSchemaLatencyMillis) {
             mFirstSetSchemaLatencyMillis = firstSetSchemaLatencyMillis;
             return this;
         }
 
         /** Returns status of the first SetSchema action. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setIsFirstSetSchemaSuccess(boolean isFirstSetSchemaSuccess) {
+        @NonNull
+        public Builder setIsFirstSetSchemaSuccess(boolean isFirstSetSchemaSuccess) {
             mIsFirstSetSchemaSuccess = isFirstSetSchemaSuccess;
             return this;
         }
 
         /** Sets latency of second SetSchema action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setSecondSetSchemaLatencyMillis(int secondSetSchemaLatencyMillis) {
+        @NonNull
+        public Builder setSecondSetSchemaLatencyMillis(int secondSetSchemaLatencyMillis) {
             mSecondSetSchemaLatencyMillis = secondSetSchemaLatencyMillis;
             return this;
         }
 
         /** Sets latency for putting migrated document to Icing lib in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setSaveDocumentLatencyMillis(int saveDocumentLatencyMillis) {
+        @NonNull
+        public Builder setSaveDocumentLatencyMillis(int saveDocumentLatencyMillis) {
             mSaveDocumentLatencyMillis = saveDocumentLatencyMillis;
             return this;
         }
 
         /** Sets number of document that need to be migrated to another version. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalNeedMigratedDocumentCount(int migratedDocumentCount) {
+        @NonNull
+        public Builder setTotalNeedMigratedDocumentCount(int migratedDocumentCount) {
             mTotalNeedMigratedDocumentCount = migratedDocumentCount;
             return this;
         }
 
         /** Sets total document count of successfully migrated and saved in Icing. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalSuccessMigratedDocumentCount(
-                int totalSuccessMigratedDocumentCount) {
+        @NonNull
+        public Builder setTotalSuccessMigratedDocumentCount(int totalSuccessMigratedDocumentCount) {
             mTotalSuccessMigratedDocumentCount = totalSuccessMigratedDocumentCount;
             return this;
         }
 
         /** Sets number of {@link android.app.appsearch.SetSchemaResponse.MigrationFailure}. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setMigrationFailureCount(int migrationFailureCount) {
+        @NonNull
+        public Builder setMigrationFailureCount(int migrationFailureCount) {
             mMigrationFailureCount = migrationFailureCount;
             return this;
         }
@@ -369,7 +382,8 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
         /**
          * Builds a new {@link SchemaMigrationStats} from the {@link SchemaMigrationStats.Builder}.
          */
-        public @NonNull SchemaMigrationStats build() {
+        @NonNull
+        public SchemaMigrationStats build() {
             return new SchemaMigrationStats(
                     mPackageName,
                     mDatabase,

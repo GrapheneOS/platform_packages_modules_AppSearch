@@ -16,7 +16,7 @@
 
 package android.app.appsearch.observer;
 
-import org.jspecify.annotations.NonNull;
+import android.annotation.NonNull;
 
 /**
  * An interface which apps can implement to subscribe to notifications of changes to AppSearch data.

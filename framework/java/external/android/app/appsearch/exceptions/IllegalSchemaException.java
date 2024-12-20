@@ -16,7 +16,7 @@
 
 package android.app.appsearch.exceptions;
 
-import org.jspecify.annotations.NonNull;
+import android.annotation.NonNull;
 
 /**
  * Indicates that a {@link android.app.appsearch.AppSearchSchema} has logical inconsistencies such
