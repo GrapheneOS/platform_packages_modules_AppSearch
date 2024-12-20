@@ -32,11 +32,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.annotation.NonNull;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.content.Context;
 import android.content.pm.UserInfo;
 import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -58,6 +57,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
@@ -72,8 +72,7 @@ public class AppSearchModuleTest {
     public static final String KEY_APP_OPEN_EVENT_INDEXER_ENABLED =
             "app_open_event_indexer_enabled";
 
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     private final ContactsIndexerManagerService mContactsIndexerService =
             mock(ContactsIndexerManagerService.class);
