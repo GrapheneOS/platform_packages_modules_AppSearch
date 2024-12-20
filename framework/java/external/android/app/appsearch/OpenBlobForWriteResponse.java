@@ -42,12 +42,12 @@ import java.util.Objects;
  * descriptor in the system.
  */
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "OpenBlobForWriteResponseCreator")
 public final class OpenBlobForWriteResponse extends AbstractSafeParcelable implements Closeable {
 
-    public static final @NonNull Parcelable.Creator<OpenBlobForWriteResponse> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<OpenBlobForWriteResponse> CREATOR =
             new OpenBlobForWriteResponseCreator();
 
     @Field(id = 1)
@@ -77,7 +77,8 @@ public final class OpenBlobForWriteResponse extends AbstractSafeParcelable imple
      *     if there was an error, the result contains an {@link AppSearchResult} with details of the
      *     failure.
      */
-    public @NonNull AppSearchBatchResult<AppSearchBlobHandle, ParcelFileDescriptor> getResult() {
+    @NonNull
+    public AppSearchBatchResult<AppSearchBlobHandle, ParcelFileDescriptor> getResult() {
         return mResultParcel.getResult();
     }
 

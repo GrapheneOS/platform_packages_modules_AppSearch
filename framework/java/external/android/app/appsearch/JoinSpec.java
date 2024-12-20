@@ -112,12 +112,12 @@ import java.util.Objects;
  * nested {@link SearchSpec}, as in {@link SearchResult#getRankingSignal}.
  */
 @SafeParcelable.Class(creator = "JoinSpecCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class JoinSpec extends AbstractSafeParcelable {
     /** Creator class for {@link JoinSpec}. */
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<JoinSpec> CREATOR = new JoinSpecCreator();
+    @NonNull
+    public static final Parcelable.Creator<JoinSpec> CREATOR = new JoinSpecCreator();
 
     @Field(id = 1, getter = "getNestedQuery")
     private final String mNestedQuery;
@@ -202,7 +202,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
     }
 
     /** Returns the query to run on the joined documents. */
-    public @NonNull String getNestedQuery() {
+    @NonNull
+    public String getNestedQuery() {
         return mNestedQuery;
     }
 
@@ -214,7 +215,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
      * @return the property expression to match in the child documents.
      * @see Builder
      */
-    public @NonNull String getChildPropertyExpression() {
+    @NonNull
+    public String getChildPropertyExpression() {
         return mChildPropertyExpression;
     }
 
@@ -233,7 +235,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
      * with all default values. This will match every document, as the nested search query will be
      * "" and no schema will be filtered out.
      */
-    public @NonNull SearchSpec getNestedSearchSpec() {
+    @NonNull
+    public SearchSpec getNestedSearchSpec() {
         return mNestedSearchSpec;
     }
 
@@ -328,8 +331,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
          */
         @FlaggedApi(Flags.FLAG_ENABLE_ADDITIONAL_BUILDER_COPY_CONSTRUCTORS)
         @CanIgnoreReturnValue
-        public @NonNull Builder setChildPropertyExpression(
-                @NonNull String childPropertyExpression) {
+        @NonNull
+        public Builder setChildPropertyExpression(@NonNull String childPropertyExpression) {
             Objects.requireNonNull(childPropertyExpression);
             mChildPropertyExpression = childPropertyExpression;
             return this;
@@ -356,7 +359,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
         @SuppressWarnings("MissingGetterMatchingBuilder")
         // See getNestedQuery & getNestedSearchSpec
         @CanIgnoreReturnValue
-        public @NonNull Builder setNestedSearch(
+        @NonNull
+        public Builder setNestedSearch(
                 @NonNull String nestedQuery, @NonNull SearchSpec nestedSearchSpec) {
             Objects.requireNonNull(nestedQuery);
             Objects.requireNonNull(nestedSearchSpec);
@@ -375,7 +379,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
          * a parent will factor into the score.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setMaxJoinedResultCount(int maxJoinedResultCount) {
+        @NonNull
+        public Builder setMaxJoinedResultCount(int maxJoinedResultCount) {
             mMaxJoinedResultCount = maxJoinedResultCount;
             return this;
         }
@@ -390,7 +395,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
          * @see SearchSpec#RANKING_STRATEGY_JOIN_AGGREGATE_SCORE
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setAggregationScoringStrategy(
+        @NonNull
+        public Builder setAggregationScoringStrategy(
                 @AggregationScoringStrategy int aggregationScoringStrategy) {
             Preconditions.checkArgumentInRange(
                     aggregationScoringStrategy,
@@ -402,7 +408,8 @@ public final class JoinSpec extends AbstractSafeParcelable {
         }
 
         /** Constructs a new {@link JoinSpec} from the contents of this builder. */
-        public @NonNull JoinSpec build() {
+        @NonNull
+        public JoinSpec build() {
             return new JoinSpec(
                     mNestedQuery,
                     mNestedSearchSpec,

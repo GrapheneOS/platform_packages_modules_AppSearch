@@ -43,25 +43,27 @@ import java.util.Set;
  */
 @FlaggedApi(Flags.FLAG_ENABLE_SET_SCHEMA_VISIBLE_TO_CONFIGS)
 @SafeParcelable.Class(creator = "VisibilityConfigCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
-
-    public static final @NonNull Parcelable.Creator<SchemaVisibilityConfig> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<SchemaVisibilityConfig> CREATOR =
             new VisibilityConfigCreator();
 
+    @NonNull
     @Field(id = 1)
-    final @NonNull List<PackageIdentifierParcel> mAllowedPackages;
+    final List<PackageIdentifierParcel> mAllowedPackages;
 
+    @NonNull
     @Field(id = 2)
-    final @NonNull List<VisibilityPermissionConfig> mRequiredPermissions;
+    final List<VisibilityPermissionConfig> mRequiredPermissions;
 
+    @Nullable
     @Field(id = 3)
-    final @Nullable PackageIdentifierParcel mPubliclyVisibleTargetPackage;
+    final PackageIdentifierParcel mPubliclyVisibleTargetPackage;
 
-    private @Nullable Integer mHashCode;
-    private @Nullable List<PackageIdentifier> mAllowedPackagesCached;
-    private @Nullable Set<Set<Integer>> mRequiredPermissionsCached;
+    @Nullable private Integer mHashCode;
+    @Nullable private List<PackageIdentifier> mAllowedPackagesCached;
+    @Nullable private Set<Set<Integer>> mRequiredPermissionsCached;
 
     @Constructor
     SchemaVisibilityConfig(
@@ -74,7 +76,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
     }
 
     /** Returns a list of {@link PackageIdentifier}s of packages that can access this schema. */
-    public @NonNull List<PackageIdentifier> getAllowedPackages() {
+    @NonNull
+    public List<PackageIdentifier> getAllowedPackages() {
         if (mAllowedPackagesCached == null) {
             mAllowedPackagesCached = new ArrayList<>(mAllowedPackages.size());
             for (int i = 0; i < mAllowedPackages.size(); i++) {
@@ -90,7 +93,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
      *
      * @see SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility(String, Set)
      */
-    public @NonNull Set<Set<Integer>> getRequiredPermissions() {
+    @NonNull
+    public Set<Set<Integer>> getRequiredPermissions() {
         if (mRequiredPermissionsCached == null) {
             mRequiredPermissionsCached = new ArraySet<>(mRequiredPermissions.size());
             for (int i = 0; i < mRequiredPermissions.size(); i++) {
@@ -111,7 +115,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
      * packages can access this publicly visible schema. Returns null if the schema is not publicly
      * visible.
      */
-    public @Nullable PackageIdentifier getPubliclyVisibleTargetPackage() {
+    @Nullable
+    public PackageIdentifier getPubliclyVisibleTargetPackage() {
         if (mPubliclyVisibleTargetPackage == null) {
             return null;
         }
@@ -156,7 +161,7 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
     public static final class Builder {
         private List<PackageIdentifierParcel> mAllowedPackages = new ArrayList<>();
         private List<VisibilityPermissionConfig> mRequiredPermissions = new ArrayList<>();
-        private @Nullable PackageIdentifierParcel mPubliclyVisibleTargetPackage;
+        @Nullable private PackageIdentifierParcel mPubliclyVisibleTargetPackage;
         private boolean mBuilt;
 
         /** Creates a {@link Builder} for a {@link SchemaVisibilityConfig}. */
@@ -177,7 +182,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
 
         /** Add {@link PackageIdentifier} of packages which has access to this schema. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addAllowedPackage(@NonNull PackageIdentifier packageIdentifier) {
+        @NonNull
+        public Builder addAllowedPackage(@NonNull PackageIdentifier packageIdentifier) {
             Objects.requireNonNull(packageIdentifier);
             resetIfBuilt();
             mAllowedPackages.add(packageIdentifier.getPackageIdentifierParcel());
@@ -186,7 +192,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
 
         /** Clears the list of packages which have access to this schema. */
         @CanIgnoreReturnValue
-        public @NonNull Builder clearAllowedPackages() {
+        @NonNull
+        public Builder clearAllowedPackages() {
             resetIfBuilt();
             mAllowedPackages.clear();
             return this;
@@ -209,7 +216,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
          */
         @SuppressWarnings("RequiresPermission") // No permission required to call this method
         @CanIgnoreReturnValue
-        public @NonNull Builder addRequiredPermissions(@NonNull Set<Integer> visibleToPermissions) {
+        @NonNull
+        public Builder addRequiredPermissions(@NonNull Set<Integer> visibleToPermissions) {
             Objects.requireNonNull(visibleToPermissions);
             resetIfBuilt();
             mRequiredPermissions.add(new VisibilityPermissionConfig(visibleToPermissions));
@@ -220,7 +228,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
          * Clears all required permissions combinations set to this {@link SchemaVisibilityConfig}.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder clearRequiredPermissions() {
+        @NonNull
+        public Builder clearRequiredPermissions() {
             resetIfBuilt();
             mRequiredPermissions.clear();
             return this;
@@ -246,7 +255,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
          *     access this publicly visible schema.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setPubliclyVisibleTargetPackage(
+        @NonNull
+        public Builder setPubliclyVisibleTargetPackage(
                 @Nullable PackageIdentifier packageIdentifier) {
             resetIfBuilt();
             if (packageIdentifier == null) {
@@ -266,7 +276,8 @@ public final class SchemaVisibilityConfig extends AbstractSafeParcelable {
         }
 
         /** Build a {@link SchemaVisibilityConfig} */
-        public @NonNull SchemaVisibilityConfig build() {
+        @NonNull
+        public SchemaVisibilityConfig build() {
             mBuilt = true;
             return new SchemaVisibilityConfig(
                     mAllowedPackages, mRequiredPermissions, mPubliclyVisibleTargetPackage);

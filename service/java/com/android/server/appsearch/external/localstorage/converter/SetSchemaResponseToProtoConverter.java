@@ -16,11 +16,10 @@
 
 package com.android.server.appsearch.external.localstorage.converter;
 
+import android.annotation.NonNull;
 import android.app.appsearch.SetSchemaResponse;
 
 import com.google.android.icing.proto.SetSchemaResultProto;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -40,7 +39,8 @@ public class SetSchemaResponseToProtoConverter {
      * @param prefix The prefix need to removed from schemaTypes
      * @return The {@link SetSchemaResponse} object.
      */
-    public static @NonNull SetSchemaResponse toSetSchemaResponse(
+    @NonNull
+    public static SetSchemaResponse toSetSchemaResponse(
             @NonNull SetSchemaResultProto proto, @NonNull String prefix) {
         Objects.requireNonNull(proto);
         Objects.requireNonNull(prefix);

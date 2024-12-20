@@ -28,12 +28,12 @@ import com.android.appsearch.flags.Flags;
 
 /** The response class of {@code AppSearchSession#getStorageInfo}. */
 @SafeParcelable.Class(creator = "StorageInfoCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class StorageInfo extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<StorageInfo> CREATOR = new StorageInfoCreator();
+    @NonNull
+    public static final Parcelable.Creator<StorageInfo> CREATOR = new StorageInfoCreator();
 
     @Field(id = 1, getter = "getSizeBytes")
     private long mSizeBytes;
@@ -124,43 +124,49 @@ public final class StorageInfo extends AbstractSafeParcelable {
 
         /** Sets the size in bytes. */
         @CanIgnoreReturnValue
-        public @NonNull StorageInfo.Builder setSizeBytes(long sizeBytes) {
+        @NonNull
+        public StorageInfo.Builder setSizeBytes(long sizeBytes) {
             mSizeBytes = sizeBytes;
             return this;
         }
 
         /** Sets the number of alive documents. */
         @CanIgnoreReturnValue
-        public @NonNull StorageInfo.Builder setAliveDocumentsCount(int aliveDocumentsCount) {
+        @NonNull
+        public StorageInfo.Builder setAliveDocumentsCount(int aliveDocumentsCount) {
             mAliveDocumentsCount = aliveDocumentsCount;
             return this;
         }
 
         /** Sets the number of alive namespaces. */
         @CanIgnoreReturnValue
-        public @NonNull StorageInfo.Builder setAliveNamespacesCount(int aliveNamespacesCount) {
+        @NonNull
+        public StorageInfo.Builder setAliveNamespacesCount(int aliveNamespacesCount) {
             mAliveNamespacesCount = aliveNamespacesCount;
             return this;
         }
 
         /** Sets the size of stored blobs in bytes. */
         @CanIgnoreReturnValue
+        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-        public @NonNull StorageInfo.Builder setBlobsSizeBytes(long blobsSizeBytes) {
+        public StorageInfo.Builder setBlobsSizeBytes(long blobsSizeBytes) {
             mBlobsSizeBytes = blobsSizeBytes;
             return this;
         }
 
         /** Sets the number of stored blobs. */
         @CanIgnoreReturnValue
+        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-        public @NonNull StorageInfo.Builder setBlobsCount(int blobsCount) {
+        public StorageInfo.Builder setBlobsCount(int blobsCount) {
             mBlobsCount = blobsCount;
             return this;
         }
 
         /** Builds a {@link StorageInfo} object. */
-        public @NonNull StorageInfo build() {
+        @NonNull
+        public StorageInfo build() {
             return new StorageInfo(
                     mSizeBytes,
                     mAliveDocumentsCount,

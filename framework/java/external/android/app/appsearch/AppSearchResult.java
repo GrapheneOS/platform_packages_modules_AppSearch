@@ -36,8 +36,6 @@ import java.util.Objects;
  *
  * @param <ValueType> The type of result object for successful calls.
  */
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings("JSpecifyNullness")
 public final class AppSearchResult<ValueType> {
     private static final String TAG = "AppSearchResult";
 
@@ -127,8 +125,8 @@ public final class AppSearchResult<ValueType> {
     public static final int RESULT_ALREADY_EXISTS = 12;
 
     @ResultCode private final int mResultCode;
-    private final @Nullable ValueType mResultValue;
-    private final @Nullable String mErrorMessage;
+    @Nullable private final ValueType mResultValue;
+    @Nullable private final String mErrorMessage;
 
     private AppSearchResult(
             @ResultCode int resultCode,
@@ -158,7 +156,8 @@ public final class AppSearchResult<ValueType> {
      *
      * @throws IllegalStateException if this {@link AppSearchResult} is not successful.
      */
-    public @Nullable ValueType getResultValue() {
+    @Nullable
+    public ValueType getResultValue() {
         if (!isSuccess()) {
             throw new IllegalStateException("AppSearchResult is a failure: " + this);
         }
@@ -173,7 +172,8 @@ public final class AppSearchResult<ValueType> {
      * documentation of the particular {@link AppSearchSession} call producing this {@link
      * AppSearchResult} for what is returned by {@link #getErrorMessage}.
      */
-    public @Nullable String getErrorMessage() {
+    @Nullable
+    public String getErrorMessage() {
         return mErrorMessage;
     }
 
@@ -197,7 +197,8 @@ public final class AppSearchResult<ValueType> {
     }
 
     @Override
-    public @NonNull String toString() {
+    @NonNull
+    public String toString() {
         if (isSuccess()) {
             return "[SUCCESS]: " + mResultValue;
         }
@@ -210,7 +211,8 @@ public final class AppSearchResult<ValueType> {
      * @param value An optional value to associate with the successful result of the operation being
      *     performed.
      */
-    public static @NonNull <ValueType> AppSearchResult<ValueType> newSuccessfulResult(
+    @NonNull
+    public static <ValueType> AppSearchResult<ValueType> newSuccessfulResult(
             @Nullable ValueType value) {
         return new AppSearchResult<>(RESULT_OK, value, /* errorMessage= */ null);
     }
@@ -221,7 +223,8 @@ public final class AppSearchResult<ValueType> {
      * @param resultCode One of the constants documented in {@link AppSearchResult#getResultCode}.
      * @param errorMessage An optional string describing the reason or nature of the failure.
      */
-    public static @NonNull <ValueType> AppSearchResult<ValueType> newFailedResult(
+    @NonNull
+    public static <ValueType> AppSearchResult<ValueType> newFailedResult(
             @ResultCode int resultCode, @Nullable String errorMessage) {
         return new AppSearchResult<>(resultCode, /* resultValue= */ null, errorMessage);
     }
@@ -231,7 +234,8 @@ public final class AppSearchResult<ValueType> {
      *
      * @hide
      */
-    public static @NonNull <ValueType> AppSearchResult<ValueType> newFailedResult(
+    @NonNull
+    public static <ValueType> AppSearchResult<ValueType> newFailedResult(
             @NonNull AppSearchResult<?> otherFailedResult) {
         Preconditions.checkState(
                 !otherFailedResult.isSuccess(),
@@ -241,7 +245,8 @@ public final class AppSearchResult<ValueType> {
     }
 
     /** @hide */
-    public static @NonNull <ValueType> AppSearchResult<ValueType> throwableToFailedResult(
+    @NonNull
+    public static <ValueType> AppSearchResult<ValueType> throwableToFailedResult(
             @NonNull Throwable t) {
         // Log for traceability. NOT_FOUND is logged at VERBOSE because this error can occur during
         // the regular operation of the system (b/183550974). Everything else is indicative of an

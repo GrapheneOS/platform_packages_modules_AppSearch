@@ -16,9 +16,8 @@
 
 package android.app.appsearch;
 
+import android.annotation.NonNull;
 import android.annotation.WorkerThread;
-
-import org.jspecify.annotations.NonNull;
 
 /**
  * A migrator class to translate {@link GenericDocument} from different version of {@link
@@ -64,7 +63,8 @@ public abstract class Migrator {
      * @return A {@link GenericDocument} in new version.
      */
     @WorkerThread
-    public abstract @NonNull GenericDocument onUpgrade(
+    @NonNull
+    public abstract GenericDocument onUpgrade(
             int currentVersion, int finalVersion, @NonNull GenericDocument document);
 
     /**
@@ -85,6 +85,7 @@ public abstract class Migrator {
      * @return A {@link GenericDocument} in new version.
      */
     @WorkerThread
-    public abstract @NonNull GenericDocument onDowngrade(
+    @NonNull
+    public abstract GenericDocument onDowngrade(
             int currentVersion, int finalVersion, @NonNull GenericDocument document);
 }

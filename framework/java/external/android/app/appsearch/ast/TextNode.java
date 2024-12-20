@@ -17,10 +17,9 @@
 package android.app.appsearch.ast;
 
 import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
 
 import com.android.appsearch.flags.Flags;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -86,7 +85,8 @@ public final class TextNode implements Node {
      *
      * @return A string representing the text that the TextNode holds.
      */
-    public @NonNull String getValue() {
+    @NonNull
+    public String getValue() {
         return mValue;
     }
 
@@ -177,8 +177,9 @@ public final class TextNode implements Node {
      * contains operators that need to be escaped for the query string to be treated as a string
      * rather than a query.
      */
+    @NonNull
     @Override
-    public @NonNull String toString() {
+    public String toString() {
         StringBuilder queryStringBuilder = new StringBuilder();
         queryStringBuilder.append('(');
         if (mVerbatim) {

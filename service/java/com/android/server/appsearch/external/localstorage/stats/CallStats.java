@@ -17,14 +17,13 @@
 package com.android.server.appsearch.external.localstorage.stats;
 
 import android.annotation.IntDef;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.util.ArraySet;
 
 import com.android.internal.annotations.VisibleForTesting;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -167,8 +166,8 @@ public class CallStats {
     private static final String CALL_TYPE_STRING_REMOVE_BLOB = "removeBlob";
     private static final String CALL_TYPE_STRING_SET_BLOB_VISIBILITY = "setBlobVisibility";
 
-    private final @Nullable String mPackageName;
-    private final @Nullable String mDatabase;
+    @Nullable private final String mPackageName;
+    @Nullable private final String mDatabase;
 
     /**
      * The status code returned by {@link AppSearchResult#getResultCode()} for the call or internal
@@ -196,12 +195,14 @@ public class CallStats {
     }
 
     /** Returns calling package name. */
-    public @Nullable String getPackageName() {
+    @Nullable
+    public String getPackageName() {
         return mPackageName;
     }
 
     /** Returns calling database name. */
-    public @Nullable String getDatabase() {
+    @Nullable
+    public String getDatabase() {
         return mDatabase;
     }
 
@@ -270,42 +271,48 @@ public class CallStats {
 
         /** Sets the PackageName used by the session. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setPackageName(@Nullable String packageName) {
+        @NonNull
+        public Builder setPackageName(@Nullable String packageName) {
             mPackageName = packageName;
             return this;
         }
 
         /** Sets the database used by the session. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDatabase(@Nullable String database) {
+        @NonNull
+        public Builder setDatabase(@Nullable String database) {
             mDatabase = database;
             return this;
         }
 
         /** Sets the status code. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
+        @NonNull
+        public Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
             mStatusCode = statusCode;
             return this;
         }
 
         /** Sets total latency in millis. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalLatencyMillis(int totalLatencyMillis) {
+        @NonNull
+        public Builder setTotalLatencyMillis(int totalLatencyMillis) {
             mTotalLatencyMillis = totalLatencyMillis;
             return this;
         }
 
         /** Sets type of the call. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setCallType(@CallType int callType) {
+        @NonNull
+        public Builder setCallType(@CallType int callType) {
             mCallType = callType;
             return this;
         }
 
         /** Sets estimated binder latency, in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setEstimatedBinderLatencyMillis(int estimatedBinderLatencyMillis) {
+        @NonNull
+        public Builder setEstimatedBinderLatencyMillis(int estimatedBinderLatencyMillis) {
             mEstimatedBinderLatencyMillis = estimatedBinderLatencyMillis;
             return this;
         }
@@ -322,7 +329,8 @@ public class CallStats {
          * CallStats#getNumOperationsFailed()} is always 1 since there is only one operation.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setNumOperationsSucceeded(int numOperationsSucceeded) {
+        @NonNull
+        public Builder setNumOperationsSucceeded(int numOperationsSucceeded) {
             mNumOperationsSucceeded = numOperationsSucceeded;
             return this;
         }
@@ -339,13 +347,15 @@ public class CallStats {
          * CallStats#getNumOperationsFailed()} is always 1 since there is only one operation.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setNumOperationsFailed(int numOperationsFailed) {
+        @NonNull
+        public Builder setNumOperationsFailed(int numOperationsFailed) {
             mNumOperationsFailed = numOperationsFailed;
             return this;
         }
 
         /** Creates {@link CallStats} object from {@link Builder} instance. */
-        public @NonNull CallStats build() {
+        @NonNull
+        public CallStats build() {
             return new CallStats(/* builder= */ this);
         }
     }
@@ -426,7 +436,8 @@ public class CallStats {
 
     /** Returns the set of all {@link CallStats.CallType} that map to an AppSearchManager API. */
     @VisibleForTesting
-    public static @NonNull Set<Integer> getAllApiCallTypes() {
+    @NonNull
+    public static Set<Integer> getAllApiCallTypes() {
         return new ArraySet<>(
                 Arrays.asList(
                         CALL_TYPE_INITIALIZE,

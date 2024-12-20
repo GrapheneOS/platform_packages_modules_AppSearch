@@ -16,10 +16,9 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.annotation.NonNull;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.os.ParcelFileDescriptor;
-
-import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 
@@ -46,7 +45,8 @@ public interface RevocableFileDescriptorStore {
      * @param parcelFileDescriptor The original ParcelFileDescriptor to be wrapped.
      * @return A ParcelFileDescriptor that can be revoked by the store.
      */
-    @NonNull ParcelFileDescriptor wrapToRevocableFileDescriptor(
+    @NonNull
+    ParcelFileDescriptor wrapToRevocableFileDescriptor(
             @NonNull String packageName, @NonNull ParcelFileDescriptor parcelFileDescriptor)
             throws IOException;
 
