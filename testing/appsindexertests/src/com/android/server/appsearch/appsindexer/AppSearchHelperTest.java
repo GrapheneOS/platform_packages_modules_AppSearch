@@ -66,6 +66,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import org.junit.After;
 import org.junit.Before;
@@ -684,5 +685,108 @@ public class AppSearchHelperTest {
                                     APP_OPEN_EVENT_PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID))
                     .isEqualTo(event1.getMobileApplicationQualifiedId());
         }
+    }
+
+    @Test
+    public void
+            setSchemaForPackages_setsDynamicAppFunctionSchemasWithParentType_dynamicSchemasExist()
+                    throws Exception {
+        MobileApplication app = createFakeMobileApplication(0);
+        List<PackageIdentifier> pkgIdentifiers =
+                List.of(new PackageIdentifier(app.getPackageName(), FAKE_SIGNATURE.toByteArray()));
+        AppSearchSchema dynamicSchema =
+                new AppSearchSchema.Builder("AppFunctionStaticMetadata-" + app.getPackageName())
+                        .build();
+
+        mAppSearchHelper.setSchemasForPackages(
+                pkgIdentifiers,
+                pkgIdentifiers,
+                ImmutableMap.of(
+                        app.getPackageName(),
+                        ImmutableMap.of(
+                                "AppFunctionStaticMetadata-" + app.getPackageName(),
+                                dynamicSchema)));
+
+        AppSearchSessionShim session =
+                createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
+        GetSchemaResponse response = session.getSchemaAsync().get();
+        assertThat(response.getSchemas())
+                .containsExactly(
+                        MobileApplication.createMobileApplicationSchemaForPackage(
+                                app.getPackageName()),
+                        AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
+                        dynamicSchema);
+    }
+
+    @Test
+    public void
+            setSchemaForPackages_setsDefaultsToHardcodedAppFunctionSchemas_dynamicSchemasIsMissing()
+                    throws Exception {
+        MobileApplication app = createFakeMobileApplication(0);
+        List<PackageIdentifier> pkgIdentifiers =
+                List.of(new PackageIdentifier(app.getPackageName(), FAKE_SIGNATURE.toByteArray()));
+
+        mAppSearchHelper.setSchemasForPackages(
+                pkgIdentifiers,
+                pkgIdentifiers,
+                ImmutableMap.of(app.getPackageName(), ImmutableMap.of()));
+
+        AppSearchSessionShim session =
+                createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
+        GetSchemaResponse response = session.getSchemaAsync().get();
+        assertThat(response.getSchemas())
+                .containsExactly(
+                        MobileApplication.createMobileApplicationSchemaForPackage(
+                                app.getPackageName()),
+                        AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
+                        AppFunctionStaticMetadata.createAppFunctionSchemaForPackage(
+                                app.getPackageName()));
+    }
+
+    @Test
+    public void setSchemaForPackages_dropsInvalidDynamicSchema() throws Exception {
+        MobileApplication app = createFakeMobileApplication(0);
+        AppSearchSchema dynamicSchema =
+                new AppSearchSchema.Builder("AppFunctionStaticMetadata-" + app.getPackageName())
+                        .build();
+        MobileApplication appWithInvalidSchema = createFakeMobileApplication(1);
+        // Invalid schema with more than 64 indexable properties
+        AppSearchSchema.Builder invalidSchemaBuilder =
+                new AppSearchSchema.Builder(
+                        "AppFunctionStaticMetadata-" + appWithInvalidSchema.getPackageName());
+        for (int i = 0; i < 100; i++) {
+            invalidSchemaBuilder.addProperty(
+                    new AppSearchSchema.LongPropertyConfig.Builder("props" + i)
+                            .setIndexingType(AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE)
+                            .build());
+        }
+        AppSearchSchema invalidSchema = invalidSchemaBuilder.build();
+        List<PackageIdentifier> pkgIdentifiers =
+                List.of(
+                        new PackageIdentifier(app.getPackageName(), FAKE_SIGNATURE.toByteArray()),
+                        new PackageIdentifier(
+                                appWithInvalidSchema.getPackageName(),
+                                FAKE_SIGNATURE.toByteArray()));
+
+        mAppSearchHelper.setSchemasForPackages(
+                pkgIdentifiers,
+                pkgIdentifiers,
+                ImmutableMap.of(
+                        app.getPackageName(),
+                        ImmutableMap.of(dynamicSchema.getSchemaType(), dynamicSchema),
+                        appWithInvalidSchema.getPackageName(),
+                        ImmutableMap.of(invalidSchema.getSchemaType(), invalidSchema)));
+
+        AppSearchSessionShim session =
+                createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
+        GetSchemaResponse response = session.getSchemaAsync().get();
+        assertThat(response.getSchemas())
+                .containsExactly(
+                        MobileApplication.createMobileApplicationSchemaForPackage(
+                                app.getPackageName()),
+                        MobileApplication.createMobileApplicationSchemaForPackage(
+                                appWithInvalidSchema.getPackageName()),
+                        AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
+                        dynamicSchema);
     }
 }

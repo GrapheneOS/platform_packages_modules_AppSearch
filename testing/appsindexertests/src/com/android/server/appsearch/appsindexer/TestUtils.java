@@ -142,6 +142,75 @@ class TestUtils {
                     .build();
 
     /**
+     * Represents all properties of {@link AppFunctionStaticMetadata#PARENT_TYPE_APPSEARCH_SCHEMA}
+     * in XSD format understandable by {@link AppFunctionSchemaParser}.
+     */
+    public static final String APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES =
+            "        <xs:element name=\"functionId\" type=\"xs:string\" cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" indexingType=\""
+                    + AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS
+                    + "\" tokenizerType=\""
+                    + AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM
+                    + "\" />\n"
+                    + "        <xs:element name=\"packageName\" type=\"xs:string\" cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" indexingType=\""
+                    + AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS
+                    + "\" tokenizerType=\""
+                    + AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM
+                    + "\" />\n"
+                    + "        <xs:element name=\"schemaName\" type=\"xs:string\" cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" indexingType=\""
+                    + AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS
+                    + "\" tokenizerType=\""
+                    + AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM
+                    + "\" />\n"
+                    + "        <xs:element name=\"schemaVersion\" type=\"xs:long\" cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" indexingType=\""
+                    + AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE
+                    + "\" />\n"
+                    + "        <xs:element name=\"schemaCategory\" type=\"xs:string\" "
+                    + "cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" indexingType=\""
+                    + AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS
+                    + "\" tokenizerType=\""
+                    + AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM
+                    + "\" />\n"
+                    + "        <xs:element name=\"enabledByDefault\" type=\"xs:boolean\" "
+                    + "cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" />\n"
+                    + "        <xs:element name=\"restrictCallersWithExecuteAppFunctions\" type=\""
+                    + "xs:boolean\" cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" />\n"
+                    + "        <xs:element name=\"displayNameStringRes\" type=\"xs:long\" "
+                    + "cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" />\n"
+                    + "        <xs:element name=\"mobileApplicationQualifiedId\" type=\"xs:string"
+                    + "\" cardinality=\""
+                    + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                    + "\" joinableValueType=\""
+                    + AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID
+                    + "\" />\n";
+
+    /**
+     * Represents {@link AppFunctionStaticMetadata#PARENT_TYPE_APPSEARCH_SCHEMA} in XSD format
+     * understandable by {@link AppFunctionSchemaParser}.
+     */
+    public static final String APP_FUNCTION_STATIC_METADATA_PARENT_SCHEMA_XSD =
+            "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                    + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
+                    + APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES
+                    + "    </xs:documentType>"
+                    + "</xs:schema>";
+
+    /**
      * Creates a fake {@link PackageInfo} object.
      *
      * @param variant provides variation in the mocked PackageInfo so we can index multiple fake

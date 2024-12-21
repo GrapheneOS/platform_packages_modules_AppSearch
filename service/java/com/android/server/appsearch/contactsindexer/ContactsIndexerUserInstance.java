@@ -18,6 +18,9 @@ package com.android.server.appsearch.contactsindexer;
 
 import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
@@ -29,10 +32,12 @@ import android.content.Context;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.CancellationSignal;
+import android.os.SystemClock;
 import android.provider.ContactsContract;
 import android.util.Log;
 import android.util.Slog;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
@@ -230,6 +235,11 @@ public final class ContactsIndexerUserInstance {
                         ContactsIndexerUserInstance.this::handleDeltaUpdate);
             }
         }
+    }
+
+    @VisibleForTesting
+    ContactsIndexerSettings getSettings() {
+        return mSettings;
     }
 
     /**
@@ -480,7 +490,9 @@ public final class ContactsIndexerUserInstance {
             // Record that the CP2 change notification is being handled by this delta update task.
             mCp2ChangePending = false;
         }
-
+        if (Flags.enableCheckContactsIndexerDeltaTimestamps()) {
+            checkDeltaTimestamps();
+        }
         long currentTimeMillis = System.currentTimeMillis();
         updateStats.mUpdateType = ContactsUpdateStats.DELTA_UPDATE;
         updateStats.mUpdateAndDeleteStartTimeMillis = currentTimeMillis;
@@ -681,6 +693,42 @@ public final class ContactsIndexerUserInstance {
             mSettings.persist();
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
+        }
+    }
+
+    /**
+     * Checks if the delta timestamps are newer than the current system time, and if they are newer,
+     * resets the timestamps to the current system time minus the elapsed system time (the estimated
+     * system boot time) and schedules a full update.
+     *
+     * <p>When the delta timestamps are newer than the current system time, any changes to contacts
+     * will be "in the past" and will not be caught in delta updates. Resetting the timestamps is a
+     * temporary measure. It's possible that the new time does not catch previously-missed updates
+     * if it was not set early enough, so we need to schedule a full update to make sure the corpus
+     * is synced properly.
+     */
+    @WorkerThread
+    private void checkDeltaTimestamps() {
+        long currentTimeMillis = System.currentTimeMillis();
+        long lastContactUpdateTimestampMillis = mSettings.getLastContactUpdateTimestampMillis();
+        long lastContactDeleteTimestampMillis = mSettings.getLastContactDeleteTimestampMillis();
+        if (currentTimeMillis < lastContactUpdateTimestampMillis
+                || currentTimeMillis < lastContactDeleteTimestampMillis) {
+            // Reset the delta timestamps to a reasonable time before the current system time so
+            // that the latest changes are caught in the incoming delta update
+            long bootTimeMillis = max(currentTimeMillis - SystemClock.elapsedRealtime(), 0);
+            mSettings.setLastContactUpdateTimestampMillis(
+                    min(lastContactUpdateTimestampMillis, bootTimeMillis));
+            mSettings.setLastContactDeleteTimestampMillis(
+                    min(lastContactDeleteTimestampMillis, bootTimeMillis));
+            persistSettings();
+            // Schedule a full update since the new delta timestamp may still be missing changes
+            IndexerMaintenanceService.scheduleUpdateJob(
+                    mContext,
+                    mContext.getUser(),
+                    CONTACTS_INDEXER,
+                    /* periodic= */ false,
+                    /* intervalMillis= */ -1);
         }
     }
 
