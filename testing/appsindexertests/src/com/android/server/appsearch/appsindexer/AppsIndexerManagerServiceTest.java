@@ -174,6 +174,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         UserInfo userInfo =
                 new UserInfo(
                         mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
+        SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
         GlobalSearchSessionShim db =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
         // Apps indexer schedules a full-update job for bootstrapping from PackageManager,
@@ -182,7 +183,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         try {
             CountDownLatch bootstrapLatch =
                     setupLatch(numFakePackages, /* listenForSchemaChanges= */ false);
-            mAppsIndexerManagerService.onUserUnlocking(new SystemService.TargetUser(userInfo));
+            mAppsIndexerManagerService.onUserUnlocking(targetUser);
             assertTrue(bootstrapLatch.await(10000L, TimeUnit.MILLISECONDS));
         } finally {
             mUiAutomation.dropShellPermissionIdentity();
@@ -210,7 +211,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
                         "builtin:MobileApplication-com.fake.package1",
                         "builtin:MobileApplication-com.fake.package0");
 
-        mAppsIndexerManagerService.onUserStopping(new SystemService.TargetUser(userInfo));
+        mAppsIndexerManagerService.onUserStopping(targetUser);
     }
 
     @Test
@@ -229,6 +230,8 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         UserInfo userInfo =
                 new UserInfo(
                         mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
+
+        SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
         GlobalSearchSessionShim db =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
         // Apps indexer schedules a full-update job for bootstrapping from PackageManager,
@@ -237,7 +240,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         CountDownLatch bootstrapLatch = null;
         try {
             bootstrapLatch = setupLatch(numFakePackages, /* listenForSchemaChanges= */ false);
-            mAppsIndexerManagerService.onUserUnlocking(new SystemService.TargetUser(userInfo));
+            mAppsIndexerManagerService.onUserUnlocking(targetUser);
             assertTrue(bootstrapLatch.await(10000L, TimeUnit.MILLISECONDS));
         } finally {
             mUiAutomation.dropShellPermissionIdentity();
@@ -246,7 +249,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         // Add a package and trigger an update directly
         Intent fakeIntent = new Intent(Intent.ACTION_PACKAGE_ADDED);
         fakeIntent.setData(Uri.parse("package:" + mContext.getPackageName()));
-        fakeIntent.putExtra(Intent.EXTRA_UID, userInfo.id);
+        fakeIntent.putExtra(Intent.EXTRA_UID, targetUser.getUserHandle().getUid(20));
 
         // Add a package at index numFakePackages
         fakePackages.add(createFakePackageInfo(numFakePackages));
@@ -268,7 +271,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         // 10 is greater than the expected number of results, which is numFakePackage + 1 = 4
         assertThat(page).hasSize(numFakePackages + 1);
 
-        mAppsIndexerManagerService.onUserStopping(new SystemService.TargetUser(userInfo));
+        mAppsIndexerManagerService.onUserStopping(targetUser);
     }
 
     @Test
@@ -287,6 +290,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         UserInfo userInfo =
                 new UserInfo(
                         mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
+        SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
         GlobalSearchSessionShim db =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
         // Apps indexer schedules a full-update job for bootstrapping from PackageManager,
@@ -295,7 +299,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         CountDownLatch bootstrapLatch = null;
         try {
             bootstrapLatch = setupLatch(numFakePackages, /* listenForSchemaChanges= */ false);
-            mAppsIndexerManagerService.onUserUnlocking(new SystemService.TargetUser(userInfo));
+            mAppsIndexerManagerService.onUserUnlocking(targetUser);
             assertTrue(bootstrapLatch.await(10000L, TimeUnit.MILLISECONDS));
         } finally {
             mUiAutomation.dropShellPermissionIdentity();
@@ -304,7 +308,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         // Update a package by updating the timestamp and trigger an update
         Intent fakeIntent = new Intent(Intent.ACTION_PACKAGE_CHANGED);
         fakeIntent.setData(Uri.parse("package:" + mContext.getPackageName()));
-        fakeIntent.putExtra(Intent.EXTRA_UID, userInfo.id);
+        fakeIntent.putExtra(Intent.EXTRA_UID, targetUser.getUserHandle().getUid(20));
         // This has to match the package in data to indicate that this was not just a component
         // change, but that the entire package was changed.
         fakeIntent.putExtra(
@@ -337,7 +341,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         }
         assertThat(timestamps).contains(1000L);
 
-        mAppsIndexerManagerService.onUserStopping(new SystemService.TargetUser(userInfo));
+        mAppsIndexerManagerService.onUserStopping(targetUser);
     }
 
     @Test
@@ -356,6 +360,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         UserInfo userInfo =
                 new UserInfo(
                         mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
+        SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
         GlobalSearchSessionShim db =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
         // Apps indexer schedules a full-update job for bootstrapping from PackageManager,
@@ -364,7 +369,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         CountDownLatch bootstrapLatch = null;
         try {
             bootstrapLatch = setupLatch(numFakePackages, /* listenForSchemaChanges= */ false);
-            mAppsIndexerManagerService.onUserUnlocking(new SystemService.TargetUser(userInfo));
+            mAppsIndexerManagerService.onUserUnlocking(targetUser);
             assertTrue(bootstrapLatch.await(10000L, TimeUnit.MILLISECONDS));
         } finally {
             mUiAutomation.dropShellPermissionIdentity();
@@ -373,7 +378,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         // Delete a package and trigger an update
         Intent fakeIntent = new Intent(Intent.ACTION_PACKAGE_FULLY_REMOVED);
         fakeIntent.setData(Uri.parse("package:" + mContext.getPackageName()));
-        fakeIntent.putExtra(Intent.EXTRA_UID, userInfo.id);
+        fakeIntent.putExtra(Intent.EXTRA_UID, targetUser.getUserHandle().getUid(20));
 
         fakePackages.remove(0);
         fakeActivities.remove(0);
@@ -394,6 +399,6 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         // 10 is greater than the expected number of results, which is numFakePackage - 1 = 2
         assertThat(page).hasSize(numFakePackages - 1);
 
-        mAppsIndexerManagerService.onUserStopping(new SystemService.TargetUser(userInfo));
+        mAppsIndexerManagerService.onUserStopping(targetUser);
     }
 }
