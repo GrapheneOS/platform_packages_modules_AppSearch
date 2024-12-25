@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -47,8 +48,6 @@ import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -62,6 +61,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 import org.mockito.MockitoSession;
@@ -79,8 +79,7 @@ public class AppsIndexerImplTest {
     private Context mContext;
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private final AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
