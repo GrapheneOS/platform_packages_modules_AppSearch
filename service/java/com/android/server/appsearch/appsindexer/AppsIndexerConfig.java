@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import android.app.appsearch.AppSearchSession;
+
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,6 +41,14 @@ public interface AppsIndexerConfig {
      */
     int DEFAULT_MAX_ALLOWED_APP_FUNCTION_SCHEMAS_PER_PACKAGE = 5;
 
+    /**
+     * The default max allowed size of an app function document.
+     *
+     * <p>More conservative than one enforced by {@link AppSearchSession#put} to prevent app
+     * developers from indexing additional properties in app function documents using this indexer.
+     */
+    int DEFAULT_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES = 4 * 1024; // 4KiB
+
     /** Returns whether Apps Indexer is enabled. */
     boolean isAppsIndexerEnabled();
 
@@ -50,4 +60,7 @@ public interface AppsIndexerConfig {
 
     /** Returns the max number of app function schemas the app indexer will index per package. */
     int getMaxAllowedAppFunctionSchemasPerPackage();
+
+    /** Returns the max allowed document size of an app function document. */
+    int getMaxAllowedAppFunctionDocSizeInBytes();
 }
