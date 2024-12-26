@@ -16,7 +16,6 @@
 
 package com.android.server.appsearch.external.localstorage;
 
-import android.annotation.NonNull;
 import android.app.appsearch.stats.SchemaMigrationStats;
 
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
@@ -27,6 +26,8 @@ import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 

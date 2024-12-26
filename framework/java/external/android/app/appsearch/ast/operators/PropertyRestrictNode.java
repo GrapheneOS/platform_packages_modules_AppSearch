@@ -17,11 +17,12 @@
 package android.app.appsearch.ast.operators;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 import android.app.appsearch.PropertyPath;
 import android.app.appsearch.ast.Node;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +43,7 @@ import java.util.Objects;
  */
 @FlaggedApi(Flags.FLAG_ENABLE_ABSTRACT_SYNTAX_TREES)
 public final class PropertyRestrictNode implements Node {
-    private PropertyPath mProperty;
+    private PropertyPath mPropertyPath;
     private final List<Node> mChildren = new ArrayList<>(1);
 
     /**
@@ -54,26 +55,24 @@ public final class PropertyRestrictNode implements Node {
      * @param childNode The subexpression to be restricted in the property restrict
      */
     public PropertyRestrictNode(@NonNull PropertyPath propertyPath, @NonNull Node childNode) {
-        mProperty = Objects.requireNonNull(propertyPath);
+        mPropertyPath = Objects.requireNonNull(propertyPath);
         mChildren.add(Objects.requireNonNull(childNode));
     }
 
     /**
-     * Get the property in the property restriction (i.e. the left hand side of the property
-     * restrict sign (":")).
+     * Get the {@link PropertyPath} in the property restriction (i.e. the left hand side of the
+     * property restrict sign (":")).
      */
-    @NonNull
-    public PropertyPath getProperty() {
-        return mProperty;
+    public @NonNull PropertyPath getPropertyPath() {
+        return mPropertyPath;
     }
 
     /**
      * Get the child {@link Node} of {@link PropertyRestrictNode} as a list containing the only
      * child {@link Node}.
      */
-    @NonNull
     @Override
-    public List<Node> getChildren() {
+    public @NonNull List<Node> getChildren() {
         return Collections.unmodifiableList(mChildren);
     }
 
@@ -81,17 +80,16 @@ public final class PropertyRestrictNode implements Node {
      * Get the subexpression in the property restriction as a {@link Node} (i.e. the right hand side
      * of the property restrict sign (":")).
      */
-    @NonNull
-    public Node getChild() {
+    public @NonNull Node getChild() {
         return mChildren.get(0);
     }
 
     /**
-     * Set the property in the property restriction (i.e. the left hand side of the property
-     * restrict sign (":")).
+     * Set the {@link PropertyPath} in the property restriction (i.e. the left hand side of the
+     * property restrict sign (":")).
      */
-    public void setProperty(@NonNull PropertyPath propertyPath) {
-        mProperty = Objects.requireNonNull(propertyPath);
+    public void setPropertyPath(@NonNull PropertyPath propertyPath) {
+        mPropertyPath = Objects.requireNonNull(propertyPath);
     }
 
     /**
@@ -109,10 +107,9 @@ public final class PropertyRestrictNode implements Node {
      * the left to the query sub expression surrounded in parentheses with the property restrict
      * symbol (":").
      */
-    @NonNull
     @Override
-    public String toString() {
-        return "(" + mProperty + ":" + getChild() + ")";
+    public @NonNull String toString() {
+        return "(" + mPropertyPath + ":" + getChild() + ")";
     }
 
     @Override
@@ -120,12 +117,12 @@ public final class PropertyRestrictNode implements Node {
         if (this == o) return true;
         if (!(o instanceof PropertyRestrictNode)) return false;
         PropertyRestrictNode that = (PropertyRestrictNode) o;
-        return Objects.equals(mProperty, that.mProperty)
+        return Objects.equals(mPropertyPath, that.mPropertyPath)
                 && Objects.equals(mChildren, that.mChildren);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mProperty, mChildren);
+        return Objects.hash(mPropertyPath, mChildren);
     }
 }

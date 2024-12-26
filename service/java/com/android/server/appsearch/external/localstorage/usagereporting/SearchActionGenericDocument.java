@@ -16,8 +16,6 @@
 
 package com.android.server.appsearch.external.localstorage.usagereporting;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
@@ -26,6 +24,9 @@ import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.usagereporting.ActionConstants;
 
 import com.android.internal.util.Preconditions;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -47,8 +48,7 @@ public class SearchActionGenericDocument extends TakenActionGenericDocument {
     }
 
     /** Returns the string value of property {@code query}. */
-    @Nullable
-    public String getQuery() {
+    public @Nullable String getQuery() {
         return getPropertyString(PROPERTY_PATH_QUERY);
     }
 
@@ -106,8 +106,7 @@ public class SearchActionGenericDocument extends TakenActionGenericDocument {
          * any operators or rewriting).
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder setQuery(@NonNull String query) {
+        public @NonNull Builder setQuery(@NonNull String query) {
             Objects.requireNonNull(query);
             setPropertyString(PROPERTY_PATH_QUERY, query);
             return this;
@@ -118,8 +117,7 @@ public class SearchActionGenericDocument extends TakenActionGenericDocument {
          * fetched from AppSearch by the client in this search action.
          */
         @CanIgnoreReturnValue
-        @NonNull
-        public Builder setFetchedResultCount(int fetchedResultCount) {
+        public @NonNull Builder setFetchedResultCount(int fetchedResultCount) {
             Preconditions.checkArgumentNonnegative(fetchedResultCount);
             setPropertyLong(PROPERTY_PATH_FETCHED_RESULT_COUNT, fetchedResultCount);
             return this;
@@ -127,8 +125,7 @@ public class SearchActionGenericDocument extends TakenActionGenericDocument {
 
         /** Builds a {@link SearchActionGenericDocument}. */
         @Override
-        @NonNull
-        public SearchActionGenericDocument build() {
+        public @NonNull SearchActionGenericDocument build() {
             return new SearchActionGenericDocument(super.build());
         }
     }

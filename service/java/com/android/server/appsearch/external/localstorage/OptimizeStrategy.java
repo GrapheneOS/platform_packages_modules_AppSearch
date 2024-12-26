@@ -16,9 +16,10 @@
 
 package com.android.server.appsearch.external.localstorage;
 
-import android.annotation.NonNull;
 
 import com.google.android.icing.proto.GetOptimizeInfoResultProto;
+
+import org.jspecify.annotations.NonNull;
 
 /**
  * An interface class for implementing a strategy to determine when to trigger {@link
