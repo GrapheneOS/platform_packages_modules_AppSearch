@@ -36,4 +36,9 @@ public class TestAppsIndexerConfig implements AppsIndexerConfig {
     public int getMaxAllowedAppFunctionSchemasPerPackage() {
         return 5;
     }
+
+    @Override
+    public int getMaxAllowedAppFunctionDocSizeInBytes() {
+        return 4 * 1024; // 4KiB
+    }
 }

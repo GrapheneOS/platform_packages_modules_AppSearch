@@ -185,7 +185,7 @@ public final class AppsIndexerImpl implements Closeable {
                                 packageManager,
                                 packagesToBeAddedOrUpdated,
                                 /* indexerPackageName= */ mContext.getPackageName(),
-                                mAppsIndexerConfig.getMaxAppFunctionsPerPackage(),
+                                mAppsIndexerConfig,
                                 dynamicAppFunctionSchemasForPackages);
 
         // Get all currently indexed AppFunctionStaticMetadata docs for the necessary packages.
@@ -542,7 +542,7 @@ public final class AppsIndexerImpl implements Closeable {
                                 packageManager,
                                 packagesToBeAddedOrUpdated,
                                 /* indexerPackageName= */ mContext.getPackageName(),
-                                mAppsIndexerConfig.getMaxAppFunctionsPerPackage());
+                                mAppsIndexerConfig);
 
                 AppSearchBatchResult<String, Void> result =
                         mAppSearchHelper.indexApps(
