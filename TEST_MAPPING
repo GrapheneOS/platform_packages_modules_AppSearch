@@ -1,25 +1,28 @@
 {
   "presubmit": [
     {
+      "name": "AppsIndexerTests"
+    },
+    {
+      "name": "AppSearchCoreTests"
+    },
+    {
+      "name": "AppSearchMockingServicesTests"
+    },
+    {
+      "name": "AppSearchServicesTests"
+    },
+    {
       "name": "ContactsIndexerTests"
+    },
+    {
+      "name": "CtsAppFunctionTestCases"
     },
     {
       "name": "CtsAppSearchTestCases"
     },
     {
       "name": "CtsAppSearchHostTestCases"
-    },
-    {
-      "name": "AppSearchCoreTests"
-    },
-    {
-      "name": "AppSearchServicesTests"
-    },
-    {
-      "name": "AppSearchMockingServicesTests"
-    },
-    {
-      "name": "AppsIndexerTests"
     }
   ]
 }
