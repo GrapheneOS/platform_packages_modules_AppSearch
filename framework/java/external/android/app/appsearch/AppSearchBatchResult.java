@@ -16,12 +16,13 @@
 package android.app.appsearch;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.util.ArrayMap;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -45,17 +46,12 @@ import java.util.Objects;
  * @see AppSearchSession#remove
  */
 public final class AppSearchBatchResult<KeyType, ValueType> {
-    @NonNull
-    private final Map<KeyType, @android.app.appsearch.checker.nullness.qual.Nullable ValueType>
-            mSuccesses;
-
-    @NonNull private final Map<KeyType, AppSearchResult<ValueType>> mFailures;
-    @NonNull private final Map<KeyType, AppSearchResult<ValueType>> mAll;
+    private final @NonNull Map<KeyType, @Nullable ValueType> mSuccesses;
+    private final @NonNull Map<KeyType, AppSearchResult<ValueType>> mFailures;
+    private final @NonNull Map<KeyType, AppSearchResult<ValueType>> mAll;
 
     AppSearchBatchResult(
-            @NonNull
-                    Map<KeyType, @android.app.appsearch.checker.nullness.qual.Nullable ValueType>
-                            successes,
+            @NonNull Map<KeyType, @Nullable ValueType> successes,
             @NonNull Map<KeyType, AppSearchResult<ValueType>> failures,
             @NonNull Map<KeyType, AppSearchResult<ValueType>> all) {
         mSuccesses = Objects.requireNonNull(successes);
@@ -78,8 +74,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
      *
      * <p>The values of the {@link Map} will not be {@code null}.
      */
-    @NonNull
-    public Map<KeyType, ValueType> getSuccesses() {
+    public @NonNull Map<KeyType, ValueType> getSuccesses() {
         return Collections.unmodifiableMap(mSuccesses);
     }
 
@@ -89,8 +84,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
      *
      * <p>The values of the {@link Map} will not be {@code null}.
      */
-    @NonNull
-    public Map<KeyType, AppSearchResult<ValueType>> getFailures() {
+    public @NonNull Map<KeyType, AppSearchResult<ValueType>> getFailures() {
         return Collections.unmodifiableMap(mFailures);
     }
 
@@ -100,8 +94,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
      *
      * <p>The values of the {@link Map} will not be {@code null}.
      */
-    @NonNull
-    public Map<KeyType, AppSearchResult<ValueType>> getAll() {
+    public @NonNull Map<KeyType, AppSearchResult<ValueType>> getAll() {
         return Collections.unmodifiableMap(mAll);
     }
 
@@ -117,8 +110,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
     }
 
     @Override
-    @NonNull
-    public String toString() {
+    public @NonNull String toString() {
         return "{\n  successes: " + mSuccesses + "\n  failures: " + mFailures + "\n}";
     }
 
@@ -129,8 +121,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
      * @param <ValueType> The type of the result objects for successful results.
      */
     public static final class Builder<KeyType, ValueType> {
-        private ArrayMap<KeyType, @android.app.appsearch.checker.nullness.qual.Nullable ValueType>
-                mSuccesses = new ArrayMap<>();
+        private ArrayMap<KeyType, @Nullable ValueType> mSuccesses = new ArrayMap<>();
         private ArrayMap<KeyType, AppSearchResult<ValueType>> mFailures = new ArrayMap<>();
         private ArrayMap<KeyType, AppSearchResult<ValueType>> mAll = new ArrayMap<>();
         private boolean mBuilt = false;
@@ -161,8 +152,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
          */
         @CanIgnoreReturnValue
         @SuppressWarnings("MissingGetterMatchingBuilder") // See getSuccesses
-        @NonNull
-        public Builder<KeyType, ValueType> setSuccess(
+        public @NonNull Builder<KeyType, ValueType> setSuccess(
                 @NonNull KeyType key, @Nullable ValueType value) {
             Objects.requireNonNull(key);
             resetIfBuilt();
@@ -185,8 +175,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
          */
         @CanIgnoreReturnValue
         @SuppressWarnings("MissingGetterMatchingBuilder") // See getFailures
-        @NonNull
-        public Builder<KeyType, ValueType> setFailure(
+        public @NonNull Builder<KeyType, ValueType> setFailure(
                 @NonNull KeyType key,
                 @AppSearchResult.ResultCode int resultCode,
                 @Nullable String errorMessage) {
@@ -206,8 +195,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
          */
         @CanIgnoreReturnValue
         @SuppressWarnings("MissingGetterMatchingBuilder") // See getAll
-        @NonNull
-        public Builder<KeyType, ValueType> setResult(
+        public @NonNull Builder<KeyType, ValueType> setResult(
                 @NonNull KeyType key, @NonNull AppSearchResult<ValueType> result) {
             Objects.requireNonNull(key);
             Objects.requireNonNull(result);
@@ -226,8 +214,7 @@ public final class AppSearchBatchResult<KeyType, ValueType> {
         /**
          * Builds an {@link AppSearchBatchResult} object from the contents of this {@link Builder}.
          */
-        @NonNull
-        public AppSearchBatchResult<KeyType, ValueType> build() {
+        public @NonNull AppSearchBatchResult<KeyType, ValueType> build() {
             mBuilt = true;
             return new AppSearchBatchResult<>(mSuccesses, mFailures, mAll);
         }

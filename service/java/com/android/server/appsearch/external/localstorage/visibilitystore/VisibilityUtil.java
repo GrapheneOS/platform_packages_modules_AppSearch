@@ -16,8 +16,8 @@
 
 package com.android.server.appsearch.external.localstorage.visibilitystore;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 

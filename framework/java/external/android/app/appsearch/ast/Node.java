@@ -17,9 +17,10 @@
 package android.app.appsearch.ast;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.Collections;
 import java.util.List;
@@ -44,8 +45,7 @@ public interface Node {
      *
      * @return An empty list of {@link Node} representing the child nodes.
      */
-    @NonNull
-    default List<Node> getChildren() {
+    default @NonNull List<Node> getChildren() {
         return Collections.emptyList();
     }
 }

@@ -17,12 +17,13 @@
 package android.app.appsearch.ast.query;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.ast.FunctionNode;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -32,7 +33,10 @@ import java.util.Objects;
  * <p>The semanticSearch function matches all documents that have at least one embedding vector with
  * a matching model signature (see {@link
  * android.app.appsearch.EmbeddingVector#getModelSignature()}) and a similarity score within the
- * range specified based on the provided metric.
+ * range specified. The similarity score is calculated by determining the distance between the
+ * document embedding vector with a matching model signature and the embedding vector indexed at the
+ * list of vectors returned by {@link SearchSpec#getEmbeddingParameters()}. How this distance is
+ * defined is based on what distance metric set.
  *
  * <p>This node can be used to build a query that contains the semanticSearch function. For example,
  * the node {@code SemanticSearchNode(0, -0.5, 0.5, DOT_PRODUCT)} is equivalent to the query
@@ -142,14 +146,16 @@ public final class SemanticSearchNode implements FunctionNode {
     }
 
     /** Returns the name of the function represented by {@link SemanticSearchNode}. */
-    @NonNull
     @Override
     @FunctionName
-    public String getFunctionName() {
+    public @NonNull String getFunctionName() {
         return FUNCTION_NAME_SEMANTIC_SEARCH;
     }
 
-    /** Returns the index of the embedding vector used in semanticSearch. */
+    /**
+     * Returns the index of the embedding vector to be retrieved from the list of embedding vectors
+     * returned by {@link SearchSpec#getEmbeddingParameters()}.
+     */
     public int getVectorIndex() {
         return mVectorIndex;
     }
@@ -236,9 +242,8 @@ public final class SemanticSearchNode implements FunctionNode {
      * Then the query string will look like `semanticSearch(getEmbeddingParameter(0),
      * -Float.MAX_VALUE, 1)` where {@code Float.MAX_VALUE} is the max value of float.
      */
-    @NonNull
     @Override
-    public String toString() {
+    public @NonNull String toString() {
         StringBuilder builder = new StringBuilder(FunctionNode.FUNCTION_NAME_SEMANTIC_SEARCH);
         builder.append("(getEmbeddingParameter(");
         builder.append(mVectorIndex);
