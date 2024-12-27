@@ -26,8 +26,6 @@ import android.app.appsearch.AppSearchResult;
  * <p>These exceptions can be converted into a failed {@link AppSearchResult} for propagating to the
  * client.
  */
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings("JSpecifyNullness")
 public class AppSearchException extends Exception {
     @AppSearchResult.ResultCode private final int mResultCode;
 

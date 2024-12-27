@@ -31,8 +31,6 @@ import java.util.Objects;
 
 /** {@link Node} that represents logical OR of nodes. */
 @FlaggedApi(Flags.FLAG_ENABLE_ABSTRACT_SYNTAX_TREES)
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings("JSpecifyNullness")
 public final class OrNode implements Node {
     private List<Node> mChildren;
 
@@ -70,7 +68,8 @@ public final class OrNode implements Node {
 
     /** Get the list of nodes being logically ORed over by this node. */
     @Override
-    public @NonNull List<Node> getChildren() {
+    @NonNull
+    public List<Node> getChildren() {
         return Collections.unmodifiableList(mChildren);
     }
 
@@ -140,8 +139,9 @@ public final class OrNode implements Node {
      * <p>The string representation of {@link OrNode} is the string representation of {@link
      * OrNode}'s child nodes joined with "OR", all surrounded by parentheses.
      */
+    @NonNull
     @Override
-    public @NonNull String toString() {
+    public String toString() {
         return "(" + TextUtils.join(" OR ", mChildren) + ")";
     }
 

@@ -35,12 +35,12 @@ import java.util.Objects;
  * handles.
  */
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "RemoveBlobResponseCreator")
 public final class RemoveBlobResponse extends AbstractSafeParcelable {
 
-    public static final @NonNull Parcelable.Creator<RemoveBlobResponse> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<RemoveBlobResponse> CREATOR =
             new RemoveBlobResponseCreator();
 
     @Field(id = 1, getter = "getResponseParcel")
@@ -67,7 +67,8 @@ public final class RemoveBlobResponse extends AbstractSafeParcelable {
      *     operation was successful, the result for that handle is {@code null}; if there was an
      *     error, the result contains an {@link AppSearchResult} with details of the failure.
      */
-    public @NonNull AppSearchBatchResult<AppSearchBlobHandle, Void> getResult() {
+    @NonNull
+    public AppSearchBatchResult<AppSearchBlobHandle, Void> getResult() {
         return mResultParcel.getResult();
     }
 
@@ -76,7 +77,8 @@ public final class RemoveBlobResponse extends AbstractSafeParcelable {
      *
      * @hide
      */
-    public @NonNull AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> getResponseParcel() {
+    @NonNull
+    public AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> getResponseParcel() {
         return mResultParcel;
     }
 

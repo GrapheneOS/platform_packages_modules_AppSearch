@@ -17,6 +17,8 @@ package com.android.server.appsearch.external.localstorage.visibilitystore;
 
 import static android.app.appsearch.AppSearchResult.RESULT_NOT_FOUND;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
@@ -36,9 +38,6 @@ import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.proto.PersistType;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -88,7 +87,8 @@ public class VisibilityStore {
     private final String mAndroidVOverlayDatabaseName;
 
     /** Create a {@link VisibilityStore} instance to store document visibility settings. */
-    public static @NonNull VisibilityStore createDocumentVisibilityStore(
+    @NonNull
+    public static VisibilityStore createDocumentVisibilityStore(
             @NonNull AppSearchImpl appSearchImpl) throws AppSearchException {
         List<String> cachedSchemaTypes = appSearchImpl.getAllPrefixedSchemaTypes();
         return new VisibilityStore(
@@ -99,8 +99,9 @@ public class VisibilityStore {
     }
 
     /** Create a {@link VisibilityStore} instance to store blob visibility settings. */
-    public static @NonNull VisibilityStore createBlobVisibilityStore(
-            @NonNull AppSearchImpl appSearchImpl) throws AppSearchException {
+    @NonNull
+    public static VisibilityStore createBlobVisibilityStore(@NonNull AppSearchImpl appSearchImpl)
+            throws AppSearchException {
         List<String> cachedBlobNamespaces = appSearchImpl.getAllPrefixedBlobNamespaces();
         return new VisibilityStore(
                 appSearchImpl,
@@ -305,7 +306,8 @@ public class VisibilityStore {
     }
 
     /** Gets the {@link InternalVisibilityConfig} for the given prefixed schema type. */
-    public @Nullable InternalVisibilityConfig getVisibility(@NonNull String prefixedSchemaType) {
+    @Nullable
+    public InternalVisibilityConfig getVisibility(@NonNull String prefixedSchemaType) {
         return mVisibilityConfigMap.get(prefixedSchemaType);
     }
 

@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage.converter;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.exceptions.AppSearchException;
 
@@ -23,8 +24,6 @@ import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.proto.PropertyProto;
 import com.google.protobuf.ByteString;
-
-import org.jspecify.annotations.NonNull;
 
 /**
  * Translates a {@link android.app.blob.BlobHandle} into {@link PropertyProto.BlobHandleProto}.
@@ -35,7 +34,8 @@ public final class BlobHandleToProtoConverter {
     private BlobHandleToProtoConverter() {}
 
     /** Converters a {@link AppSearchBlobHandle} into {@link PropertyProto.BlobHandleProto}. */
-    public static PropertyProto.@NonNull BlobHandleProto toBlobHandleProto(
+    @NonNull
+    public static PropertyProto.BlobHandleProto toBlobHandleProto(
             @NonNull AppSearchBlobHandle blobHandle) {
         return PropertyProto.BlobHandleProto.newBuilder()
                 .setNamespace(
@@ -47,8 +47,9 @@ public final class BlobHandleToProtoConverter {
     }
 
     /** Converters a {@link PropertyProto.BlobHandleProto} into {@link AppSearchBlobHandle}. */
-    public static @NonNull AppSearchBlobHandle toAppSearchBlobHandle(
-            PropertyProto.@NonNull BlobHandleProto proto) throws AppSearchException {
+    @NonNull
+    public static AppSearchBlobHandle toAppSearchBlobHandle(
+            @NonNull PropertyProto.BlobHandleProto proto) throws AppSearchException {
         String prefix = PrefixUtil.getPrefix(proto.getNamespace());
         return AppSearchBlobHandle.createWithSha256(
                 proto.getDigest().toByteArray(),

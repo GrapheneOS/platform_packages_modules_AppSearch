@@ -53,29 +53,33 @@ import java.util.Set;
  * @see AppSearchSession#searchSuggestion
  */
 @SafeParcelable.Class(creator = "SearchSuggestionSpecCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class SearchSuggestionSpec extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<SearchSuggestionSpec> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<SearchSuggestionSpec> CREATOR =
             new SearchSuggestionSpecCreator();
 
+    @NonNull
     @Field(id = 1, getter = "getFilterNamespaces")
-    private final @NonNull List<String> mFilterNamespaces;
+    private final List<String> mFilterNamespaces;
 
+    @NonNull
     @Field(id = 2, getter = "getFilterSchemas")
-    private final @NonNull List<String> mFilterSchemas;
+    private final List<String> mFilterSchemas;
 
     // Maps are not supported by SafeParcelable fields, using Bundle instead. Here the key is
     // schema type and value is a list of target property paths in that schema to search over.
+    @NonNull
     @Field(id = 3)
-    final @NonNull Bundle mFilterProperties;
+    final Bundle mFilterProperties;
 
     // Maps are not supported by SafeParcelable fields, using Bundle instead. Here the key is
     // namespace and value is a list of target document ids in that namespace to search over.
+    @NonNull
     @Field(id = 4)
-    final @NonNull Bundle mFilterDocumentIds;
+    final Bundle mFilterDocumentIds;
 
     @Field(id = 5, getter = "getRankingStrategy")
     private final int mRankingStrategy;
@@ -83,8 +87,9 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
     @Field(id = 6, getter = "getMaximumResultCount")
     private final int mMaximumResultCount;
 
+    @NonNull
     @Field(id = 7, getter = "getSearchStringParameters")
-    private final @NonNull List<String> mSearchStringParameters;
+    private final List<String> mSearchStringParameters;
 
     /** @hide */
     @Constructor
@@ -169,7 +174,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
      *
      * <p>If empty, will search over all namespaces.
      */
-    public @NonNull List<String> getFilterNamespaces() {
+    @NonNull
+    public List<String> getFilterNamespaces() {
         if (mFilterNamespaces == null) {
             return Collections.emptyList();
         }
@@ -187,7 +193,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
      *
      * <p>If empty, will search over all schemas.
      */
-    public @NonNull List<String> getFilterSchemas() {
+    @NonNull
+    public List<String> getFilterSchemas() {
         if (mFilterSchemas == null) {
             return Collections.emptyList();
         }
@@ -206,8 +213,9 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
      * <p>Calling this function repeatedly is inefficient. Prefer to retain the Map returned by this
      * function, rather than calling it multiple times.
      */
+    @NonNull
     @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES)
-    public @NonNull Map<String, List<String>> getFilterProperties() {
+    public Map<String, List<String>> getFilterProperties() {
         Set<String> schemas = mFilterProperties.keySet();
         Map<String, List<String>> typePropertyPathsMap = new ArrayMap<>(schemas.size());
         for (String schema : schemas) {
@@ -229,7 +237,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
      * <p>Calling this function repeatedly is inefficient. Prefer to retain the Map returned by this
      * function, rather than calling it multiple times.
      */
-    public @NonNull Map<String, List<String>> getFilterDocumentIds() {
+    @NonNull
+    public Map<String, List<String>> getFilterDocumentIds() {
         Set<String> namespaces = mFilterDocumentIds.keySet();
         Map<String, List<String>> documentIdsMap = new ArrayMap<>(namespaces.size());
         for (String namespace : namespaces) {
@@ -246,8 +255,9 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
      *
      * @see AppSearchSession#search
      */
+    @NonNull
     @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_SEARCH_STRING_PARAMETERS)
-    public @NonNull List<String> getSearchStringParameters() {
+    public List<String> getSearchStringParameters() {
         return mSearchStringParameters;
     }
 
@@ -283,7 +293,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * <p>If unset, the query will search over all namespaces.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterNamespaces(@NonNull String... namespaces) {
+        @NonNull
+        public Builder addFilterNamespaces(@NonNull String... namespaces) {
             Objects.requireNonNull(namespaces);
             resetIfBuilt();
             return addFilterNamespaces(Arrays.asList(namespaces));
@@ -296,7 +307,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * <p>If unset, the query will search over all namespaces.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterNamespaces(@NonNull Collection<String> namespaces) {
+        @NonNull
+        public Builder addFilterNamespaces(@NonNull Collection<String> namespaces) {
             Objects.requireNonNull(namespaces);
             resetIfBuilt();
             mNamespaces.addAll(namespaces);
@@ -310,7 +322,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * this method is never called.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setRankingStrategy(@SuggestionRankingStrategy int rankingStrategy) {
+        @NonNull
+        public Builder setRankingStrategy(@SuggestionRankingStrategy int rankingStrategy) {
             Preconditions.checkArgumentInRange(
                     rankingStrategy,
                     SUGGESTION_RANKING_STRATEGY_DOCUMENT_COUNT,
@@ -328,7 +341,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * <p>If unset, the query will search over all schema.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterSchemas(@NonNull String... schemaTypes) {
+        @NonNull
+        public Builder addFilterSchemas(@NonNull String... schemaTypes) {
             Objects.requireNonNull(schemaTypes);
             resetIfBuilt();
             return addFilterSchemas(Arrays.asList(schemaTypes));
@@ -341,7 +355,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * <p>If unset, the query will search over all schema.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterSchemas(@NonNull Collection<String> schemaTypes) {
+        @NonNull
+        public Builder addFilterSchemas(@NonNull Collection<String> schemaTypes) {
             Objects.requireNonNull(schemaTypes);
             resetIfBuilt();
             mSchemas.addAll(schemaTypes);
@@ -368,8 +383,9 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          *     to.
          */
         @CanIgnoreReturnValue
+        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES)
-        public @NonNull Builder addFilterProperties(
+        public Builder addFilterProperties(
                 @NonNull String schema, @NonNull Collection<String> propertyPaths) {
             Objects.requireNonNull(schema);
             Objects.requireNonNull(propertyPaths);
@@ -399,10 +415,11 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * @param propertyPaths The {@link PropertyPath} to search suggestion over
          */
         @CanIgnoreReturnValue
+        @NonNull
         // Getter method is getFilterProperties
         @SuppressLint("MissingGetterMatchingBuilder")
         @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_FILTER_PROPERTIES)
-        public @NonNull Builder addFilterPropertyPaths(
+        public Builder addFilterPropertyPaths(
                 @NonNull String schema, @NonNull Collection<PropertyPath> propertyPaths) {
             Objects.requireNonNull(schema);
             Objects.requireNonNull(propertyPaths);
@@ -420,7 +437,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * <p>If unset, the query will search over all documents.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterDocumentIds(
+        @NonNull
+        public Builder addFilterDocumentIds(
                 @NonNull String namespace, @NonNull String... documentIds) {
             Objects.requireNonNull(namespace);
             Objects.requireNonNull(documentIds);
@@ -435,7 +453,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * <p>If unset, the query will search over all documents.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterDocumentIds(
+        @NonNull
+        public Builder addFilterDocumentIds(
                 @NonNull String namespace, @NonNull Collection<String> documentIds) {
             Objects.requireNonNull(namespace);
             Objects.requireNonNull(documentIds);
@@ -455,9 +474,9 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * @see AppSearchSession#search
          */
         @CanIgnoreReturnValue
+        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_SEARCH_STRING_PARAMETERS)
-        public @NonNull Builder addSearchStringParameters(
-                @NonNull String... searchStringParameters) {
+        public Builder addSearchStringParameters(@NonNull String... searchStringParameters) {
             Objects.requireNonNull(searchStringParameters);
             resetIfBuilt();
             return addSearchStringParameters(Arrays.asList(searchStringParameters));
@@ -470,9 +489,9 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
          * @see AppSearchSession#search
          */
         @CanIgnoreReturnValue
+        @NonNull
         @FlaggedApi(Flags.FLAG_ENABLE_SEARCH_SPEC_SEARCH_STRING_PARAMETERS)
-        public @NonNull Builder addSearchStringParameters(
-                @NonNull List<String> searchStringParameters) {
+        public Builder addSearchStringParameters(@NonNull List<String> searchStringParameters) {
             Objects.requireNonNull(searchStringParameters);
             resetIfBuilt();
             mSearchStringParameters.addAll(searchStringParameters);
@@ -480,7 +499,8 @@ public final class SearchSuggestionSpec extends AbstractSafeParcelable {
         }
 
         /** Constructs a new {@link SearchSpec} from the contents of this builder. */
-        public @NonNull SearchSuggestionSpec build() {
+        @NonNull
+        public SearchSuggestionSpec build() {
             if (!mSchemas.isEmpty()) {
                 Set<String> schemaFilter = new ArraySet<>(mSchemas);
                 for (String schema : mTypePropertyFilters.keySet()) {

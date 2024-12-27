@@ -16,12 +16,11 @@
 
 package com.android.server.appsearch.external.localstorage.converter;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.util.Log;
 
 import com.google.android.icing.proto.StatusProto;
-
-import org.jspecify.annotations.NonNull;
 
 /**
  * Translates an {@link StatusProto.Code} into a {@link AppSearchResult.ResultCode}
@@ -36,7 +35,7 @@ public final class ResultCodeToProtoConverter {
 
     /** Converts an {@link StatusProto.Code} into a {@link AppSearchResult.ResultCode}. */
     @AppSearchResult.ResultCode
-    public static int toResultCode(StatusProto.@NonNull Code statusCode) {
+    public static int toResultCode(@NonNull StatusProto.Code statusCode) {
         switch (statusCode) {
             case OK:
                 return AppSearchResult.RESULT_OK;

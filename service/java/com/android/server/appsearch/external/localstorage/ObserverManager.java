@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.observer.DocumentChangeInfo;
 import android.app.appsearch.observer.ObserverCallback;
 import android.app.appsearch.observer.ObserverSpec;
@@ -31,9 +33,6 @@ import com.android.server.appsearch.external.localstorage.visibilitystore.Caller
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityUtil;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -330,7 +329,8 @@ public class ObserverManager {
      * packageName}, {@code databaseName} and unprefixed {@code schemaType}, only if they have
      * access to that type according to the provided {@code visibilityChecker}.
      */
-    public @NonNull Set<String> getObserversForSchemaType(
+    @NonNull
+    public Set<String> getObserversForSchemaType(
             @NonNull String packageName,
             @NonNull String databaseName,
             @NonNull String schemaType,

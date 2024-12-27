@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage.visibilitystore;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
@@ -27,8 +28,6 @@ import android.util.ArrayMap;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -122,7 +121,8 @@ public class VisibilityStoreMigrationHelperFromV0 {
      * @param databaseName Database to which the visibility doc refers.
      * @return deprecated visibility document's id.
      */
-    static @NonNull String getDeprecatedVisibilityDocumentId(
+    @NonNull
+    static String getDeprecatedVisibilityDocumentId(
             @NonNull String packageName, @NonNull String databaseName) {
         return DEPRECATED_ID_PREFIX + PrefixUtil.createPrefix(packageName, databaseName);
     }
@@ -172,7 +172,8 @@ public class VisibilityStoreMigrationHelperFromV0 {
      *
      * @param visibilityDocumentV0s The deprecated Visibility Document we found.
      */
-    static @NonNull List<VisibilityDocumentV1> toVisibilityDocumentV1(
+    @NonNull
+    static List<VisibilityDocumentV1> toVisibilityDocumentV1(
             @NonNull List<GenericDocument> visibilityDocumentV0s) {
         Map<String, VisibilityDocumentV1.Builder> documentBuilderMap = new ArrayMap<>();
 
@@ -246,7 +247,8 @@ public class VisibilityStoreMigrationHelperFromV0 {
         return false;
     }
 
-    private static VisibilityDocumentV1.@NonNull Builder getOrCreateBuilder(
+    @NonNull
+    private static VisibilityDocumentV1.Builder getOrCreateBuilder(
             @NonNull Map<String, VisibilityDocumentV1.Builder> documentBuilderMap,
             @NonNull String schemaType) {
         VisibilityDocumentV1.Builder builder = documentBuilderMap.get(schemaType);

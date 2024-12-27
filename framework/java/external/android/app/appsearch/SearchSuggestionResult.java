@@ -32,18 +32,18 @@ import java.util.Objects;
 
 /** The result class of the {@link AppSearchSession#searchSuggestion}. */
 @SafeParcelable.Class(creator = "SearchSuggestionResultCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class SearchSuggestionResult extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<SearchSuggestionResult> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<SearchSuggestionResult> CREATOR =
             new SearchSuggestionResultCreator();
 
     @Field(id = 1, getter = "getSuggestedResult")
     private final String mSuggestedResult;
 
-    private @Nullable Integer mHashCode;
+    @Nullable private Integer mHashCode;
 
     @Constructor
     SearchSuggestionResult(@Param(id = 1) String suggestedResult) {
@@ -58,7 +58,8 @@ public final class SearchSuggestionResult extends AbstractSafeParcelable {
      *
      * <p>The suggested result only contains lowercase or special characters.
      */
-    public @NonNull String getSuggestedResult() {
+    @NonNull
+    public String getSuggestedResult() {
         return mSuggestedResult;
     }
 
@@ -93,7 +94,8 @@ public final class SearchSuggestionResult extends AbstractSafeParcelable {
          * <p>The suggested result should only contain lowercase or special characters.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setSuggestedResult(@NonNull String suggestedResult) {
+        @NonNull
+        public Builder setSuggestedResult(@NonNull String suggestedResult) {
             Objects.requireNonNull(suggestedResult);
             Preconditions.checkStringNotEmpty(suggestedResult);
             mSuggestedResult = suggestedResult;
@@ -101,7 +103,8 @@ public final class SearchSuggestionResult extends AbstractSafeParcelable {
         }
 
         /** Build a {@link SearchSuggestionResult} object */
-        public @NonNull SearchSuggestionResult build() {
+        @NonNull
+        public SearchSuggestionResult build() {
             return new SearchSuggestionResult(mSuggestedResult);
         }
     }

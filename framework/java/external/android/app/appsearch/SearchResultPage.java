@@ -16,13 +16,12 @@
 
 package android.app.appsearch;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,14 +33,16 @@ import java.util.List;
  */
 @SafeParcelable.Class(creator = "SearchResultPageCreator")
 public class SearchResultPage extends AbstractSafeParcelable {
-    public static final Parcelable.@NonNull Creator<SearchResultPage> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<SearchResultPage> CREATOR =
             new SearchResultPageCreator();
 
     @Field(id = 1, getter = "getNextPageToken")
     private final long mNextPageToken;
 
+    @Nullable
     @Field(id = 2, getter = "getResults")
-    private final @Nullable List<SearchResult> mResults;
+    private final List<SearchResult> mResults;
 
     @Constructor
     public SearchResultPage(
@@ -63,7 +64,8 @@ public class SearchResultPage extends AbstractSafeParcelable {
     }
 
     /** Returns all {@link android.app.appsearch.SearchResult}s of this page */
-    public @NonNull List<SearchResult> getResults() {
+    @NonNull
+    public List<SearchResult> getResults() {
         if (mResults == null) {
             return Collections.emptyList();
         }

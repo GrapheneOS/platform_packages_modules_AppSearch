@@ -15,7 +15,7 @@
  */
 package com.android.server.appsearch.external.localstorage.visibilitystore;
 
-import org.jspecify.annotations.NonNull;
+import android.annotation.NonNull;
 
 /**
  * An interface for classes that validate document visibility data.
