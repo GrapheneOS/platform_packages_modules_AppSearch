@@ -230,28 +230,28 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
             if (eventType == XmlPullParser.START_TAG
                     && !XML_TAG_APPFUNCTION.equals(parser.getName())) {
                 String tagName = parser.getName();
-                String tagValue = parser.nextText().trim();
                 switch (tagName) {
                     case "function_id":
-                        functionId = tagValue;
+                        functionId = parser.nextText().trim();
                         break;
                     case "schema_name":
-                        schemaName = tagValue;
+                        schemaName = parser.nextText().trim();
                         break;
                     case "schema_version":
-                        schemaVersion = Long.parseLong(tagValue);
+                        schemaVersion = Long.parseLong(parser.nextText().trim());
                         break;
                     case "schema_category":
-                        schemaCategory = tagValue;
+                        schemaCategory = parser.nextText().trim();
                         break;
                     case "enabled_by_default":
-                        enabledByDefault = Boolean.parseBoolean(tagValue);
+                        enabledByDefault = Boolean.parseBoolean(parser.nextText().trim());
                         break;
                     case "restrict_callers_with_execute_app_functions":
-                        restrictCallersWithExecuteAppFunctions = Boolean.parseBoolean(tagValue);
+                        restrictCallersWithExecuteAppFunctions =
+                                Boolean.parseBoolean(parser.nextText().trim());
                         break;
                     case "display_name_string_res":
-                        displayNameStringRes = Integer.parseInt(tagValue);
+                        displayNameStringRes = Integer.parseInt(parser.nextText().trim());
                         break;
                 }
             }

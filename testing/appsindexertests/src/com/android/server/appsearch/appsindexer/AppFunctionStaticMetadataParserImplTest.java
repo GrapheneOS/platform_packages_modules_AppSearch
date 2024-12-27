@@ -156,6 +156,32 @@ public class AppFunctionStaticMetadataParserImplTest {
     }
 
     @Test
+    public void parse_ignoresUnknownProperties() throws Exception {
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<version>1</version>\n"
+                        + "<appfunctions>\n"
+                        + "  <appfunction>\n"
+                        + "    <function_id>com.example.utils#print</function_id>\n"
+                        + "    <parameters><name>test</name></parameters>\n"
+                        + "    <unknown_property>test</unknown_property>\n"
+                        + "  </appfunction>\n"
+                        + "</appfunctions>");
+
+        List<AppFunctionStaticMetadata> appFunctions =
+                mParser.parse(mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+
+        assertThat(appFunctions).hasSize(1);
+        // Only contain known properties from XML or properties populated by default.
+        assertThat(appFunctions.getFirst().getPropertyNames())
+                .containsExactly(
+                        "functionId",
+                        "packageName",
+                        "enabledByDefault",
+                        "mobileApplicationQualifiedId");
+    }
+
+    @Test
     public void parse_missingFunctionId() throws Exception {
         setXmlInput(
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
