@@ -15,14 +15,13 @@
  */
 package com.android.server.appsearch.external.localstorage.visibilitystore;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.util.ArraySet;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Set;
@@ -101,7 +100,8 @@ class VisibilityDocumentV1 extends GenericDocument {
      * get package's sha 256 certs. The same index of package names array and sha256Certs array
      * represents same package.
      */
-    String @NonNull [] getPackageNames() {
+    @NonNull
+    String[] getPackageNames() {
         return Objects.requireNonNull(getPropertyStringArray(PACKAGE_NAME_PROPERTY));
     }
 
@@ -110,7 +110,8 @@ class VisibilityDocumentV1 extends GenericDocument {
      * #getPackageNames()} to get package's name. The same index of package names array and
      * sha256Certs array represents same package.
      */
-    byte @NonNull [][] getSha256Certs() {
+    @NonNull
+    byte[][] getSha256Certs() {
         return Objects.requireNonNull(getPropertyBytesArray(SHA_256_CERT_PROPERTY));
     }
 
@@ -118,7 +119,8 @@ class VisibilityDocumentV1 extends GenericDocument {
      * Returns an array of Android Roles that have access to the schema this {@link
      * VisibilityDocumentV1} represents.
      */
-    @Nullable Set<Integer> getVisibleToRoles() {
+    @Nullable
+    Set<Integer> getVisibleToRoles() {
         return toInts(getPropertyLongArray(ROLE_PROPERTY));
     }
 
@@ -126,7 +128,8 @@ class VisibilityDocumentV1 extends GenericDocument {
      * Returns an array of Android Permissions that caller mush hold to access the schema this
      * {@link VisibilityDocumentV1} represents.
      */
-    @Nullable Set<Integer> getVisibleToPermissions() {
+    @Nullable
+    Set<Integer> getVisibleToPermissions() {
         return toInts(getPropertyLongArray(PERMISSION_PROPERTY));
     }
 
@@ -148,13 +151,15 @@ class VisibilityDocumentV1 extends GenericDocument {
 
         /** Sets whether this schema has opted out of platform surfacing. */
         @CanIgnoreReturnValue
-        @NonNull Builder setNotDisplayedBySystem(boolean notDisplayedBySystem) {
+        @NonNull
+        Builder setNotDisplayedBySystem(boolean notDisplayedBySystem) {
             return setPropertyBoolean(NOT_DISPLAYED_BY_SYSTEM_PROPERTY, notDisplayedBySystem);
         }
 
         /** Add {@link PackageIdentifier} of packages which has access to this schema. */
         @CanIgnoreReturnValue
-        @NonNull Builder addVisibleToPackages(@NonNull Set<PackageIdentifier> packageIdentifiers) {
+        @NonNull
+        Builder addVisibleToPackages(@NonNull Set<PackageIdentifier> packageIdentifiers) {
             Objects.requireNonNull(packageIdentifiers);
             mPackageIdentifiers.addAll(packageIdentifiers);
             return this;
@@ -162,7 +167,8 @@ class VisibilityDocumentV1 extends GenericDocument {
 
         /** Add {@link PackageIdentifier} of packages which has access to this schema. */
         @CanIgnoreReturnValue
-        @NonNull Builder addVisibleToPackage(@NonNull PackageIdentifier packageIdentifier) {
+        @NonNull
+        Builder addVisibleToPackage(@NonNull PackageIdentifier packageIdentifier) {
             Objects.requireNonNull(packageIdentifier);
             mPackageIdentifiers.add(packageIdentifier);
             return this;
@@ -173,7 +179,8 @@ class VisibilityDocumentV1 extends GenericDocument {
          * represents.
          */
         @CanIgnoreReturnValue
-        @NonNull Builder setVisibleToRoles(@NonNull Set<Integer> visibleToRoles) {
+        @NonNull
+        Builder setVisibleToRoles(@NonNull Set<Integer> visibleToRoles) {
             Objects.requireNonNull(visibleToRoles);
             setPropertyLong(ROLE_PROPERTY, toLongs(visibleToRoles));
             return this;
@@ -184,7 +191,8 @@ class VisibilityDocumentV1 extends GenericDocument {
          * represents.
          */
         @CanIgnoreReturnValue
-        @NonNull Builder setVisibleToPermissions(@NonNull Set<Integer> visibleToPermissions) {
+        @NonNull
+        Builder setVisibleToPermissions(@NonNull Set<Integer> visibleToPermissions) {
             Objects.requireNonNull(visibleToPermissions);
             setPropertyLong(PERMISSION_PROPERTY, toLongs(visibleToPermissions));
             return this;
@@ -192,7 +200,8 @@ class VisibilityDocumentV1 extends GenericDocument {
 
         /** Build a {@link VisibilityDocumentV1} */
         @Override
-        public @NonNull VisibilityDocumentV1 build() {
+        @NonNull
+        public VisibilityDocumentV1 build() {
             String[] packageNames = new String[mPackageIdentifiers.size()];
             byte[][] sha256Certs = new byte[mPackageIdentifiers.size()][32];
             int i = 0;
@@ -207,7 +216,8 @@ class VisibilityDocumentV1 extends GenericDocument {
         }
     }
 
-    static long @NonNull [] toLongs(@NonNull Set<Integer> properties) {
+    @NonNull
+    static long[] toLongs(@NonNull Set<Integer> properties) {
         long[] outputs = new long[properties.size()];
         int i = 0;
         for (int property : properties) {
@@ -216,7 +226,8 @@ class VisibilityDocumentV1 extends GenericDocument {
         return outputs;
     }
 
-    private static @Nullable Set<Integer> toInts(long @Nullable [] properties) {
+    @Nullable
+    private static Set<Integer> toInts(@Nullable long[] properties) {
         if (properties == null) {
             return null;
         }

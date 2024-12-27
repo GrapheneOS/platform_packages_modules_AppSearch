@@ -38,12 +38,12 @@ import java.util.Set;
 
 /** The response class of {@link AppSearchSession#setSchema} */
 @SafeParcelable.Class(creator = "SetSchemaResponseCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class SetSchemaResponse extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<SetSchemaResponse> CREATOR =
+    @NonNull
+    public static final Parcelable.Creator<SetSchemaResponse> CREATOR =
             new SetSchemaResponseCreator();
 
     @Field(id = 1)
@@ -71,19 +71,19 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
     /**
      * Cache of the inflated deleted schema types. Comes from inflating mDeletedTypes at first use
      */
-    private @Nullable Set<String> mDeletedTypesCached;
+    @Nullable private Set<String> mDeletedTypesCached;
 
     /**
      * Cache of the inflated migrated schema types. Comes from inflating mMigratedTypes at first
      * use.
      */
-    private @Nullable Set<String> mMigratedTypesCached;
+    @Nullable private Set<String> mMigratedTypesCached;
 
     /**
      * Cache of the inflated incompatible schema types. Comes from inflating mIncompatibleTypes at
      * first use.
      */
-    private @Nullable Set<String> mIncompatibleTypesCached;
+    @Nullable private Set<String> mIncompatibleTypesCached;
 
     @Constructor
     SetSchemaResponse(
@@ -117,7 +117,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
      * {@link GenericDocument} and the error reason. Mostly it will be mismatch the schema it
      * migrated to.
      */
-    public @NonNull List<MigrationFailure> getMigrationFailures() {
+    @NonNull
+    public List<MigrationFailure> getMigrationFailures() {
         return Collections.unmodifiableList(mMigrationFailures);
     }
 
@@ -130,7 +131,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
      *
      * <p>Documents for a deleted type are removed from the database.
      */
-    public @NonNull Set<String> getDeletedTypes() {
+    @NonNull
+    public Set<String> getDeletedTypes() {
         if (mDeletedTypesCached == null) {
             mDeletedTypesCached = new ArraySet<>(Objects.requireNonNull(mDeletedTypes));
         }
@@ -150,7 +152,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
      *
      * @see Migrator
      */
-    public @NonNull Set<String> getMigratedTypes() {
+    @NonNull
+    public Set<String> getMigratedTypes() {
         if (mMigratedTypesCached == null) {
             mMigratedTypesCached = new ArraySet<>(Objects.requireNonNull(mMigratedTypes));
         }
@@ -168,7 +171,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
      * @see AppSearchSession#setSchema
      * @see SetSchemaRequest.Builder#setForceOverride
      */
-    public @NonNull Set<String> getIncompatibleTypes() {
+    @NonNull
+    public Set<String> getIncompatibleTypes() {
         if (mIncompatibleTypesCached == null) {
             mIncompatibleTypesCached = new ArraySet<>(Objects.requireNonNull(mIncompatibleTypes));
         }
@@ -201,7 +205,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds {@link MigrationFailure}s to the list of migration failures. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addMigrationFailures(
+        @NonNull
+        public Builder addMigrationFailures(
                 @NonNull Collection<MigrationFailure> migrationFailures) {
             Objects.requireNonNull(migrationFailures);
             resetIfBuilt();
@@ -211,7 +216,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds a {@link MigrationFailure} to the list of migration failures. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addMigrationFailure(@NonNull MigrationFailure migrationFailure) {
+        @NonNull
+        public Builder addMigrationFailure(@NonNull MigrationFailure migrationFailure) {
             Objects.requireNonNull(migrationFailure);
             resetIfBuilt();
             mMigrationFailures.add(migrationFailure);
@@ -220,7 +226,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds {@code deletedTypes} to the list of deleted schema types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addDeletedTypes(@NonNull Collection<String> deletedTypes) {
+        @NonNull
+        public Builder addDeletedTypes(@NonNull Collection<String> deletedTypes) {
             Objects.requireNonNull(deletedTypes);
             resetIfBuilt();
             mDeletedTypes.addAll(deletedTypes);
@@ -229,7 +236,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds one {@code deletedType} to the list of deleted schema types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addDeletedType(@NonNull String deletedType) {
+        @NonNull
+        public Builder addDeletedType(@NonNull String deletedType) {
             Objects.requireNonNull(deletedType);
             resetIfBuilt();
             mDeletedTypes.add(deletedType);
@@ -238,8 +246,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds {@code incompatibleTypes} to the list of incompatible schema types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addIncompatibleTypes(
-                @NonNull Collection<String> incompatibleTypes) {
+        @NonNull
+        public Builder addIncompatibleTypes(@NonNull Collection<String> incompatibleTypes) {
             Objects.requireNonNull(incompatibleTypes);
             resetIfBuilt();
             mIncompatibleTypes.addAll(incompatibleTypes);
@@ -248,7 +256,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds one {@code incompatibleType} to the list of incompatible schema types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addIncompatibleType(@NonNull String incompatibleType) {
+        @NonNull
+        public Builder addIncompatibleType(@NonNull String incompatibleType) {
             Objects.requireNonNull(incompatibleType);
             resetIfBuilt();
             mIncompatibleTypes.add(incompatibleType);
@@ -257,7 +266,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds {@code migratedTypes} to the list of migrated schema types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addMigratedTypes(@NonNull Collection<String> migratedTypes) {
+        @NonNull
+        public Builder addMigratedTypes(@NonNull Collection<String> migratedTypes) {
             Objects.requireNonNull(migratedTypes);
             resetIfBuilt();
             mMigratedTypes.addAll(migratedTypes);
@@ -266,7 +276,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
 
         /** Adds one {@code migratedType} to the list of migrated schema types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder addMigratedType(@NonNull String migratedType) {
+        @NonNull
+        public Builder addMigratedType(@NonNull String migratedType) {
             Objects.requireNonNull(migratedType);
             resetIfBuilt();
             mMigratedTypes.add(migratedType);
@@ -274,7 +285,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
         }
 
         /** Builds a {@link SetSchemaResponse} object. */
-        public @NonNull SetSchemaResponse build() {
+        @NonNull
+        public SetSchemaResponse build() {
             mBuilt = true;
             // Avoid converting the potential thousands of MigrationFailures to Pracelable and
             // back just for put in bundle. In platform, we should set MigrationFailures in
@@ -309,7 +321,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
     public static class MigrationFailure extends AbstractSafeParcelable {
 
         @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-        public static final @NonNull Parcelable.Creator<MigrationFailure> CREATOR =
+        @NonNull
+        public static final Parcelable.Creator<MigrationFailure> CREATOR =
                 new MigrationFailureCreator();
 
         @Field(id = 1, getter = "getNamespace")
@@ -322,7 +335,8 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
         private final String mSchemaType;
 
         @Field(id = 4)
-        final @Nullable String mErrorMessage;
+        @Nullable
+        final String mErrorMessage;
 
         @Field(id = 5)
         final int mResultCode;
@@ -367,17 +381,20 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
         }
 
         /** Returns the namespace of the {@link GenericDocument} that failed to be migrated. */
-        public @NonNull String getNamespace() {
+        @NonNull
+        public String getNamespace() {
             return mNamespace;
         }
 
         /** Returns the id of the {@link GenericDocument} that failed to be migrated. */
-        public @NonNull String getDocumentId() {
+        @NonNull
+        public String getDocumentId() {
             return mDocumentId;
         }
 
         /** Returns the schema type of the {@link GenericDocument} that failed to be migrated. */
-        public @NonNull String getSchemaType() {
+        @NonNull
+        public String getSchemaType() {
             return mSchemaType;
         }
 
@@ -385,12 +402,14 @@ public final class SetSchemaResponse extends AbstractSafeParcelable {
          * Returns the {@link AppSearchResult} that indicates why the post-migration {@link
          * GenericDocument} failed to be indexed.
          */
-        public @NonNull AppSearchResult<Void> getAppSearchResult() {
+        @NonNull
+        public AppSearchResult<Void> getAppSearchResult() {
             return AppSearchResult.newFailedResult(mResultCode, mErrorMessage);
         }
 
+        @NonNull
         @Override
-        public @NonNull String toString() {
+        public String toString() {
             return "MigrationFailure { schemaType: "
                     + getSchemaType()
                     + ", namespace: "

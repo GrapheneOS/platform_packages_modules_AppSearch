@@ -950,9 +950,9 @@ package android.app.appsearch.ast.operators {
     ctor public PropertyRestrictNode(@NonNull android.app.appsearch.PropertyPath, @NonNull android.app.appsearch.ast.Node);
     method @NonNull public android.app.appsearch.ast.Node getChild();
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
-    method @NonNull public android.app.appsearch.PropertyPath getPropertyPath();
+    method @NonNull public android.app.appsearch.PropertyPath getProperty();
     method public void setChild(@NonNull android.app.appsearch.ast.Node);
-    method public void setPropertyPath(@NonNull android.app.appsearch.PropertyPath);
+    method public void setProperty(@NonNull android.app.appsearch.PropertyPath);
   }
 
 }
@@ -969,27 +969,27 @@ package android.app.appsearch.ast.query {
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class HasPropertyNode implements android.app.appsearch.ast.FunctionNode {
     ctor public HasPropertyNode(@NonNull android.app.appsearch.PropertyPath);
     method @NonNull public String getFunctionName();
-    method @NonNull public android.app.appsearch.PropertyPath getPropertyPath();
-    method public void setPropertyPath(@NonNull android.app.appsearch.PropertyPath);
+    method @NonNull public android.app.appsearch.PropertyPath getProperty();
+    method public void setProperty(@NonNull android.app.appsearch.PropertyPath);
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class PropertyDefinedNode implements android.app.appsearch.ast.FunctionNode {
     ctor public PropertyDefinedNode(@NonNull android.app.appsearch.PropertyPath);
     method @NonNull public String getFunctionName();
-    method @NonNull public android.app.appsearch.PropertyPath getPropertyPath();
-    method public void setPropertyPath(@NonNull android.app.appsearch.PropertyPath);
+    method @NonNull public android.app.appsearch.PropertyPath getProperty();
+    method public void setProperty(@NonNull android.app.appsearch.PropertyPath);
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class SearchNode implements android.app.appsearch.ast.FunctionNode {
     ctor public SearchNode(@NonNull android.app.appsearch.ast.Node, @NonNull java.util.List<android.app.appsearch.PropertyPath>);
     ctor public SearchNode(@NonNull android.app.appsearch.ast.Node);
-    method public void addPropertyPath(@NonNull android.app.appsearch.PropertyPath);
+    method public void addProperty(@NonNull android.app.appsearch.PropertyPath);
     method @NonNull public android.app.appsearch.ast.Node getChild();
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
     method @NonNull public String getFunctionName();
-    method @NonNull public java.util.List<android.app.appsearch.PropertyPath> getPropertyPaths();
+    method @NonNull public java.util.List<android.app.appsearch.PropertyPath> getProperties();
     method public void setChild(@NonNull android.app.appsearch.ast.Node);
-    method public void setPropertyPaths(@NonNull java.util.List<android.app.appsearch.PropertyPath>);
+    method public void setProperties(@NonNull java.util.List<android.app.appsearch.PropertyPath>);
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class SemanticSearchNode implements android.app.appsearch.ast.FunctionNode {

@@ -41,19 +41,18 @@ import java.util.Set;
  * match against.
  */
 @SafeParcelable.Class(creator = "ObserverSpecCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 public final class ObserverSpec extends AbstractSafeParcelable {
 
     @FlaggedApi(Flags.FLAG_ENABLE_SAFE_PARCELABLE_2)
-    public static final @NonNull Parcelable.Creator<ObserverSpec> CREATOR =
-            new ObserverSpecCreator();
+    @NonNull
+    public static final Parcelable.Creator<ObserverSpec> CREATOR = new ObserverSpecCreator();
 
     @Field(id = 1)
     final List<String> mFilterSchemas;
 
     /** Populated on first use */
-    private volatile @Nullable Set<String> mFilterSchemasCached;
+    @Nullable private volatile Set<String> mFilterSchemasCached;
 
     /** @hide */
     @Constructor
@@ -66,7 +65,8 @@ public final class ObserverSpec extends AbstractSafeParcelable {
      *
      * <p>If empty, the observers will trigger on all schema types.
      */
-    public @NonNull Set<String> getFilterSchemas() {
+    @NonNull
+    public Set<String> getFilterSchemas() {
         if (mFilterSchemasCached == null) {
             if (mFilterSchemas == null) {
                 mFilterSchemasCached = Collections.emptySet();
@@ -89,7 +89,8 @@ public final class ObserverSpec extends AbstractSafeParcelable {
          * <p>If unset, the observer will match documents of all types.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterSchemas(@NonNull String... schemas) {
+        @NonNull
+        public Builder addFilterSchemas(@NonNull String... schemas) {
             Objects.requireNonNull(schemas);
             resetIfBuilt();
             return addFilterSchemas(Arrays.asList(schemas));
@@ -102,7 +103,8 @@ public final class ObserverSpec extends AbstractSafeParcelable {
          * <p>If unset, the observer will match documents of all types.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder addFilterSchemas(@NonNull Collection<String> schemas) {
+        @NonNull
+        public Builder addFilterSchemas(@NonNull Collection<String> schemas) {
             Objects.requireNonNull(schemas);
             resetIfBuilt();
             mFilterSchemas.addAll(schemas);
@@ -110,7 +112,8 @@ public final class ObserverSpec extends AbstractSafeParcelable {
         }
 
         /** Constructs a new {@link ObserverSpec} from the contents of this builder. */
-        public @NonNull ObserverSpec build() {
+        @NonNull
+        public ObserverSpec build() {
             mBuilt = true;
             return new ObserverSpec(mFilterSchemas);
         }

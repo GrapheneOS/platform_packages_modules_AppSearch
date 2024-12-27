@@ -19,13 +19,12 @@ package com.android.server.appsearch.external.localstorage.stats;
 import static android.app.appsearch.stats.SchemaMigrationStats.NO_MIGRATION;
 import static android.app.appsearch.stats.SchemaMigrationStats.SECOND_CALL_APPLY_NEW_SCHEMA;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.stats.SchemaMigrationStats;
 
 import com.android.internal.util.Preconditions;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -37,9 +36,9 @@ import java.util.Objects;
  */
 public final class SetSchemaStats {
 
-    private final @NonNull String mPackageName;
+    @NonNull private final String mPackageName;
 
-    private final @NonNull String mDatabase;
+    @NonNull private final String mDatabase;
 
     @AppSearchResult.ResultCode private final int mStatusCode;
     private final int mTotalLatencyMillis;
@@ -95,12 +94,14 @@ public final class SetSchemaStats {
     }
 
     /** Returns calling package name. */
-    public @NonNull String getPackageName() {
+    @NonNull
+    public String getPackageName() {
         return mPackageName;
     }
 
     /** Returns calling database name. */
-    public @NonNull String getDatabase() {
+    @NonNull
+    public String getDatabase() {
         return mDatabase;
     }
 
@@ -228,8 +229,8 @@ public final class SetSchemaStats {
 
     /** Builder for {@link SetSchemaStats}. */
     public static class Builder {
-        final @NonNull String mPackageName;
-        final @NonNull String mDatabase;
+        @NonNull final String mPackageName;
+        @NonNull final String mDatabase;
         @AppSearchResult.ResultCode int mStatusCode;
         int mTotalLatencyMillis;
         int mNewTypeCount;
@@ -261,50 +262,56 @@ public final class SetSchemaStats {
 
         /** Sets the status of the SetSchema action. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
+        @NonNull
+        public Builder setStatusCode(@AppSearchResult.ResultCode int statusCode) {
             mStatusCode = statusCode;
             return this;
         }
 
         /** Sets total latency for the SetSchema action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalLatencyMillis(int totalLatencyMillis) {
+        @NonNull
+        public Builder setTotalLatencyMillis(int totalLatencyMillis) {
             mTotalLatencyMillis = totalLatencyMillis;
             return this;
         }
 
         /** Sets number of new types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setNewTypeCount(int newTypeCount) {
+        @NonNull
+        public Builder setNewTypeCount(int newTypeCount) {
             mNewTypeCount = newTypeCount;
             return this;
         }
 
         /** Sets number of deleted types. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDeletedTypeCount(int deletedTypeCount) {
+        @NonNull
+        public Builder setDeletedTypeCount(int deletedTypeCount) {
             mDeletedTypeCount = deletedTypeCount;
             return this;
         }
 
         /** Sets number of compatible type changes. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setCompatibleTypeChangeCount(int compatibleTypeChangeCount) {
+        @NonNull
+        public Builder setCompatibleTypeChangeCount(int compatibleTypeChangeCount) {
             mCompatibleTypeChangeCount = compatibleTypeChangeCount;
             return this;
         }
 
         /** Sets number of index-incompatible type changes. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setIndexIncompatibleTypeChangeCount(
-                int indexIncompatibleTypeChangeCount) {
+        @NonNull
+        public Builder setIndexIncompatibleTypeChangeCount(int indexIncompatibleTypeChangeCount) {
             mIndexIncompatibleTypeChangeCount = indexIncompatibleTypeChangeCount;
             return this;
         }
 
         /** Sets number of backwards-incompatible type changes. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setBackwardsIncompatibleTypeChangeCount(
+        @NonNull
+        public Builder setBackwardsIncompatibleTypeChangeCount(
                 int backwardsIncompatibleTypeChangeCount) {
             mBackwardsIncompatibleTypeChangeCount = backwardsIncompatibleTypeChangeCount;
             return this;
@@ -312,24 +319,24 @@ public final class SetSchemaStats {
 
         /** Sets total latency for the SetSchema in native action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setVerifyIncomingCallLatencyMillis(
-                int verifyIncomingCallLatencyMillis) {
+        @NonNull
+        public Builder setVerifyIncomingCallLatencyMillis(int verifyIncomingCallLatencyMillis) {
             mVerifyIncomingCallLatencyMillis = verifyIncomingCallLatencyMillis;
             return this;
         }
 
         /** Sets total latency for the SetSchema in native action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setExecutorAcquisitionLatencyMillis(
-                int executorAcquisitionLatencyMillis) {
+        @NonNull
+        public Builder setExecutorAcquisitionLatencyMillis(int executorAcquisitionLatencyMillis) {
             mExecutorAcquisitionLatencyMillis = executorAcquisitionLatencyMillis;
             return this;
         }
 
         /** Sets latency for the rebuild schema object from bundle action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setRebuildFromBundleLatencyMillis(
-                int rebuildFromBundleLatencyMillis) {
+        @NonNull
+        public Builder setRebuildFromBundleLatencyMillis(int rebuildFromBundleLatencyMillis) {
             mRebuildFromBundleLatencyMillis = rebuildFromBundleLatencyMillis;
             return this;
         }
@@ -338,45 +345,48 @@ public final class SetSchemaStats {
          * Sets latency for waiting to acquire the lock during Java function calls in milliseconds.
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setJavaLockAcquisitionLatencyMillis(
-                int javaLockAcquisitionLatencyMillis) {
+        @NonNull
+        public Builder setJavaLockAcquisitionLatencyMillis(int javaLockAcquisitionLatencyMillis) {
             mJavaLockAcquisitionLatencyMillis = javaLockAcquisitionLatencyMillis;
             return this;
         }
 
         /** Sets latency for the rewrite the schema proto action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setRewriteSchemaLatencyMillis(int rewriteSchemaLatencyMillis) {
+        @NonNull
+        public Builder setRewriteSchemaLatencyMillis(int rewriteSchemaLatencyMillis) {
             mRewriteSchemaLatencyMillis = rewriteSchemaLatencyMillis;
             return this;
         }
 
         /** Sets total latency for a single set schema in native action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTotalNativeLatencyMillis(int totalNativeLatencyMillis) {
+        @NonNull
+        public Builder setTotalNativeLatencyMillis(int totalNativeLatencyMillis) {
             mTotalNativeLatencyMillis = totalNativeLatencyMillis;
             return this;
         }
 
         /** Sets latency for the apply visibility settings action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setVisibilitySettingLatencyMillis(
-                int visibilitySettingLatencyMillis) {
+        @NonNull
+        public Builder setVisibilitySettingLatencyMillis(int visibilitySettingLatencyMillis) {
             mVisibilitySettingLatencyMillis = visibilitySettingLatencyMillis;
             return this;
         }
 
         /** Sets latency for converting to SetSchemaResponseInternal object in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setConvertToResponseLatencyMillis(
-                int convertToResponseLatencyMillis) {
+        @NonNull
+        public Builder setConvertToResponseLatencyMillis(int convertToResponseLatencyMillis) {
             mConvertToResponseLatencyMillis = convertToResponseLatencyMillis;
             return this;
         }
 
         /** Sets latency for the dispatch change notification action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDispatchChangeNotificationsLatencyMillis(
+        @NonNull
+        public Builder setDispatchChangeNotificationsLatencyMillis(
                 int dispatchChangeNotificationsLatencyMillis) {
             mDispatchChangeNotificationsLatencyMillis = dispatchChangeNotificationsLatencyMillis;
             return this;
@@ -384,35 +394,40 @@ public final class SetSchemaStats {
 
         /** Sets latency for the optimization action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setOptimizeLatencyMillis(int optimizeLatencyMillis) {
+        @NonNull
+        public Builder setOptimizeLatencyMillis(int optimizeLatencyMillis) {
             mOptimizeLatencyMillis = optimizeLatencyMillis;
             return this;
         }
 
         /** Sets whether this package is observed and we should prepare change notifications. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setIsPackageObserved(boolean isPackageObserved) {
+        @NonNull
+        public Builder setIsPackageObserved(boolean isPackageObserved) {
             mIsPackageObserved = isPackageObserved;
             return this;
         }
 
         /** Sets latency for the old schema action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setGetOldSchemaLatencyMillis(int getOldSchemaLatencyMillis) {
+        @NonNull
+        public Builder setGetOldSchemaLatencyMillis(int getOldSchemaLatencyMillis) {
             mGetOldSchemaLatencyMillis = getOldSchemaLatencyMillis;
             return this;
         }
 
         /** Sets latency for the registered observer action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setGetObserverLatencyMillis(int getObserverLatencyMillis) {
+        @NonNull
+        public Builder setGetObserverLatencyMillis(int getObserverLatencyMillis) {
             mGetObserverLatencyMillis = getObserverLatencyMillis;
             return this;
         }
 
         /** Sets latency for the preparing change notification action in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setPreparingChangeNotificationLatencyMillis(
+        @NonNull
+        public Builder setPreparingChangeNotificationLatencyMillis(
                 int preparingChangeNotificationLatencyMillis) {
             mPreparingChangeNotificationLatencyMillis = preparingChangeNotificationLatencyMillis;
             return this;
@@ -420,7 +435,8 @@ public final class SetSchemaStats {
 
         /** Sets the type indicate how this set schema call relative to schema migration cases */
         @CanIgnoreReturnValue
-        public @NonNull Builder setSchemaMigrationCallType(
+        @NonNull
+        public Builder setSchemaMigrationCallType(
                 @SchemaMigrationStats.SchemaMigrationCallType int schemaMigrationCallType) {
             Preconditions.checkArgumentInRange(
                     schemaMigrationCallType,
@@ -432,7 +448,8 @@ public final class SetSchemaStats {
         }
 
         /** Builds a new {@link SetSchemaStats} from the {@link Builder}. */
-        public @NonNull SetSchemaStats build() {
+        @NonNull
+        public SetSchemaStats build() {
             return new SetSchemaStats(/* builder= */ this);
         }
     }

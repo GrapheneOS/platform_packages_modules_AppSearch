@@ -18,6 +18,7 @@ package com.android.server.appsearch.external.localstorage;
 
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getPackageName;
 
+import android.annotation.NonNull;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.ArrayMap;
@@ -26,8 +27,6 @@ import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.util.MapUtil;
 
 import com.google.android.icing.proto.NamespaceStorageInfoProto;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.Map;

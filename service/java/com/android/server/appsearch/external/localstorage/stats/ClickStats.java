@@ -16,9 +16,8 @@
 
 package com.android.server.appsearch.external.localstorage.stats;
 
+import android.annotation.NonNull;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -92,28 +91,32 @@ public class ClickStats {
 
         /** Sets the click action timestamp in milliseconds since Unix epoch. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTimestampMillis(long timestampMillis) {
+        @NonNull
+        public Builder setTimestampMillis(long timestampMillis) {
             mTimestampMillis = timestampMillis;
             return this;
         }
 
         /** Sets the time (duration) of the user staying on the clicked result. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setTimeStayOnResultMillis(long timeStayOnResultMillis) {
+        @NonNull
+        public Builder setTimeStayOnResultMillis(long timeStayOnResultMillis) {
             mTimeStayOnResultMillis = timeStayOnResultMillis;
             return this;
         }
 
         /** Sets the in-block rank of the clicked result. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setResultRankInBlock(int resultRankInBlock) {
+        @NonNull
+        public Builder setResultRankInBlock(int resultRankInBlock) {
             mResultRankInBlock = resultRankInBlock;
             return this;
         }
 
         /** Sets the global rank of the clicked result. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setResultRankGlobal(int resultRankGlobal) {
+        @NonNull
+        public Builder setResultRankGlobal(int resultRankGlobal) {
             mResultRankGlobal = resultRankGlobal;
             return this;
         }
@@ -136,13 +139,15 @@ public class ClickStats {
          * </ul>
          */
         @CanIgnoreReturnValue
-        public @NonNull Builder setIsGoodClick(boolean isGoodClick) {
+        @NonNull
+        public Builder setIsGoodClick(boolean isGoodClick) {
             mIsGoodClick = isGoodClick;
             return this;
         }
 
         /** Builds a new {@link ClickStats} from the {@link ClickStats.Builder}. */
-        public @NonNull ClickStats build() {
+        @NonNull
+        public ClickStats build() {
             return new ClickStats(/* builder= */ this);
         }
     }

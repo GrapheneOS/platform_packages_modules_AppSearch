@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage.converter;
 
+import android.annotation.NonNull;
 import android.app.appsearch.SearchSuggestionSpec;
 
 import com.android.server.appsearch.external.localstorage.NamespaceCache;
@@ -26,8 +27,6 @@ import com.google.android.icing.proto.SuggestionScoringSpecProto;
 import com.google.android.icing.proto.SuggestionSpecProto;
 import com.google.android.icing.proto.TermMatchType;
 import com.google.android.icing.proto.TypePropertyMask;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.Map;
@@ -97,7 +96,8 @@ public final class SearchSuggestionSpecToProtoConverter {
     }
 
     /** Extracts {@link SuggestionSpecProto} information from a {@link SearchSuggestionSpec}. */
-    public @NonNull SuggestionSpecProto toSearchSuggestionSpecProto() {
+    @NonNull
+    public SuggestionSpecProto toSearchSuggestionSpecProto() {
         // Set query suggestion prefix to the SearchSuggestionProto and override schema and
         // namespace filter by targetPrefixedFilters which contains all existing and also
         // accessible to the caller filters.

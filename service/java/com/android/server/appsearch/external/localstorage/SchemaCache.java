@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.annotation.NonNull;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -25,8 +26,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.proto.SchemaTypeConfigProto;
-
-import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -78,8 +77,8 @@ public class SchemaCache {
     }
 
     /** Returns the schema map for the given prefix. */
-    public @NonNull Map<String, SchemaTypeConfigProto> getSchemaMapForPrefix(
-            @NonNull String prefix) {
+    @NonNull
+    public Map<String, SchemaTypeConfigProto> getSchemaMapForPrefix(@NonNull String prefix) {
         Objects.requireNonNull(prefix);
 
         Map<String, SchemaTypeConfigProto> schemaMap = mSchemaMap.get(prefix);
@@ -90,7 +89,8 @@ public class SchemaCache {
     }
 
     /** Returns a set of all prefixes stored in the cache. */
-    public @NonNull Set<String> getAllPrefixes() {
+    @NonNull
+    public Set<String> getAllPrefixes() {
         return Collections.unmodifiableSet(mSchemaMap.keySet());
     }
 
@@ -99,7 +99,8 @@ public class SchemaCache {
      *
      * <p>This method is inefficient to call repeatedly.
      */
-    public @NonNull List<String> getAllPrefixedSchemaTypes() {
+    @NonNull
+    public List<String> getAllPrefixedSchemaTypes() {
         List<String> cachedPrefixedSchemaTypes = new ArrayList<>();
         for (Map<String, SchemaTypeConfigProto> value : mSchemaMap.values()) {
             cachedPrefixedSchemaTypes.addAll(value.keySet());
@@ -111,7 +112,8 @@ public class SchemaCache {
      * Returns the schema types for the given set of prefixed schema types with their descendants,
      * based on the schema parent-to-children map held in the cache.
      */
-    public @NonNull Set<String> getSchemaTypesWithDescendants(
+    @NonNull
+    public Set<String> getSchemaTypesWithDescendants(
             @NonNull String prefix, @NonNull Set<String> prefixedSchemaTypes) {
         Objects.requireNonNull(prefix);
         Objects.requireNonNull(prefixedSchemaTypes);
@@ -144,7 +146,8 @@ public class SchemaCache {
      * prefixed schema type, based on the schema child-to-parents map held in the cache. It's
      * guaranteed that child types always appear before parent types in the list.
      */
-    public @NonNull List<String> getTransitiveUnprefixedParentSchemaTypes(
+    @NonNull
+    public List<String> getTransitiveUnprefixedParentSchemaTypes(
             @NonNull String prefix, @NonNull String prefixedSchemaType) throws AppSearchException {
         Objects.requireNonNull(prefix);
         Objects.requireNonNull(prefixedSchemaType);
@@ -281,7 +284,8 @@ public class SchemaCache {
      * Removes the entry of the given prefix from the schema map, the schema parent-to-children map
      * and the child-to-parents map, and returns the set of removed prefixed schema type.
      */
-    public @NonNull Set<String> removePrefix(@NonNull String prefix) {
+    @NonNull
+    public Set<String> removePrefix(@NonNull String prefix) {
         Objects.requireNonNull(prefix);
 
         Map<String, SchemaTypeConfigProto> removedSchemas =
@@ -303,7 +307,8 @@ public class SchemaCache {
      *
      * <p>It's guaranteed that child types always appear before parent types in the list.
      */
-    private @NonNull List<String> calculateTransitiveUnprefixedParentSchemaTypes(
+    @NonNull
+    private List<String> calculateTransitiveUnprefixedParentSchemaTypes(
             @NonNull String prefixedSchemaType,
             @NonNull Map<String, SchemaTypeConfigProto> prefixedSchemaMap)
             throws AppSearchException {

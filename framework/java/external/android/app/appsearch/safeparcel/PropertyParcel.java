@@ -16,15 +16,14 @@
 
 package android.app.appsearch.safeparcel;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.EmbeddingVector;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -40,49 +39,58 @@ import java.util.Objects;
 // This won't be used to send data over binder, and we have to use Parcelable for code sync purpose.
 @SuppressLint("BanParcelableUsage")
 public final class PropertyParcel extends AbstractSafeParcelable implements Parcelable {
-    public static final Parcelable.@NonNull Creator<PropertyParcel> CREATOR =
-            new PropertyParcelCreator();
+    @NonNull
+    public static final Parcelable.Creator<PropertyParcel> CREATOR = new PropertyParcelCreator();
 
+    @NonNull
     @Field(id = 1, getter = "getPropertyName")
-    private final @NonNull String mPropertyName;
+    private final String mPropertyName;
 
+    @Nullable
     @Field(id = 2, getter = "getStringValues")
-    private final String @Nullable [] mStringValues;
+    private final String[] mStringValues;
 
+    @Nullable
     @Field(id = 3, getter = "getLongValues")
-    private final long @Nullable [] mLongValues;
+    private final long[] mLongValues;
 
+    @Nullable
     @Field(id = 4, getter = "getDoubleValues")
-    private final double @Nullable [] mDoubleValues;
+    private final double[] mDoubleValues;
 
+    @Nullable
     @Field(id = 5, getter = "getBooleanValues")
-    private final boolean @Nullable [] mBooleanValues;
+    private final boolean[] mBooleanValues;
 
+    @Nullable
     @Field(id = 6, getter = "getBytesValues")
-    private final byte @Nullable [][] mBytesValues;
+    private final byte[][] mBytesValues;
 
+    @Nullable
     @Field(id = 7, getter = "getDocumentValues")
-    private final GenericDocumentParcel @Nullable [] mDocumentValues;
+    private final GenericDocumentParcel[] mDocumentValues;
 
+    @Nullable
     @Field(id = 8, getter = "getEmbeddingValues")
-    private final EmbeddingVector @Nullable [] mEmbeddingValues;
+    private final EmbeddingVector[] mEmbeddingValues;
 
+    @Nullable
     @Field(id = 9, getter = "getBlobHandleValues")
-    private final AppSearchBlobHandle @Nullable [] mBlobHandleValues;
+    private final AppSearchBlobHandle[] mBlobHandleValues;
 
-    private @Nullable Integer mHashCode;
+    @Nullable private Integer mHashCode;
 
     @Constructor
     PropertyParcel(
             @Param(id = 1) @NonNull String propertyName,
-            @Param(id = 2) String @Nullable [] stringValues,
-            @Param(id = 3) long @Nullable [] longValues,
-            @Param(id = 4) double @Nullable [] doubleValues,
-            @Param(id = 5) boolean @Nullable [] booleanValues,
-            @Param(id = 6) byte @Nullable [][] bytesValues,
-            @Param(id = 7) GenericDocumentParcel @Nullable [] documentValues,
-            @Param(id = 8) EmbeddingVector @Nullable [] embeddingValues,
-            @Param(id = 9) AppSearchBlobHandle @Nullable [] blobHandleValues) {
+            @Param(id = 2) @Nullable String[] stringValues,
+            @Param(id = 3) @Nullable long[] longValues,
+            @Param(id = 4) @Nullable double[] doubleValues,
+            @Param(id = 5) @Nullable boolean[] booleanValues,
+            @Param(id = 6) @Nullable byte[][] bytesValues,
+            @Param(id = 7) @Nullable GenericDocumentParcel[] documentValues,
+            @Param(id = 8) @Nullable EmbeddingVector[] embeddingValues,
+            @Param(id = 9) @Nullable AppSearchBlobHandle[] blobHandleValues) {
         mPropertyName = Objects.requireNonNull(propertyName);
         mStringValues = stringValues;
         mLongValues = longValues;
@@ -96,47 +104,56 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
     }
 
     /** Returns the name of the property. */
-    public @NonNull String getPropertyName() {
+    @NonNull
+    public String getPropertyName() {
         return mPropertyName;
     }
 
     /** Returns {@code String} values in an array. */
-    public String @Nullable [] getStringValues() {
+    @Nullable
+    public String[] getStringValues() {
         return mStringValues;
     }
 
     /** Returns {@code long} values in an array. */
-    public long @Nullable [] getLongValues() {
+    @Nullable
+    public long[] getLongValues() {
         return mLongValues;
     }
 
     /** Returns {@code double} values in an array. */
-    public double @Nullable [] getDoubleValues() {
+    @Nullable
+    public double[] getDoubleValues() {
         return mDoubleValues;
     }
 
     /** Returns {@code boolean} values in an array. */
-    public boolean @Nullable [] getBooleanValues() {
+    @Nullable
+    public boolean[] getBooleanValues() {
         return mBooleanValues;
     }
 
     /** Returns a two-dimension {@code byte} array. */
-    public byte @Nullable [][] getBytesValues() {
+    @Nullable
+    public byte[][] getBytesValues() {
         return mBytesValues;
     }
 
     /** Returns {@link GenericDocumentParcel}s in an array. */
-    public GenericDocumentParcel @Nullable [] getDocumentValues() {
+    @Nullable
+    public GenericDocumentParcel[] getDocumentValues() {
         return mDocumentValues;
     }
 
     /** Returns {@link EmbeddingVector}s in an array. */
-    public EmbeddingVector @Nullable [] getEmbeddingValues() {
+    @Nullable
+    public EmbeddingVector[] getEmbeddingValues() {
         return mEmbeddingValues;
     }
 
     /** Returns {@link AppSearchBlobHandle}s in an array. */
-    public AppSearchBlobHandle @Nullable [] getBlobHandleValues() {
+    @Nullable
+    public AppSearchBlobHandle[] getBlobHandleValues() {
         return mBlobHandleValues;
     }
 
@@ -145,7 +162,8 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
      *
      * <p>Different from other getter methods, this one will return an {@link Object}.
      */
-    public @Nullable Object getValues() {
+    @Nullable
+    public Object getValues() {
         if (mStringValues != null) {
             return mStringValues;
         }
@@ -281,64 +299,71 @@ public final class PropertyParcel extends AbstractSafeParcelable implements Parc
 
         /** Sets String values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setStringValues(String @NonNull [] stringValues) {
+        @NonNull
+        public Builder setStringValues(@NonNull String[] stringValues) {
             mStringValues = Objects.requireNonNull(stringValues);
             return this;
         }
 
         /** Sets long values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setLongValues(long @NonNull [] longValues) {
+        @NonNull
+        public Builder setLongValues(@NonNull long[] longValues) {
             mLongValues = Objects.requireNonNull(longValues);
             return this;
         }
 
         /** Sets double values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDoubleValues(double @NonNull [] doubleValues) {
+        @NonNull
+        public Builder setDoubleValues(@NonNull double[] doubleValues) {
             mDoubleValues = Objects.requireNonNull(doubleValues);
             return this;
         }
 
         /** Sets boolean values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setBooleanValues(boolean @NonNull [] booleanValues) {
+        @NonNull
+        public Builder setBooleanValues(@NonNull boolean[] booleanValues) {
             mBooleanValues = Objects.requireNonNull(booleanValues);
             return this;
         }
 
         /** Sets a two dimension byte array. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setBytesValues(byte @NonNull [][] bytesValues) {
+        @NonNull
+        public Builder setBytesValues(@NonNull byte[][] bytesValues) {
             mBytesValues = Objects.requireNonNull(bytesValues);
             return this;
         }
 
         /** Sets document values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setDocumentValues(
-                GenericDocumentParcel @NonNull [] documentValues) {
+        @NonNull
+        public Builder setDocumentValues(@NonNull GenericDocumentParcel[] documentValues) {
             mDocumentValues = Objects.requireNonNull(documentValues);
             return this;
         }
 
         /** Sets embedding values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setEmbeddingValues(EmbeddingVector @NonNull [] embeddingValues) {
+        @NonNull
+        public Builder setEmbeddingValues(@NonNull EmbeddingVector[] embeddingValues) {
             mEmbeddingValues = Objects.requireNonNull(embeddingValues);
             return this;
         }
 
         /** Sets {@link AppSearchBlobHandle} values. */
         @CanIgnoreReturnValue
-        public @NonNull Builder setBlobHandleValues(
-                AppSearchBlobHandle @NonNull [] blobHandleValues) {
+        @NonNull
+        public Builder setBlobHandleValues(@NonNull AppSearchBlobHandle[] blobHandleValues) {
             mBlobHandleValues = Objects.requireNonNull(blobHandleValues);
             return this;
         }
 
         /** Builds a {@link PropertyParcel}. */
-        public @NonNull PropertyParcel build() {
+        @NonNull
+        public PropertyParcel build() {
             return new PropertyParcel(
                     mPropertyName,
                     mStringValues,
