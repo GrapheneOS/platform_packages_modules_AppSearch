@@ -886,7 +886,7 @@ public class AppsIndexerImplTest {
                                         resolveInfo.serviceInfo.name))))
                 .thenReturn(new PackageManager.Property("", "app_function_schema.xml", "", ""));
         when(pm.getProperty(
-                        eq("android.app.appfunctions"),
+                        eq("android.app.appfunctions.v2"),
                         eq(
                                 new ComponentName(
                                         resolveInfo.serviceInfo.packageName,

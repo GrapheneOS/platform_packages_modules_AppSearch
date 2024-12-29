@@ -348,10 +348,26 @@ public final class AppsUtil {
             }
 
             String assetFilePath;
+            boolean isDynamicSchemaDefined =
+                    schemasPerPackage != null
+                            && !schemasPerPackage
+                                    .getOrDefault(packageInfo.packageName, Collections.emptyMap())
+                                    .isEmpty();
+
+            // Currently SDK will generate two files for hardcoded and dynamic schemas respectively
+            // so that devices running older AppSearch versions that are incompatible with new
+            // format can continue to parse app function documents while newer versions can use v2
+            // file for constructing app function documents with dynamic schema and more properties.
+            // TODO(b/386676297) - Merge these two when enough devices have changes to support
+            // dynamic schema.
+            String appFunctionXmlPropertyName =
+                    isDynamicSchemaDefined
+                            ? "android.app.appfunctions.v2"
+                            : "android.app.appfunctions";
             try {
                 PackageManager.Property property =
                         packageManager.getProperty(
-                                "android.app.appfunctions",
+                                appFunctionXmlPropertyName,
                                 new ComponentName(
                                         resolveInfo.serviceInfo.packageName,
                                         resolveInfo.serviceInfo.name));
@@ -360,16 +376,9 @@ public final class AppsUtil {
                 Log.w(TAG, "buildAppFunctionMetadataFromPackageInfo: Failed to get property", e);
                 continue;
             }
+
             if (assetFilePath != null) {
-                if (schemasPerPackage == null
-                        || schemasPerPackage
-                                .getOrDefault(packageInfo.packageName, Collections.emptyMap())
-                                .isEmpty()) {
-                    appFunctions.put(
-                            packageInfo.packageName,
-                            parser.parseIntoMap(
-                                    packageManager, packageInfo.packageName, assetFilePath));
-                } else {
+                if (isDynamicSchemaDefined) {
                     appFunctions.put(
                             packageInfo.packageName,
                             parser.parseIntoMapForGivenSchemas(
@@ -377,6 +386,11 @@ public final class AppsUtil {
                                     packageInfo.packageName,
                                     assetFilePath,
                                     schemasPerPackage.get(packageInfo.packageName)));
+                } else {
+                    appFunctions.put(
+                            packageInfo.packageName,
+                            parser.parseIntoMap(
+                                    packageManager, packageInfo.packageName, assetFilePath));
                 }
             }
         }
