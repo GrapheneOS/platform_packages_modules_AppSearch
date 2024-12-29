@@ -715,11 +715,18 @@ public class AppsIndexerImplTest {
         List<PackageInfo> fakePackages = ImmutableList.of(dynamicSchemaApp);
         setUpAppFunctionProperties(pm1, dynamicSchemaAppFunctionResolveInfo);
         AssetManager assetManager = Mockito.mock(AssetManager.class);
+        String xsdWithNestedTypes =
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">\n"
+                        + APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES
+                        + "        <xs:element name=\"nested\" type=\"appfn:NestedType\" />\n"
+                        + "    </xs:documentType>\n"
+                        + "    <xs:documentType name=\"NestedType\">\n"
+                        + "        <xs:element name=\"value\" type=\"xs:string\" />\n"
+                        + "    </xs:documentType>\n"
+                        + "</xs:schema>";
         when(assetManager.open(eq("app_function_schema.xml")))
-                .thenAnswer(
-                        inv ->
-                                new ByteArrayInputStream(
-                                        APP_FUNCTION_STATIC_METADATA_PARENT_SCHEMA_XSD.getBytes()));
+                .thenAnswer(inv -> new ByteArrayInputStream(xsdWithNestedTypes.getBytes()));
         String appFunctionsXml =
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
@@ -727,6 +734,10 @@ public class AppsIndexerImplTest {
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "    <packageName>com.fake.package0</packageName>\n"
+                        + "    <nested>\n"
+                        + "     <id>com.dynamicSchemaApp.utils#print/nested0</id>\n"
+                        + "     <value>innerProperty</value>\n"
+                        + "    </nested>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
         when(assetManager.open(eq("app_functions.xml")))
@@ -760,11 +771,19 @@ public class AppsIndexerImplTest {
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "    <packageName>com.fake.package0</packageName>\n"
+                        + "    <nested>\n"
+                        + "     <id>com.dynamicSchemaApp.utils#print/nested0</id>\n"
+                        + "     <value>innerProperty</value>\n"
+                        + "    </nested>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#search</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#search</functionId>\n"
                         + "    <packageName>com.fake.package0</packageName>\n"
+                        + "    <nested>\n"
+                        + "     <id>com.dynamicSchemaApp.utils#search/nested0</id>\n"
+                        + "     <value>innerProperty</value>\n"
+                        + "    </nested>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
         when(assetManager.open(eq("app_functions.xml")))

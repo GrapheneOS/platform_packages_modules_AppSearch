@@ -406,17 +406,37 @@ public final class AppsIndexerImpl implements Closeable {
             @NonNull GenericDocument appSearchFunction, @NonNull GenericDocument currentFunction) {
         Objects.requireNonNull(appSearchFunction);
         Objects.requireNonNull(currentFunction);
-        appSearchFunction =
-                new GenericDocument.Builder<>(appSearchFunction)
+
+        appSearchFunction = clearTimestampsAndParentTypesInDocument(appSearchFunction);
+        currentFunction = clearTimestampsAndParentTypesInDocument(currentFunction);
+
+        return appSearchFunction.equals(currentFunction);
+    }
+
+    private GenericDocument clearTimestampsAndParentTypesInDocument(
+            @NonNull GenericDocument document) {
+        GenericDocument.Builder<?> builder =
+                new GenericDocument.Builder<>(document)
                         .setCreationTimestampMillis(0)
                         // GenericDocument#PARENT_TYPES_SYNTHETIC_PROPERTY is hidden
-                        .clearProperty("$$__AppSearch__parentTypes")
-                        .build();
-        currentFunction =
-                new GenericDocument.Builder<>(currentFunction)
-                        .setCreationTimestampMillis(0)
-                        .build();
-        return appSearchFunction.equals(currentFunction);
+                        .clearProperty("$$__AppSearch__parentTypes");
+
+        for (String propertyName : document.getPropertyNames()) {
+            Object property = document.getProperty(propertyName);
+            if (property instanceof GenericDocument[] nestedDocuments) {
+                GenericDocument[] clearedNestedDocuments =
+                        new GenericDocument[nestedDocuments.length];
+
+                for (int i = 0; i < nestedDocuments.length; i++) {
+                    clearedNestedDocuments[i] =
+                            clearTimestampsAndParentTypesInDocument(nestedDocuments[i]);
+                }
+
+                builder.setPropertyDocument(propertyName, clearedNestedDocuments);
+            }
+        }
+
+        return builder.build();
     }
 
     /**
