@@ -16,9 +16,9 @@
 
 package com.android.server.appsearch.external.localstorage.converter;
 
-import android.annotation.NonNull;
-
 import com.google.android.icing.proto.TypePropertyMask;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +34,7 @@ public final class TypePropertyPathToProtoConverter {
     private TypePropertyPathToProtoConverter() {}
 
     /** Extracts {@link TypePropertyMask} information from a {@link Map}. */
-    @NonNull
-    public static List<TypePropertyMask.Builder> toTypePropertyMaskBuilderList(
+    public static @NonNull List<TypePropertyMask.Builder> toTypePropertyMaskBuilderList(
             @NonNull Map<String, List<String>> typePropertyPaths) {
         Objects.requireNonNull(typePropertyPaths);
         List<TypePropertyMask.Builder> typePropertyMaskBuilders =
