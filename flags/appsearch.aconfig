@@ -332,3 +332,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_four_hour_min_time_optimize_threshold"
+    namespace: "appsearch"
+    description: "Sets the minimum time interval threshold between successive optimize calls to 4 hours."
+    bug: "385020106"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

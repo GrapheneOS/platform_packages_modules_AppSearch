@@ -17,12 +17,19 @@ package com.android.server.appsearch;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.FakeAppSearchConfig;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
 import com.android.server.appsearch.icing.proto.StatusProto;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
+
+import java.util.concurrent.TimeUnit;
 
 // NOTE: The tests in this class are based on the underlying assumption that
 // time_optimize_threshold > min_time_optimize_threshold. This ensures that setting
@@ -33,6 +40,7 @@ public class ServiceOptimizeStrategyTest {
     ServiceAppSearchConfig mAppSearchConfig = new FakeAppSearchConfig();
     ServiceOptimizeStrategy mServiceOptimizeStrategy =
             new ServiceOptimizeStrategy(mAppSearchConfig);
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     @Test
     public void testTimeOptimizeThreshold_isGreaterThan_minTimeOptimizeThreshold() {
@@ -105,6 +113,20 @@ public class ServiceOptimizeStrategyTest {
                 GetOptimizeInfoResultProto.newBuilder()
                         .setTimeSinceLastOptimizeMs(
                                 mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD)
+    public void testShouldNotOptimize_underFourHourMinTimeThreshold() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(TimeUnit.HOURS.toMillis(4) - 1)
                         .setEstimatedOptimizableBytes(
                                 mAppSearchConfig.getCachedBytesOptimizeThreshold())
                         .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())

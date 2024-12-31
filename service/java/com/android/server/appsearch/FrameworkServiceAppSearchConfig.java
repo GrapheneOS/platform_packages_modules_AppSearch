@@ -437,7 +437,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             throwIfClosedLocked();
             return mBundleLocked.getInt(
                     KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
-                    DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+                    defaultMinTimeOptimizeThresholdMillis());
         }
     }
 
@@ -752,8 +752,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             case KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS:
                 synchronized (mLock) {
                     mBundleLocked.putInt(
-                            key,
-                            properties.getInt(key, DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS));
+                            key, properties.getInt(key, defaultMinTimeOptimizeThresholdMillis()));
                 }
                 break;
             case KEY_API_CALL_STATS_LIMIT:
