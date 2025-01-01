@@ -53,7 +53,8 @@ import java.util.Objects;
  * @see GenericDocument.Builder#setPropertyBlobHandle
  */
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-@SuppressWarnings("HiddenSuperclass")
+// TODO(b/384721898): Switch to JSpecify annotations
+@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
 @SafeParcelable.Class(creator = "AppSearchBlobHandleCreator")
 public final class AppSearchBlobHandle extends AbstractSafeParcelable {
     /** The length of the SHA-256 digest in bytes. SHA-256 produces a 256-bit (32-byte) digest. */
@@ -63,23 +64,19 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
     public static final Parcelable.Creator<AppSearchBlobHandle> CREATOR =
             new AppSearchBlobHandleCreator();
 
-    @NonNull
     @Field(id = 1, getter = "getSha256Digest")
-    private final byte[] mSha256Digest;
+    private final @NonNull byte[] mSha256Digest;
 
-    @NonNull
     @Field(id = 2, getter = "getPackageName")
-    private final String mPackageName;
+    private final @NonNull String mPackageName;
 
-    @NonNull
     @Field(id = 3, getter = "getDatabaseName")
-    private final String mDatabaseName;
+    private final @NonNull String mDatabaseName;
 
-    @NonNull
     @Field(id = 4, getter = "getNamespace")
-    private final String mNamespace;
+    private final @NonNull String mNamespace;
 
-    @Nullable private Integer mHashCode;
+    private @Nullable Integer mHashCode;
 
     /**
      * Build an {@link AppSearchBlobHandle}.
@@ -107,8 +104,7 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
      * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
      * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      */
-    @NonNull
-    public byte[] getSha256Digest() {
+    public @NonNull byte[] getSha256Digest() {
         return mSha256Digest;
     }
 
@@ -119,8 +115,7 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
      * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
      * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      */
-    @NonNull
-    public String getPackageName() {
+    public @NonNull String getPackageName() {
         return mPackageName;
     }
 
@@ -130,8 +125,7 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
      * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
      * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      */
-    @NonNull
-    public String getDatabaseName() {
+    public @NonNull String getDatabaseName() {
         return mDatabaseName;
     }
 
@@ -141,8 +135,7 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
      * <p>For two objects of {@link AppSearchBlobHandle} to be considered equal, the {@code
      * packageName}, {@code database}, {@code namespace} and {@code digest} must be equal.
      */
-    @NonNull
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return mNamespace;
     }
 
@@ -171,9 +164,8 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
         return mHashCode;
     }
 
-    @NonNull
     @Override
-    public String toString() {
+    public @NonNull String toString() {
         IndentingStringBuilder builder = new IndentingStringBuilder();
         builder.append("{\n");
         builder.increaseIndentLevel();
@@ -210,8 +202,7 @@ public final class AppSearchBlobHandle extends AbstractSafeParcelable {
      * @param namespace The namespace of this blob resides in.
      * @return a new instance of {@link AppSearchBlobHandle} object.
      */
-    @NonNull
-    public static AppSearchBlobHandle createWithSha256(
+    public static @NonNull AppSearchBlobHandle createWithSha256(
             @NonNull byte[] digest,
             @NonNull String packageName,
             @NonNull String databaseName,

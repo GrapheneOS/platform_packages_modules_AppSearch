@@ -16,7 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage.util;
 
-import android.annotation.NonNull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Map;
 
