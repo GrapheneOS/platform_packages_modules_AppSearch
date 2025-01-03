@@ -58,6 +58,7 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_U
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD;
@@ -69,6 +70,7 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_LITE_I
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_LITE_INDEX_SORT_SIZE;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_MAX_OPEN_BLOB_COUNT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_ENABLED;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
@@ -81,6 +83,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.provider.DeviceConfig;
 
+import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
@@ -94,6 +97,20 @@ public class ServiceAppSearchConfigTest {
     @Rule
     public final TestableDeviceConfig.TestableDeviceConfigRule
             mDeviceConfigRule = new TestableDeviceConfig.TestableDeviceConfigRule();
+
+    @Test
+    public void testDefaultValues_cachedMinTimeOptimizeThreshold() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+
+        if (Flags.enableFourHourMinTimeOptimizeThreshold()) {
+            assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                    .isEqualTo(DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+        } else {
+            assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                    .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+        }
+    }
 
     @Test
     public void testDefaultValues_allCachedValue() {
