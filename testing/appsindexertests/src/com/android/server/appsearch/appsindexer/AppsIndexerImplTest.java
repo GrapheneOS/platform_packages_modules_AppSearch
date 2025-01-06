@@ -877,6 +877,64 @@ public class AppsIndexerImplTest {
         assertThat(updatedFunction.getPropertyString("newProperty")).isEqualTo("test_new_property");
     }
 
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_INCREMENTAL_PUT)
+    public void testAppsIndexerImpl_incrementalPut_differentTimestamp_reindexes() throws Exception {
+        // Simulate the first update: no changes, just adding initial apps
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        List<PackageInfo> fakePackages = new ArrayList<>(createFakePackageInfos(3));
+        List<ResolveInfo> fakeActivities = new ArrayList<>(createFakeResolveInfos(3));
+        fakePackages.get(1).lastUpdateTime = 1000;
+        fakePackages.get(2).lastUpdateTime = 1000;
+        setupMockPackageManager(
+                pm1, fakePackages, fakeActivities, /* appFunctionServices= */ ImmutableList.of());
+        Context context1 = createContextWithPackageManager(pm1);
+
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+
+            // Check the stats object after the first update
+            assertThat(stats1.mNumberOfAppsAdded).isEqualTo(3); // Three new apps added
+            assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0); // No apps deleted
+            assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0); // No apps unchanged
+            assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0); // No apps updated
+
+            // Verify the state of the indexed apps after the first update
+            assertThat(mAppSearchHelper.getAppsFromAppSearch().keySet())
+                    .containsExactly("com.fake.package0", "com.fake.package1", "com.fake.package2");
+        }
+
+        PackageManager pm2 = Mockito.mock(PackageManager.class);
+        // Simulate an update where last update time goes down due to an incorrect system clock for
+        // one package. It should still be re-indexed
+        fakePackages.get(1).lastUpdateTime = 999;
+        fakePackages.get(2).lastUpdateTime = 1001;
+
+        setupMockPackageManager(
+                pm2, fakePackages, fakeActivities, /* appFunctionServices= */ ImmutableList.of());
+        Context context2 = createContextWithPackageManager(pm2);
+
+        // Perform the second update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context2, mAppsIndexerConfig)) {
+            AppsUpdateStats stats2 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats2);
+
+            // Check the stats object after the second update
+            assertThat(stats2.mNumberOfAppsAdded).isEqualTo(0); // No apps added
+            assertThat(stats2.mNumberOfAppsRemoved).isEqualTo(0); // No apps deleted
+            assertThat(stats2.mNumberOfAppsUnchanged).isEqualTo(1); // One app unchanged
+            assertThat(stats2.mNumberOfAppsUpdated).isEqualTo(2); // Two apps updated
+
+            // Verify the state of the indexed apps after the second update
+            assertThat(mAppSearchHelper.getAppsFromAppSearch().keySet())
+                    .containsExactly("com.fake.package0", "com.fake.package1", "com.fake.package2");
+        }
+    }
+
     private static void setUpAppFunctionProperties(PackageManager pm, ResolveInfo resolveInfo)
             throws Exception {
         when(pm.getProperty(
