@@ -188,7 +188,7 @@ public class AppFunctionSchemaParserTest {
                                 .addProperty(
                                         new AppSearchSchema.DocumentPropertyConfig.Builder(
                                                         "inner", "InnerType-com.example.app")
-                                                .setShouldIndexNestedProperties(true)
+                                                .setShouldIndexNestedProperties(false)
                                                 .build())
                                 .build());
     }
