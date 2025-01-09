@@ -270,7 +270,7 @@ public class AppFunctionSchemaParser {
                                     getAttributeBoolOrDefault(
                                             parser,
                                             XML_ATTRIBUTE_SHOULD_INDEX_NESTED_PROPERTIES,
-                                            true))
+                                            false))
                             .build();
                 }
                 throw new IllegalArgumentException("Unsupported type: " + type);

@@ -39,7 +39,7 @@ public interface AppsIndexerConfig {
      * The default maximum number of app function schemas per package that the app indexer will
      * index.
      */
-    int DEFAULT_MAX_ALLOWED_APP_FUNCTION_SCHEMAS_PER_PACKAGE = 5;
+    int DEFAULT_MAX_ALLOWED_APP_FUNCTION_SCHEMAS_PER_PACKAGE = 20;
 
     /**
      * The default max allowed size of an app function document.
