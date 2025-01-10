@@ -372,6 +372,48 @@ public class AppsIndexerImplTest {
         }
     }
 
+    @Test
+    public void testAppsIndexerImpl_fullUpdateRequired_reIndexAllApps() throws Exception {
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        List<PackageInfo> fakePackageInfos = createFakePackageInfos(3);
+        List<ResolveInfo> fakeResolveInfos = createFakeResolveInfos(3);
+        setupMockPackageManager(
+                pm1,
+                fakePackageInfos,
+                fakeResolveInfos,
+                /* appFunctionServices= */ ImmutableList.of());
+        Context context1 = createContextWithPackageManager(pm1);
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats = new AppsUpdateStats();
+            appsIndexerImpl.doUpdate(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats);
+
+            // Check the stats object after the first update
+            assertThat(stats.mNumberOfAppsAdded).isEqualTo(3); // Three new apps added
+            assertThat(stats.mNumberOfAppsRemoved).isEqualTo(0); // No apps deleted
+            assertThat(stats.mNumberOfAppsUnchanged).isEqualTo(0); // No apps unchanged
+            assertThat(stats.mNumberOfAppsUpdated).isEqualTo(0); // No apps updated
+        }
+
+        // Update only 1 app and run the indexer with isFullUpdateRequired=true
+        fakePackageInfos.get(1).lastUpdateTime = 1000;
+
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
+                    stats,
+                    /* isFullUpdateRequired= */ true);
+
+            // Check the stats object after the first update
+            assertThat(stats.mNumberOfAppsAdded).isEqualTo(0);
+            assertThat(stats.mNumberOfAppsRemoved).isEqualTo(0);
+            assertThat(stats.mNumberOfAppsUnchanged).isEqualTo(0);
+            assertThat(stats.mNumberOfAppsUpdated).isEqualTo(3); // All 3 apps updated.
+        }
+    }
+
     // This does not have the @RequiresFlagEnabled annotation as it directly calls the "incremental
     // update" path.
     @Test
@@ -419,7 +461,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
 
             // Check the stats object after the first update
             assertThat(stats1.mNumberOfAppsAdded).isEqualTo(1);
@@ -462,7 +506,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
 
             // Check the stats object after the first update
             assertThat(stats1.mNumberOfAppsAdded).isEqualTo(0);
@@ -515,7 +561,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
         }
 
         // Simulate an update
@@ -531,7 +579,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
         }
 
         assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet()).isEmpty();
@@ -604,7 +654,8 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             appsIndexerImpl.doUpdateIncrementalPut(
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
-                    new AppsUpdateStats());
+                    new AppsUpdateStats(),
+                    /* isFullUpdateRequired= */ false);
 
             Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
                     mAppSearchHelper.getAppFunctionsFromAppSearch(
@@ -691,7 +742,8 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             appsIndexerImpl.doUpdateIncrementalPut(
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
-                    new AppsUpdateStats());
+                    new AppsUpdateStats(),
+                    /* isFullUpdateRequired= */ false);
 
             Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
                     mAppSearchHelper.getAppFunctionsFromAppSearch(
@@ -774,7 +826,8 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             appsIndexerImpl.doUpdateIncrementalPut(
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
-                    new AppsUpdateStats());
+                    new AppsUpdateStats(),
+                    /* isFullUpdateRequired= */ false);
 
             Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
                     mAppSearchHelper.getAppFunctionsFromAppSearch(
@@ -839,7 +892,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
         }
         // Find first put timestamp of the AppSearch function document
         Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
@@ -877,7 +932,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
 
             // Check the stats object after the first update
             assertThat(stats1.mNumberOfAppsAdded).isEqualTo(0);
@@ -936,7 +993,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
         }
         // Simulate an update with new schema.
         fakePackages.getFirst().lastUpdateTime = 1000;
@@ -965,7 +1024,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
 
             // Check the stats object after the first update
             assertThat(stats1.mNumberOfAppsAdded).isEqualTo(0);
@@ -997,7 +1058,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")), stats1);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
 
             // Check the stats object after the first update
             assertThat(stats1.mNumberOfAppsAdded).isEqualTo(3); // Three new apps added
@@ -1024,7 +1087,9 @@ public class AppsIndexerImplTest {
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context2, mAppsIndexerConfig)) {
             AppsUpdateStats stats2 = new AppsUpdateStats();
             appsIndexerImpl.doUpdateIncrementalPut(
-                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")), stats2);
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
+                    stats2,
+                    /* isFullUpdateRequired= */ false);
 
             // Check the stats object after the second update
             assertThat(stats2.mNumberOfAppsAdded).isEqualTo(0); // No apps added

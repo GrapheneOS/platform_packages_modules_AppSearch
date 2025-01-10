@@ -77,11 +77,15 @@ public final class AppsIndexerImpl implements Closeable {
      *     updated.
      * @param appsUpdateStats contains stats about the apps indexer update. This method will
      *     populate the fields of this {@link AppsUpdateStats} structure.
+     * @param isFullUpdateRequired whether to re-index all apps irrespective of their last update
+     *     timestamp.
      */
     @VisibleForTesting
     @WorkerThread
     public void doUpdateIncrementalPut(
-            @NonNull AppsIndexerSettings settings, @NonNull AppsUpdateStats appsUpdateStats)
+            @NonNull AppsIndexerSettings settings,
+            @NonNull AppsUpdateStats appsUpdateStats,
+            boolean isFullUpdateRequired)
             throws AppSearchException {
         // TODO(b/357551503): Add metrics for app function indexing
         Objects.requireNonNull(settings);
@@ -144,10 +148,10 @@ public final class AppsIndexerImpl implements Closeable {
                 addedOrRemovedFlag = true;
                 appsUpdateStats.mNumberOfAppsAdded++;
                 packagesToBeAddedOrUpdated.put(packageInfo, packageEntry.getValue());
-            } else if (packageInfo.lastUpdateTime != storedAppUpdateTime) {
-                // Package last update timestamp discrepancy between AppSearch and PackageManager.
-                // Add this to the list of updated apps so we can thoroughly check what functions
-                // are indexed in AppSearch.
+            } else if (packageInfo.lastUpdateTime != storedAppUpdateTime || isFullUpdateRequired) {
+                // Package last update timestamp discrepancy between AppSearch and PackageManager
+                // or app indexer code was updated. Add this to the list of updated
+                // apps so we can check what functions are indexed in AppSearch
                 appsUpdateStats.mNumberOfAppsUpdated++;
                 updatedPackageIds.add(packageInfo.packageName);
                 packagesToBeAddedOrUpdated.put(packageInfo, packagesToIndex.get(packageInfo));

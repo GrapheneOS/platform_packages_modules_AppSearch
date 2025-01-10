@@ -373,3 +373,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_all_package_indexing_on_indexer_update"
+    namespace: "appsearch"
+    description: "Enables the all package indexing when app indexer is updated."
+    bug: "389034742"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

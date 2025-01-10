@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
+
 import android.annotation.NonNull;
 
 import com.android.server.appsearch.indexer.IndexerSettings;
@@ -36,6 +38,8 @@ public class AppsIndexerSettings extends IndexerSettings {
     static final String SETTINGS_FILE_NAME = "apps_indexer_settings.pb";
     static final String LAST_APP_UPDATE_TIMESTAMP_KEY = "last_app_update_timestamp_millis";
 
+    static final String PREVIOUS_APP_INDEXER_VERSION_CODE = "previous_app_indexer_version_code";
+
     public AppsIndexerSettings(@NonNull File baseDir) {
         super(baseDir);
     }
@@ -55,9 +59,23 @@ public class AppsIndexerSettings extends IndexerSettings {
         mBundle.putLong(LAST_APP_UPDATE_TIMESTAMP_KEY, timestampMillis);
     }
 
+    /** Returns the version code of AppSearch module that previously indexed the apps. */
+    @AppIndexerVersions.AppIndexerVersion
+    public int getPreviousIndexerVersionCode() {
+        return mBundle.getInt(PREVIOUS_APP_INDEXER_VERSION_CODE, APP_INDEXER_VERSION_UNKNOWN);
+    }
+
+    /** Sets the version code of App Indexer that previously indexed the apps. */
+    public void setPreviousIndexerVersionCode(
+            @AppIndexerVersions.AppIndexerVersion int versionCode) {
+        mBundle.putInt(PREVIOUS_APP_INDEXER_VERSION_CODE, versionCode);
+    }
+
+    /** Resets all settings to default values except {@link #getPreviousIndexerVersionCode()}. */
     @Override
     public void reset() {
         super.reset();
         setLastAppUpdateTimestampMillis(0);
+        setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
     }
 }
