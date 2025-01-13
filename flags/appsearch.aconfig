@@ -345,6 +345,17 @@ flag {
 }
 
 flag {
+    name: "enable_apps_indexer_check_prior_attempt"
+    namespace: "appsearch"
+    description: "Enables a check that prevents apps indexer running too soon after a prior sync."
+    bug: "385197463"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "enable_check_contacts_indexer_update_job_params"
     namespace: "appsearch"
     description: "Enables checking Contacts Indexer update job params on boot and rescheduling if the job params do not match the expected."

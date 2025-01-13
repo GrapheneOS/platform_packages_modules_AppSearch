@@ -221,10 +221,32 @@ public final class AppsIndexerUserInstance {
     void doUpdate(boolean firstRun, @NonNull AppsUpdateStats appsUpdateStats) {
         try {
             Objects.requireNonNull(appsUpdateStats);
-            // Check if there was a prior run
-            if (firstRun && mSettings.getLastUpdateTimestampMillis() != 0) {
-                return;
+            if (firstRun) {
+                if (Flags.enableAppsIndexerCheckPriorAttempt()) {
+                    // Special "firstRun" case.
+                    long now = System.currentTimeMillis();
+                    long lastRun = mSettings.getLastAttemptedUpdateTimestampMillis();
+                    long timeSinceLastRun = now - lastRun;
+
+                    // If timeSinceLastRun is somehow negative, it means that the system clock
+                    // must've turned back since the last run. We'll run the update in this case
+                    if (timeSinceLastRun >= 0
+                            && timeSinceLastRun
+                                    < mAppsIndexerConfig.getMinTimeBetweenFirstSyncsMillis()) {
+                        // Last firstRun was too recent, skip and leave timestamps alone
+                        return;
+                    }
+
+                    mSettings.setLastAttemptedUpdateTimestampMillis(now);
+                    mSettings.persist();
+                }
+
+                // Check if there was a previous successful run
+                if (mSettings.getLastUpdateTimestampMillis() != 0) {
+                    return;
+                }
             }
+            // Check if there was a prior run
             if (Flags.enableAppsIndexerIncrementalPut()) {
                 mAppsIndexerImpl.doUpdateIncrementalPut(mSettings, appsUpdateStats);
             } else {
