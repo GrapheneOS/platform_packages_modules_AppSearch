@@ -257,7 +257,8 @@ public final class ContactsIndexerUserInstance {
      * syncs a configurable number of CP2 contacts into the AppSearch Person corpus so that it's
      * nominally functional.
      */
-    private void doCp2SyncFirstRun() {
+    @VisibleForTesting
+    void doCp2SyncFirstRun() {
         // If this is not the first run of contacts indexer (lastFullUpdateTimestampMillis is not 0)
         // for the given user and a full update job is scheduled, this means that contacts indexer
         // has been running recently and contacts should be up to date. The initial sync can be
@@ -265,10 +266,21 @@ public final class ContactsIndexerUserInstance {
         // If the job is not scheduled but lastFullUpdateTimestampMillis is not 0, the contacts
         // indexer was disabled before. We need to reschedule the job and run a limited delta update
         // to bring latest contact change in AppSearch right away, after it is re-enabled.
-        if (mSettings.getLastFullUpdateTimestampMillis() != 0
-                && IndexerMaintenanceService.isUpdateJobScheduled(
-                        mContext, mContext.getUser(), CONTACTS_INDEXER)) {
-            return;
+        if (Flags.enableCheckContactsIndexerUpdateJobParams()) {
+            if (mSettings.getLastFullUpdateTimestampMillis() != 0
+                    && IndexerMaintenanceService.isUpdateJobScheduledWithExpectedParams(
+                    mContext,
+                    mContext.getUser(),
+                    CONTACTS_INDEXER,
+                    mContactsIndexerConfig.getContactsFullUpdateIntervalMillis())) {
+                return;
+            }
+        } else {
+            if (mSettings.getLastFullUpdateTimestampMillis() != 0
+                    && IndexerMaintenanceService.isUpdateJobScheduled(mContext, mContext.getUser(),
+                    CONTACTS_INDEXER)) {
+                return;
+            }
         }
         IndexerMaintenanceService.scheduleUpdateJob(
                 mContext,

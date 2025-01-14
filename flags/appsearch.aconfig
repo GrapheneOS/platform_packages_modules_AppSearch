@@ -343,3 +343,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_check_contacts_indexer_update_job_params"
+    namespace: "appsearch"
+    description: "Enables checking Contacts Indexer update job params on boot and rescheduling if the job params do not match the expected."
+    bug: "384773430"
+    is_exported: true
+}
