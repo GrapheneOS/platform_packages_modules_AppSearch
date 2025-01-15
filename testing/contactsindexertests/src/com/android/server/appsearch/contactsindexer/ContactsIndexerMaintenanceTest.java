@@ -18,14 +18,15 @@ package com.android.server.appsearch.contactsindexer;
 
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
 import static com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID;
+import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
@@ -40,6 +41,7 @@ import android.app.UiAutomation;
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
 import android.app.job.JobScheduler;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.UserInfo;
@@ -54,17 +56,20 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
+import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
 
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -383,6 +388,97 @@ public class ContactsIndexerMaintenanceTest {
     @Test
     public void test_onStopJob_handlesExceptionGracefully() {
         mIndexerMaintenanceService.onStopJob(null);
+    }
+
+    @Test
+    public void testScheduleAndRunJob_unsetIndexerType_indexerTypeIsSet() throws Exception {
+        Context context = ApplicationProvider.getApplicationContext();
+        JobScheduler jobScheduler = context.getSystemService(JobScheduler.class);
+        JobScheduler spyScheduler = Mockito.spy(jobScheduler);
+
+        Context contextWrapper =
+                new ContextWrapper(context) {
+                    @Override
+                    @Nullable
+                    public Object getSystemService(String name) {
+                        if (Context.JOB_SCHEDULER_SERVICE.equals(name)) {
+                            return spyScheduler;
+                        }
+                        return super.getSystemService(name);
+                    }
+                };
+
+        TemporaryFolder temporaryFolder = new TemporaryFolder();
+        temporaryFolder.create();
+        File contactsDir = new File(temporaryFolder.newFolder(), "contacts");
+        ContactsIndexerUserInstance instance =
+                ContactsIndexerUserInstance.createInstance(
+                        contextWrapper, contactsDir, new FrameworkContactsIndexerConfig());
+
+        // Latch to ensure that a contacts indexer update is ran
+        ContactsIndexerManagerService.LocalService mockLocalService =
+                Mockito.mock(ContactsIndexerManagerService.LocalService.class);
+        doAnswer(
+                        invocation -> {
+                            instance.doFullUpdateAsync(new CancellationSignal());
+                            return null;
+                        })
+                .when(mockLocalService)
+                .doUpdateForUser(any(), any());
+
+        ExtendedMockito.doReturn(mockLocalService)
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
+
+        UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
+
+        try {
+            // Create a PersistableBundle with unset indexer_type
+            PersistableBundle jobExtras = new PersistableBundle();
+            // Do not set INDEXER_TYPE
+            jobExtras.putInt(IndexerMaintenanceService.EXTRA_USER_ID, DEFAULT_USER_ID);
+
+            // Directly schedule a job without the indexer type set
+            JobInfo noTypeJob =
+                    new JobInfo.Builder(
+                                    IndexerMaintenanceConfig.getConfigForIndexer(CONTACTS_INDEXER)
+                                                    .getMinJobId()
+                                            + DEFAULT_USER_ID,
+                                    new ComponentName(
+                                            mContextWrapper,
+                                            ContactsIndexerMaintenanceService.class))
+                            .setExtras(jobExtras)
+                            // Run as soon as possible
+                            .setMinimumLatency(1)
+                            .setOverrideDeadline(1)
+                            .build();
+            jobScheduler.schedule(noTypeJob);
+            // -1 defaultValue because the default defaultValue is 0, which is the same as
+            // CONTACTS_INDEXER and doesn't help us check the extra value
+            assertThat(
+                            jobScheduler
+                                    .getPendingJob(MIN_CONTACTS_INDEXER_JOB_ID + DEFAULT_USER_ID)
+                                    .getExtras()
+                                    .getInt("indexer_type", -1))
+                    .isEqualTo(-1);
+
+            verify(mockLocalService, timeout(10000L)).doUpdateForUser(any(), any());
+            // Scheduler should be called after the update is done and we re-schedule the job
+            verify(spyScheduler, timeout(10000L)).schedule(any(JobInfo.class));
+
+            // It should be rescheduled with the proper extra value.
+            assertThat(
+                            jobScheduler
+                                    .getPendingJob(MIN_CONTACTS_INDEXER_JOB_ID + DEFAULT_USER_ID)
+                                    .getExtras()
+                                    .getInt("indexer_type", -1))
+                    .isEqualTo(CONTACTS_INDEXER);
+        } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
     }
 
     @Nullable
