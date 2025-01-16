@@ -25,6 +25,7 @@ import android.content.Context;
 import android.util.Log;
 import android.util.Slog;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
@@ -259,6 +260,24 @@ public final class AppOpenEventIndexerUserInstance {
     @VisibleForTesting
     void doUpdate() {
         try {
+            if (Flags.enableAppOpenEventsIndexerCheckPriorAttempt()) {
+                long now = System.currentTimeMillis();
+                long lastRun = mAppOpenEventIndexerSettings.getLastAttemptedUpdateTimestampMillis();
+                long timeSinceLastRun = now - lastRun;
+
+                // If timeSinceLastRun is somehow negative, it means that the system clock
+                // must've turned back since the last run. We'll run the update in this case
+                if (timeSinceLastRun >= 0
+                        && timeSinceLastRun
+                                < mAppOpenEventIndexerConfig.getMinTimeBetweenSyncsMillis()) {
+                    // Last run was too recent, skip and leave timestamps alone
+                    return;
+                }
+
+                mAppOpenEventIndexerSettings.setLastAttemptedUpdateTimestampMillis(now);
+                mAppOpenEventIndexerSettings.persist();
+            }
+
             long lastUpdateMillis = mAppOpenEventIndexerSettings.getLastUpdateTimestampMillis();
             long currentTimeMillis = System.currentTimeMillis();
 

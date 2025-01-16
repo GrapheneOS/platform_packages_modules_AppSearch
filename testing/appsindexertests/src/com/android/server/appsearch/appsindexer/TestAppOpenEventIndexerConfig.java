@@ -26,4 +26,9 @@ public class TestAppOpenEventIndexerConfig implements AppOpenEventIndexerConfig 
     public long getAppOpenEventMaintenanceUpdateIntervalMillis() {
         return 24 * 60 * 60 * 1000L; // 1 day
     }
+
+    @Override
+    public long getMinTimeBetweenSyncsMillis() {
+        return 100L;
+    }
 }

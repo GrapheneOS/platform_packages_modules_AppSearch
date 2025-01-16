@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import android.annotation.Nullable;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.app.usage.UsageEvents;
@@ -36,15 +37,19 @@ import android.app.usage.UsageEvents.Event;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 
@@ -59,6 +64,7 @@ public class AppOpenEventIndexerUserInstanceTest {
     private final UsageStatsManager mMockUsageStatsManager = mock(UsageStatsManager.class);
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     private ExecutorService mSingleThreadedExecutor;
     private File mAppsDir;
@@ -244,5 +250,148 @@ public class AppOpenEventIndexerUserInstanceTest {
         when(mockJobScheduler.getPendingJob(updateJob.getId())).thenReturn(updateJob);
         mInstance.shutdown();
         verify(mockJobScheduler).cancel(jobInfoArgumentCaptor.getValue().getId());
+    }
+
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_APP_OPEN_EVENTS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_withoutCheckPriorAttempt_doesNotWrite() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+
+        Event event =
+                createIndividualUsageEvent(
+                        UsageEvents.Event.MOVE_TO_FOREGROUND,
+                        currentTimeMillis + 1000L,
+                        "com.fake.package");
+        UsageEvents events = createUsageEvents(event);
+        setupMockUsageStatsManager(mMockUsageStatsManager, events);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        mInstance.updateAsync(latch::countDown);
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
+        settings.load();
+        long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        assertThat(lastAttemptedUpdatedTimestampMillis).isEqualTo(0);
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_OPEN_EVENTS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_lastRunInFuture_runsSync() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
+        settings.setLastAttemptedUpdateTimestampMillis(Long.MAX_VALUE);
+        settings.persist();
+
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+
+        Event event =
+                createIndividualUsageEvent(
+                        UsageEvents.Event.MOVE_TO_FOREGROUND,
+                        currentTimeMillis + 1000L,
+                        "com.fake.package");
+        UsageEvents events = createUsageEvents(event);
+        setupMockUsageStatsManager(mMockUsageStatsManager, events);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        mInstance.updateAsync(latch::countDown);
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+
+        settings = new AppOpenEventIndexerSettings(mAppsDir);
+        settings.load();
+        long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        // Timestamp should be set to more current value
+        assertThat(lastAttemptedUpdatedTimestampMillis).isAtMost(System.currentTimeMillis());
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_OPEN_EVENTS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_persistsAttemptTimestamp() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+
+        Event event =
+                createIndividualUsageEvent(
+                        UsageEvents.Event.MOVE_TO_FOREGROUND,
+                        currentTimeMillis + 1000L,
+                        "com.fake.package");
+        UsageEvents events = createUsageEvents(event);
+        setupMockUsageStatsManager(mMockUsageStatsManager, events);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        mInstance.updateAsync(latch::countDown);
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
+        settings.load();
+        long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        assertThat(lastAttemptedUpdatedTimestampMillis).isGreaterThan(0);
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_OPEN_EVENTS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_waitsForMinTime() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+
+        Event event =
+                createIndividualUsageEvent(
+                        UsageEvents.Event.MOVE_TO_FOREGROUND,
+                        currentTimeMillis + 1000L,
+                        "com.fake.package");
+        UsageEvents events = createUsageEvents(event);
+        setupMockUsageStatsManager(mMockUsageStatsManager, events);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        mInstance.updateAsync(latch::countDown);
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
+        settings.load();
+        long firstAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+
+        // Reset the last run timestamp to 0 to simulate what would happen if the sync fails
+        settings.setLastAttemptedUpdateTimestampMillis(0);
+        settings.persist();
+
+        long secondAttemptedUpdateTimestampMillis = 0;
+
+        // Request a bunch of updates and check timestamp after each. This will stay 0 until another
+        // update runs
+        while (secondAttemptedUpdateTimestampMillis == 0) {
+            latch = new CountDownLatch(1);
+            mInstance.updateAsync(latch::countDown);
+
+            assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+
+            settings.load();
+            secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        }
+
+        // At this point, one of the requested firstRun updates has completed
+        mSingleThreadedExecutor.shutdown();
+
+        // Check timestamp, it should've persisted a new time that is at least
+        // TestAppsIndexerConfig.getMinTimeBetweenFirstSyncsMillis greater than the first attempt
+        // timestamp
+        assertThat(secondAttemptedUpdateTimestampMillis)
+                .isAtLeast(
+                        firstAttemptedUpdateTimestampMillis
+                                + new TestAppOpenEventIndexerConfig()
+                                        .getMinTimeBetweenSyncsMillis());
     }
 }

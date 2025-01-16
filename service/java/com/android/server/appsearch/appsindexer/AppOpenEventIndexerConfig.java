@@ -35,9 +35,21 @@ public interface AppOpenEventIndexerConfig {
      */
     long DEFAULT_APP_OPEN_EVENT_INDEXER_UPDATE_INTERVAL_MILLIS = TimeUnit.DAYS.toMillis(1);
 
+    /**
+     * Returns the minimum time required to wait before attempting a sync after a previous sync,
+     * regardless of whether the sync completes or not.
+     */
+    long DEFAULT_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS = TimeUnit.HOURS.toMillis(1);
+
     /** Returns whether App Open Event Indexer is enabled. */
     boolean isAppOpenEventIndexerEnabled();
 
     /* Returns the minimum internal in millis for two consecutive scheduled updates. */
     long getAppOpenEventMaintenanceUpdateIntervalMillis();
+
+    /**
+     * Returns the minimum time required to wait before attempting a sync after a previous sync, in
+     * milliseconds.
+     */
+    long getMinTimeBetweenSyncsMillis();
 }

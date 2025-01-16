@@ -31,6 +31,8 @@ public class FrameworkAppOpenEventIndexerConfig implements AppOpenEventIndexerCo
     static final String KEY_APP_OPEN_EVENT_INDEXER_ENABLED = "app_open_event_indexer_enabled";
     static final String KEY_APP_OPEN_EVENT_UPDATE_INTERVAL_MILLIS =
             "app_open_event_update_interval_millis";
+    static final String KEY_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS =
+            "min_time_between_syncs_millis";
 
     @Override
     public boolean isAppOpenEventIndexerEnabled() {
@@ -46,5 +48,13 @@ public class FrameworkAppOpenEventIndexerConfig implements AppOpenEventIndexerCo
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_APP_OPEN_EVENT_UPDATE_INTERVAL_MILLIS,
                 DEFAULT_APP_OPEN_EVENT_INDEXER_UPDATE_INTERVAL_MILLIS);
+    }
+
+    @Override
+    public long getMinTimeBetweenSyncsMillis() {
+        return DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS,
+                DEFAULT_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS);
     }
 }
