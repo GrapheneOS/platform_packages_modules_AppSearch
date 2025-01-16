@@ -144,9 +144,10 @@ public final class AppsIndexerImpl implements Closeable {
                 addedOrRemovedFlag = true;
                 appsUpdateStats.mNumberOfAppsAdded++;
                 packagesToBeAddedOrUpdated.put(packageInfo, packageEntry.getValue());
-            } else if (packageInfo.lastUpdateTime > storedAppUpdateTime) {
-                // Package updated. Add this to the list of updated apps so we can check what
-                // functions are indexed in AppSearch
+            } else if (packageInfo.lastUpdateTime != storedAppUpdateTime) {
+                // Package last update timestamp discrepancy between AppSearch and PackageManager.
+                // Add this to the list of updated apps so we can thoroughly check what functions
+                // are indexed in AppSearch.
                 appsUpdateStats.mNumberOfAppsUpdated++;
                 updatedPackageIds.add(packageInfo.packageName);
                 packagesToBeAddedOrUpdated.put(packageInfo, packagesToIndex.get(packageInfo));
