@@ -35,6 +35,8 @@ public class FrameworkAppsIndexerConfig implements AppsIndexerConfig {
             "max_allowed_app_function_schemas_per_package";
     static final String KEY_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES =
             "max_allowed_app_function_doc_size_in_bytes";
+    static final String KEY_MIN_TIME_BETWEEN_FIRST_SYNCS_MILLIS =
+            "min_time_between_first_syncs_millis";
 
     @Override
     public boolean isAppsIndexerEnabled() {
@@ -74,5 +76,13 @@ public class FrameworkAppsIndexerConfig implements AppsIndexerConfig {
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES,
                 DEFAULT_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES);
+    }
+
+    @Override
+    public long getMinTimeBetweenFirstSyncsMillis() {
+        return DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_MIN_TIME_BETWEEN_FIRST_SYNCS_MILLIS,
+                DEFAULT_MIN_TIME_BETWEEN_FIRST_SYNCS_MILLIS);
     }
 }

@@ -35,6 +35,7 @@ import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSessionShim;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.Context;
@@ -42,9 +43,12 @@ import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.common.collect.ImmutableList;
@@ -53,6 +57,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 
@@ -71,6 +76,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     private final PackageManager mMockPackageManager = mock(PackageManager.class);
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     private ThreadPoolExecutor mSingleThreadedExecutor;
     private File mAppsDir;
@@ -216,6 +223,210 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
             assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
         }
+    }
+
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_APPS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_withoutCheckPriorAttempt_doesNotWrite() throws Exception {
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        mInstance.updateAsync(true);
+
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        settings.load();
+        long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        assertThat(lastAttemptedUpdatedTimestampMillis).isEqualTo(0);
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_lastRunInFuture_runsSync() throws Exception {
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        settings.setLastAttemptedUpdateTimestampMillis(Long.MAX_VALUE);
+        settings.persist();
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        mInstance.updateAsync(true);
+
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        settings = new AppsIndexerSettings(mAppsDir);
+        settings.load();
+        long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        // Timestamp should be set to more current value
+        assertThat(lastAttemptedUpdatedTimestampMillis).isAtMost(System.currentTimeMillis());
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_persistsAttemptTimestamp() throws Exception {
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        mInstance.updateAsync(true);
+
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        settings.load();
+        long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        assertThat(lastAttemptedUpdatedTimestampMillis).isGreaterThan(0);
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_CHECK_PRIOR_ATTEMPT)
+    @Test
+    public void testFirstRun_waitsForMinTime() throws Exception {
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        mInstance.updateAsync(true);
+
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        settings.load();
+        long firstAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+
+        // Reset the last run timestamp to 0 to simulate what would happen if the sync fails
+        settings.setLastAppUpdateTimestampMillis(0);
+        settings.persist();
+
+        long secondAttemptedUpdateTimestampMillis = firstAttemptedUpdateTimestampMillis;
+
+        // Request a bunch of updates and check timestamp after each
+        while (secondAttemptedUpdateTimestampMillis == firstAttemptedUpdateTimestampMillis) {
+            mInstance.updateAsync(true);
+            settings.load();
+            secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
+        }
+
+        // At this point, one of the requested firstRun updates has completed
+        mSingleThreadedExecutor.shutdown();
+
+        // Check timestamp, it should've persisted a new time that is at least
+        // TestAppsIndexerConfig.getMinTimeBetweenFirstSyncsMillis greater than the first attempt
+        // timestamp
+        assertThat(secondAttemptedUpdateTimestampMillis)
+                .isAtLeast(
+                        firstAttemptedUpdateTimestampMillis
+                                + new TestAppsIndexerConfig().getMinTimeBetweenFirstSyncsMillis());
     }
 
     @Test
