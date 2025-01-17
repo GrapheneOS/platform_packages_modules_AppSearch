@@ -89,6 +89,7 @@ import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -167,8 +168,12 @@ public class ServiceAppSearchConfigTest {
                 IcingOptionsConfig.DEFAULT_USE_PREMAPPING_WITH_FILE_BACKED_VECTOR);
         assertThat(appSearchConfig.getUsePersistentHashMap()).isEqualTo(
                 IcingOptionsConfig.DEFAULT_USE_PERSISTENT_HASH_MAP);
-        assertThat(appSearchConfig.getMaxPageBytesLimit()).isEqualTo(
-                IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+        // TODO: b/389105038 - remove this temporary workaround for binder transaction limit.
+        assertThat(appSearchConfig.getMaxPageBytesLimit())
+                .isAnyOf(
+                        IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT,
+                        IsolatedStorageServiceManager
+                                .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
         assertThat(appSearchConfig.getCachedRateLimitEnabled()).isEqualTo(
                 DEFAULT_RATE_LIMIT_ENABLED);
         AppSearchRateLimitConfig rateLimitConfig = appSearchConfig.getCachedRateLimitConfig();

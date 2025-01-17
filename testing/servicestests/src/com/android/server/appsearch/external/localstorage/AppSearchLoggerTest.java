@@ -93,6 +93,7 @@ public class AppSearchLoggerTest {
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         mLogger = new SimpleTestLogger();
     }
@@ -391,6 +392,7 @@ public class AppSearchLoggerTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
         appSearchImpl.close();
@@ -424,6 +426,7 @@ public class AppSearchLoggerTest {
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         List<AppSearchSchema> schemas =
                 ImmutableList.of(
@@ -456,6 +459,7 @@ public class AppSearchLoggerTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
 
@@ -491,6 +495,7 @@ public class AppSearchLoggerTest {
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         new JetpackRevocableFileDescriptorStore(mConfig),
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
 
         List<AppSearchSchema> schemas =
@@ -524,6 +529,7 @@ public class AppSearchLoggerTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
 
@@ -558,6 +564,7 @@ public class AppSearchLoggerTest {
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
 
         List<AppSearchSchema> schemas =
@@ -600,6 +607,7 @@ public class AppSearchLoggerTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         InitializeStats iStats = initStatsBuilder.build();
 

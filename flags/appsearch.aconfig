@@ -384,3 +384,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_isolated_storage"
+    namespace: "appsearch"
+    description: "Uses isolated storage for user data."
+    bug: "384768541"
+    is_exported: true
+}

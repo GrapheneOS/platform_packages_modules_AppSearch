@@ -16,4 +16,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.android.appsearch.apk">
 
+    <!-- TODO(b/359911502): Remove this permission along with the other app functionality that
+           exists in app search once the new app function implementation is done.
+         Allows system applications to execute app functions provided by apps through AppSearch. -->
+    <permission android:name="android.permission.EXECUTE_APP_FUNCTION"
+                android:protectionLevel="internal|role" />
+    <uses-permission android:name="android.permission.MANAGE_VIRTUAL_MACHINE" />
+    <uses-permission android:name="android.permission.USE_RELAXED_MICRODROID_ROLLBACK_PROTECTION" />
+    <uses-feature android:name="android.software.virtualization_framework" android:required="true" />
+    <application>
+        <service android:name="com.android.server.appsearch.isolated_storage_service.IsolatedStorageService" android:exported="true">
+            <intent-filter>
+                <action android:name="com.android.appsearch.ISOLATED_STORAGE_SERVICE" />
+            </intent-filter>
+        </service>
+    </application>
+
 </manifest>

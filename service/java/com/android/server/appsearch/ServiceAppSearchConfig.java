@@ -20,6 +20,7 @@ import static android.text.format.DateUtils.DAY_IN_MILLIS;
 
 import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
 import java.util.concurrent.TimeUnit;
 
@@ -205,6 +206,16 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      * Returns the time interval to schedule a full persist to disk back ground job in milliseconds.
      */
     long getCachedFullyPersistJobIntervalMillis();
+
+    /** Returns the encrypted storage size in bytes for isolated storage. */
+    default long getIsolatedStorageEncryptedStorageBytes() {
+        return IsolatedStorageServiceManager.DEFAULT_ENCRYPTED_STORAGE_BYTES;
+    }
+
+    /** Returns the memory size in bytes for isolated storage. */
+    default long getIsolatedStorageMemoryBytes() {
+        return IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES;
+    }
 
     /**
      * Closes this {@link AppSearchConfig}.
