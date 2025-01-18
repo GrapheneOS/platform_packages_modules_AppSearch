@@ -1164,6 +1164,10 @@ public final class AppSearchImpl implements Closeable {
      * Gets the {@link ParcelFileDescriptor} for write purpose of the given {@link
      * AppSearchBlobHandle}.
      *
+     * <p>Only one opened {@link ParcelFileDescriptor} is allowed for each {@link
+     * AppSearchBlobHandle}. The same {@link ParcelFileDescriptor} will be returned if it is not
+     * closed by caller.
+     *
      * @param packageName The package name that owns this blob.
      * @param databaseName The databaseName this blob resides in.
      * @param handle The {@link AppSearchBlobHandle} represent the blob.
@@ -1181,19 +1185,27 @@ public final class AppSearchImpl implements Closeable {
         try {
             throwIfClosedLocked();
             verifyCallingBlobHandle(packageName, databaseName, handle);
+            ParcelFileDescriptor pfd =
+                    mRevocableFileDescriptorStore.getOpenedRevocableFileDescriptorForWrite(
+                            packageName, handle);
+            if (pfd != null) {
+                // There is already an opened pfd for write with same blob handle, just return the
+                // already opened one.
+                return pfd;
+            }
             mRevocableFileDescriptorStore.checkBlobStoreLimit(packageName);
             PropertyProto.BlobHandleProto blobHandleProto =
                     BlobHandleToProtoConverter.toBlobHandleProto(handle);
             BlobProto result = mIcingSearchEngineLocked.openWriteBlob(blobHandleProto);
 
             checkSuccess(result.getStatus());
-            ParcelFileDescriptor pfd = ParcelFileDescriptor.adoptFd(result.getFileDescriptor());
+            pfd = ParcelFileDescriptor.adoptFd(result.getFileDescriptor());
 
             mNamespaceCacheLocked.addToBlobNamespaceMap(
                     createPrefix(packageName, databaseName), blobHandleProto.getNamespace());
 
             return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(
-                    handle.getPackageName(), pfd);
+                    packageName, handle, pfd, ParcelFileDescriptor.MODE_READ_WRITE);
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
@@ -1228,6 +1240,7 @@ public final class AppSearchImpl implements Closeable {
                             BlobHandleToProtoConverter.toBlobHandleProto(handle));
 
             checkSuccess(result.getStatus());
+            mRevocableFileDescriptorStore.revokeFdForWrite(packageName, handle);
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
@@ -1247,7 +1260,7 @@ public final class AppSearchImpl implements Closeable {
             @NonNull String packageName,
             @NonNull String databaseName,
             @NonNull AppSearchBlobHandle handle)
-            throws AppSearchException {
+            throws AppSearchException, IOException {
         if (mRevocableFileDescriptorStore == null) {
             throw new UnsupportedOperationException(
                     "BLOB_STORAGE is not available on this AppSearch implementation.");
@@ -1261,6 +1274,8 @@ public final class AppSearchImpl implements Closeable {
                             BlobHandleToProtoConverter.toBlobHandleProto(handle));
 
             checkSuccess(result.getStatus());
+            // The blob is committed and sealed, revoke the sent pfd for writing.
+            mRevocableFileDescriptorStore.revokeFdForWrite(packageName, handle);
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
@@ -1298,7 +1313,10 @@ public final class AppSearchImpl implements Closeable {
             checkSuccess(result.getStatus());
 
             ParcelFileDescriptor pfd = ParcelFileDescriptor.fromFd(result.getFileDescriptor());
-            return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(packageName, pfd);
+            // We do NOT need to look up the revocable file descriptor for read, skip passing the
+            // blob handle key.
+            return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(
+                    packageName, /* blobHandle= */ null, pfd, ParcelFileDescriptor.MODE_READ_ONLY);
         } finally {
             mReadWriteLock.readLock().unlock();
         }
@@ -1348,8 +1366,13 @@ public final class AppSearchImpl implements Closeable {
             checkSuccess(result.getStatus());
 
             ParcelFileDescriptor pfd = ParcelFileDescriptor.fromFd(result.getFileDescriptor());
+            // We do NOT need to look up the revocable file descriptor for read, skip passing the
+            // blob handle key.
             return mRevocableFileDescriptorStore.wrapToRevocableFileDescriptor(
-                    access.getCallingPackageName(), pfd);
+                    access.getCallingPackageName(),
+                    /* blobHandle= */ null,
+                    pfd,
+                    ParcelFileDescriptor.MODE_READ_ONLY);
         } finally {
             mReadWriteLock.readLock().unlock();
         }
