@@ -43,12 +43,14 @@ public class AppsIndexerSettingsTest {
         // Set some values, persist them, and then load them back
         mIndexerSettings.setLastUpdateTimestampMillis(123456789L);
         mIndexerSettings.setLastAppUpdateTimestampMillis(987654321L);
+        mIndexerSettings.setLastAttemptedUpdateTimestampMillis(5678L);
         // Persist to file
         mIndexerSettings.persist();
 
         // Reset the settings to ensure loading happens from the file
         mIndexerSettings.setLastUpdateTimestampMillis(0);
         mIndexerSettings.setLastAppUpdateTimestampMillis(0);
+        mIndexerSettings.setLastAttemptedUpdateTimestampMillis(0);
 
         // Load from file
         mIndexerSettings.load();
@@ -56,14 +58,17 @@ public class AppsIndexerSettingsTest {
         // Check values after loading
         Assert.assertEquals(123456789L, mIndexerSettings.getLastUpdateTimestampMillis());
         Assert.assertEquals(987654321L, mIndexerSettings.getLastAppUpdateTimestampMillis());
+        Assert.assertEquals(5678L, mIndexerSettings.getLastAttemptedUpdateTimestampMillis());
     }
 
     @Test
     public void testReset() {
         mIndexerSettings.setLastUpdateTimestampMillis(123456789L);
         mIndexerSettings.setLastAppUpdateTimestampMillis(987654321L);
+        mIndexerSettings.setLastAttemptedUpdateTimestampMillis(5678L);
         mIndexerSettings.reset();
         Assert.assertEquals(0, mIndexerSettings.getLastUpdateTimestampMillis());
         Assert.assertEquals(0, mIndexerSettings.getLastAppUpdateTimestampMillis());
+        Assert.assertEquals(0, mIndexerSettings.getLastAttemptedUpdateTimestampMillis());
     }
 }

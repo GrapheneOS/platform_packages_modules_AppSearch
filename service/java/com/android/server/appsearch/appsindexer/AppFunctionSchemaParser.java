@@ -77,8 +77,6 @@ public class AppFunctionSchemaParser {
      */
     private final int mMaxAllowedDocumentType;
 
-    private final Set<String> mNestedSchemaTypes;
-
     /**
      * @param maxAllowedDocumentType The maximum number of document types allowed in the XSD file.
      *     This is to prevent malicious apps from creating too many schema types in AppSearch by
@@ -86,7 +84,6 @@ public class AppFunctionSchemaParser {
      */
     public AppFunctionSchemaParser(int maxAllowedDocumentType) {
         mMaxAllowedDocumentType = maxAllowedDocumentType;
-        mNestedSchemaTypes = new ArraySet<>();
     }
 
     private static boolean getAttributeBoolOrDefault(
@@ -129,13 +126,17 @@ public class AppFunctionSchemaParser {
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(assetFilePath);
 
+        // Keep track of all nested schema types  to validate root schema later.
+        Set<String> nestedSchemaTypes = new ArraySet<>();
+
         try {
             AssetManager assetManager =
                     packageManager.getResourcesForApplication(packageName).getAssets();
             InputStream xsdInputStream = assetManager.open(assetFilePath);
             Map<String, AppSearchSchema> schemas =
-                    parseDocumentTypeAndCreateSchemas(packageName, xsdInputStream);
-            return getValidatedSchemas(schemas, packageName);
+                    parseDocumentTypeAndCreateSchemas(
+                            packageName, xsdInputStream, nestedSchemaTypes);
+            return getValidatedSchemas(schemas, packageName, nestedSchemaTypes);
         } catch (Exception ex) {
             // The code parses an XSD file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
@@ -149,11 +150,26 @@ public class AppFunctionSchemaParser {
         return Collections.emptyMap();
     }
 
+    /**
+     * Parses the XSD and create AppSearch schemas from document types.
+     *
+     * @param packageName The package for which schemas are being parsed.
+     * @param xsdInputStream The input stream to the XSD file within the app's assets.
+     * @param nestedSchemaTypes A set to maintain all the nested schema types encountered when
+     *     processing a root tag. This will be later used to validate that correct schema
+     *     definitions exist for each nested type.
+     * @return A mapping of schema types to their corresponding {@link AppSearchSchema} objects, or
+     *     an empty map if there's an error during parsing or if the AppFunctionStaticMetadata
+     *     document type is not found.
+     */
     private Map<String, AppSearchSchema> parseDocumentTypeAndCreateSchemas(
-            @NonNull String packageName, @NonNull InputStream xsdInputStream)
+            @NonNull String packageName,
+            @NonNull InputStream xsdInputStream,
+            @NonNull Set<String> nestedSchemaTypes)
             throws XmlPullParserException, IOException, InvalidAppFunctionSchemaException {
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(xsdInputStream);
+        Objects.requireNonNull(nestedSchemaTypes);
 
         Map<String, AppSearchSchema> schemas = new ArrayMap<>();
         XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
@@ -189,7 +205,8 @@ public class AppFunctionSchemaParser {
                         }
                     } else if (XML_TAG_ELEMENT.equals(parser.getName()) && schemaBuilder != null) {
                         AppSearchSchema.PropertyConfig propertyConfig =
-                                computePropertyConfigFromXsdType(parser, packageName);
+                                computePropertyConfigFromXsdType(
+                                        parser, packageName, nestedSchemaTypes);
                         if (propertyConfig != null) schemaBuilder.addProperty(propertyConfig);
                     }
                     break;
@@ -211,9 +228,13 @@ public class AppFunctionSchemaParser {
     }
 
     private PropertyConfig computePropertyConfigFromXsdType(
-            @NonNull XmlPullParser parser, @NonNull String packageName)
+            @NonNull XmlPullParser parser,
+            @NonNull String packageName,
+            @NonNull Set<String> nestedSchemaTypes)
             throws InvalidAppFunctionSchemaException {
         Objects.requireNonNull(parser);
+        Objects.requireNonNull(packageName);
+        Objects.requireNonNull(nestedSchemaTypes);
 
         String name = parser.getAttributeValue(null, XML_ATTRIBUTE_NAME);
         validatePropertyName(name);
@@ -263,7 +284,7 @@ public class AppFunctionSchemaParser {
                     String schemaType =
                             AppFunctionStaticMetadata.getSchemaNameForPackage(
                                     packageName, localType);
-                    mNestedSchemaTypes.add(schemaType);
+                    nestedSchemaTypes.add(schemaType);
                     return new AppSearchSchema.DocumentPropertyConfig.Builder(name, schemaType)
                             .setCardinality(cardinality)
                             .setShouldIndexNestedProperties(
@@ -317,14 +338,19 @@ public class AppFunctionSchemaParser {
      * @param schemaMap A map where the key is the schema type name, and the value is the
      *     corresponding {@link AppSearchSchema}.
      * @param packageName The name of the package for which the schemas are being validated.
+     * @param nestedSchemaTypes A set of all the nested schema types used to validate that
+     *     correct schema definitions exist for each nested type.
      * @return The validated schema map.
      * @throws InvalidAppFunctionSchemaException If any required schema or properties are missing.
      */
     private Map<String, AppSearchSchema> getValidatedSchemas(
-            @NonNull Map<String, AppSearchSchema> schemaMap, @NonNull String packageName)
+            @NonNull Map<String, AppSearchSchema> schemaMap,
+            @NonNull String packageName,
+            @NonNull Set<String> nestedSchemaTypes)
             throws InvalidAppFunctionSchemaException {
         Objects.requireNonNull(schemaMap);
         Objects.requireNonNull(packageName);
+        Objects.requireNonNull(nestedSchemaTypes);
 
         String appFunctionStaticMetadataSchemaType =
                 AppFunctionStaticMetadata.getSchemaNameForPackage(
@@ -335,7 +361,7 @@ public class AppFunctionSchemaParser {
                             + packageName);
         }
 
-        Set<String> undefinedSchemas = new ArraySet<>(mNestedSchemaTypes);
+        Set<String> undefinedSchemas = new ArraySet<>(nestedSchemaTypes);
         undefinedSchemas.removeAll(schemaMap.keySet());
         if (!undefinedSchemas.isEmpty()) {
             throw new InvalidAppFunctionSchemaException(

@@ -49,6 +49,12 @@ public interface AppsIndexerConfig {
      */
     int DEFAULT_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES = 4 * 1024; // 4KiB
 
+    /**
+     * The default minimum time required to wait before attempting a firstRun sync after a previous
+     * firstRun sync.
+     */
+    long DEFAULT_MIN_TIME_BETWEEN_FIRST_SYNCS_MILLIS = TimeUnit.HOURS.toMillis(4);
+
     /** Returns whether Apps Indexer is enabled. */
     boolean isAppsIndexerEnabled();
 
@@ -63,4 +69,10 @@ public interface AppsIndexerConfig {
 
     /** Returns the max allowed document size of an app function document. */
     int getMaxAllowedAppFunctionDocSizeInBytes();
+
+    /**
+     * Returns the minimum time required to wait before attempting a firstRun sync after a previous
+     * firstRun sync in milliseconds.
+     */
+    long getMinTimeBetweenFirstSyncsMillis();
 }

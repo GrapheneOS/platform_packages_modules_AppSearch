@@ -45,6 +45,8 @@ import java.util.Objects;
 public abstract class IndexerSettings {
 
     public static final String LAST_UPDATE_TIMESTAMP_KEY = "last_update_timestamp_millis";
+    public static final String LAST_ATTEMPTED_UPDATE_TIMESTAMP_KEY =
+            "last_attempted_update_timestamp_millis";
 
     private final File mBaseDir;
     private File mFile;
@@ -92,6 +94,7 @@ public abstract class IndexerSettings {
     /** Resets all the settings to default values. */
     public void reset() {
         setLastUpdateTimestampMillis(0);
+        setLastAttemptedUpdateTimestampMillis(0);
     }
 
     /** Static util method to read a bundle from a file. */
@@ -122,5 +125,15 @@ public abstract class IndexerSettings {
             }
             throw e;
         }
+    }
+
+    /** Returns the timestamp of when the last update occurred in milliseconds. */
+    public @CurrentTimeMillisLong long getLastAttemptedUpdateTimestampMillis() {
+        return mBundle.getLong(LAST_ATTEMPTED_UPDATE_TIMESTAMP_KEY);
+    }
+
+    /** Sets the timestamp of when the last update occurred in milliseconds. */
+    public void setLastAttemptedUpdateTimestampMillis(@CurrentTimeMillisLong long timestampMillis) {
+        mBundle.putLong(LAST_ATTEMPTED_UPDATE_TIMESTAMP_KEY, timestampMillis);
     }
 }
