@@ -112,7 +112,6 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.UserHandle;
-import android.os.UserManager;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.DeviceConfig;
@@ -136,9 +135,9 @@ import com.android.server.appsearch.external.localstorage.usagereporting.ClickAc
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchActionGenericDocument;
 import com.android.server.usage.StorageStatsManagerLocal;
 
-import libcore.io.IoBridge;
-
 import com.google.common.util.concurrent.SettableFuture;
+
+import libcore.io.IoBridge;
 
 import org.junit.After;
 import org.junit.Before;
@@ -178,7 +177,7 @@ public class AppSearchManagerServiceTest {
     @Rule
     public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
-    private Context mContext;
+    private TestContext mContext;
     private AppSearchManagerService mAppSearchManagerService;
     private UserHandle mUserHandle;
     private UiAutomation mUiAutomation;
@@ -193,49 +192,7 @@ public class AppSearchManagerServiceTest {
         Context context = ApplicationProvider.getApplicationContext();
         mUserHandle = context.getUser();
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        mContext = new ContextWrapper(context) {
-            // Mock-able package manager for testing
-            final PackageManager mPackageManager = spy(context.getPackageManager());
-            final UserManager mUserManager = spy(context.getSystemService(UserManager.class));
-
-            @Override
-            public Intent registerReceiverForAllUsers(@Nullable BroadcastReceiver receiver,
-                    @NonNull IntentFilter filter, @Nullable String broadcastPermission,
-                    @Nullable Handler scheduler) {
-                // Do nothing
-                return null;
-            }
-
-            @Override
-            public Context createContextAsUser(UserHandle user, int flags) {
-                return new ContextWrapper(super.createContextAsUser(user, flags)) {
-                    @Override
-                    public PackageManager getPackageManager() {
-                        return mPackageManager;
-                    }
-                };
-            }
-
-            @Override
-            public PackageManager getPackageManager() {
-                return mPackageManager;
-            }
-
-            @Nullable
-            @Override
-            public Object getSystemService(String name) {
-                if (Context.ROLE_SERVICE.equals(name)) {
-                    return mRoleManager;
-                }
-                if (Context.DEVICE_POLICY_SERVICE.equals(name)) {
-                    return mDevicePolicyManager;
-                }
-                if (Context.USER_SERVICE.equals(name)) {
-                    return mUserManager;
-                }
-                return super.getSystemService(name);
-            }
-        };
+        mContext = new TestContext(context, mRoleManager, mDevicePolicyManager);
 
         // Set a test environment that provides a temporary folder for AppSearch
         File mAppSearchDir = mTemporaryFolder.newFolder();
@@ -1004,30 +961,17 @@ public class AppSearchManagerServiceTest {
         verifyLocalCallsResults(RESULT_DENIED);
         verifyGlobalCallsResults(AppSearchResult.RESULT_OK);
 
-        // Add mocking to spy'd package manager to return current uid for package foo
-        // This is necessary to pass call verification using a different package name
-        PackageManager spyPackageManager = mContext.getPackageManager();
+        // Mock the package manager to return current uid for package foo; this is necessary to pass
+        // call verification using a different package name
+        PackageManager spyPackageManager = spy(mContext.getPackageManager());
         int uid = AppSearchAttributionSource.createAttributionSource(mContext,
                 mCallingPid).getUid();
         doReturn(uid).when(spyPackageManager).getPackageUid(FOO_PACKAGE_NAME, /* flags= */ 0);
         // Specifically grant permission for report system usage to package foo
         doReturn(PackageManager.PERMISSION_GRANTED).when(spyPackageManager).checkPermission(
                 READ_GLOBAL_APP_SEARCH_DATA, FOO_PACKAGE_NAME);
-
-        // Change the calling package name used in the helper methods indirectly through a newly
-        // wrapped context
-        Context context = ApplicationProvider.getApplicationContext();
-        mContext = new ContextWrapper(context) {
-            @Override
-            public String getPackageName() {
-                return FOO_PACKAGE_NAME;
-            }
-
-            @Override
-            public AttributionSource getAttributionSource() {
-                return super.getAttributionSource().withPackageName(FOO_PACKAGE_NAME);
-            }
-        };
+        mContext.mPackageManager = spyPackageManager;
+        mContext.mPackageName = FOO_PACKAGE_NAME;
 
         // Confirm that we're using a different package name
         assertThat(mContext.getPackageName()).isEqualTo(FOO_PACKAGE_NAME);
@@ -1954,6 +1898,70 @@ public class AppSearchManagerServiceTest {
         public void tearDown() {
         }
     }
+
+    private static final class TestContext extends ContextWrapper {
+        private final RoleManager mRoleManager;
+        private final DevicePolicyManager mDevicePolicyManager;
+
+        @Nullable private PackageManager mPackageManager;
+        @Nullable private String mPackageName;
+
+        TestContext(Context base, RoleManager roleManager,
+                DevicePolicyManager devicePolicyManager) {
+            super(base);
+            mRoleManager = roleManager;
+            mDevicePolicyManager = devicePolicyManager;
+        }
+
+        @Override
+        public Intent registerReceiverForAllUsers(@Nullable BroadcastReceiver receiver,
+                @NonNull IntentFilter filter, @Nullable String broadcastPermission,
+                @Nullable Handler scheduler) {
+            // Do nothing
+            return null;
+        }
+
+        @Override
+        public Context createContextAsUser(UserHandle user, int flags) {
+            return this;
+        }
+
+        @Override
+        public PackageManager getPackageManager() {
+            if (mPackageManager != null) {
+                return mPackageManager;
+            }
+            return super.getPackageManager();
+        }
+
+        @Override
+        public String getPackageName() {
+            if (mPackageName != null) {
+                return mPackageName;
+            }
+            return super.getPackageName();
+        }
+
+        @Override
+        public AttributionSource getAttributionSource() {
+            if (mPackageName != null) {
+                return super.getAttributionSource().withPackageName(mPackageName);
+            }
+            return super.getAttributionSource();
+        }
+
+        @Nullable
+        @Override
+        public Object getSystemService(String name) {
+            if (Context.ROLE_SERVICE.equals(name)) {
+                return mRoleManager;
+            }
+            if (Context.DEVICE_POLICY_SERVICE.equals(name)) {
+                return mDevicePolicyManager;
+            }
+            return super.getSystemService(name);
+        }
+    };
 
     private static final class TestResultCallback extends IAppSearchResultCallback.Stub {
         private final SettableFuture<AppSearchResult<?>> future = SettableFuture.create();
