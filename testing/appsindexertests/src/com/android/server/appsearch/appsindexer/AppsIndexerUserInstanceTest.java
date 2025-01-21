@@ -23,6 +23,8 @@ import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackag
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static junit.framework.Assert.assertTrue;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -102,6 +104,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Setup the file path to the persisted data
         mAppsDir = new File(mTemporaryFolder.newFolder(), "appsearch/apps");
+        mAppsDir.mkdirs();
         mSettingsFile = new File(mAppsDir, AppsIndexerSettings.SETTINGS_FILE_NAME);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
@@ -413,6 +416,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Request a bunch of updates and check timestamp after each
         while (secondAttemptedUpdateTimestampMillis == firstAttemptedUpdateTimestampMillis) {
             mInstance.updateAsync(true);
+            assertTrue(semaphore.tryAcquire(100L, TimeUnit.MILLISECONDS));
             settings.load();
             secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         }

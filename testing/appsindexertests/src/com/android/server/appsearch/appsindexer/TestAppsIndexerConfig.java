@@ -44,6 +44,6 @@ public class TestAppsIndexerConfig implements AppsIndexerConfig {
 
     @Override
     public long getMinTimeBetweenFirstSyncsMillis() {
-        return 100;
+        return 500;
     }
 }
