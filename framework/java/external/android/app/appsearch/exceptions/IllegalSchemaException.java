@@ -16,6 +16,7 @@
 
 package android.app.appsearch.exceptions;
 
+
 import org.jspecify.annotations.NonNull;
 
 /**
