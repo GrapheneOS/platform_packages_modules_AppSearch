@@ -16,12 +16,16 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
+import static com.android.server.appsearch.appsindexer.AppIndexerVersions.CURR_APP_INDEXER_VERSION;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeResolveInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakePackageDocuments;
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackageManager;
 
 import static com.google.common.truth.Truth.assertThat;
+
+import static junit.framework.Assert.assertTrue;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -102,6 +106,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Setup the file path to the persisted data
         mAppsDir = new File(mTemporaryFolder.newFolder(), "appsearch/apps");
+        mAppsDir.mkdirs();
         mSettingsFile = new File(mAppsDir, AppsIndexerSettings.SETTINGS_FILE_NAME);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
@@ -155,7 +160,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         semaphore.acquire();
 
         while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
-            continue;
+            Thread.sleep(100);
         }
 
         assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
@@ -167,6 +172,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     }
 
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
     public void testFirstRun_updateAlreadyRan_doesNotUpdate() throws Exception {
         // Pretend we already ran
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
@@ -211,7 +217,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         semaphore.acquire();
 
         while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
-            continue;
+            Thread.sleep(100);
         }
         // One more task should've ran, checked settings, and exited
         assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
@@ -413,6 +419,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Request a bunch of updates and check timestamp after each
         while (secondAttemptedUpdateTimestampMillis == firstAttemptedUpdateTimestampMillis) {
             mInstance.updateAsync(true);
+            assertTrue(semaphore.tryAcquire(100L, TimeUnit.MILLISECONDS));
             settings.load();
             secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         }
@@ -427,6 +434,167 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .isAtLeast(
                         firstAttemptedUpdateTimestampMillis
                                 + new TestAppsIndexerConfig().getMinTimeBetweenFirstSyncsMillis());
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
+    public void testFirstRun_withIndexerUpdate_updateAlreadyRan_indexesApp() throws Exception {
+        // Pretend we already ran with a old indexer version.
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        mAppsDir.mkdirs();
+        settings.setLastUpdateTimestampMillis(1000);
+        settings.setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
+        settings.persist();
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        long beforeFirstRun = mSingleThreadedExecutor.getCompletedTaskCount();
+
+        mInstance.updateAsync(/* firstRun= */ true);
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
+            Thread.sleep(100);
+        }
+
+        // One more task should've ran and indexed the functions.
+        assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
+        assertThat(mSingleThreadedExecutor.getTaskCount()).isEqualTo(beforeFirstRun + 1);
+        assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
+            Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
+            assertThat(appsTimestampMap).hasSize(1);
+            assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
+        }
+        // Previous indexer version is updated in settings.
+        AppsIndexerSettings currSettings = new AppsIndexerSettings(mAppsDir);
+        currSettings.load();
+        assertThat(currSettings.getPreviousIndexerVersionCode())
+                .isEqualTo((long) CURR_APP_INDEXER_VERSION);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
+    public void testFirstRun_noIndexerUpdate_updateAlreadyRan_doesNotUpdate() throws Exception {
+        // Pretend we already ran
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        mAppsDir.mkdirs();
+        settings.setLastUpdateTimestampMillis(1000);
+        settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
+        settings.persist();
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        semaphore.acquire();
+
+        long beforeFirstRun = mSingleThreadedExecutor.getCompletedTaskCount();
+
+        mInstance.updateAsync(/* firstRun= */ true);
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
+            Thread.sleep(100);
+        }
+        // One more task should've ran, checked settings, and exited
+        assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
+        assertThat(mSingleThreadedExecutor.getTaskCount()).isEqualTo(beforeFirstRun + 1);
+        assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
+
+        // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
+        // timestamp was not 0, so nothing should've been indexed
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
+            assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
+    public void testSubsequentRun_withIndexerUpdate_previouslyIndexedAppIsReIndexed()
+            throws Exception {
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+        AppsUpdateStats stats = new AppsUpdateStats();
+        mInstance.doUpdate(/* firstRun= */ true, stats);
+        assertThat(stats.mNumberOfAppsAdded).isEqualTo(1);
+
+        // Pretend indexer version is updated
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        settings.setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
+        settings.persist();
+        // Create new instance that uses the updated settings.
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Run indexer again
+        AppsUpdateStats stats1 = new AppsUpdateStats();
+        mInstance.doUpdate(/* firstRun= */ false, stats1);
+
+        // App is re-indexed.
+        assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(1);
     }
 
     @Test
@@ -525,7 +693,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // relies on a count that is updated a little bit AFTER afterExecute is called, which is
         // where the semaphore is released. See ThreadPoolExecutor#runWorker
         while (mSingleThreadedExecutor.getCompletedTaskCount() != 2) {
-            continue;
+            Thread.sleep(100);
         }
 
         assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(2);
@@ -536,7 +704,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Only two updates ran even though many were scheduled
         while (mSingleThreadedExecutor.getCompletedTaskCount() != 3) {
-            continue;
+            Thread.sleep(100);
         }
         assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(3);
         assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
