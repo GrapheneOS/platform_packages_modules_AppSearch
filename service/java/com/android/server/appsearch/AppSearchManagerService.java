@@ -1258,7 +1258,7 @@ public class AppSearchManagerService extends SystemService {
                                             callingDatabaseName,
                                             blobHandle);
                             resultBuilder.setSuccess(blobHandle, null);
-                        } catch (AppSearchException e) {
+                        } catch (AppSearchException | IOException e) {
                             AppSearchResult<Void> result =
                                     throwableToFailedResult(e);
                             resultBuilder.setResult(blobHandle, result);

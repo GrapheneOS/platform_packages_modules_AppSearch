@@ -112,6 +112,7 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -2581,6 +2582,44 @@ public class AppSearchImplTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testWriteAfterCommit_notAllowed() throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        ALWAYS_OPTIMIZE);
+        byte[] data = generateRandomBytes(20 * 1024); // 20 KiB
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+        // Open a pfd for write, write the blob data without close the pfd.
+        ParcelFileDescriptor writePfd = mAppSearchImpl.openWriteBlob("package", "db1", handle);
+        try (FileOutputStream outputStream = new FileOutputStream(writePfd.getFileDescriptor())) {
+            outputStream.write(data);
+            outputStream.flush();
+        }
+
+        // Commit the blob.
+        mAppSearchImpl.commitBlob("package", "db1", handle);
+
+        // Keep writing to the pfd for write.
+        assertThrows(
+                IOException.class,
+                () -> {
+                    try (FileOutputStream outputStream =
+                            new FileOutputStream(writePfd.getFileDescriptor())) {
+                        outputStream.write(data);
+                        outputStream.flush();
+                    }
+                });
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
     public void testRemovePendingBlob() throws Exception {
         mAppSearchImpl =
                 AppSearchImpl.create(
@@ -2762,6 +2801,68 @@ public class AppSearchImplTest {
                         mAppSearchImpl.openWriteBlob("package", "db1", handle);
                 InputStream inputStream = new ParcelFileDescriptor.AutoCloseInputStream(writePfd)) {
             inputStream.read(new byte[10]);
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testOpenMultipleBlobForWrite() throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        ALWAYS_OPTIMIZE);
+        byte[] data = generateRandomBytes(20); // 20 Bytes
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+
+        // only allow open 1 fd for writing.
+        try (ParcelFileDescriptor writePfd1 =
+                        mAppSearchImpl.openWriteBlob("package", "db1", handle);
+                ParcelFileDescriptor writePfd2 =
+                        mAppSearchImpl.openWriteBlob("package", "db1", handle)) {
+            assertThat(writePfd1).isEqualTo(writePfd2);
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testOpenMultipleBlobForRead() throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        ALWAYS_OPTIMIZE);
+        byte[] data = generateRandomBytes(20); // 20 Bytes
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+
+        // write a blob first.
+        try (ParcelFileDescriptor writePfd =
+                        mAppSearchImpl.openWriteBlob("package", "db1", handle);
+                OutputStream outputStream =
+                        new ParcelFileDescriptor.AutoCloseOutputStream(writePfd)) {
+            outputStream.write(data);
+            outputStream.flush();
+        }
+        // commit the change and read the blob.
+        mAppSearchImpl.commitBlob("package", "db1", handle);
+
+        // allow open multiple fd for reading.
+        try (ParcelFileDescriptor readPfd1 = mAppSearchImpl.openReadBlob("package", "db1", handle);
+                ParcelFileDescriptor readPfd2 =
+                        mAppSearchImpl.openReadBlob("package", "db1", handle)) {
+            assertThat(readPfd1).isNotEqualTo(readPfd2);
         }
     }
 
@@ -6677,6 +6778,27 @@ public class AppSearchImplTest {
                         () ->
                                 mAppSearchImpl.openReadBlob(
                                         mContext.getPackageName(), "db1", handle));
+        assertThat(e.getResultCode()).isEqualTo(RESULT_OUT_OF_SPACE);
+        assertThat(e)
+                .hasMessageThat()
+                .contains(
+                        "Package \""
+                                + mContext.getPackageName()
+                                + "\" exceeded limit of 2 opened file descriptors. Some file"
+                                + " descriptors must be closed to open additional ones.");
+
+        // Open new fd for write will also fail since read and write share the same limit.
+        byte[] data2 = generateRandomBytes(20 * 1024); // 20 KiB
+        byte[] digest2 = calculateDigest(data2);
+        AppSearchBlobHandle handle2 =
+                AppSearchBlobHandle.createWithSha256(
+                        digest2, mContext.getPackageName(), "db1", "ns");
+        e =
+                assertThrows(
+                        AppSearchException.class,
+                        () ->
+                                mAppSearchImpl.openWriteBlob(
+                                        mContext.getPackageName(), "db1", handle2));
         assertThat(e.getResultCode()).isEqualTo(RESULT_OUT_OF_SPACE);
         assertThat(e)
                 .hasMessageThat()

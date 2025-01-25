@@ -827,6 +827,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
         public @interface DeletePropagationType {}
 
         /** Does not propagate deletion. */
+        // TODO(b/384947619) unhide the API once it is ready.
+
         @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
         public static final int DELETE_PROPAGATION_TYPE_NONE = 0;
 
@@ -845,6 +847,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * the joinable value type). Otherwise, throw {@link IllegalStateException} when building
          * (see {@link StringPropertyConfig.Builder#build}).
          */
+        // TODO(b/384947619) unhide the API once it is ready.
+
         @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
         public static final int DELETE_PROPAGATION_TYPE_PROPAGATE_FROM = 1;
 
@@ -894,6 +898,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * Returns how the deletion will be propagated between this document and the referenced
          * document whose qualified id is held by this property.
          */
+        // TODO(b/384947619) unhide the API once it is ready.
+
         @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
         @DeletePropagationType
         public int getDeletePropagationType() {
@@ -1023,6 +1029,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * delete propagation has to use the qualified id. Otherwise, throw {@link
              * IllegalStateException} when building.
              */
+            // TODO(b/384947619) unhide the API once it is ready.
+
             @CanIgnoreReturnValue
             @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
             public @NonNull StringPropertyConfig.Builder setDeletePropagationType(
