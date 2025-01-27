@@ -12,7 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
--keep class * extends android.app.Service
+# TODO(b/373579455): Evaluate if <init> needs to be kept.
+-keep class * extends android.app.Service {
+  void <init>();
+}
 # Keep the Icing proto methods that are necessary for string formatting since MessageLiteToString
 # uses reflection (setters, getters, and hassers)
 # https://cs.android.com/android/platform/superproject/main/+/main:external/protobuf/java/core/src/main/java/com/google/protobuf/MessageLiteToString.java;l=82;drc=0ccbdeff847ae5390ba6632a67f6b5d2ab8632c1
@@ -35,7 +38,10 @@
 }
 
 # This prevents the obfuscation or removal of fields referenced in native.
--keep class com.google.android.icing.IcingSearchEngineImpl
+# TODO(b/373579455): Evaluate if <init> needs to be kept.
+-keep class com.google.android.icing.IcingSearchEngineImpl {
+  void <init>();
+}
 -keepclassmembers public class com.google.android.icing.IcingSearchEngineImpl {
   private long nativePointer;
   native <methods>;
