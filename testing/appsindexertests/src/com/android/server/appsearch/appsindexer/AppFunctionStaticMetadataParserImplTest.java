@@ -284,6 +284,9 @@ public class AppFunctionStaticMetadataParserImplTest {
                 .isEqualTo("com.example.utils#print");
         assertThat(actualAppFunction.getPropertyBoolean("enabledByDefault")).isEqualTo(true);
         assertThat(actualAppFunction.getPropertyLong("schemaVersion")).isEqualTo(10);
+        assertThat(actualAppFunction.getPropertyString("packageName")).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(actualAppFunction.getPropertyString("mobileApplicationQualifiedId"))
+                .isEqualTo("com.android.test.indexer$apps-db/apps#com.example.app");
     }
 
     @Test
@@ -540,7 +543,8 @@ public class AppFunctionStaticMetadataParserImplTest {
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
         assertThat(actualAppFunction.getPropertyString("functionId"))
                 .isEqualTo("com.example.utils#print");
-        assertThat(actualAppFunction.getPropertyNames()).containsExactly("functionId");
+        assertThat(actualAppFunction.getPropertyNames())
+                .containsExactly("functionId", "packageName", "mobileApplicationQualifiedId");
     }
 
     @Test

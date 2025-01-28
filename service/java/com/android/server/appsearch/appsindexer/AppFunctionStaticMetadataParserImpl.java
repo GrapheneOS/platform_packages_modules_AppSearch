@@ -15,11 +15,15 @@
  */
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID;
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.PROPERTY_PACKAGE_NAME;
+
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSchema.DocumentPropertyConfig;
 import android.app.appsearch.AppSearchSchema.PropertyConfig;
 import android.app.appsearch.GenericDocument;
+import android.app.appsearch.util.DocumentIdUtil;
 import android.app.appsearch.util.LogUtil;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
@@ -27,6 +31,7 @@ import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.external.localstorage.converter.GenericDocumentToProtoConverter;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -343,12 +348,24 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
             String schemaName =
                     AppFunctionStaticMetadata.getSchemaNameForPackage(packageName, schemaType);
             if (eventType == XmlPullParser.START_TAG && schemas.containsKey(schemaName)) {
-                GenericDocument appFnMetadata =
+                GenericDocument.Builder appFnMetadataBuilder =
                         parseXmlElementToGenericDocument(
                                 parser,
                                 packageName,
                                 schemaType,
                                 qualifiedPropertyNamesToPropertyConfig);
+                // Populate package based properties.
+                appFnMetadataBuilder
+                        .setPropertyString(PROPERTY_PACKAGE_NAME, packageName)
+                        .setPropertyString(
+                                PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID,
+                                DocumentIdUtil.createQualifiedId(
+                                        mIndexerPackageName,
+                                        AppSearchHelper.APP_DATABASE,
+                                        MobileApplication.APPS_NAMESPACE,
+                                        packageName))
+                        .build();
+                GenericDocument appFnMetadata = appFnMetadataBuilder.build();
                 // Skip docs exceeding max size.
                 if (!validateDocumentSize(appFnMetadata)) {
                     continue;
@@ -377,12 +394,12 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
      * @param schemaType the type of the schema that the XML element belongs to.
      * @param qualifiedPropertyNamesToPropertyConfig the mapping of qualified property names to
      *     their corresponding {@link PropertyConfig} objects.
-     * @return a {@link GenericDocument} object populated with the data from the XML element, or
-     *     null.
+     * @return a {@link GenericDocument.Builder} object populated with the data from the XML
+     *     element, or null.
      * @throws XmlPullParserException if the XML element is malformed.
      */
     @NonNull
-    private static GenericDocument parseXmlElementToGenericDocument(
+    private static GenericDocument.Builder parseXmlElementToGenericDocument(
             @NonNull XmlPullParser parser,
             @NonNull String packageName,
             @NonNull String schemaType,
@@ -404,6 +421,7 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
         Map<String, List<GenericDocument>> nestedDocumentValues = new ArrayMap<>();
         String startTag = parser.getName();
         String currentPropertyPath;
+        boolean wasDocIdSet = false;
 
         while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
             switch (parser.getEventType()) {
@@ -415,7 +433,7 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                     PropertyConfig propertyConfig =
                             qualifiedPropertyNamesToPropertyConfig.get(currentPropertyPath);
                     if (propertyConfig instanceof DocumentPropertyConfig) {
-                        GenericDocument nestedDoc =
+                        GenericDocument.Builder nestedDoc =
                                 parseXmlElementToGenericDocument(
                                         parser,
                                         packageName,
@@ -425,13 +443,17 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                                         qualifiedPropertyNamesToPropertyConfig);
                         nestedDocumentValues
                                 .computeIfAbsent(currentPropertyPath, k -> new ArrayList<>())
-                                .add(nestedDoc);
+                                .add(nestedDoc.build());
                     } else if (propertyConfig != null) {
                         primitivePropertyValues
                                 .computeIfAbsent(currentPropertyPath, k -> new ArrayList<>())
                                 .add(parser.nextText().trim());
                     } else if (parser.getName().equals(XML_TAG_ID)) {
-                        docBuilder.setId(parser.nextText().trim());
+                        String id = parser.nextText().trim();
+                        if (!id.isEmpty()) {
+                            docBuilder.setId(id);
+                            wasDocIdSet = true;
+                        }
                     }
                     break;
 
@@ -453,12 +475,11 @@ public class AppFunctionStaticMetadataParserImpl implements AppFunctionStaticMet
                             docBuilder.setPropertyDocument(
                                     propertyName, entry.getValue().toArray(new GenericDocument[0]));
                         }
-                        GenericDocument doc = docBuilder.build();
-                        if (doc.getId().isEmpty()) {
+                        if (!wasDocIdSet) {
                             throw new XmlPullParserException(
                                     "No id found for document of type: " + schemaType);
                         }
-                        return doc;
+                        return docBuilder;
                     }
                     break;
             }

@@ -608,7 +608,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
         when(assetManager.open(eq("app_functions.xml")))
@@ -691,7 +690,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.validSchemaApp/com.validSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.validSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
         when(assetManager.open(eq("app_functions.xml")))
@@ -725,7 +723,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.invalidSchemaApp/com.invalidSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.invalidSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package1</packageName>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
         when(assetManager2.open(eq("app_functions.xml")))
@@ -783,7 +780,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.schemaApp1/com.schemaApp1.utils#print</id>\n"
                         + "    <functionId>com.schemaApp1.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "    <inner>\n"
                         + "      <id>com.schemaApp1/com.schemaApp1.utils#print/inner</id>\n"
                         + "      <value>test</value>\n"
@@ -806,7 +802,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.schemaApp2/com.schemaApp2.utils#print</id>\n"
                         + "    <functionId>com.schemaApp2.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package1</packageName>\n"
                         + "    <inner>\n"
                         + "      <id>com.schemaApp2/com.schemaApp1.utils#print/inner</id>\n"
                         + "      <value>test</value>\n"
@@ -871,7 +866,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "    <nested>\n"
                         + "     <id>com.dynamicSchemaApp.utils#print/nested0</id>\n"
                         + "     <value>innerProperty</value>\n"
@@ -910,7 +904,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "    <nested>\n"
                         + "     <id>com.dynamicSchemaApp.utils#print/nested0</id>\n"
                         + "     <value>innerProperty</value>\n"
@@ -919,7 +912,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#search</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#search</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "    <nested>\n"
                         + "     <id>com.dynamicSchemaApp.utils#search/nested0</id>\n"
                         + "     <value>innerProperty</value>\n"
@@ -976,7 +968,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
         when(assetManager.open(eq("app_functions.xml")))
@@ -1012,7 +1003,6 @@ public class AppsIndexerImplTest {
                         + "  <AppFunctionStaticMetadata>\n"
                         + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
-                        + "    <packageName>com.fake.package0</packageName>\n"
                         + "    <newProperty>test_new_property</newProperty>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
