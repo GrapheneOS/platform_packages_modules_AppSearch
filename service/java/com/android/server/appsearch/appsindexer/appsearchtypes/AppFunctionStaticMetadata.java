@@ -240,10 +240,9 @@ public class AppFunctionStaticMetadata extends GenericDocument {
 
     /** Whether a parent type should be set for {@link AppFunctionStaticMetadata}. */
     public static boolean shouldSetParentType() {
-        // addParentTypes() is also available on T Extensions 10+. However, we only need it to work
-        // on V+ devices because that is where AppFunctionManager will be available anyway. So,
-        // we're just checking for V+ here to keep it simple.
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        // While added to the SDK in V, addParentTypes() is safe to call on versions above U. We
+        // cannot call addParentTypes() on T devices as a mainline rollback could break the schema.
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
     }
 
     public static final class Builder extends GenericDocument.Builder<Builder> {
