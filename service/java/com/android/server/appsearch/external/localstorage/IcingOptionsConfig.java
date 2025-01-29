@@ -74,6 +74,8 @@ public interface IcingOptionsConfig {
 
     long DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS = 7 * 24 * 60 * 60 * 1000L; // 1 week.
 
+    String DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH = "";
+
     /**
      * The maximum allowable token length. All tokens in excess of this size will be truncated to
      * max_token_length before being indexed.
@@ -230,4 +232,12 @@ public interface IcingOptionsConfig {
      * no reference document linked to it.
      */
     long getOrphanBlobTimeToLiveMs();
+
+    /**
+     * Config for {@link com.google.android.icing.proto.IcingSearchEngineOptions}.
+     *
+     * <p>The absolute path to the ICU data file. If a valid path has been provided, it will be used
+     * to initialize ICU.
+     */
+    String getIcuDataFileAbsolutePath();
 }

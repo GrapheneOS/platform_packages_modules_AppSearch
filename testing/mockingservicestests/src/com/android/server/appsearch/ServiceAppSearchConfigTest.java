@@ -76,6 +76,7 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_L
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_SAMPLING_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_TIME_OPTIMIZE_THRESHOLD_MILLIS;
+import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH;
 import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS;
 import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_USE_NEW_QUALIFIED_ID_JOIN_INDEX;
 
@@ -197,6 +198,8 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getMaxOpenBlobCount()).isEqualTo(DEFAULT_MAX_OPEN_BLOB_COUNT);
         assertThat(appSearchConfig.getOrphanBlobTimeToLiveMs())
                 .isEqualTo(DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS);
+        assertThat(appSearchConfig.getIcuDataFileAbsolutePath())
+                .isEqualTo(DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH);
     }
 
     @Test

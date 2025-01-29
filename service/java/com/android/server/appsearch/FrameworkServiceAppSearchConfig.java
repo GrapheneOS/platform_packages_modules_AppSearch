@@ -638,6 +638,13 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         }
     }
 
+    // The absolute path for the ICU data file is not available in Framework.
+    // This method is functionally no-op and returns an empty string.
+    @Override
+    public String getIcuDataFileAbsolutePath() {
+        return DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH;
+    }
+
     @Override
     public boolean shouldStoreParentInfoAsSyntheticProperty() {
         // This option is always true in Framework.
