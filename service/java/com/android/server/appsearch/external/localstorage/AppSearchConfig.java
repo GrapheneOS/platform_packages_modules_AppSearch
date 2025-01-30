@@ -18,6 +18,10 @@ package com.android.server.appsearch.external.localstorage;
 
 import android.app.appsearch.GenericDocument;
 
+import com.google.android.icing.proto.PersistType;
+
+import org.jspecify.annotations.NonNull;
+
 /** An interface that wraps AppSearch configurations required to create {@link AppSearchImpl}. */
 public interface AppSearchConfig extends IcingOptionsConfig, LimitConfig {
 
@@ -34,4 +38,10 @@ public interface AppSearchConfig extends IcingOptionsConfig, LimitConfig {
      * com.android.appsearch.flags.Flags#FLAG_ENABLE_SEARCH_RESULT_PARENT_TYPES} in on.
      */
     boolean shouldRetrieveParentInfo();
+
+    /**
+     * Returns the {@code PersistType.Code} that should be used to persist common mutations such as
+     * PUTs or DELETEs.
+     */
+    PersistType.@NonNull Code getLightweightPersistType();
 }

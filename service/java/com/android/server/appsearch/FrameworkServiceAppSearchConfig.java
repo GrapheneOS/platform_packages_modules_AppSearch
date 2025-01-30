@@ -30,6 +30,8 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
+import com.google.android.icing.proto.PersistType;
+
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -690,6 +692,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             return mBundleLocked.getBoolean(
                     KEY_SHOULD_RETRIEVE_PARENT_INFO, DEFAULT_SHOULD_RETRIEVE_PARENT_INFO);
         }
+    }
+
+    @Override
+    public PersistType.Code getLightweightPersistType() {
+        return PersistType.Code.LITE;
     }
 
     @GuardedBy("mLock")
