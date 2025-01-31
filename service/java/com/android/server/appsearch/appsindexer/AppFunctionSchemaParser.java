@@ -27,6 +27,7 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -193,7 +194,7 @@ public class AppFunctionSchemaParser {
                         if (documentTypeName != null) {
                             schemaBuilder =
                                     new AppSearchSchema.Builder(
-                                            AppFunctionStaticMetadata.getSchemaNameForPackage(
+                                            AppFunctionDocument.getSchemaNameForPackage(
                                                     packageName, documentTypeName));
 
                             // All AppFunctionStaticMetadata schemas defined in packages will
@@ -282,8 +283,7 @@ public class AppFunctionSchemaParser {
                 if (type.contains(XML_APPFN_NAMESPACE_PREFIX)) {
                     String localType = type.substring(type.indexOf(':') + 1);
                     String schemaType =
-                            AppFunctionStaticMetadata.getSchemaNameForPackage(
-                                    packageName, localType);
+                            AppFunctionDocument.getSchemaNameForPackage(packageName, localType);
                     nestedSchemaTypes.add(schemaType);
                     return new AppSearchSchema.DocumentPropertyConfig.Builder(name, schemaType)
                             .setCardinality(cardinality)
@@ -338,8 +338,8 @@ public class AppFunctionSchemaParser {
      * @param schemaMap A map where the key is the schema type name, and the value is the
      *     corresponding {@link AppSearchSchema}.
      * @param packageName The name of the package for which the schemas are being validated.
-     * @param nestedSchemaTypes A set of all the nested schema types used to validate that
-     *     correct schema definitions exist for each nested type.
+     * @param nestedSchemaTypes A set of all the nested schema types used to validate that correct
+     *     schema definitions exist for each nested type.
      * @return The validated schema map.
      * @throws InvalidAppFunctionSchemaException If any required schema or properties are missing.
      */
@@ -353,8 +353,8 @@ public class AppFunctionSchemaParser {
         Objects.requireNonNull(nestedSchemaTypes);
 
         String appFunctionStaticMetadataSchemaType =
-                AppFunctionStaticMetadata.getSchemaNameForPackage(
-                        packageName, /* schemaType= */ null);
+                AppFunctionDocument.getSchemaNameForPackage(
+                        packageName, AppFunctionStaticMetadata.SCHEMA_TYPE);
         if (!schemaMap.containsKey(appFunctionStaticMetadataSchemaType)) {
             throw new InvalidAppFunctionSchemaException(
                     "Missing schema definition for AppFunctionStaticMetadata in package: "

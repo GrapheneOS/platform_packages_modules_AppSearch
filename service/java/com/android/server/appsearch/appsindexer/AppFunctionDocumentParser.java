@@ -1,9 +1,25 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
 import android.content.pm.PackageManager;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
 import java.util.List;
@@ -13,12 +29,12 @@ import java.util.Map;
  * This class parses static metadata about App Functions from an XML file located within an app's
  * assets.
  *
- * <p>The generated {@link AppFunctionStaticMetadata} objects are inserted into AppSearch after a
- * successful {@link SyncAppSearchSession#setSchema} call under the {@link
+ * <p>The generated {@link android.app.appsearch.GenericDocument} objects are inserted into
+ * AppSearch after a successful {@link SyncAppSearchSession#setSchema} call under the {@link
  * AppSearchHelper#APP_DATABASE} database. Within the database, each {@link AppSearchSchema} is
  * named dynamically to be unique to the app package name.
  */
-public interface AppFunctionStaticMetadataParser {
+public interface AppFunctionDocumentParser {
     // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
     //  rolled out
     /**
@@ -42,27 +58,26 @@ public interface AppFunctionStaticMetadataParser {
      * @param packageManager The PackageManager used to access app resources.
      * @param packageName The package name of the app whose assets contain the XML file.
      * @param assetFilePath The path to the XML file within the app's assets.
-     * @return A mapping of function ids to their corresponding {@link AppFunctionStaticMetadata}
-     *     objects representing the parsed App Functions. An empty map is returned if there's an
-     *     error during parsing.
+     * @return A mapping of document ids to their corresponding {@link AppFunctionDocument} objects
+     *     of subtype {@link AppFunctionStaticMetadata} representing the parsed App Functions. An
+     *     empty map is returned if there's an error during parsing.
      */
     @NonNull
-    Map<String, AppFunctionStaticMetadata> parseIntoMap(
+    Map<String, AppFunctionDocument> parseIntoMap(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull String assetFilePath);
 
     /**
-     * Parses static metadata about App Functions from the given XML asset file, using type
-     * information from the given schemas.
+     * Parses metadata about App Functions from the given XML asset file, using type information
+     * from the given schemas.
      *
      * <p>Note: The following requirements must be met for successful parsing:
      *
      * <ul>
-     *   <li>The root schema must have a property with the name {@link
-     *       AppFunctionStaticMetadata#PROPERTY_FUNCTION_ID} to construct the mapping of function
-     *       IDs to {@link AppFunctionStaticMetadata}.
      *   <li>Each document must contain an `id` tag; otherwise, an empty map is returned.
+     *   <li>Root level schemas should always define `packageName` and
+     *       `mobileApplicationQualifiedId` for easy retrievals.
      * </ul>
      *
      * @param packageManager the PackageManager used to access app resources.
@@ -70,12 +85,12 @@ public interface AppFunctionStaticMetadataParser {
      * @param assetFilePath the path to the XML file within the app's assets.
      * @param schemas the mapping of schema types to their corresponding {@link AppSearchSchema}
      *     objects.
-     * @return a mapping of function IDs to their corresponding {@link AppFunctionStaticMetadata}
-     *     objects. Returns an empty map if there's an error during parsing or if no `id` tags are
-     *     found.
+     * @return a mapping of document IDs to their corresponding {@link AppFunctionDocument} objects.
+     *     The returned document's schema type will match one of the provided schemas. Returns an
+     *     empty map if there's an error during parsing or if no `id` tags are found.
      */
     @NonNull
-    Map<String, AppFunctionStaticMetadata> parseIntoMapForGivenSchemas(
+    Map<String, AppFunctionDocument> parseIntoMapForGivenSchemas(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull String assetFilePath,
