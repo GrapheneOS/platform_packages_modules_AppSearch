@@ -16,7 +16,6 @@
 package com.android.server.appsearch.visibilitystore;
 
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
-import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_TRUSTED;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_CALENDAR;
@@ -391,12 +390,12 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             case SetSchemaRequest.EXECUTE_APP_FUNCTIONS:
                 permission = EXECUTE_APP_FUNCTIONS;
                 break;
-            case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
-                permission = EXECUTE_APP_FUNCTIONS_TRUSTED;
-                break;
             case SetSchemaRequest.PACKAGE_USAGE_STATS:
                 permission = PACKAGE_USAGE_STATS;
                 break;
+            case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
+                // Deprecated. Returning false as is this permission does not exist.
+                return false;
             default:
                 return false;
         }
