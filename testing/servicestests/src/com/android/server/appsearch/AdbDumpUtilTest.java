@@ -135,6 +135,7 @@ public class AdbDumpUtilTest {
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         optimizeInfo -> true);
         List<AppSearchSchema> schemas = Collections.singletonList(new AppSearchSchema.Builder(
                 PERSON_TYPE).addProperty(new AppSearchSchema.StringPropertyConfig.Builder(

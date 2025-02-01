@@ -18,7 +18,11 @@ package com.android.server.appsearch.external.localstorage;
 
 import android.app.appsearch.SearchSpec;
 
+import com.android.appsearch.flags.Flags;
+
 import com.google.android.icing.proto.IcingSearchEngineOptions;
+
+import org.jspecify.annotations.NonNull;
 
 /**
  * An interface exposing the optional config flags in {@link IcingSearchEngineOptions} used to
@@ -240,4 +244,36 @@ public interface IcingOptionsConfig {
      * to initialize ICU.
      */
     String getIcuDataFileAbsolutePath();
+
+    /**
+     * Converts to an {@link IcingSearchEngineOptions} instance.
+     *
+     * @param baseDir base directory of the icing instance.
+     */
+    default @NonNull IcingSearchEngineOptions toIcingSearchEngineOptions(@NonNull String baseDir) {
+        return IcingSearchEngineOptions.newBuilder()
+                .setBaseDir(baseDir)
+                .setMaxTokenLength(getMaxTokenLength())
+                .setIndexMergeSize(getIndexMergeSize())
+                .setDocumentStoreNamespaceIdFingerprint(getDocumentStoreNamespaceIdFingerprint())
+                .setOptimizeRebuildIndexThreshold(getOptimizeRebuildIndexThreshold())
+                .setCompressionLevel(getCompressionLevel())
+                .setAllowCircularSchemaDefinitions(getAllowCircularSchemaDefinitions())
+                .setPreMappingFbv(getUsePreMappingWithFileBackedVector())
+                .setUsePersistentHashMap(getUsePersistentHashMap())
+                .setIntegerIndexBucketSplitThreshold(getIntegerIndexBucketSplitThreshold())
+                .setLiteIndexSortAtIndexing(getLiteIndexSortAtIndexing())
+                .setLiteIndexSortSize(getLiteIndexSortSize())
+                .setUseNewQualifiedIdJoinIndex(getUseNewQualifiedIdJoinIndex())
+                .setBuildPropertyExistenceMetadataHits(getBuildPropertyExistenceMetadataHits())
+                .setEnableBlobStore(Flags.enableBlobStore())
+                .setOrphanBlobTimeToLiveMs(getOrphanBlobTimeToLiveMs())
+                .setEnableEmbeddingIndex(Flags.enableSchemaEmbeddingPropertyConfig())
+                .setEnableEmbeddingQuantization(Flags.enableSchemaEmbeddingQuantization())
+                .setEnableScorableProperties(Flags.enableScorableProperty())
+                .setEnableQualifiedIdJoinIndexV3AndDeletePropagateFrom(
+                        Flags.enableDeletePropagationType())
+                .setIcuDataFileAbsolutePath(getIcuDataFileAbsolutePath())
+                .build();
+    }
 }

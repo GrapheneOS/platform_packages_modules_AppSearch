@@ -50,6 +50,7 @@ java_defaults {
     sdk_version: "system_server_current",
     min_sdk_version: "Tiramisu",
     static_libs: [
+        "com.android.appsearch.isolated_storage_service.aidl-java",
         "icing-java-proto-lite",
         "libicing-java",
         "statslog-appsearch-lib",
@@ -64,6 +65,7 @@ java_defaults {
         "framework-configinfrastructure.stubs.module_lib",
         "framework-permission-s.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
+        "framework-virtualization.stubs.module_lib",
     ],
     optimize: {
         proguard_flags_files: ["proguard.flags"],
@@ -73,6 +75,7 @@ java_defaults {
         "framework-system-server-module-optimize-defaults",
     ],
     permitted_packages: [
+        "com.android.isolated_storage_service",
         "com.android.server.appsearch",
         "com.google.android.icing",
     ],

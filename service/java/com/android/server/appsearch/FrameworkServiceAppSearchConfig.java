@@ -16,6 +16,9 @@
 
 package com.android.server.appsearch;
 
+import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
+import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.isolatedStorageFlagsSet;
+
 import android.annotation.NonNull;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,6 +28,7 @@ import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -113,6 +117,9 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_FULLY_PERSIST_JOB_INTERVAL = "fully_persist_job_interval";
     public static final String KEY_MAX_OPEN_BLOB_COUNT = "max_open_blob_count";
     public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
+    public static final String ISOLATED_STORAGE_ENCRYPTED_STORAGE_BYTES =
+            "isolated_storage_encrypted_storage_bytes";
+    public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -546,9 +553,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public int getMaxPageBytesLimit() {
         synchronized (mLock) {
             throwIfClosedLocked();
-            return mBundleLocked.getInt(
-                    KEY_ICING_MAX_PAGE_BYTES_LIMIT,
-                    IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+            // TODO: b/389105038 - remove the temporary workaround for binder transaction
+            //  limit.
+            int defaultMaxPageBytesLimit = IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT;
+            if (isolatedStorageFlagsSet()) {
+                // It's very likely we are using pVM backed isolated storage now.
+                defaultMaxPageBytesLimit = DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
+            }
+            return mBundleLocked.getInt(KEY_ICING_MAX_PAGE_BYTES_LIMIT, defaultMaxPageBytesLimit);
         }
     }
 
@@ -643,6 +655,26 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     @Override
     public String getIcuDataFileAbsolutePath() {
         return DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH;
+    }
+
+    @Override
+    public long getIsolatedStorageEncryptedStorageBytes() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    ISOLATED_STORAGE_ENCRYPTED_STORAGE_BYTES,
+                    IsolatedStorageServiceManager.DEFAULT_ENCRYPTED_STORAGE_BYTES);
+        }
+    }
+
+    @Override
+    public long getIsolatedStorageMemoryBytes() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    ISOLATED_STORAGE_MEMORY_BYTES,
+                    IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES);
+        }
     }
 
     @Override
@@ -938,6 +970,23 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             case KEY_MAX_OPEN_BLOB_COUNT:
                 synchronized (mLock) {
                     mBundleLocked.putInt(key, properties.getInt(key, DEFAULT_MAX_OPEN_BLOB_COUNT));
+                }
+                break;
+            case ISOLATED_STORAGE_ENCRYPTED_STORAGE_BYTES:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key,
+                            properties.getLong(
+                                    key,
+                                    IsolatedStorageServiceManager.DEFAULT_ENCRYPTED_STORAGE_BYTES));
+                }
+                break;
+            case ISOLATED_STORAGE_MEMORY_BYTES:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key,
+                            properties.getLong(
+                                    key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:

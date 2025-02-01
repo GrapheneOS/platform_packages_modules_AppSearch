@@ -74,6 +74,7 @@ public class VisibilityStoreTest {
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         mVisibilityStore = VisibilityStore.createDocumentVisibilityStore(mAppSearchImpl);
     }
