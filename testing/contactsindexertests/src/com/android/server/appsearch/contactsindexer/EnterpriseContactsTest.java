@@ -485,6 +485,9 @@ public class EnterpriseContactsTest {
 
     @Test
     public void testEnterpriseContactsInSystemPackage_transformPerson() throws Exception {
+        // This test can be flaky due to the CP2 for the main user sometimes returning null in
+        // response to the enterprise contacts query, so only run this test if CP2 is available
+        assumeTrue(isCP2Available(ApplicationProvider.getApplicationContext()));
         // The other tests in this class test behavior against contacts indexed in the local
         // package. This test however creates a test contact in CP2 which will be indexed in the
         // android package.
@@ -574,6 +577,18 @@ public class EnterpriseContactsTest {
             // Delete the raw contact; this will delete the associated contact as well since it only
             // has this one raw contact
             assertThat(resolver.delete(rawContactUri, null, null)).isEqualTo(1);
+        }
+    }
+
+    /** Checks if CP2 is available for the given user context. */
+    private boolean isCP2Available(Context context) {
+        ContentResolver resolver = context.getContentResolver();
+        String[] projection =
+                new String[]{ContactsContract.Contacts._ID, ContactsContract.Data.LOOKUP_KEY};
+        String selection = ContactsContract.Contacts._ID + " = 0";
+        try (Cursor cursor = resolver.query(ContactsContract.Contacts.ENTERPRISE_CONTENT_URI,
+                projection, selection, /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
+            return cursor != null;
         }
     }
 
