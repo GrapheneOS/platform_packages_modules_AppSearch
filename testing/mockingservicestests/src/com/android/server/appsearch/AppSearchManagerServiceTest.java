@@ -1234,7 +1234,7 @@ public class AppSearchManagerServiceTest {
                 false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_RATE_LIMIT_API_COSTS,
-                "localSearch:6;localSetSchema:9;localGetSchema:15",
+                "localSearch:3;localSetSchema:9;localGetSchema:15",
                 false);
         verifySetSchemaResult(RESULT_RATE_LIMITED);
         verifyLocalGetSchemaResult(RESULT_RATE_LIMITED);
