@@ -498,6 +498,11 @@ public final class AppSearchImpl implements Closeable {
         }
     }
 
+    /** Returns the instance of AppSearchConfig used by this instance of AppSearchImpl. */
+    public @NonNull AppSearchConfig getConfig() {
+        return mConfig;
+    }
+
     /**
      * Updates the AppSearch schema for this app.
      *

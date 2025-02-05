@@ -35,8 +35,6 @@ import android.util.Log;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
-import com.google.android.icing.proto.PersistType;
-
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -245,7 +243,7 @@ public class VisibilityStore {
                     prefixedVisibilityConfig.getSchemaType(), prefixedVisibilityConfig);
         }
         // Now that the visibility document has been written. Persist the newly written data.
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(mAppSearchImpl.getConfig().getLightweightPersistType());
     }
 
     /**
