@@ -470,7 +470,8 @@ public class GenericDocumentToProtoConverterTest {
                                 new UnlimitedLimitConfig(),
                                 new LocalStorageIcingOptionsConfig(),
                                 /* storeParentInfoAsSyntheticProperty= */ false,
-                                /* shouldRetrieveParentInfo= */ true));
+                                /* shouldRetrieveParentInfo= */ true,
+                                /* persistToDiskRecoveryProof= */ false));
         GenericDocument actualDoc2 =
                 GenericDocumentToProtoConverter.toGenericDocument(
                         documentProto,
@@ -480,7 +481,8 @@ public class GenericDocumentToProtoConverterTest {
                                 new UnlimitedLimitConfig(),
                                 new LocalStorageIcingOptionsConfig(),
                                 /* storeParentInfoAsSyntheticProperty= */ true,
-                                /* shouldRetrieveParentInfo= */ true));
+                                /* shouldRetrieveParentInfo= */ true,
+                                /* persistToDiskRecoveryProof= */ false));
         assertThat(actualDoc1).isEqualTo(expectedDoc);
         assertThat(actualDoc2).isEqualTo(expectedDoc);
     }
