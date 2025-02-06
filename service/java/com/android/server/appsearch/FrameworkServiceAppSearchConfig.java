@@ -123,6 +123,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String ISOLATED_STORAGE_ENCRYPTED_STORAGE_BYTES =
             "isolated_storage_encrypted_storage_bytes";
     public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
+    public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -172,7 +173,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
         KEY_FULLY_PERSIST_JOB_INTERVAL,
         KEY_MAX_OPEN_BLOB_COUNT,
-        KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS
+        KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS,
+        KEY_LIGHTWEIGHT_PERSIST_TYPE
     };
 
     // Lock needed for all the operations in this class.
@@ -697,7 +699,13 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
 
     @Override
     public PersistType.@NonNull Code getLightweightPersistType() {
-        return PersistType.Code.LITE;
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            int val =
+                mBundleLocked.getInt(
+                    KEY_LIGHTWEIGHT_PERSIST_TYPE, defaultLightweightPersistType().getNumber());
+            return PersistType.Code.forNumber(val);
+        }
     }
 
     @GuardedBy("mLock")
@@ -995,6 +1003,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                             key,
                             properties.getLong(
                                     key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
+                }
+                break;
+            case KEY_LIGHTWEIGHT_PERSIST_TYPE:
+                synchronized (mLock) {
+                    int val = properties.getInt(key, defaultLightweightPersistType().getNumber());
+                    PersistType.Code code = PersistType.Code.forNumber(val);
+                    // Confirm that the provided value is actually valid. Otherwise, ignore.
+                    if (code != null && code != PersistType.Code.UNKNOWN) {
+                      mBundleLocked.putInt(key, val);
+                    }
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:
