@@ -691,6 +691,7 @@ public class AppSearchHelperTest {
     public void
             setSchemaForPackages_setsDynamicAppFunctionSchemasWithParentType_dynamicSchemasExist()
                     throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         MobileApplication app = createFakeMobileApplication(0);
         List<PackageIdentifier> pkgIdentifiers =
                 List.of(new PackageIdentifier(app.getPackageName(), FAKE_SIGNATURE.toByteArray()));
@@ -722,6 +723,7 @@ public class AppSearchHelperTest {
     public void
             setSchemaForPackages_setsDefaultsToHardcodedAppFunctionSchemas_dynamicSchemasIsMissing()
                     throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         MobileApplication app = createFakeMobileApplication(0);
         List<PackageIdentifier> pkgIdentifiers =
                 List.of(new PackageIdentifier(app.getPackageName(), FAKE_SIGNATURE.toByteArray()));
@@ -745,6 +747,7 @@ public class AppSearchHelperTest {
 
     @Test
     public void setSchemaForPackages_dropsInvalidDynamicSchema() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         MobileApplication app = createFakeMobileApplication(0);
         AppSearchSchema dynamicSchema =
                 new AppSearchSchema.Builder("AppFunctionStaticMetadata-" + app.getPackageName())
