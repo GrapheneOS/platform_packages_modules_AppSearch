@@ -553,7 +553,7 @@ public class AppsIndexerImplTest {
                         + "</appfunctions>";
         when(assetManager.open(eq("app_functions.xml")))
                 .thenReturn(new ByteArrayInputStream(xml.getBytes()));
-        setUpResourcesForApp(assetManager, pm1, fakePackages.getFirst().packageName);
+        setUpResourcesForApp(assetManager, pm1, fakePackages.get(0).packageName);
         setupMockPackageManager(pm1, fakePackages, fakeActivities, fakeAppFunctionServices);
         Context context1 = createContextWithPackageManager(pm1);
         List<String> packages = ImmutableList.of("com.fake.package0");
@@ -897,7 +897,7 @@ public class AppsIndexerImplTest {
                 indexedFunctions.get("com.fake.package0").get("com.dynamicSchemaApp.utils#print");
         long firstPutTimestamp = original.getCreationTimestampMillis();
         // Simulate an update
-        fakePackages.getFirst().lastUpdateTime = 1000;
+        fakePackages.get(0).lastUpdateTime = 1000;
         String appFunctionsXml2 =
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
@@ -989,7 +989,7 @@ public class AppsIndexerImplTest {
                     /* isFullUpdateRequired= */ false);
         }
         // Simulate an update with new schema.
-        fakePackages.getFirst().lastUpdateTime = 1000;
+        fakePackages.get(0).lastUpdateTime = 1000;
         String schemaXmlWithNewProperty =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
                         + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
