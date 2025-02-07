@@ -37,6 +37,7 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
+import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.app.UiAutomation;
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
@@ -413,7 +414,7 @@ public class ContactsIndexerMaintenanceTest {
         File contactsDir = new File(temporaryFolder.newFolder(), "contacts");
         ContactsIndexerUserInstance instance =
                 ContactsIndexerUserInstance.createInstance(
-                        contextWrapper, contactsDir, new FrameworkContactsIndexerConfig());
+                        contextWrapper, contactsDir, new TestContactsIndexerConfig());
 
         // Latch to ensure that a contacts indexer update is ran
         ContactsIndexerManagerService.LocalService mockLocalService =
