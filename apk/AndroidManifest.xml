@@ -25,6 +25,10 @@
     <uses-permission android:name="android.permission.USE_RELAXED_MICRODROID_ROLLBACK_PROTECTION" />
     <uses-feature android:name="android.software.virtualization_framework" android:required="true" />
     <application>
+        <!-- Only non-decreasing ROLLBACK_INDEX value is allowed. In case of security fixes, we'll
+        increase the ROLLBACK_INDEX value to prevent rolling pVM back to old versions with lower
+        ROLLBACK_INDEX value. -->
+        <property android:name="android.system.virtualmachine.ROLLBACK_INDEX" android:value="1" />
         <service android:name="com.android.server.appsearch.isolated_storage_service.IsolatedStorageService" android:exported="true">
             <intent-filter>
                 <action android:name="com.android.appsearch.ISOLATED_STORAGE_SERVICE" />
