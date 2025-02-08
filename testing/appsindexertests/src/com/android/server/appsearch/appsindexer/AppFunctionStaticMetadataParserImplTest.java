@@ -173,7 +173,7 @@ public class AppFunctionStaticMetadataParserImplTest {
 
         assertThat(appFunctions).hasSize(1);
         // Only contain known properties from XML or properties populated by default.
-        assertThat(appFunctions.getFirst().getPropertyNames())
+        assertThat(appFunctions.get(0).getPropertyNames())
                 .containsExactly(
                         "functionId",
                         "packageName",
