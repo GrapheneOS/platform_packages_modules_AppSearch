@@ -15,14 +15,19 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
-import android.os.ParcelFileDescriptor;
+import android.os.SharedMemory;
 
 /**
  * Result from icing search engine calls.
  */
 parcelable IcingSearchResult {
+  union Data {
+        SharedMemory sharedMemory; // for large data
+        byte[] rawData; // for small data
+  }
+
   /**
    * Serialized data.
    */
-  ParcelFileDescriptor data;
+   Data data;
 }
