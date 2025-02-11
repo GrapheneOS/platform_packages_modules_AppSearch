@@ -240,8 +240,15 @@ public class AppFunctionStaticMetadata extends GenericDocument {
 
     /** Whether a parent type should be set for {@link AppFunctionStaticMetadata}. */
     public static boolean shouldSetParentType() {
-        // While added to the SDK in V, addParentTypes() is safe to call on versions above U. We
-        // cannot call addParentTypes() on T devices as a mainline rollback could break the schema.
+        // While added to the SDK in V, addParentTypes() is safe to call on versions above U (Icing
+        // added support for inheritance in the original U build, but the AppSearch API was not
+        // exposed until M-2023-08).
+        //
+        // The fact that this code is running at all implies that the current version > M-2023-08.
+        // Therefore, we know that addParentTypes is an available API.
+        //
+        // However, we cannot call addParentTypes() on T devices as a mainline rollback could break
+        // the schema.
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
     }
 
