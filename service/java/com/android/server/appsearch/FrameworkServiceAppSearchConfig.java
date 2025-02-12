@@ -19,7 +19,6 @@ package com.android.server.appsearch;
 import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
 import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.isolatedStorageFlagsSet;
 
-import android.annotation.NonNull;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.DeviceConfig;
@@ -31,6 +30,8 @@ import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
 import com.google.android.icing.proto.PersistType;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -655,7 +656,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     // The absolute path for the ICU data file is not available in Framework.
     // This method is functionally no-op and returns an empty string.
     @Override
-    public String getIcuDataFileAbsolutePath() {
+    public @NonNull String getIcuDataFileAbsolutePath() {
         return DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH;
     }
 
@@ -695,7 +696,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
-    public PersistType.Code getLightweightPersistType() {
+    public PersistType.@NonNull Code getLightweightPersistType() {
         return PersistType.Code.LITE;
     }
 
@@ -706,7 +707,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         }
     }
 
-    private void updateCachedValues(@NonNull DeviceConfig.Properties properties) {
+    private void updateCachedValues(DeviceConfig.@NonNull Properties properties) {
         for (String key : properties.getKeyset()) {
             updateCachedValue(key, properties);
         }
@@ -714,7 +715,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     private void updateCachedValue(
-            @NonNull String key, @NonNull DeviceConfig.Properties properties) {
+            @NonNull String key, DeviceConfig.@NonNull Properties properties) {
         if (properties.getString(key, /* defaultValue= */ null) == null) {
             // Key is missing or value is just null. That is not expected if the key is
             // defined in the configuration.
