@@ -392,3 +392,11 @@ flag {
     bug: "384768541"
     is_exported: true
 }
+
+flag {
+    name: "enable_schema_description"
+    namespace: "appsearch"
+    description: "Enable getDescription and related builders."
+    bug: "326987971"
+    is_exported: true
+}
