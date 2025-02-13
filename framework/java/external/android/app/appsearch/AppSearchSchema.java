@@ -148,7 +148,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
      * meaning. This field has no effect in AppSearch - it is just stored with the AppSearchSchema.
      * If {@link Builder#setDescription} is uncalled, then this method will return an empty string.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+    @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
     public @NonNull String getDescription() {
         return mDescription;
     }
@@ -250,7 +250,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * <p>For more details about the description field, see {@link
          * AppSearchSchema#getDescription}.
          */
-        @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
         @CanIgnoreReturnValue
         public @NonNull AppSearchSchema.Builder setDescription(@NonNull String description) {
             Objects.requireNonNull(description);
@@ -595,7 +595,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * AppSearchSchema. If the description is not set, then this method will return an empty
          * string.
          */
-        @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+        @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
         public @NonNull String getDescription() {
             return mPropertyConfigParcel.getDescription();
         }
@@ -936,7 +936,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull StringPropertyConfig.Builder setDescription(
                     @NonNull String description) {
@@ -1227,7 +1227,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull LongPropertyConfig.Builder setDescription(@NonNull String description) {
                 mDescription = Objects.requireNonNull(description);
@@ -1349,7 +1349,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull DoublePropertyConfig.Builder setDescription(
                     @NonNull String description) {
@@ -1431,7 +1431,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull BooleanPropertyConfig.Builder setDescription(
                     @NonNull String description) {
@@ -1507,7 +1507,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull BytesPropertyConfig.Builder setDescription(
                     @NonNull String description) {
@@ -1619,7 +1619,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull DocumentPropertyConfig.Builder setDescription(
                     @NonNull String description) {
@@ -1887,7 +1887,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull EmbeddingPropertyConfig.Builder setDescription(
                     @NonNull String description) {
@@ -1992,7 +1992,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * AppSearchSchema.PropertyConfig#getDescription}.
              */
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTIONS)
+            @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_DESCRIPTION)
             @SuppressWarnings("MissingGetterMatchingBuilder") // getter defined in superclass
             public @NonNull Builder setDescription(@NonNull String description) {
                 mDescription = Objects.requireNonNull(description);
