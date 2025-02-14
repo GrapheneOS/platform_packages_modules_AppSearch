@@ -18,8 +18,9 @@ package com.android.server.appsearch.isolated_storage_service;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
-import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.os.SharedMemory;
+import android.system.OsConstants;
 import android.system.virtualmachine.VirtualMachine;
 import android.system.virtualmachine.VirtualMachineCallback;
 import android.system.virtualmachine.VirtualMachineConfig;
@@ -29,10 +30,13 @@ import android.util.ArrayMap;
 import android.util.Log;
 
 import androidx.annotation.GuardedBy;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -230,67 +234,80 @@ public class IsolatedStorageService extends Service {
      *
      * <p>It's mostly a wrapper for the underlying pVM interface {@link
      * com.android.isolated_storage_service.IIcingSearchEngine IIcingSearchEngine}. It passes
-     * serialized Icing requests/responses between pVM and AppSearch. {@link ParcelFileDescriptor}
-     * instances are used for communication with AppSearch to overcome the binder transaction limit.
+     * serialized Icing requests/responses between pVM and AppSearch. {@link SharedMemory} instances
+     * are used for transferring large data.
      */
     private static class IcingSearchEngineStub extends IIcingSearchEngine.Stub {
 
         private final com.android.isolated_storage_service.IIcingSearchEngine mVmEngine;
 
-        IcingSearchEngineStub(com.android.isolated_storage_service.IIcingSearchEngine vmEngine) {
-            mVmEngine = vmEngine;
+        IcingSearchEngineStub(
+                @NonNull com.android.isolated_storage_service.IIcingSearchEngine vmEngine) {
+            mVmEngine = Objects.requireNonNull(vmEngine);
         }
 
         /**
-         * Creates a {@link ParcelFileDescriptor} socket pair to pass {@code data}, and returns the
-         * {@link ParcelFileDescriptor} instance that clients can read from.
+         * Creates a {@link SharedMemory} instance to pass {@code data}.
          *
-         * <p>Use {@link ParcelFileDescriptor} to overcome the binder transaction limit.
+         * <p>Use {@link SharedMemory} to overcome the binder transaction limit.
          *
-         * <p>The {@link ParcelFileDescriptor} instances used here are backed by a socket pair. This
-         * method writes {@code data} to one end of the socket pair and closes it. The {@link
-         * ParcelFileDescriptor} instance backed by the other end of the socket pair is returned to
-         * client, and client can read {@code data} from it. After client also closes the other end
-         * of the socket pair, data gets cleaned up.
+         * <p>Map a {@link ByteBuffer} to the {@link SharedMemory}, and unmap it after finishing
+         * writing {@code data} to it. After client closes the {@link SharedMemory}, it gets cleaned
+         * up.
          */
-        private static ParcelFileDescriptor createPfd(byte[] data) throws RemoteException {
-            ParcelFileDescriptor[] pipe;
+        private static SharedMemory createSharedMemory(byte[] data) throws RemoteException {
             try {
-                pipe = ParcelFileDescriptor.createSocketPair();
-                try (ParcelFileDescriptor.AutoCloseOutputStream outputStream =
-                        new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1])) {
-                    outputStream.write(data);
+                SharedMemory sharedMemory = SharedMemory.create("appsearch-apk-iss", data.length);
+                ByteBuffer buffer = sharedMemory.mapReadWrite();
+                try {
+                    buffer.order(ByteOrder.nativeOrder());
+                    buffer.put(data);
+                } finally {
+                    SharedMemory.unmap(buffer);
+                }
+                sharedMemory.setProtect(OsConstants.PROT_READ);
+                return sharedMemory;
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to create/write to SharedMemory", e);
+                throw new RemoteException(e.getMessage());
+            }
+        }
+
+        /**
+         * Reads {@link data} from a {@link SharedMemory} instance.
+         *
+         * <p>Use {@link SharedMemory} to overcome the binder transaction limit.
+         *
+         * <p>Map a {@link ByteBuffer} to the {@link SharedMemory}, and unmap after finishing
+         * reading from to it. Close the {@link SharedMemory} instance after reading from it.
+         */
+        private static byte[] readFromSharedMemory(SharedMemory sharedMemory)
+                throws RemoteException {
+            byte[] data;
+            try (sharedMemory) {
+                ByteBuffer buffer = sharedMemory.mapReadOnly();
+                try {
+                    buffer.order(ByteOrder.nativeOrder());
+                    data = new byte[sharedMemory.getSize()];
+                    buffer.get(data);
+                } finally {
+                    SharedMemory.unmap(buffer);
                 }
             } catch (Exception e) {
+                Log.e(TAG, "Failed to read from SharedMemory", e);
                 throw new RemoteException(e.getMessage());
             }
-            return pipe[0];
-        }
-
-        /**
-         * Reads {@link data} from a {@link ParcelFileDescriptor} instance.
-         *
-         * <p>Use {@link ParcelFileDescriptor} to overcome the binder transaction limit.
-         */
-        private static byte[] readFromPfd(ParcelFileDescriptor pfd) throws RemoteException {
-            ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
-            try (ParcelFileDescriptor.AutoCloseInputStream inputStream =
-                    new ParcelFileDescriptor.AutoCloseInputStream(pfd)) {
-                inputStream.transferTo(dataStream);
-            } catch (Exception e) {
-                throw new RemoteException(e.getMessage());
-            }
-            return dataStream.toByteArray();
+            return data;
         }
 
         @Override
         public void initialize(
-                ParcelFileDescriptor icingSearchEngineOptionsProto,
-                IIcingSearchResultCallback callback)
+                byte[] icingSearchEngineOptionsProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
             result.data =
-                    createPfd(mVmEngine.initialize(readFromPfd(icingSearchEngineOptionsProto)));
+                    IcingSearchResult.Data.rawData(
+                            mVmEngine.initialize(icingSearchEngineOptionsProto));
             callback.onResult(result);
         }
 
@@ -301,22 +318,23 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void setSchema(
-                ParcelFileDescriptor schemaProto,
+                SharedMemory schemaProto,
                 boolean ignoreErrorsAndDeleteDocuments,
                 IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
             result.data =
-                    createPfd(
+                    IcingSearchResult.Data.rawData(
                             mVmEngine.setSchema(
-                                    readFromPfd(schemaProto), ignoreErrorsAndDeleteDocuments));
+                                    readFromSharedMemory(schemaProto),
+                                    ignoreErrorsAndDeleteDocuments));
             callback.onResult(result);
         }
 
         @Override
         public void getSchema(IIcingSearchResultCallback callback) throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getSchema());
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getSchema());
             callback.onResult(result);
         }
 
@@ -324,7 +342,7 @@ public class IsolatedStorageService extends Service {
         public void getSchemaForDatabase(String database, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getSchemaForDatabase(database));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getSchemaForDatabase(database));
             callback.onResult(result);
         }
 
@@ -332,15 +350,17 @@ public class IsolatedStorageService extends Service {
         public void getSchemaType(String schemaType, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getSchemaType(schemaType));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getSchemaType(schemaType));
             callback.onResult(result);
         }
 
         @Override
-        public void put(ParcelFileDescriptor documentProto, IIcingSearchResultCallback callback)
+        public void put(SharedMemory documentProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.put(readFromPfd(documentProto)));
+            result.data =
+                    IcingSearchResult.Data.rawData(
+                            mVmEngine.put(readFromSharedMemory(documentProto)));
             callback.onResult(result);
         }
 
@@ -348,44 +368,44 @@ public class IsolatedStorageService extends Service {
         public void get(
                 String namespace,
                 String uri,
-                ParcelFileDescriptor getResultSpecProto,
+                byte[] getResultSpecProto,
                 IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.get(namespace, uri, readFromPfd(getResultSpecProto)));
+            result.data =
+                    IcingSearchResult.Data.sharedMemory(
+                            createSharedMemory(mVmEngine.get(namespace, uri, getResultSpecProto)));
             callback.onResult(result);
         }
 
         @Override
-        public void reportUsage(
-                ParcelFileDescriptor usageReportProto, IIcingSearchResultCallback callback)
+        public void reportUsage(byte[] usageReportProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.reportUsage(readFromPfd(usageReportProto)));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.reportUsage(usageReportProto));
             callback.onResult(result);
         }
 
         @Override
         public void getAllNamespaces(IIcingSearchResultCallback callback) throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getAllNamespaces());
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getAllNamespaces());
             callback.onResult(result);
         }
 
         @Override
         public void search(
-                ParcelFileDescriptor searchSpecProto,
-                ParcelFileDescriptor scoringSpecProto,
-                ParcelFileDescriptor resultSpecProto,
+                byte[] searchSpecProto,
+                byte[] scoringSpecProto,
+                byte[] resultSpecProto,
                 IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
             result.data =
-                    createPfd(
-                            mVmEngine.search(
-                                    readFromPfd(searchSpecProto),
-                                    readFromPfd(scoringSpecProto),
-                                    readFromPfd(resultSpecProto)));
+                    IcingSearchResult.Data.sharedMemory(
+                            createSharedMemory(
+                                    mVmEngine.search(
+                                            searchSpecProto, scoringSpecProto, resultSpecProto)));
             callback.onResult(result);
         }
 
@@ -393,7 +413,9 @@ public class IsolatedStorageService extends Service {
         public void getNextPage(long nextPageToken, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getNextPage(nextPageToken));
+            result.data =
+                    IcingSearchResult.Data.sharedMemory(
+                            createSharedMemory(mVmEngine.getNextPage(nextPageToken)));
             callback.onResult(result);
         }
 
@@ -403,38 +425,34 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public void openWriteBlob(
-                ParcelFileDescriptor blobHandleProto, IIcingSearchResultCallback callback)
+        public void openWriteBlob(byte[] blobHandleProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.openWriteBlob(readFromPfd(blobHandleProto)));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.openWriteBlob(blobHandleProto));
             callback.onResult(result);
         }
 
         @Override
-        public void removeBlob(
-                ParcelFileDescriptor blobHandleProto, IIcingSearchResultCallback callback)
+        public void removeBlob(byte[] blobHandleProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.removeBlob(readFromPfd(blobHandleProto)));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.removeBlob(blobHandleProto));
             callback.onResult(result);
         }
 
         @Override
-        public void openReadBlob(
-                ParcelFileDescriptor blobHandleProto, IIcingSearchResultCallback callback)
+        public void openReadBlob(byte[] blobHandleProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.openReadBlob(readFromPfd(blobHandleProto)));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.openReadBlob(blobHandleProto));
             callback.onResult(result);
         }
 
         @Override
-        public void commitBlob(
-                ParcelFileDescriptor blobHandleProto, IIcingSearchResultCallback callback)
+        public void commitBlob(byte[] blobHandleProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.commitBlob(readFromPfd(blobHandleProto)));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.commitBlob(blobHandleProto));
             callback.onResult(result);
         }
 
@@ -442,16 +460,18 @@ public class IsolatedStorageService extends Service {
         public void deleteByUri(String namespace, String uri, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.deleteDoc(namespace, uri));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.deleteDoc(namespace, uri));
             callback.onResult(result);
         }
 
         @Override
         public void searchSuggestions(
-                ParcelFileDescriptor suggestionSpecProto, IIcingSearchResultCallback callback)
+                byte[] suggestionSpecProto, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.searchSuggestions(readFromPfd(suggestionSpecProto)));
+            result.data =
+                    IcingSearchResult.Data.rawData(
+                            mVmEngine.searchSuggestions(suggestionSpecProto));
             callback.onResult(result);
         }
 
@@ -459,7 +479,7 @@ public class IsolatedStorageService extends Service {
         public void deleteByNamespace(String namespace, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.deleteByNamespace(namespace));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.deleteByNamespace(namespace));
             callback.onResult(result);
         }
 
@@ -467,21 +487,20 @@ public class IsolatedStorageService extends Service {
         public void deleteBySchemaType(String schemaType, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.deleteBySchemaType(schemaType));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.deleteBySchemaType(schemaType));
             callback.onResult(result);
         }
 
         @Override
         public void deleteByQuery(
-                ParcelFileDescriptor searchSpecProto,
+                byte[] searchSpecProto,
                 boolean returnDeletedDocumentInfo,
                 IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
             result.data =
-                    createPfd(
-                            mVmEngine.deleteByQuery(
-                                    readFromPfd(searchSpecProto), returnDeletedDocumentInfo));
+                    IcingSearchResult.Data.rawData(
+                            mVmEngine.deleteByQuery(searchSpecProto, returnDeletedDocumentInfo));
             callback.onResult(result);
         }
 
@@ -490,28 +509,28 @@ public class IsolatedStorageService extends Service {
                 /*PersistType.Code*/ int persistTypeCode, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.persistToDisk(persistTypeCode));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.persistToDisk(persistTypeCode));
             callback.onResult(result);
         }
 
         @Override
         public void optimize(IIcingSearchResultCallback callback) throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.optimize());
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.optimize());
             callback.onResult(result);
         }
 
         @Override
         public void getOptimizeInfo(IIcingSearchResultCallback callback) throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getOptimizeInfo());
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getOptimizeInfo());
             callback.onResult(result);
         }
 
         @Override
         public void getStorageInfo(IIcingSearchResultCallback callback) throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getStorageInfo());
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getStorageInfo());
             callback.onResult(result);
         }
 
@@ -520,14 +539,14 @@ public class IsolatedStorageService extends Service {
                 /*DebugInfoVerbosity.Code*/ int verbosity, IIcingSearchResultCallback callback)
                 throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.getDebugInfo(verbosity));
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.getDebugInfo(verbosity));
             callback.onResult(result);
         }
 
         @Override
         public void reset(IIcingSearchResultCallback callback) throws RemoteException {
             IcingSearchResult result = new IcingSearchResult();
-            result.data = createPfd(mVmEngine.reset());
+            result.data = IcingSearchResult.Data.rawData(mVmEngine.reset());
             callback.onResult(result);
         }
     }

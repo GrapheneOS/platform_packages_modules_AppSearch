@@ -21,6 +21,9 @@ package {
 aidl_interface {
     name: "com.android.appsearch.isolated_storage_service.aidl",
     srcs: ["com/**/*.aidl"],
+    include_dirs: [
+        "frameworks/base/core/java", // needed for SharedMemory usage in AIDL
+    ],
     unstable: true,
     flags: [
         "-Werror",
@@ -30,6 +33,15 @@ aidl_interface {
         java: {
             gen_rpc: true,
             apex_available: ["com.android.appsearch"],
+        },
+        rust: {
+            enabled: false,
+        },
+        cpp: {
+            enabled: false,
+        },
+        ndk: {
+            enabled: false,
         },
     },
     min_sdk_version: "33",

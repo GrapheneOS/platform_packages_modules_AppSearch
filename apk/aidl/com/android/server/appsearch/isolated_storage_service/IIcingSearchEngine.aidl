@@ -15,7 +15,7 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
-import android.os.ParcelFileDescriptor;
+import android.os.SharedMemory;
 import com.android.server.appsearch.isolated_storage_service.IIcingSearchResultCallback;
 
 /**
@@ -23,28 +23,28 @@ import com.android.server.appsearch.isolated_storage_service.IIcingSearchResultC
  * These APIs generally map to the available APIs in the Icing search engine library at external/icing/icing/icing-search-engine.h.
  */
 oneway interface IIcingSearchEngine {
-  void initialize(in ParcelFileDescriptor icingSearchEngineOptionsProto, in IIcingSearchResultCallback callback);
+  void initialize(in byte[] icingSearchEngineOptionsProto, in IIcingSearchResultCallback callback);
   void close();
-  void setSchema(in ParcelFileDescriptor schemaProto, in boolean ignoreErrorsAndDeleteDocuments, in IIcingSearchResultCallback callback);
+  void setSchema(in SharedMemory schemaProto, in boolean ignoreErrorsAndDeleteDocuments, in IIcingSearchResultCallback callback);
   void getSchema(in IIcingSearchResultCallback callback);
   void getSchemaForDatabase(in String database, in IIcingSearchResultCallback callback);
   void getSchemaType(in String schemaType, in IIcingSearchResultCallback callback);
-  void put(in ParcelFileDescriptor documentProto, in IIcingSearchResultCallback callback);
-  void get(in String name_space, String uri, in ParcelFileDescriptor getResultSpecProto, in IIcingSearchResultCallback callback);
-  void reportUsage(in ParcelFileDescriptor usageReportProto, in IIcingSearchResultCallback callback);
+  void put(in SharedMemory documentProto, in IIcingSearchResultCallback callback);
+  void get(in String name_space, String uri, in byte[] getResultSpecProto, in IIcingSearchResultCallback callback);
+  void reportUsage(in byte[] usageReportProto, in IIcingSearchResultCallback callback);
   void getAllNamespaces(in IIcingSearchResultCallback callback);
-  void search(in ParcelFileDescriptor searchSpecProto, in ParcelFileDescriptor scoringSpecProto, in ParcelFileDescriptor resultSpecProto, in IIcingSearchResultCallback callback);
+  void search(in byte[] searchSpecProto, in byte[] scoringSpecProto, in byte[] resultSpecProto, in IIcingSearchResultCallback callback);
   void getNextPage(long nextPageToken, in IIcingSearchResultCallback callback);
   void invalidateNextPageToken(long nextPageToken);
-  void openWriteBlob(in ParcelFileDescriptor blobHandleProto, in IIcingSearchResultCallback callback);
-  void removeBlob(in ParcelFileDescriptor blobHandleProto, in IIcingSearchResultCallback callback);
-  void openReadBlob(in ParcelFileDescriptor blobHandleProto, in IIcingSearchResultCallback callback);
-  void commitBlob(in ParcelFileDescriptor blobHandleProto, in IIcingSearchResultCallback callback);
+  void openWriteBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
+  void removeBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
+  void openReadBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
+  void commitBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
   void deleteByUri(in String name_space, in String uri, in IIcingSearchResultCallback callback);
-  void searchSuggestions(in ParcelFileDescriptor suggestionSpecProto, in IIcingSearchResultCallback callback);
+  void searchSuggestions(in byte[] suggestionSpecProto, in IIcingSearchResultCallback callback);
   void deleteByNamespace(in String name_space, in IIcingSearchResultCallback callback);
   void deleteBySchemaType(in String schemaType, in IIcingSearchResultCallback callback);
-  void deleteByQuery(in ParcelFileDescriptor searchSpecProto, boolean returnDeletedDocumentInfo, in IIcingSearchResultCallback callback);
+  void deleteByQuery(in byte[] searchSpecProto, boolean returnDeletedDocumentInfo, in IIcingSearchResultCallback callback);
   void persistToDisk(/*PersistType.Code*/ int persistTypeCode, in IIcingSearchResultCallback callback);
   void optimize(in IIcingSearchResultCallback callback);
   void getOptimizeInfo(in IIcingSearchResultCallback callback);
