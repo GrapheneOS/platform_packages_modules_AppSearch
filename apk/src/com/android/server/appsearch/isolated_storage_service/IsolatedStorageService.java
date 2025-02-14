@@ -127,6 +127,7 @@ public class IsolatedStorageService extends Service {
                         .setEncryptedStorageBytes(vmConfig.encryptedStorageBytes)
                         .setMemoryBytes(vmConfig.memoryBytes)
                         .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_MATCH_HOST)
+                        .setShouldUseHugepages(true)
                         .build();
         try {
             return vmm.create(VM_NAME, config);
