@@ -78,6 +78,7 @@ java_defaults {
         "com.android.isolated_storage_service",
         "com.android.server.appsearch",
         "com.google.android.icing",
+        "org.jspecify.annotations",
     ],
     jarjar_rules: "jarjar-rules.txt",
     visibility: [
