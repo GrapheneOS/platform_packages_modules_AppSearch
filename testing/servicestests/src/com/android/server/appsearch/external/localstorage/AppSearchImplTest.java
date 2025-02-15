@@ -85,6 +85,7 @@ import com.android.server.appsearch.icing.proto.DebugInfoProto;
 import com.android.server.appsearch.icing.proto.DebugInfoVerbosity;
 import com.android.server.appsearch.icing.proto.DocumentProto;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
+import com.android.server.appsearch.icing.proto.GetSchemaResultProto;
 import com.android.server.appsearch.icing.proto.PersistType;
 import com.android.server.appsearch.icing.proto.PropertyConfigProto;
 import com.android.server.appsearch.icing.proto.PropertyProto;
@@ -97,6 +98,8 @@ import com.android.server.appsearch.icing.proto.StringIndexingConfig;
 import com.android.server.appsearch.icing.proto.TermMatchType;
 import com.android.server.appsearch.protobuf.ByteString;
 
+import com.google.android.icing.IcingSearchEngine;
+import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -9634,5 +9637,70 @@ public class AppSearchImplTest {
                                 "database1",
                                 ImmutableSet.of("Type1", "Type2")));
         assertThat(observer.getDocumentChanges()).isEmpty();
+    }
+
+    @Test
+    public void testProvideIcingInstance_setSchema() throws Exception {
+        SchemaTypeConfigProto additionalConfigProto =
+                SchemaTypeConfigProto.newBuilder()
+                        .setSchemaType("nopackage$nodatabase/notype")
+                        .setDescription("From modified icing instance")
+                        .setVersion(0)
+                        .build();
+        IcingSearchEngineInterface modifiedIcingInstance =
+                new IcingSearchEngine(
+                        mUnlimitedConfig.toIcingSearchEngineOptions(
+                                mAppSearchDir.getAbsolutePath())) {
+                    @Override
+                    public GetSchemaResultProto getSchema() {
+                        GetSchemaResultProto.Builder resultBuilder = super.getSchema().toBuilder();
+                        resultBuilder.setSchema(
+                                resultBuilder.getSchema().toBuilder()
+                                        .addTypes(additionalConfigProto));
+                        return resultBuilder.build();
+                    }
+                };
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mUnlimitedConfig,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        modifiedIcingInstance,
+                        ALWAYS_OPTIMIZE);
+        List<SchemaTypeConfigProto> existingSchemas =
+                mAppSearchImpl.getSchemaProtoLocked().getTypesList();
+
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(new AppSearchSchema.Builder("Email").build());
+        // Set schema Email to AppSearch database1
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database1",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Create expected schemaType proto.
+        SchemaProto expectedProto =
+                SchemaProto.newBuilder()
+                        .addTypes(
+                                SchemaTypeConfigProto.newBuilder()
+                                        .setSchemaType("package$database1/Email")
+                                        .setDescription("")
+                                        .setVersion(0))
+                        .addTypes(additionalConfigProto)
+                        .build();
+
+        List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
+        expectedTypes.addAll(existingSchemas);
+        expectedTypes.addAll(expectedProto.getTypesList());
+        assertThat(mAppSearchImpl.getSchemaProtoLocked().getTypesList())
+                .containsExactlyElementsIn(expectedTypes);
     }
 }

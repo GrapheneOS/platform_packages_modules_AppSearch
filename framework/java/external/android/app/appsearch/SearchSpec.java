@@ -1243,6 +1243,35 @@ public final class SearchSpec extends AbstractSafeParcelable {
          *       </ul>
          * </ul>
          *
+         * <p>The following functions are provided for enhanced list manipulation.
+         *
+         * <ul>
+         *   <li>minOrDefault(V, default_score)
+         *       <p>Returns the minimum value in the input list V or the default_score if the list
+         *       is empty.
+         *       <p>Example: "minOrDefault(this.matchedSemanticScores(getEmbeddingParameter(0)),
+         *       10)" will return the minimum matched semantic scores or 10 if there is no matched
+         *       score for the current document.
+         *       <p>This function requires the feature {@link
+         *       Features#SEARCH_SPEC_RANKING_FUNCTION_MAX_MIN_OR_DEFAULT}.
+         *   <li>maxOrDefault(V, default_score)
+         *       <p>Returns the maximum value in the input list V or the default_score if the list
+         *       is empty.
+         *       <p>Example: "maxOrDefault(this.matchedSemanticScores(getEmbeddingParameter(0)),
+         *       -10)" will return the maximum matched semantic scores or -10 if there is no matched
+         *       score for the current document.
+         *       <p>This function requires the feature {@link
+         *       Features#SEARCH_SPEC_RANKING_FUNCTION_MAX_MIN_OR_DEFAULT}.
+         *   <li>filterByRange(V, low, high)
+         *       <p>Returns a sublist of V that only contains the elements that fall within the
+         *       specified range [low, high].
+         *       <p>Example: "filterByRange(this.matchedSemanticScores(getEmbeddingParameter(0)), 0,
+         *       1)" will return a list of matched semantic scores that are between 0 and 1,
+         *       inclusive.
+         *       <p>This function requires the feature {@link
+         *       Features#SEARCH_SPEC_RANKING_FUNCTION_FILTER_BY_RANGE}.
+         * </ul>
+         *
          * <p>Some errors may occur when using advanced ranking.
          *
          * <p>Syntax Error: the expression violates the syntax of the advanced ranking language.
