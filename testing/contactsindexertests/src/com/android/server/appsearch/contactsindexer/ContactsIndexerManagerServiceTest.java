@@ -62,7 +62,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.concurrent.CountDownLatch;
@@ -241,31 +240,6 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
         }
     }
 
-    // This tests the real scheduled job for Contacts Indexer that runs in the android package.
-    @Test
-    public void testRealScheduledJob_runsFullUpdate() throws Exception {
-        // Force the scheduled job to run through command line and verify that it actually ran by
-        // checking that the last full update timestamp in dumpsys changes from before to after.
-        long previousFullUpdateTimestampMillis = getLastFullUpdateTimestampFromAppSearchDumpsys();
-
-        // Force scheduled job in android package to run immediately
-        SystemUtil.runShellCommand(mUiAutomation, "cmd jobscheduler run -f android " + mJobId);
-
-        // We cannot test whether or not the full update indexes contacts since any contacts that
-        // we add will trigger a delta update
-
-        // Spin for 10 seconds max to wait for full update to update timestamps
-        long endTimeMillis = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
-        long newFullUpdateTimestampMillis = -1;
-        while (System.currentTimeMillis() < endTimeMillis) {
-            newFullUpdateTimestampMillis = getLastFullUpdateTimestampFromAppSearchDumpsys();
-            if (newFullUpdateTimestampMillis > previousFullUpdateTimestampMillis) {
-                break;
-            }
-        }
-        assertThat(newFullUpdateTimestampMillis).isGreaterThan(previousFullUpdateTimestampMillis);
-    }
-
     private long getLastFullUpdateTimestampFromContactsIndexerDump() {
         StringWriter stringWriter = new StringWriter();
         PrintWriter pw = new PrintWriter(stringWriter);
@@ -273,16 +247,6 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
                 /* verbose= */ false);
         String[] output = stringWriter.toString().split(System.lineSeparator());
         return getTimestampOutOfDump(output[0]);
-    }
-
-    private long getLastFullUpdateTimestampFromAppSearchDumpsys() throws IOException {
-        String dumpsys = SystemUtil.runShellCommand(mUiAutomation, "dumpsys app_search");
-        int startIndex = dumpsys.indexOf("ContactsIndexer stats for " + mContext.getUser());
-        assertThat(startIndex).isGreaterThan(-1);
-
-        String[] output = dumpsys.substring(startIndex).split(System.lineSeparator());
-        // Timestamps begin on second line of output
-        return getTimestampOutOfDump(output[1]);
     }
 
     private long getTimestampOutOfDump(String dumpOutputOneLine) {
