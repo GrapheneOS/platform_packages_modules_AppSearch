@@ -28,6 +28,7 @@ import android.app.UiAutomation;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSessionShim;
+import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
@@ -48,10 +49,14 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 
 import junit.framework.Assert;
 
+import org.jspecify.annotations.NonNull;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -78,6 +83,8 @@ public class AppOpenEventIndexerRealDocumentsTest {
     protected Context mUserContext;
     protected UiAutomation mUiAutomation;
 
+    @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+
     @Before
     public void setUp() throws Exception {
         mContext = new ContextWrapper(ApplicationProvider.getApplicationContext());
@@ -93,6 +100,16 @@ public class AppOpenEventIndexerRealDocumentsTest {
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         mUiAutomation.adoptShellPermissionIdentity(
                 PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE, RECEIVE_BOOT_COMPLETED);
+
+        File mAppSearchDir = mTemporaryFolder.newFolder();
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return mAppSearchDir;
+                    }
+                });
     }
 
     @After
