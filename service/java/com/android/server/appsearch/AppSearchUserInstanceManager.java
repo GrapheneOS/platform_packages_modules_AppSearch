@@ -296,7 +296,7 @@ public final class AppSearchUserInstanceManager {
                     mIsolatedStorageServiceManagerLocked.get().getIcingInstance(userHandle, config);
         }
 
-        /* Enforce successful isolated storage creation when configured for use. */
+        // Enforce successful isolated storage creation when configured for use
         if (icingInstance == null) {
             Log.e(TAG, "Failed to get isolated storage instance!");
             throw new AppSearchException(
