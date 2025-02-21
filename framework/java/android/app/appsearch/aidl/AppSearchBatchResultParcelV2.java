@@ -16,6 +16,7 @@
 
 package android.app.appsearch.aidl;
 
+import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
 import static android.app.appsearch.ParcelableUtil.WRITE_PARCEL_MODE_DIRECTLY_WRITE_TO_PARCEL;
 import static android.app.appsearch.ParcelableUtil.WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB;
 
@@ -28,7 +29,6 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.ParcelableUtil;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
@@ -116,6 +116,8 @@ public final class AppSearchBatchResultParcelV2<KeyType, ValueType> extends Abst
     @ParcelableUtil.WriteParcelMode
     int mWriteParcelModel;
 
+    // No longer used, we shouldn't use class name to generate clazz file since proguard will
+    // mutate the class name.
     @Field(id = 2)
     @NonNull
     final String mKeyClassName;
@@ -144,6 +146,13 @@ public final class AppSearchBatchResultParcelV2<KeyType, ValueType> extends Abst
         mKeyClassName = keyClassName;
         mKeyBundle = keyBundle;
         mAppSearchResultValueBundle = appSearchResultValueBundle;
+
+        // We need to set the bundle's class loader otherwise it may return null in getParcelable.
+        // Normally all AppSearch's classes should be under the same classLoader, using
+        // AppSearchResultParcelV2.class.getClassLoader() here.
+        ClassLoader classLoader = AppSearchResultParcelV2.class.getClassLoader();
+        mKeyBundle.setClassLoader(classLoader);
+        mAppSearchResultValueBundle.setClassLoader(classLoader);
     }
 
     /**
@@ -221,36 +230,34 @@ public final class AppSearchBatchResultParcelV2<KeyType, ValueType> extends Abst
 
     /** Gets the {@link AppSearchBatchResult} out of this {@link AppSearchBatchResultParcelV2}. */
     @NonNull
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "deprecation"})
     public AppSearchBatchResult<KeyType, ValueType> getResult() {
         if (mResultCached == null) {
             AppSearchBatchResult.Builder<KeyType, ValueType> builder =
                     new AppSearchBatchResult.Builder<>();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                try {
-                    java.lang.Class<?> clazz = java.lang.Class.forName(mKeyClassName);
-                    for (String key : mKeyBundle.keySet()) {
-                        builder.setResult(
-                                (KeyType) mKeyBundle.getParcelable(key, clazz),
-                                mAppSearchResultValueBundle
-                                        .getParcelable(key, AppSearchResultParcelV2.class)
-                                        .getResult());
-                    }
-                } catch (ClassNotFoundException e) {
-                    // Impossible, the key type name should always match the KeyType.
-                    throw new RuntimeException("Class not found: " + e.getMessage(), e);
-                }
-            } else {
-                for (String key : mKeyBundle.keySet()) {
+            for (String key : mKeyBundle.keySet()) {
+                KeyType keyType = (KeyType) mKeyBundle.getParcelable(key);
+                AppSearchResultParcelV2<ValueType> valueTypeResult =
+                        (AppSearchResultParcelV2<ValueType>)
+                                mAppSearchResultValueBundle.getParcelable(key);
+                if (keyType == null) {
+                    // keyType is null means the type of key doesn't match keyClazz, which
+                    // is impossible.
+                    throw new IllegalArgumentException(
+                            "AppSearchResultParcelV2's key type doesn't match.");
+                } else if (valueTypeResult == null) {
+                    // valueTypeResult is null means the type of value isn't
+                    // AppSearchResultParcelV2, which is impossible.
                     builder.setResult(
-                            mKeyBundle.getParcelable(key),
-                            ((AppSearchResultParcelV2)
-                                            mAppSearchResultValueBundle.getParcelable(key))
-                                    .getResult());
+                            keyType,
+                            AppSearchResult.newFailedResult(
+                                    RESULT_INTERNAL_ERROR,
+                                    "Cannot read value parcelable from bundle."));
+                } else {
+                    builder.setResult(keyType, valueTypeResult.getResult());
                 }
             }
-
             mResultCached = builder.build();
         }
         return mResultCached;
