@@ -52,7 +52,7 @@ import android.platform.test.annotations.RequiresFlagsEnabled;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
-import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
@@ -472,15 +472,17 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0);
 
             // Verify the state of the indexed apps after the first update
-            assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet())
+            assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages).keySet())
                     .containsExactlyElementsIn(packages);
         }
 
         // Manually modify the AppSearch function document timestamp
-        Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
-                mAppSearchHelper.getAppFunctionsFromAppSearch(packages);
+        Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
+                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages);
         GenericDocument original =
-                indexedFunctions.get("com.fake.package0").get("com.example.utils#print");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.example.utils#print");
         long firstPutTimestamp = original.getCreationTimestampMillis();
 
         // Simulate an update
@@ -516,14 +518,18 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(1);
 
-            assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet())
+            assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages).keySet())
                     .containsExactlyElementsIn(packages);
         }
-        indexedFunctions = mAppSearchHelper.getAppFunctionsFromAppSearch(packages);
+        indexedFunctions = mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages);
         GenericDocument unchangedFunctions =
-                indexedFunctions.get("com.fake.package0").get("com.example.utils#print");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.example.utils#print");
         GenericDocument addedFunction =
-                indexedFunctions.get("com.fake.package0").get("com.example.utils#search");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.example.utils#search");
 
         assertEquals(unchangedFunctions.getCreationTimestampMillis(), firstPutTimestamp);
         assertThat(addedFunction.getCreationTimestampMillis()).isGreaterThan(firstPutTimestamp);
@@ -584,7 +590,8 @@ public class AppsIndexerImplTest {
                     /* isFullUpdateRequired= */ false);
         }
 
-        assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packages).keySet()).isEmpty();
+        assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages).keySet())
+                .isEmpty();
     }
 
     @Test
@@ -606,7 +613,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
@@ -656,16 +663,16 @@ public class AppsIndexerImplTest {
                     new AppsUpdateStats(),
                     /* isFullUpdateRequired= */ false);
 
-            Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
-                    mAppSearchHelper.getAppFunctionsFromAppSearch(
+            Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
+                    mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
                             ImmutableList.of(
                                     dynamicSchemaApp.packageName, noSchemaApp.packageName));
             assertThat(indexedFunctions.keySet())
                     .containsExactly(dynamicSchemaApp.packageName, noSchemaApp.packageName);
             assertThat(indexedFunctions.get(dynamicSchemaApp.packageName).keySet())
-                    .containsExactly("com.dynamicSchemaApp.utils#print");
+                    .containsExactly("com.fake.package0/com.dynamicSchemaApp.utils#print");
             assertThat(indexedFunctions.get(noSchemaApp.packageName).keySet())
-                    .containsExactly("com.noSchemaApp.utils#print");
+                    .containsExactly("com.fake.package1/com.noSchemaApp.utils#print");
         }
     }
 
@@ -688,7 +695,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.validSchemaApp/com.validSchemaApp.utils#print</id>\n"
+                        + "    <id>com.validSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.validSchemaApp.utils#print</functionId>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
@@ -721,7 +728,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.invalidSchemaApp/com.invalidSchemaApp.utils#print</id>\n"
+                        + "    <id>com.invalidSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.invalidSchemaApp.utils#print</functionId>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
@@ -742,13 +749,13 @@ public class AppsIndexerImplTest {
                     new AppsUpdateStats(),
                     /* isFullUpdateRequired= */ false);
 
-            Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
-                    mAppSearchHelper.getAppFunctionsFromAppSearch(
+            Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
+                    mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
                             ImmutableList.of(
                                     validSchemaApp.packageName, invalidSchemaApp.packageName));
             assertThat(indexedFunctions.keySet()).containsExactly(validSchemaApp.packageName);
             assertThat(indexedFunctions.get(validSchemaApp.packageName).keySet())
-                    .containsExactly("com.validSchemaApp.utils#print");
+                    .containsExactly("com.fake.package0/com.validSchemaApp.utils#print");
             assertThat(indexedFunctions.keySet()).doesNotContain(invalidSchemaApp.packageName);
         }
     }
@@ -778,7 +785,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.schemaApp1/com.schemaApp1.utils#print</id>\n"
+                        + "    <id>com.schemaApp1.utils#print</id>\n"
                         + "    <functionId>com.schemaApp1.utils#print</functionId>\n"
                         + "    <inner>\n"
                         + "      <id>com.schemaApp1/com.schemaApp1.utils#print/inner</id>\n"
@@ -800,7 +807,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.schemaApp2/com.schemaApp2.utils#print</id>\n"
+                        + "    <id>com.schemaApp2.utils#print</id>\n"
                         + "    <functionId>com.schemaApp2.utils#print</functionId>\n"
                         + "    <inner>\n"
                         + "      <id>com.schemaApp2/com.schemaApp1.utils#print/inner</id>\n"
@@ -824,16 +831,16 @@ public class AppsIndexerImplTest {
                     new AppsUpdateStats(),
                     /* isFullUpdateRequired= */ false);
 
-            Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
-                    mAppSearchHelper.getAppFunctionsFromAppSearch(
+            Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
+                    mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
                             ImmutableList.of(schemaApp1.packageName, schemaApp2.packageName));
             // Verify functions from both apps are indexed successfully.
             assertThat(indexedFunctions.keySet())
                     .containsExactly(schemaApp1.packageName, schemaApp2.packageName);
             assertThat(indexedFunctions.get(schemaApp1.packageName).keySet())
-                    .containsExactly("com.schemaApp1.utils#print");
+                    .containsExactly("com.fake.package0/com.schemaApp1.utils#print");
             assertThat(indexedFunctions.get(schemaApp2.packageName).keySet())
-                    .containsExactly("com.schemaApp2.utils#print");
+                    .containsExactly("com.fake.package1/com.schemaApp2.utils#print");
         }
     }
 
@@ -864,7 +871,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "    <nested>\n"
                         + "     <id>com.dynamicSchemaApp.utils#print/nested0</id>\n"
@@ -891,10 +898,12 @@ public class AppsIndexerImplTest {
                     /* isFullUpdateRequired= */ false);
         }
         // Find first put timestamp of the AppSearch function document
-        Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
-                mAppSearchHelper.getAppFunctionsFromAppSearch(packageNames);
+        Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
+                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packageNames);
         GenericDocument original =
-                indexedFunctions.get("com.fake.package0").get("com.dynamicSchemaApp.utils#print");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.dynamicSchemaApp.utils#print");
         long firstPutTimestamp = original.getCreationTimestampMillis();
         // Simulate an update
         fakePackages.get(0).lastUpdateTime = 1000;
@@ -902,7 +911,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "    <nested>\n"
                         + "     <id>com.dynamicSchemaApp.utils#print/nested0</id>\n"
@@ -910,7 +919,7 @@ public class AppsIndexerImplTest {
                         + "    </nested>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#search</id>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#search</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#search</functionId>\n"
                         + "    <nested>\n"
                         + "     <id>com.dynamicSchemaApp.utils#search/nested0</id>\n"
@@ -934,16 +943,109 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(1);
 
-            assertThat(mAppSearchHelper.getAppFunctionsFromAppSearch(packageNames).keySet())
+            assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packageNames).keySet())
                     .containsExactlyElementsIn(packageNames);
         }
-        indexedFunctions = mAppSearchHelper.getAppFunctionsFromAppSearch(packageNames);
+        indexedFunctions = mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packageNames);
         GenericDocument unchangedFunction =
-                indexedFunctions.get("com.fake.package0").get("com.dynamicSchemaApp.utils#print");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.dynamicSchemaApp.utils#print");
         GenericDocument addedFunction =
-                indexedFunctions.get("com.fake.package0").get("com.dynamicSchemaApp.utils#search");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.dynamicSchemaApp.utils#search");
         assertThat(unchangedFunction.getCreationTimestampMillis()).isEqualTo(firstPutTimestamp);
         assertThat(addedFunction.getCreationTimestampMillis()).isGreaterThan(firstPutTimestamp);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_FUNCTIONS_SCHEMA_PARSER)
+    public void
+            testAppsIndexerImpl_incrementalPut_withDynamicSchema_multipleRootSchemas_indexesDocs()
+                    throws Exception {
+        PackageManager pm1 = Mockito.mock(PackageManager.class);
+        PackageInfo dynamicSchemaApp = createFakePackageInfo(0);
+        ResolveInfo dynamicSchemaAppResolveInfo = createFakeLaunchResolveInfo(0);
+        ResolveInfo dynamicSchemaAppFunctionResolveInfo = createFakeAppFunctionResolveInfo(0);
+        List<PackageInfo> fakePackages = ImmutableList.of(dynamicSchemaApp);
+        setUpAppFunctionProperties(pm1, dynamicSchemaAppFunctionResolveInfo);
+        AssetManager assetManager = Mockito.mock(AssetManager.class);
+        String xsdWithNestedTypes =
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">\n"
+                        + APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES
+                        + "    </xs:documentType>\n"
+                        + "    <xs:documentType name=\"AnotherTopLevelType\">\n"
+                        + "        <xs:element name=\"value\" type=\"xs:string\" />\n"
+                        + "        <xs:element name=\"packageName\" type=\"xs:string\" cardinality="
+                        + "\""
+                        + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                        + "\" indexingType=\""
+                        + AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS
+                        + "\" tokenizerType=\""
+                        + AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM
+                        + "\" />\n"
+                        + "        <xs:element name=\"mobileApplicationQualifiedId\" type=\"xs:"
+                        + "string\" cardinality=\""
+                        + AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+                        + "\" joinableValueType=\""
+                        + AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID
+                        + "\" />\n"
+                        + "    </xs:documentType>\n"
+                        + "</xs:schema>";
+        when(assetManager.open(eq("app_function_schema.xml")))
+                .thenAnswer(inv -> new ByteArrayInputStream(xsdWithNestedTypes.getBytes()));
+        String appFunctionsXml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#print</id>\n"
+                        + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
+                        + "  </AppFunctionStaticMetadata>\n"
+                        + "  <AnotherTopLevelType>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#anotherTopLevelType</id>\n"
+                        + "    <value>anotherTopLevelTypeValue</value>\n"
+                        + "  </AnotherTopLevelType>\n"
+                        + "</appfunctions>";
+        when(assetManager.open(eq("app_functions.xml")))
+                .thenReturn(new ByteArrayInputStream(appFunctionsXml.getBytes()));
+        setUpResourcesForApp(assetManager, pm1, dynamicSchemaApp.packageName);
+        setupMockPackageManager(
+                pm1,
+                fakePackages,
+                ImmutableList.of(dynamicSchemaAppResolveInfo),
+                ImmutableList.of(dynamicSchemaAppFunctionResolveInfo));
+        Context context1 = createContextWithPackageManager(pm1);
+        List<String> packageNames = ImmutableList.of(dynamicSchemaApp.packageName);
+        // Perform the first update
+        try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
+            AppsUpdateStats stats1 = new AppsUpdateStats();
+            appsIndexerImpl.doUpdateIncrementalPut(
+                    new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
+                    stats1,
+                    /* isFullUpdateRequired= */ false);
+        }
+        // Find first put timestamp of the AppSearch function document
+        Map<String, Map<String, AppFunctionDocument>> indexedFunctionDocuments =
+                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packageNames);
+        assertThat(indexedFunctionDocuments.get("com.fake.package0").keySet()).hasSize(2);
+        assertThat(indexedFunctionDocuments.get("com.fake.package0").keySet())
+                .containsExactly(
+                        "com.fake.package0/com.dynamicSchemaApp.utils#print",
+                        "com.fake.package0/com.dynamicSchemaApp.utils#anotherTopLevelType");
+        GenericDocument fnMetadata =
+                indexedFunctionDocuments
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.dynamicSchemaApp.utils#print");
+        assertThat(fnMetadata.getPropertyString("functionId"))
+                .isEqualTo("com.dynamicSchemaApp.utils#print");
+        GenericDocument anotherTopLevelDocument =
+                indexedFunctionDocuments
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.dynamicSchemaApp.utils#anotherTopLevelType");
+        assertThat(anotherTopLevelDocument.getPropertyString("value"))
+                .isEqualTo("anotherTopLevelTypeValue");
     }
 
     @Test
@@ -966,7 +1068,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>";
@@ -1001,7 +1103,7 @@ public class AppsIndexerImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.dynamicSchemaApp/com.dynamicSchemaApp.utils#print</id>\n"
+                        + "    <id>com.dynamicSchemaApp.utils#print</id>\n"
                         + "    <functionId>com.dynamicSchemaApp.utils#print</functionId>\n"
                         + "    <newProperty>test_new_property</newProperty>\n"
                         + "  </AppFunctionStaticMetadata>\n"
@@ -1024,10 +1126,12 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(1);
         }
-        Map<String, Map<String, AppFunctionStaticMetadata>> indexedFunctions =
-                mAppSearchHelper.getAppFunctionsFromAppSearch(packageNames);
+        Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
+                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packageNames);
         GenericDocument updatedFunction =
-                indexedFunctions.get("com.fake.package0").get("com.dynamicSchemaApp.utils#print");
+                indexedFunctions
+                        .get("com.fake.package0")
+                        .get("com.fake.package0/com.dynamicSchemaApp.utils#print");
         assertThat(updatedFunction.getPropertyString("newProperty")).isEqualTo("test_new_property");
     }
 

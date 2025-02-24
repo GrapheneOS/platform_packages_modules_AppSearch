@@ -19,6 +19,7 @@ package com.android.server.appsearch.appsindexer;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.GenericDocument;
 import android.app.appsearch.util.LogUtil;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
@@ -38,6 +39,7 @@ import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
@@ -236,8 +238,8 @@ public final class AppsUtil {
             @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
             @NonNull String indexerPackageName,
             AppsIndexerConfig config) {
-        AppFunctionStaticMetadataParser parser =
-                new AppFunctionStaticMetadataParserImpl(indexerPackageName, config);
+        AppFunctionDocumentParser parser =
+                new AppFunctionDocumentParserImpl(indexerPackageName, config);
         return buildAppFunctionStaticMetadata(packageManager, packageInfos, parser);
     }
 
@@ -251,7 +253,7 @@ public final class AppsUtil {
     static List<AppFunctionStaticMetadata> buildAppFunctionStaticMetadata(
             @NonNull PackageManager packageManager,
             @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-            @NonNull AppFunctionStaticMetadataParser parser) {
+            @NonNull AppFunctionDocumentParser parser) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
         Objects.requireNonNull(parser);
@@ -287,17 +289,17 @@ public final class AppsUtil {
 
     /**
      * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
-     * build AppSearch {@link AppFunctionStaticMetadata} documents. Info from both are required to
-     * build app documents.
+     * build AppSearch {@link GenericDocument} objects. Info from both are required to build app
+     * documents.
      *
-     * <p>App documents will be returned as a mapping of packages to a mapping of function ids to
-     * AppFunctionStaticMetadata documents. This is useful for determining what has changed during
-     * an update.
+     * <p>App documents will be returned as a mapping of packages to a mapping of document ids to
+     * documents. This is useful for determining what has changed during an update.
      *
-     * <p>The parser will parse app functions based on schemas if schemasPerPackage is not null or
-     * the map of schemas for a package is not empty, else it will default to predefined schema
-     * properties created by {@link AppFunctionStaticMetadata#createAppFunctionSchemaForPackage} to
-     * create the {@link AppFunctionStaticMetadata} documents.
+     * <p>The parser will parse app function documents based on schemas if schemasPerPackage is not
+     * null or the map of schemas for a package is not empty, else it will default to predefined
+     * schema properties created by {@link
+     * AppFunctionStaticMetadata#createAppFunctionSchemaForPackage} to create the {@link
+     * AppFunctionStaticMetadata} documents.
      *
      * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
      *     ResolveInfo} for the packages launch activity.
@@ -307,19 +309,18 @@ public final class AppsUtil {
      * @param schemasPerPackage a mapping of packages to a mapping of schema types to their
      *     corresponding {@link AppSearchSchema} objects, or null if there are no schemas to
      *     consider.
-     * @return A mapping of packages to a mapping of function ids to AppFunctionStaticMetadata
-     *     documents
+     * @return A mapping of packages to a mapping of document ids to AppFunction GenericDocuments
+     *     conforming the schemas for the corresponding package.
      */
-    public static Map<String, Map<String, AppFunctionStaticMetadata>>
-            buildAppFunctionStaticMetadataIntoMap(
-                    @NonNull PackageManager packageManager,
-                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-                    @NonNull String indexerPackageName,
-                    AppsIndexerConfig config,
-                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
-        AppFunctionStaticMetadataParser parser =
-                new AppFunctionStaticMetadataParserImpl(indexerPackageName, config);
-        return buildAppFunctionStaticMetadataIntoMap(
+    public static Map<String, Map<String, AppFunctionDocument>> buildAppFunctionDocumentsIntoMap(
+            @NonNull PackageManager packageManager,
+            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+            @NonNull String indexerPackageName,
+            AppsIndexerConfig config,
+            @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
+        AppFunctionDocumentParser parser =
+                new AppFunctionDocumentParserImpl(indexerPackageName, config);
+        return buildAppFunctionDocumentsIntoMap(
                 packageManager, packageInfos, parser, schemasPerPackage);
     }
 
@@ -327,19 +328,18 @@ public final class AppsUtil {
      * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
      * provide a custom parser. This is for testing purposes.
      *
-     * @see #buildAppFunctionStaticMetadataIntoMap(PackageManager, Map, String, int, Map)
+     * @see #buildAppFunctionDocumentsIntoMap(PackageManager, Map, String, AppsIndexerConfig, Map)
      */
     @VisibleForTesting
-    static Map<String, Map<String, AppFunctionStaticMetadata>>
-            buildAppFunctionStaticMetadataIntoMap(
-                    @NonNull PackageManager packageManager,
-                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-                    @NonNull AppFunctionStaticMetadataParser parser,
-                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
+    static Map<String, Map<String, AppFunctionDocument>> buildAppFunctionDocumentsIntoMap(
+            @NonNull PackageManager packageManager,
+            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+            @NonNull AppFunctionDocumentParser parser,
+            @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
         Objects.requireNonNull(parser);
-        Map<String, Map<String, AppFunctionStaticMetadata>> appFunctions = new ArrayMap<>();
+        Map<String, Map<String, AppFunctionDocument>> appFunctions = new ArrayMap<>();
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
             PackageInfo packageInfo = entry.getKey();
             ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();

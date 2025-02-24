@@ -21,11 +21,9 @@ import android.annotation.Nullable;
 import android.annotation.StringRes;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
-import android.app.appsearch.util.DocumentIdUtil;
 import android.os.Build;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.appsearch.appsindexer.AppSearchHelper;
 
 import java.util.Objects;
 
@@ -37,14 +35,13 @@ import java.util.Objects;
  */
 // TODO(b/357551503): Link to canonical docs rather than duplicating once they
 // are available.
-public class AppFunctionStaticMetadata extends GenericDocument {
+public class AppFunctionStaticMetadata extends AppFunctionDocument {
     private static final String TAG = "AppSearchAppFunction";
 
     public static final String SCHEMA_TYPE = "AppFunctionStaticMetadata";
 
     public static final String APP_FUNCTION_NAMESPACE = "app_functions";
     public static final String PROPERTY_FUNCTION_ID = "functionId";
-    public static final String PROPERTY_PACKAGE_NAME = "packageName";
     public static final String PROPERTY_SCHEMA_NAME = "schemaName";
     public static final String PROPERTY_SCHEMA_VERSION = "schemaVersion";
     public static final String PROPERTY_SCHEMA_CATEGORY = "schemaCategory";
@@ -52,23 +49,8 @@ public class AppFunctionStaticMetadata extends GenericDocument {
     public static final String PROPERTY_ENABLED_BY_DEFAULT = "enabledByDefault";
     public static final String PROPERTY_RESTRICT_CALLERS_WITH_EXECUTE_APP_FUNCTIONS =
             "restrictCallersWithExecuteAppFunctions";
-    public static final String PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID =
-            "mobileApplicationQualifiedId";
     public static final AppSearchSchema PARENT_TYPE_APPSEARCH_SCHEMA =
             createAppFunctionSchemaForPackage(/* packageName= */ null);
-
-    /**
-     * Returns a per-app schema name.
-     *
-     * @param pkg the package name of the app that owns the schema.
-     * @param schemaType the type of the schema. If null, {@link #SCHEMA_TYPE} will be used.
-     * @return the schema name by concatenating the type and the package name.
-     */
-    public static String getSchemaNameForPackage(@NonNull String pkg, @Nullable String schemaType) {
-        return ((schemaType == null) ? SCHEMA_TYPE : schemaType)
-                + "-"
-                + Objects.requireNonNull(pkg);
-    }
 
     /**
      * Different packages have different visibility requirements. To allow for different visibility,
@@ -83,7 +65,7 @@ public class AppFunctionStaticMetadata extends GenericDocument {
                 new AppSearchSchema.Builder(
                         (packageName == null)
                                 ? SCHEMA_TYPE
-                                : getSchemaNameForPackage(packageName, /* schemaType= */ null));
+                                : getSchemaNameForPackage(packageName, SCHEMA_TYPE));
         if (shouldSetParentType() && packageName != null) {
             // This is a child schema, setting the parent type.
             builder.addParentType(SCHEMA_TYPE);
@@ -252,7 +234,7 @@ public class AppFunctionStaticMetadata extends GenericDocument {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
     }
 
-    public static final class Builder extends GenericDocument.Builder<Builder> {
+    public static final class Builder extends AppFunctionDocument.Builder<Builder> {
         /**
          * Creates a Builder for a {@link AppFunctionStaticMetadata}.
          *
@@ -266,24 +248,10 @@ public class AppFunctionStaticMetadata extends GenericDocument {
                 @NonNull String packageName,
                 @NonNull String functionId,
                 @NonNull String indexerPackageName) {
-            super(
-                    APP_FUNCTION_NAMESPACE,
-                    Objects.requireNonNull(packageName) + "/" + Objects.requireNonNull(functionId),
-                    getSchemaNameForPackage(packageName, /* schemaType= */ null));
+            super(packageName, Objects.requireNonNull(functionId), indexerPackageName, SCHEMA_TYPE);
             setPropertyString(PROPERTY_FUNCTION_ID, functionId);
-            setPropertyString(PROPERTY_PACKAGE_NAME, packageName);
-
             // Default values of properties.
             setPropertyBoolean(PROPERTY_ENABLED_BY_DEFAULT, true);
-
-            // Set qualified id automatically
-            setPropertyString(
-                    PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID,
-                    DocumentIdUtil.createQualifiedId(
-                            indexerPackageName,
-                            AppSearchHelper.APP_DATABASE,
-                            MobileApplication.APPS_NAMESPACE,
-                            packageName));
         }
 
         /**
