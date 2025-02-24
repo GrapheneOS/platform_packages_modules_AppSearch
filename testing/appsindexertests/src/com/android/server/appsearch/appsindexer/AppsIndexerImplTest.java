@@ -56,6 +56,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocume
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import org.junit.After;
 import org.junit.Before;
@@ -70,6 +71,7 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -455,7 +457,7 @@ public class AppsIndexerImplTest {
 
         Context context1 = createContextWithPackageManager(pm1);
 
-        List<String> packages = ImmutableList.of("com.fake.package0");
+        Set<String> packages = ImmutableSet.of("com.fake.package0");
 
         // Perform the first update
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
@@ -562,7 +564,7 @@ public class AppsIndexerImplTest {
         setUpResourcesForApp(assetManager, pm1, fakePackages.get(0).packageName);
         setupMockPackageManager(pm1, fakePackages, fakeActivities, fakeAppFunctionServices);
         Context context1 = createContextWithPackageManager(pm1);
-        List<String> packages = ImmutableList.of("com.fake.package0");
+        Set<String> packages = ImmutableSet.of("com.fake.package0");
         // Perform the first update
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
@@ -665,8 +667,7 @@ public class AppsIndexerImplTest {
 
             Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
                     mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
-                            ImmutableList.of(
-                                    dynamicSchemaApp.packageName, noSchemaApp.packageName));
+                            ImmutableSet.of(dynamicSchemaApp.packageName, noSchemaApp.packageName));
             assertThat(indexedFunctions.keySet())
                     .containsExactly(dynamicSchemaApp.packageName, noSchemaApp.packageName);
             assertThat(indexedFunctions.get(dynamicSchemaApp.packageName).keySet())
@@ -751,7 +752,7 @@ public class AppsIndexerImplTest {
 
             Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
                     mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
-                            ImmutableList.of(
+                            ImmutableSet.of(
                                     validSchemaApp.packageName, invalidSchemaApp.packageName));
             assertThat(indexedFunctions.keySet()).containsExactly(validSchemaApp.packageName);
             assertThat(indexedFunctions.get(validSchemaApp.packageName).keySet())
@@ -833,7 +834,7 @@ public class AppsIndexerImplTest {
 
             Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
                     mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
-                            ImmutableList.of(schemaApp1.packageName, schemaApp2.packageName));
+                            ImmutableSet.of(schemaApp1.packageName, schemaApp2.packageName));
             // Verify functions from both apps are indexed successfully.
             assertThat(indexedFunctions.keySet())
                     .containsExactly(schemaApp1.packageName, schemaApp2.packageName);
@@ -888,7 +889,7 @@ public class AppsIndexerImplTest {
                 ImmutableList.of(dynamicSchemaAppResolveInfo),
                 ImmutableList.of(dynamicSchemaAppFunctionResolveInfo));
         Context context1 = createContextWithPackageManager(pm1);
-        List<String> packageNames = ImmutableList.of(dynamicSchemaApp.packageName);
+        Set<String> packageNames = ImmutableSet.of(dynamicSchemaApp.packageName);
         // Perform the first update
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
@@ -1017,7 +1018,7 @@ public class AppsIndexerImplTest {
                 ImmutableList.of(dynamicSchemaAppResolveInfo),
                 ImmutableList.of(dynamicSchemaAppFunctionResolveInfo));
         Context context1 = createContextWithPackageManager(pm1);
-        List<String> packageNames = ImmutableList.of(dynamicSchemaApp.packageName);
+        Set<String> packageNames = ImmutableSet.of(dynamicSchemaApp.packageName);
         // Perform the first update
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();
@@ -1081,7 +1082,7 @@ public class AppsIndexerImplTest {
                 ImmutableList.of(dynamicSchemaAppResolveInfo),
                 ImmutableList.of(dynamicSchemaAppFunctionResolveInfo));
         Context context1 = createContextWithPackageManager(pm1);
-        List<String> packageNames = ImmutableList.of(dynamicSchemaApp.packageName);
+        Set<String> packageNames = ImmutableSet.of(dynamicSchemaApp.packageName);
         // Perform the first update
         try (AppsIndexerImpl appsIndexerImpl = new AppsIndexerImpl(context1, mAppsIndexerConfig)) {
             AppsUpdateStats stats1 = new AppsUpdateStats();

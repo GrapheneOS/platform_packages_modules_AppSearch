@@ -130,7 +130,7 @@ public final class AppsIndexerImpl implements Closeable {
         // for removed packages, as we can just remove the entire MobileApplication +
         // AppFunctionStaticMetadata schemas, which will in turn remove the documents.
         Map<PackageInfo, ResolveInfos> packagesToBeAddedOrUpdated = new ArrayMap<>();
-        List<String> updatedPackageIds = new ArrayList<>();
+        Set<String> updatedPackageIds = new ArraySet<>();
 
         // First loop, determine the status of apps
         for (Map.Entry<PackageInfo, ResolveInfos> packageEntry : packagesToIndex.entrySet()) {
@@ -185,22 +185,24 @@ public final class AppsIndexerImpl implements Closeable {
         }
 
         // Parse and build all necessary AppFunctionStaticMetadata from PackageManager.
-        Map<String, Map<String, AppFunctionDocument>> currentAppFunctionsForAddedUpdatedPackages =
-                AppsUtil.buildAppFunctionDocumentsIntoMap(
-                        packageManager,
-                        packagesToBeAddedOrUpdated,
-                        /* indexerPackageName= */ mContext.getPackageName(),
-                        mAppsIndexerConfig,
-                        dynamicAppFunctionSchemasForPackages);
+        Map<String, Map<String, ? extends AppFunctionDocument>>
+                currentAppFunctionsForAddedUpdatedPackages =
+                        AppsUtil.buildAppFunctionDocumentsIntoMap(
+                                packageManager,
+                                packagesToBeAddedOrUpdated,
+                                /* indexerPackageName= */ mContext.getPackageName(),
+                                mAppsIndexerConfig,
+                                dynamicAppFunctionSchemasForPackages);
 
         // Get all currently indexed AppFunctionStaticMetadata docs for the necessary packages.
         Map<String, Map<String, AppFunctionDocument>> appFunctionsFromAppSearch =
                 mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(updatedPackageIds);
 
-        for (Map.Entry<String, Map<String, AppFunctionDocument>> packageEntry :
+        for (Map.Entry<String, Map<String, ? extends AppFunctionDocument>> packageEntry :
                 currentAppFunctionsForAddedUpdatedPackages.entrySet()) {
             String packageName = packageEntry.getKey();
-            Map<String, AppFunctionDocument> currentAppFunctionsPerApp = packageEntry.getValue();
+            Map<String, ? extends AppFunctionDocument> currentAppFunctionsPerApp =
+                    packageEntry.getValue();
 
             // This might be null, in the case of functions newly added to a package
             Map<String, AppFunctionDocument> appSearchAppFunctionsPerApp =
@@ -325,7 +327,7 @@ public final class AppsIndexerImpl implements Closeable {
      */
     private Pair<List<PackageIdentifier>, List<PackageIdentifier>> getPackageIdentifiers(
             @NonNull Map<PackageInfo, ResolveInfos> packagesToIndex,
-            Map<String, Map<String, AppFunctionDocument>>
+            Map<String, Map<String, ? extends AppFunctionDocument>>
                     currentAppFunctionsForAddedUpdatedPackages) {
         List<PackageIdentifier> packageIdentifiers = new ArrayList<>();
         List<PackageIdentifier> packageIdentifiersWithAppFunctions = new ArrayList<>();
@@ -371,7 +373,7 @@ public final class AppsIndexerImpl implements Closeable {
      *     AppSearch
      */
     private void comparePackageFunctionDocuments(
-            @NonNull Map<String, AppFunctionDocument> currentAppFunctionDocumentsPerApp,
+            @NonNull Map<String, ? extends AppFunctionDocument> currentAppFunctionDocumentsPerApp,
             @NonNull Map<String, AppFunctionDocument> appSearchAppFunctionDocumentsPerApp,
             @NonNull List<AppFunctionDocument> functionDocumentsToAddOrUpdate,
             @NonNull Set<String> functionDocumentIdsToRemove) {
@@ -380,7 +382,7 @@ public final class AppsIndexerImpl implements Closeable {
         Objects.requireNonNull(functionDocumentsToAddOrUpdate);
         Objects.requireNonNull(functionDocumentIdsToRemove);
 
-        for (Map.Entry<String, AppFunctionDocument> currentFunctionEntry :
+        for (Map.Entry<String, ? extends AppFunctionDocument> currentFunctionEntry :
                 currentAppFunctionDocumentsPerApp.entrySet()) {
             String functionId = currentFunctionEntry.getKey();
             AppFunctionDocument currentFunctionDocument = currentFunctionEntry.getValue();

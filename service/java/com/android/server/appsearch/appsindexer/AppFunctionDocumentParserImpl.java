@@ -103,7 +103,7 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
 
     @NonNull
     @Override
-    public Map<String, AppFunctionDocument> parseIntoMap(
+    public Map<String, AppFunctionStaticMetadata> parseIntoMap(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull String assetFilePath) {
@@ -180,15 +180,15 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
 
     /**
      * Parses a sequence of `appfunction` elements from the XML into a map of function ids to their
-     * corresponding {@link AppFunctionStaticMetadata}, a subtype of {@link AppFunctionDocument}.
+     * corresponding {@link AppFunctionStaticMetadata}.
      *
      * @param parser the XmlPullParser positioned at the start of the xml file
      */
     @NonNull
-    private Map<String, AppFunctionDocument> parseAppFunctionsIntoMap(
+    private Map<String, AppFunctionStaticMetadata> parseAppFunctionsIntoMap(
             @NonNull XmlPullParser parser, @NonNull String packageName)
             throws XmlPullParserException, IOException {
-        Map<String, AppFunctionDocument> appFunctions = new ArrayMap<>();
+        Map<String, AppFunctionStaticMetadata> appFunctions = new ArrayMap<>();
 
         int eventType = parser.getEventType();
 

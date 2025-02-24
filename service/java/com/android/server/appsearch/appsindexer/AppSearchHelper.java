@@ -572,7 +572,7 @@ public class AppSearchHelper implements Closeable {
     @NonNull
     @WorkerThread
     public Map<String, Map<String, AppFunctionDocument>> getAppFunctionDocumentsFromAppSearch(
-            List<String> appPackageIds) throws AppSearchException {
+            Set<String> appPackageIds) throws AppSearchException {
         SearchSpec allAppFunctionsSpec =
                 new SearchSpec.Builder()
                         .addFilterNamespaces(AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)

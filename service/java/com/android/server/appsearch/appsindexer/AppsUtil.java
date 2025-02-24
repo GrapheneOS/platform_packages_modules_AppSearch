@@ -312,12 +312,13 @@ public final class AppsUtil {
      * @return A mapping of packages to a mapping of document ids to AppFunction GenericDocuments
      *     conforming the schemas for the corresponding package.
      */
-    public static Map<String, Map<String, AppFunctionDocument>> buildAppFunctionDocumentsIntoMap(
-            @NonNull PackageManager packageManager,
-            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-            @NonNull String indexerPackageName,
-            AppsIndexerConfig config,
-            @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
+    public static Map<String, Map<String, ? extends AppFunctionDocument>>
+            buildAppFunctionDocumentsIntoMap(
+                    @NonNull PackageManager packageManager,
+                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+                    @NonNull String indexerPackageName,
+                    AppsIndexerConfig config,
+                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
         AppFunctionDocumentParser parser =
                 new AppFunctionDocumentParserImpl(indexerPackageName, config);
         return buildAppFunctionDocumentsIntoMap(
@@ -331,7 +332,7 @@ public final class AppsUtil {
      * @see #buildAppFunctionDocumentsIntoMap(PackageManager, Map, String, AppsIndexerConfig, Map)
      */
     @VisibleForTesting
-    static Map<String, Map<String, AppFunctionDocument>> buildAppFunctionDocumentsIntoMap(
+    static Map<String, Map<String, ? extends AppFunctionDocument>> buildAppFunctionDocumentsIntoMap(
             @NonNull PackageManager packageManager,
             @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
             @NonNull AppFunctionDocumentParser parser,
@@ -339,7 +340,7 @@ public final class AppsUtil {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
         Objects.requireNonNull(parser);
-        Map<String, Map<String, AppFunctionDocument>> appFunctions = new ArrayMap<>();
+        Map<String, Map<String, ? extends AppFunctionDocument>> appFunctions = new ArrayMap<>();
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
             PackageInfo packageInfo = entry.getKey();
             ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();

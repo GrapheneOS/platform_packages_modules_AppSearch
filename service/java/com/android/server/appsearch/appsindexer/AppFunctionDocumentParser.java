@@ -58,12 +58,12 @@ public interface AppFunctionDocumentParser {
      * @param packageManager The PackageManager used to access app resources.
      * @param packageName The package name of the app whose assets contain the XML file.
      * @param assetFilePath The path to the XML file within the app's assets.
-     * @return A mapping of document ids to their corresponding {@link AppFunctionDocument} objects
-     *     of subtype {@link AppFunctionStaticMetadata} representing the parsed App Functions. An
-     *     empty map is returned if there's an error during parsing.
+     * @return A mapping of document ids to their corresponding {@link AppFunctionStaticMetadata}
+     *     objects representing the parsed App Functions. An empty map is returned if there's an
+     *     error during parsing.
      */
     @NonNull
-    Map<String, AppFunctionDocument> parseIntoMap(
+    Map<String, AppFunctionStaticMetadata> parseIntoMap(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull String assetFilePath);
