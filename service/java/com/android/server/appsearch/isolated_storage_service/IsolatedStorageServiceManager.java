@@ -64,13 +64,10 @@ public final class IsolatedStorageServiceManager {
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
-    private static final int PAYLOAD_READY_WAIT_TIMEOUT_SECONDS = 15;
     private static final int LATCH_WAIT_TIMEOUT_SECONDS = 5;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
-
-    private final CountDownLatch mVmPayloadReadyLatch = new CountDownLatch(1);
 
     private final AtomicReference<IIsolatedStorageService> mIsolatedStorageServiceLocked =
             new AtomicReference<>();
@@ -178,27 +175,11 @@ public final class IsolatedStorageServiceManager {
 
     private void waitForVmPayloadReady() {
         try {
-            mIsolatedStorageServiceLocked
-                    .get()
-                    .startAndWaitForVm(
-                            createVmConfig(),
-                            new IVmPayloadReadyCallback.Stub() {
-                                @Override
-                                public void onReady() {
-                                    Log.i(TAG, "VM payload is ready");
-
-                                    mVmPayloadReadyLatch.countDown();
-                                }
-                            });
+            mIsolatedStorageServiceLocked.get().startAndWaitForVm(createVmConfig());
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
             ExceptionUtil.handleRemoteException(e);
         }
-
-        waitFor(
-                mVmPayloadReadyLatch,
-                PAYLOAD_READY_WAIT_TIMEOUT_SECONDS,
-                /* target= */ "pVM payload");
     }
 
     private VmConfig createVmConfig() {
@@ -223,38 +204,20 @@ public final class IsolatedStorageServiceManager {
         synchronized (mIcingInstancesLocked) {
             instance = mIcingInstancesLocked.get(userHandle);
             if (instance == null) {
-                waitFor(
-                        mVmPayloadReadyLatch,
-                        PAYLOAD_READY_WAIT_TIMEOUT_SECONDS,
-                        /* target= */ "pVM payload");
-                CountDownLatch latch = new CountDownLatch(1);
                 Log.i(TAG, "getting isolated icing instance for user " + userHandle);
-                AtomicReference<IcingSearchEngine> isolatedIcingInstance = new AtomicReference<>();
                 try {
-                    mIsolatedStorageServiceLocked
-                            .get()
-                            .getIcingSearchEngine(
-                                    userHandle.getIdentifier(),
-                                    new IIcingSearchEngineCallback.Stub() {
-                                        @Override
-                                        public void onResult(IIcingSearchEngine engine) {
-                                            isolatedIcingInstance.set(
-                                                    new IcingSearchEngine(
-                                                            engine,
-                                                            config.toIcingSearchEngineOptions(
-                                                                    /* baseDir= */ "appsearch")));
-                                            latch.countDown();
-                                        }
-                                    });
+                    instance =
+                            new IcingSearchEngine(
+                                    mIsolatedStorageServiceLocked
+                                            .get()
+                                            .getIcingSearchEngine(userHandle.getIdentifier()),
+                                    config.toIcingSearchEngineOptions(/* baseDir= */ "appsearch"));
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);
                 }
 
-                waitFor(latch, LATCH_WAIT_TIMEOUT_SECONDS, /* target= */ "icing instance");
-
-                if (isolatedIcingInstance.get() != null) {
-                    instance = isolatedIcingInstance.get();
+                if (instance != null) {
                     mIcingInstancesLocked.put(userHandle, instance);
                 }
             }

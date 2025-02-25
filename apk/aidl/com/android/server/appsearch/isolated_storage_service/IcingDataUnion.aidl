@@ -15,11 +15,12 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
-import com.android.server.appsearch.isolated_storage_service.IcingSearchResult;
+import android.os.SharedMemory;
 
 /**
- * Callback for getting icing search results.
+ * Serialized data for icing search engine calls.
  */
-oneway interface IIcingSearchResultCallback {
-  void onResult(in IcingSearchResult result);
+union IcingDataUnion {
+  SharedMemory sharedMemory; // for large data
+  byte[] rawData; // for small data
 }
