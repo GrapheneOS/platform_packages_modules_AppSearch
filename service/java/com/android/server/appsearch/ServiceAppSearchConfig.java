@@ -22,6 +22,10 @@ import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
+import com.google.android.icing.proto.PersistType;
+
+import org.jspecify.annotations.NonNull;
+
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -218,14 +222,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /**
-     * Closes this {@link AppSearchConfig}.
-     *
-     * <p>This close() operation does not throw an exception.
-     */
-    @Override
-    void close();
-
-    /**
      * Default min time interval between consecutive optimize calls in millis if there is no value
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.
      */
@@ -234,4 +230,22 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
                 ? DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS
                 : DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
     }
+
+    /**
+     * Default {@code PersistType.Code} that should be used to persist common mutations such as
+     * PUTs or DELETEs.
+     */
+    default PersistType.@NonNull Code defaultLightweightPersistType() {
+        return Flags.enableRecoveryProofPersistence()
+                ? PersistType.Code.RECOVERY_PROOF
+                : PersistType.Code.LITE;
+    }
+
+    /**
+     * Closes this {@link AppSearchConfig}.
+     *
+     * <p>This close() operation does not throw an exception.
+     */
+    @Override
+    void close();
 }
