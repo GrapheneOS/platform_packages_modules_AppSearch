@@ -126,7 +126,7 @@ public class IsolatedStorageService extends Service {
                         .setDebugLevel(VirtualMachineConfig.DEBUG_LEVEL_FULL)
                         .setEncryptedStorageBytes(vmConfig.encryptedStorageBytes)
                         .setMemoryBytes(vmConfig.memoryBytes)
-                        .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_MATCH_HOST)
+                        .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
                         .setShouldUseHugepages(true)
                         .build();
         try {
