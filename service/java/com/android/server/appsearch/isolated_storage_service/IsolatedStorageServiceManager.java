@@ -43,7 +43,7 @@ import com.google.android.icing.IcingSearchEngineInterface;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -64,7 +64,7 @@ public final class IsolatedStorageServiceManager {
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
-    private static final int LATCH_WAIT_TIMEOUT_SECONDS = 5;
+    private static final int FUTURE_WAIT_TIMEOUT_SECONDS = 5;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
@@ -116,31 +116,19 @@ public final class IsolatedStorageServiceManager {
 
         Intent intent = new Intent();
         intent.setClassName(packageName, ISOLATED_STORAGE_SERVICE_CLASS_NAME);
-        CountDownLatch latch = new CountDownLatch(1);
+        CompletableFuture<Void> future = new CompletableFuture<>();
         mContext.bindServiceAsUser(
                 intent,
-                new ServiceConnection() {
-                    @Override
-                    public void onServiceConnected(ComponentName className, IBinder service) {
-                        mIsolatedStorageServiceLocked.set(
-                                IIsolatedStorageService.Stub.asInterface(service));
-
-                        latch.countDown();
-                        Log.i(TAG, "IsolatedStorageService connected");
-                    }
-
-                    @Override
-                    public void onServiceDisconnected(ComponentName arg0) {
-                        Log.i(TAG, "IsolatedStorageService disconnected");
-                        mIsolatedStorageServiceLocked.set(null);
-                    }
-                },
+                new IsolatedStorageServiceConnection(future),
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
                 UserHandle.SYSTEM);
-        waitFor(
-                latch,
-                LATCH_WAIT_TIMEOUT_SECONDS,
-                /* target= */ "isolated storage service connection");
+        try {
+            future.get(FUTURE_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+            ExceptionUtil.handleException(e);
+            return;
+        }
         if (mIsolatedStorageServiceLocked.get() == null) {
             return;
         }
@@ -225,23 +213,40 @@ public final class IsolatedStorageServiceManager {
         return instance;
     }
 
-    private static void waitFor(
-            @NonNull CountDownLatch latch, long timeoutSeconds, @NonNull String target) {
-        Objects.requireNonNull(latch);
-        Objects.requireNonNull(target);
+    /** A connection to the isolated storage service. */
+    private class IsolatedStorageServiceConnection implements ServiceConnection {
+        private final CompletableFuture<Void> mFuture;
 
-        try {
-            if (!latch.await(timeoutSeconds, TimeUnit.SECONDS)) {
-                Log.e(
-                        TAG,
-                        "Timed out after waiting for "
-                                + target
-                                + " for "
-                                + timeoutSeconds
-                                + " seconds");
-            }
-        } catch (InterruptedException e) {
-            ExceptionUtil.handleException(e);
+        IsolatedStorageServiceConnection(@NonNull CompletableFuture<Void> future) {
+            mFuture = Objects.requireNonNull(future);
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            mIsolatedStorageServiceLocked.set(IIsolatedStorageService.Stub.asInterface(service));
+            Log.i(TAG, "IsolatedStorageService connected");
+            mFuture.complete(null);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName className) {
+            Log.i(TAG, "IsolatedStorageService disconnected");
+            mIsolatedStorageServiceLocked.set(null);
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
+        }
+
+        @Override
+        public void onBindingDied(ComponentName className) {
+            Log.i(TAG, "IsolatedStorageService binding died");
+            mIsolatedStorageServiceLocked.set(null);
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
+        }
+
+        @Override
+        public void onNullBinding(ComponentName className) {
+            Log.i(TAG, "IsolatedStorageService null binding");
+            mIsolatedStorageServiceLocked.set(null);
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
     }
 }

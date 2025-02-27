@@ -70,7 +70,6 @@ import java.util.function.Function;
 /** Icing engine backed by the isolated storage service. */
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
-    private static final long LATCH_TIMEOUT_SECONDS = 60;
 
     /**
      * The threshold to decide whether to use {@link SharedMemory}.
@@ -746,25 +745,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
-                .build();
-    }
-
-    private static @NonNull StatusProto latchWaitFailureStatus(@NonNull Exception e) {
-        Log.e(TAG, "Failed to wait for latch due to InterruptedException", e);
-        return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
-                .setMessage(
-                        "failed to wait for latch due to InterruptedException: " + e.getMessage())
-                .build();
-    }
-
-    private static @NonNull StatusProto latchWaitTimedOutStatus() {
-        return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
-                .setMessage(
-                        "timed out after waiting for latch for "
-                                + LATCH_TIMEOUT_SECONDS
-                                + " seconds")
                 .build();
     }
 

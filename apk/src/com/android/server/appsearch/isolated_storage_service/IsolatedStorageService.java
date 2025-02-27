@@ -37,7 +37,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +66,6 @@ public class IsolatedStorageService extends Service {
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
 
-    private final CountDownLatch mIsolatedStorageServiceLatch = new CountDownLatch(1);
     private volatile com.android.isolated_storage_service.IIsolatedStorageService
             mIsolatedStorageService;
 
@@ -81,19 +80,22 @@ public class IsolatedStorageService extends Service {
         return START_STICKY;
     }
 
-    private void startVm(VmConfig vmConfig) {
+    private CompletableFuture<Void> startVm(VmConfig vmConfig) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         VirtualMachine vm = maybeCreateVm(vmConfig);
         if (vm == null) {
             Log.e(TAG, "Unable to create/get VirtualMachine");
-            return;
+            future.cancel(/* mayInterruptIfRunning= */ true);
+            return future;
         }
-        Callback callback = new Callback();
-        vm.setCallback(mExecutorService, callback);
+        VmCallback vmCallback = new VmCallback(future);
+        vm.setCallback(mExecutorService, vmCallback);
         try {
             vm.run();
         } catch (VirtualMachineException e) {
             Log.e(TAG, "Failed to run " + VM_NAME, e);
         }
+        return future;
     }
 
     /**
@@ -145,7 +147,13 @@ public class IsolatedStorageService extends Service {
     }
 
     /** Callbacks for pVM status changes. */
-    private class Callback implements VirtualMachineCallback {
+    private class VmCallback implements VirtualMachineCallback {
+
+        private final CompletableFuture<Void> mFuture;
+
+        VmCallback(@NonNull CompletableFuture<Void> future) {
+            mFuture = Objects.requireNonNull(future);
+        }
 
         @Override
         public void onPayloadStarted(VirtualMachine vm) {
@@ -162,9 +170,10 @@ public class IsolatedStorageService extends Service {
                                         vm.connectToVsockServer(
                                                 com.android.isolated_storage_service
                                                         .IIsolatedStorageService.PORT));
-                mIsolatedStorageServiceLatch.countDown();
+                mFuture.complete(null);
             } catch (VirtualMachineException e) {
                 Log.e(TAG, "Failed to connect to " + VM_NAME, e);
+                mFuture.completeExceptionally(e);
             }
         }
 
@@ -199,19 +208,11 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void startAndWaitForVm(VmConfig vmConfig) throws RemoteException {
-            startVm(vmConfig);
             try {
-                if (!mIsolatedStorageServiceLatch.await(
-                        PAYLOAD_READY_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    // TODO: b/384768541 - add telemetry logging for timeout scenarios
-                    Log.e(
-                            TAG,
-                            "Timed out after waiting for payload ready for "
-                                    + PAYLOAD_READY_WAIT_TIMEOUT_SECONDS
-                                    + " seconds");
-                }
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Unable to wait for payload ready");
+                startVm(vmConfig).get(PAYLOAD_READY_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                Log.e(TAG, "Unable to wait for payload ready", e);
+                throw new RemoteException(e.getMessage());
             }
         }
 
