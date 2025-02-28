@@ -56,6 +56,14 @@ public final class IsolatedStorageServiceManager {
     // max doc size is 512 KiB, and also leave some room for non-page fields in the response protos.
     public static final int DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE = 512 * 1024;
 
+    /**
+     * The default threshold to decide whether to use {@link android.os.SharedMemory SharedMemory}
+     * for icing data passing between the isolated storage service and AppSearch.
+     *
+     * <p>This is a cautious value set to half of {@link android.os.IBinder#MAX_IPC_SIZE}.
+     */
+    public static final int DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES = 32 * 1024;
+
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_ENCRYPTED_STORAGE_BYTES = 500_000_000;
@@ -163,18 +171,21 @@ public final class IsolatedStorageServiceManager {
 
     private void waitForVmPayloadReady() {
         try {
-            mIsolatedStorageServiceLocked.get().startAndWaitForVm(createVmConfig());
+            mIsolatedStorageServiceLocked.get().setup(createServiceConfig());
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
             ExceptionUtil.handleRemoteException(e);
         }
     }
 
-    private VmConfig createVmConfig() {
-        VmConfig vmConfig = new VmConfig();
-        vmConfig.encryptedStorageBytes = mAppSearchConfig.getIsolatedStorageEncryptedStorageBytes();
-        vmConfig.memoryBytes = mAppSearchConfig.getIsolatedStorageMemoryBytes();
-        return vmConfig;
+    private ServiceConfig createServiceConfig() {
+        ServiceConfig config = new ServiceConfig();
+        config.pVmEncryptedStorageBytes =
+                mAppSearchConfig.getIsolatedStorageEncryptedStorageBytes();
+        config.pVmMemoryBytes = mAppSearchConfig.getIsolatedStorageMemoryBytes();
+        config.icingDataUnionSizeThresholdBytes =
+                mAppSearchConfig.getIsolatedStorageIcingDataUnionSizeThresholdBytes();
+        return config;
     }
 
     /** Gets isolated storage backed icing instance for user. */
@@ -199,7 +210,8 @@ public final class IsolatedStorageServiceManager {
                                     mIsolatedStorageServiceLocked
                                             .get()
                                             .getIcingSearchEngine(userHandle.getIdentifier()),
-                                    config.toIcingSearchEngineOptions(/* baseDir= */ "appsearch"));
+                                    config.toIcingSearchEngineOptions(/* baseDir= */ "appsearch"),
+                                    config.getIsolatedStorageIcingDataUnionSizeThresholdBytes());
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);

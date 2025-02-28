@@ -16,7 +16,7 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 import com.android.server.appsearch.isolated_storage_service.IIcingSearchEngine;
-import com.android.server.appsearch.isolated_storage_service.VmConfig;
+import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
 
 /**
  * Isolated storage service.
@@ -29,9 +29,9 @@ interface IIsolatedStorageService {
     const int PORT = 5678;
 
     /**
-     * Starts the vm.
+     * Sets up the sercie.
      */
-    void startAndWaitForVm(in VmConfig vmConfig);
+    void setup(in ServiceConfig config);
 
     /**
      * Gets an Icing connection for the given userId. Creates a new Icing connection if one does not

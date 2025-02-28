@@ -71,22 +71,19 @@ import java.util.function.Function;
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
 
-    /**
-     * The threshold to decide whether to use {@link SharedMemory}.
-     *
-     * <p>This is a cautious value set to half of {@link android.os.IBinder#MAX_IPC_SIZE}.
-     */
-    private static final int ICING_DATA_UNION_SIZE_THRESHOLD_BYTES = 32 * 1024;
-
     private final IIcingSearchEngine mEngine;
     private final IcingSearchEngineOptions mOptions;
+    private final long mIcingDataUnionSizeThresholdBytes;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
-            @NonNull IIcingSearchEngine engine, @NonNull IcingSearchEngineOptions options) {
+            @NonNull IIcingSearchEngine engine,
+            @NonNull IcingSearchEngineOptions options,
+            long icingDataUnionSizeThresholdBytes) {
         Log.d(TAG, "constructing");
         mEngine = Objects.requireNonNull(engine);
         mOptions = Objects.requireNonNull(options);
+        mIcingDataUnionSizeThresholdBytes = icingDataUnionSizeThresholdBytes;
     }
 
     @Override
@@ -605,14 +602,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     /**
      * Creates an {@link IcingDataUnion} instance to pass serialized {@code data}.
      *
-     * <p>For data smaller than {@link IcingSearchEngine#ICING_DATA_UNION_SIZE_THRESHOLD_BYTES}, use
+     * <p>For data smaller than {@link IcingSearchEngine#mIcingDataUnionSizeThresholdBytes}, use
      * byte array to pass it. For data larger than that, use {@link SharedMemory} to pass it. Using
      * {@link SharedMemory} is more expensive so we want to avoid when possible.
      */
-    private static @NonNull IcingDataUnion createIcingDataUnion(@NonNull MessageLite data)
+    private @NonNull IcingDataUnion createIcingDataUnion(@NonNull MessageLite data)
             throws ErrnoException {
         IcingDataUnion union = new IcingDataUnion();
-        if (data.getSerializedSize() < ICING_DATA_UNION_SIZE_THRESHOLD_BYTES) {
+        if (data.getSerializedSize() < mIcingDataUnionSizeThresholdBytes) {
             union.setRawData(data.toByteArray());
         } else {
             union.setSharedMemory(createSharedMemory(data));
