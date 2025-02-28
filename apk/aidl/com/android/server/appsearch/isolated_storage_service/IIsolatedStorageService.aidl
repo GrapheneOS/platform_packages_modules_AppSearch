@@ -15,8 +15,7 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
-import com.android.server.appsearch.isolated_storage_service.IIcingSearchEngineCallback;
-import com.android.server.appsearch.isolated_storage_service.IVmPayloadReadyCallback;
+import com.android.server.appsearch.isolated_storage_service.IIcingSearchEngine;
 import com.android.server.appsearch.isolated_storage_service.VmConfig;
 
 /**
@@ -26,17 +25,17 @@ import com.android.server.appsearch.isolated_storage_service.VmConfig;
  * service host the storage is isloated from the main Android operating system, and the underlying
  * storage is encrypted.
  */
-oneway interface IIsolatedStorageService {
+interface IIsolatedStorageService {
     const int PORT = 5678;
 
     /**
      * Starts the vm.
      */
-    void startAndWaitForVm(in VmConfig vmConfig, in IVmPayloadReadyCallback callback);
+    void startAndWaitForVm(in VmConfig vmConfig);
 
     /**
      * Gets an Icing connection for the given userId. Creates a new Icing connection if one does not
      * already exist for the given userId.
      */
-    void getIcingSearchEngine(in int userId, in IIcingSearchEngineCallback callback);
+    IIcingSearchEngine getIcingSearchEngine(in int userId);
 }
