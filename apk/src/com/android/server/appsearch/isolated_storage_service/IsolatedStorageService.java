@@ -361,13 +361,13 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] getSchema() throws RemoteException {
-            return mVmEngine.getSchema();
+        public IcingDataUnion getSchema() throws RemoteException {
+            return createIcingDataUnion(mVmEngine.getSchema());
         }
 
         @Override
-        public byte[] getSchemaForDatabase(String database) throws RemoteException {
-            return mVmEngine.getSchemaForDatabase(database);
+        public IcingDataUnion getSchemaForDatabase(String database) throws RemoteException {
+            return createIcingDataUnion(mVmEngine.getSchemaForDatabase(database));
         }
 
         @Override
@@ -455,9 +455,10 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] deleteByQuery(byte[] searchSpecProto, boolean returnDeletedDocumentInfo)
-                throws RemoteException {
-            return mVmEngine.deleteByQuery(searchSpecProto, returnDeletedDocumentInfo);
+        public IcingDataUnion deleteByQuery(
+                byte[] searchSpecProto, boolean returnDeletedDocumentInfo) throws RemoteException {
+            return createIcingDataUnion(
+                    mVmEngine.deleteByQuery(searchSpecProto, returnDeletedDocumentInfo));
         }
 
         @Override
@@ -467,8 +468,8 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] optimize() throws RemoteException {
-            return mVmEngine.optimize();
+        public IcingDataUnion optimize() throws RemoteException {
+            return createIcingDataUnion(mVmEngine.optimize());
         }
 
         @Override
@@ -477,8 +478,8 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] getStorageInfo() throws RemoteException {
-            return mVmEngine.getStorageInfo();
+        public IcingDataUnion getStorageInfo() throws RemoteException {
+            return createIcingDataUnion(mVmEngine.getStorageInfo());
         }
 
         @Override
