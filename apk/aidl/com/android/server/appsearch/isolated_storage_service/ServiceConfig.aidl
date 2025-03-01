@@ -16,16 +16,21 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 /**
- * Configs for the pVM.
+ * Configs for the isolated storage service.
  */
-parcelable VmConfig {
+parcelable ServiceConfig {
   /**
    * Size of pVM's encrypted storage in bytes.
    */
-  long encryptedStorageBytes;
+  long pVmEncryptedStorageBytes;
 
   /**
    * Size of pVM's memory in bytes.
    */
-  long memoryBytes;
+  long pVmMemoryBytes;
+
+  /**
+   * Threshold to decide whether to use SharedMemory to pass icing data.
+   */
+  long icingDataUnionSizeThresholdBytes;
 }

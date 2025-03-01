@@ -37,10 +37,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Service that provides isolated storage.
@@ -55,18 +56,10 @@ public class IsolatedStorageService extends Service {
     private static final String VM_NAME = "isolated_storage_service_vm";
     private static final String PAYLOAD_BINARY_NAME = "libisolated_storage_service.so";
 
-    /**
-     * The threshold to decide whether to use {@link SharedMemory}.
-     *
-     * <p>This is a cautious value set to half of {@link IBinder#MAX_IPC_SIZE}.
-     */
-    private static final int ICING_DATA_UNION_SIZE_THRESHOLD_BYTES = 32 * 1024;
-
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
 
-    private final CountDownLatch mIsolatedStorageServiceLatch = new CountDownLatch(1);
     private volatile com.android.isolated_storage_service.IIsolatedStorageService
             mIsolatedStorageService;
 
@@ -81,19 +74,22 @@ public class IsolatedStorageService extends Service {
         return START_STICKY;
     }
 
-    private void startVm(VmConfig vmConfig) {
-        VirtualMachine vm = maybeCreateVm(vmConfig);
+    private CompletableFuture<Void> startVm(ServiceConfig config) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        VirtualMachine vm = maybeCreateVm(config);
         if (vm == null) {
             Log.e(TAG, "Unable to create/get VirtualMachine");
-            return;
+            future.cancel(/* mayInterruptIfRunning= */ true);
+            return future;
         }
-        Callback callback = new Callback();
-        vm.setCallback(mExecutorService, callback);
+        VmCallback vmCallback = new VmCallback(future);
+        vm.setCallback(mExecutorService, vmCallback);
         try {
             vm.run();
         } catch (VirtualMachineException e) {
             Log.e(TAG, "Failed to run " + VM_NAME, e);
         }
+        return future;
     }
 
     /**
@@ -102,7 +98,7 @@ public class IsolatedStorageService extends Service {
      * <p>If the VM already exists, return it. If the VM doesn't exist or is deleted, create a new
      * VM and return it. Return {@code null} if failed to get or create the VM.
      */
-    private @Nullable VirtualMachine maybeCreateVm(VmConfig vmConfig) {
+    private @Nullable VirtualMachine maybeCreateVm(ServiceConfig config) {
         VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
             Log.e(TAG, "Unable to get VirtualMachineManager");
@@ -122,17 +118,18 @@ public class IsolatedStorageService extends Service {
         } else {
             Log.i(TAG, "Virtual machine " + VM_NAME + " is deleted. Creating one");
         }
-        return createVm(vmm, vmConfig);
+        return createVm(vmm, config);
     }
 
-    private @Nullable VirtualMachine createVm(VirtualMachineManager vmm, VmConfig vmConfig) {
+    private @Nullable VirtualMachine createVm(
+            VirtualMachineManager vmm, ServiceConfig serviceConfig) {
         VirtualMachineConfig config =
                 new VirtualMachineConfig.Builder(this)
                         .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
                         .setProtectedVm(true)
                         .setDebugLevel(VirtualMachineConfig.DEBUG_LEVEL_FULL)
-                        .setEncryptedStorageBytes(vmConfig.encryptedStorageBytes)
-                        .setMemoryBytes(vmConfig.memoryBytes)
+                        .setEncryptedStorageBytes(serviceConfig.pVmEncryptedStorageBytes)
+                        .setMemoryBytes(serviceConfig.pVmMemoryBytes)
                         .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
                         .setShouldUseHugepages(true)
                         .build();
@@ -145,7 +142,13 @@ public class IsolatedStorageService extends Service {
     }
 
     /** Callbacks for pVM status changes. */
-    private class Callback implements VirtualMachineCallback {
+    private class VmCallback implements VirtualMachineCallback {
+
+        private final CompletableFuture<Void> mFuture;
+
+        VmCallback(@NonNull CompletableFuture<Void> future) {
+            mFuture = Objects.requireNonNull(future);
+        }
 
         @Override
         public void onPayloadStarted(VirtualMachine vm) {
@@ -162,9 +165,10 @@ public class IsolatedStorageService extends Service {
                                         vm.connectToVsockServer(
                                                 com.android.isolated_storage_service
                                                         .IIsolatedStorageService.PORT));
-                mIsolatedStorageServiceLatch.countDown();
+                mFuture.complete(null);
             } catch (VirtualMachineException e) {
                 Log.e(TAG, "Failed to connect to " + VM_NAME, e);
+                mFuture.completeExceptionally(e);
             }
         }
 
@@ -193,44 +197,50 @@ public class IsolatedStorageService extends Service {
     /** Implementation of the {@link IIsolatedStorageService}. */
     private class IsolatedStorageServiceStub extends IIsolatedStorageService.Stub {
         private static final int PAYLOAD_READY_WAIT_TIMEOUT_SECONDS = 15;
+        private final AtomicReference<ServiceConfig> mConfig = new AtomicReference<>();
 
         @GuardedBy("mEnginesLocked")
         private final Map<Integer, IIcingSearchEngine> mEnginesLocked = new ArrayMap<>();
 
         @Override
-        public void startAndWaitForVm(VmConfig vmConfig) throws RemoteException {
-            startVm(vmConfig);
-            try {
-                if (!mIsolatedStorageServiceLatch.await(
-                        PAYLOAD_READY_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    // TODO: b/384768541 - add telemetry logging for timeout scenarios
-                    Log.e(
-                            TAG,
-                            "Timed out after waiting for payload ready for "
-                                    + PAYLOAD_READY_WAIT_TIMEOUT_SECONDS
-                                    + " seconds");
+        public void setup(ServiceConfig config) throws RemoteException {
+            synchronized (mConfig) {
+                if (mConfig.get() != null) {
+                    Log.w(TAG, "Service already set up");
+                    return;
                 }
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Unable to wait for payload ready");
+                mConfig.set(config);
+                try {
+                    startVm(config).get(PAYLOAD_READY_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    Log.e(TAG, "Unable to wait for payload ready", e);
+                    throw new RemoteException(e.getMessage());
+                }
             }
         }
 
         @Override
         public IIcingSearchEngine getIcingSearchEngine(int userId) throws RemoteException {
-            if (mIsolatedStorageService == null) {
-                throw new RemoteException("pVM payload is not ready/available");
-            }
-            IIcingSearchEngine engine;
-            synchronized (mEnginesLocked) {
-                engine = mEnginesLocked.get(userId);
-                if (engine == null) {
-                    engine =
-                            new IcingSearchEngineStub(
-                                    mIsolatedStorageService.getOrCreateIcingConnection(userId));
-                    mEnginesLocked.put(userId, engine);
+            synchronized (mConfig) {
+                if (mConfig.get() == null) {
+                    throw new RemoteException("Service not set up yet");
                 }
+                if (mIsolatedStorageService == null) {
+                    throw new RemoteException("pVM payload is not ready/available");
+                }
+                IIcingSearchEngine engine;
+                synchronized (mEnginesLocked) {
+                    engine = mEnginesLocked.get(userId);
+                    if (engine == null) {
+                        engine =
+                                new IcingSearchEngineStub(
+                                        mIsolatedStorageService.getOrCreateIcingConnection(userId),
+                                        mConfig.get().icingDataUnionSizeThresholdBytes);
+                        mEnginesLocked.put(userId, engine);
+                    }
+                }
+                return engine;
             }
-            return engine;
         }
     }
 
@@ -245,23 +255,25 @@ public class IsolatedStorageService extends Service {
     private static class IcingSearchEngineStub extends IIcingSearchEngine.Stub {
 
         private final com.android.isolated_storage_service.IIcingSearchEngine mVmEngine;
+        private final long mIcingDataUnionSizeThresholdBytes;
 
         IcingSearchEngineStub(
-                @NonNull com.android.isolated_storage_service.IIcingSearchEngine vmEngine) {
+                @NonNull com.android.isolated_storage_service.IIcingSearchEngine vmEngine,
+                long icingDataUnionSizeThresholdBytes) {
             mVmEngine = Objects.requireNonNull(vmEngine);
+            mIcingDataUnionSizeThresholdBytes = icingDataUnionSizeThresholdBytes;
         }
 
         /**
          * Creates an {@link IcingDataUnion} instance to pass {@code data}.
          *
-         * <p>For data smaller than {@link
-         * IsolatedStorageService#ICING_DATA_UNION_SIZE_THRESHOLD_BYTES}, use byte array to pass it.
-         * For data larger than that, use {@link SharedMemory} to pass it. Using {@link
-         * SharedMemory} is more expensive so we want to avoid when possible.
+         * <p>For data smaller than {@link IcingSearchEngineStub#mIcingDataUnionSizeThresholdBytes},
+         * use byte array to pass it. For data larger than that, use {@link SharedMemory} to pass
+         * it. Using {@link SharedMemory} is more expensive so we want to avoid when possible.
          */
-        private static IcingDataUnion createIcingDataUnion(byte[] data) throws RemoteException {
+        private IcingDataUnion createIcingDataUnion(byte[] data) throws RemoteException {
             IcingDataUnion union = new IcingDataUnion();
-            if (data.length < ICING_DATA_UNION_SIZE_THRESHOLD_BYTES) {
+            if (data.length < mIcingDataUnionSizeThresholdBytes) {
                 union.setRawData(data);
             } else {
                 union.setSharedMemory(createSharedMemory(data));
@@ -349,13 +361,13 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] getSchema() throws RemoteException {
-            return mVmEngine.getSchema();
+        public IcingDataUnion getSchema() throws RemoteException {
+            return createIcingDataUnion(mVmEngine.getSchema());
         }
 
         @Override
-        public byte[] getSchemaForDatabase(String database) throws RemoteException {
-            return mVmEngine.getSchemaForDatabase(database);
+        public IcingDataUnion getSchemaForDatabase(String database) throws RemoteException {
+            return createIcingDataUnion(mVmEngine.getSchemaForDatabase(database));
         }
 
         @Override
@@ -443,9 +455,10 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] deleteByQuery(byte[] searchSpecProto, boolean returnDeletedDocumentInfo)
-                throws RemoteException {
-            return mVmEngine.deleteByQuery(searchSpecProto, returnDeletedDocumentInfo);
+        public IcingDataUnion deleteByQuery(
+                byte[] searchSpecProto, boolean returnDeletedDocumentInfo) throws RemoteException {
+            return createIcingDataUnion(
+                    mVmEngine.deleteByQuery(searchSpecProto, returnDeletedDocumentInfo));
         }
 
         @Override
@@ -455,8 +468,8 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] optimize() throws RemoteException {
-            return mVmEngine.optimize();
+        public IcingDataUnion optimize() throws RemoteException {
+            return createIcingDataUnion(mVmEngine.optimize());
         }
 
         @Override
@@ -465,8 +478,8 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public byte[] getStorageInfo() throws RemoteException {
-            return mVmEngine.getStorageInfo();
+        public IcingDataUnion getStorageInfo() throws RemoteException {
+            return createIcingDataUnion(mVmEngine.getStorageInfo());
         }
 
         @Override
