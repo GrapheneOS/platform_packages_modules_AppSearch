@@ -70,24 +70,20 @@ import java.util.function.Function;
 /** Icing engine backed by the isolated storage service. */
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
-    private static final long LATCH_TIMEOUT_SECONDS = 60;
-
-    /**
-     * The threshold to decide whether to use {@link SharedMemory}.
-     *
-     * <p>This is a cautious value set to half of {@link android.os.IBinder#MAX_IPC_SIZE}.
-     */
-    private static final int ICING_DATA_UNION_SIZE_THRESHOLD_BYTES = 32 * 1024;
 
     private final IIcingSearchEngine mEngine;
     private final IcingSearchEngineOptions mOptions;
+    private final long mIcingDataUnionSizeThresholdBytes;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
-            @NonNull IIcingSearchEngine engine, @NonNull IcingSearchEngineOptions options) {
+            @NonNull IIcingSearchEngine engine,
+            @NonNull IcingSearchEngineOptions options,
+            long icingDataUnionSizeThresholdBytes) {
         Log.d(TAG, "constructing");
         mEngine = Objects.requireNonNull(engine);
         mOptions = Objects.requireNonNull(options);
+        mIcingDataUnionSizeThresholdBytes = icingDataUnionSizeThresholdBytes;
     }
 
     @Override
@@ -164,15 +160,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetSchemaResultProto getSchema() {
-        byte[] resultData;
+        IcingDataUnion resultUnion;
         try {
-            resultData = mEngine.getSchema();
+            resultUnion = mEngine.getSchema();
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 GetSchemaResultProto.getDefaultInstance(),
                 status -> GetSchemaResultProto.newBuilder().setStatus(status).build());
     }
@@ -180,15 +176,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetSchemaResultProto getSchemaForDatabase(@NonNull String database) {
-        byte[] resultData;
+        IcingDataUnion resultUnion;
         try {
-            resultData = mEngine.getSchemaForDatabase(database);
+            resultUnion = mEngine.getSchemaForDatabase(database);
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 GetSchemaResultProto.getDefaultInstance(),
                 status -> GetSchemaResultProto.newBuilder().setStatus(status).build());
     }
@@ -467,9 +463,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public DeleteByQueryResultProto deleteByQuery(@NonNull SearchSpecProto searchSpec) {
-        byte[] resultData;
+        IcingDataUnion resultUnion;
         try {
-            resultData =
+            resultUnion =
                     mEngine.deleteByQuery(
                             searchSpec.toByteArray(), /* returnDeletedDocumentInfo= */ false);
         } catch (RemoteException e) {
@@ -478,8 +474,8 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                     .build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 DeleteByQueryResultProto.getDefaultInstance(),
                 status -> DeleteByQueryResultProto.newBuilder().setStatus(status).build());
     }
@@ -488,17 +484,18 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public DeleteByQueryResultProto deleteByQuery(
             @NonNull SearchSpecProto searchSpec, boolean returnDeletedDocumentInfo) {
-        byte[] resultData;
+        IcingDataUnion resultUnion;
         try {
-            resultData = mEngine.deleteByQuery(searchSpec.toByteArray(), returnDeletedDocumentInfo);
+            resultUnion =
+                    mEngine.deleteByQuery(searchSpec.toByteArray(), returnDeletedDocumentInfo);
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 DeleteByQueryResultProto.getDefaultInstance(),
                 status -> DeleteByQueryResultProto.newBuilder().setStatus(status).build());
     }
@@ -524,15 +521,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public OptimizeResultProto optimize() {
-        byte[] resultData;
+        IcingDataUnion resultUnion;
         try {
-            resultData = mEngine.optimize();
+            resultUnion = mEngine.optimize();
         } catch (RemoteException e) {
             return OptimizeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 OptimizeResultProto.getDefaultInstance(),
                 status -> OptimizeResultProto.newBuilder().setStatus(status).build());
     }
@@ -558,15 +555,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public StorageInfoResultProto getStorageInfo() {
-        byte[] resultData;
+        IcingDataUnion resultUnion;
         try {
-            resultData = mEngine.getStorageInfo();
+            resultUnion = mEngine.getStorageInfo();
         } catch (RemoteException e) {
             return StorageInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 StorageInfoResultProto.getDefaultInstance(),
                 status -> StorageInfoResultProto.newBuilder().setStatus(status).build());
     }
@@ -606,14 +603,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     /**
      * Creates an {@link IcingDataUnion} instance to pass serialized {@code data}.
      *
-     * <p>For data smaller than {@link IcingSearchEngine#ICING_DATA_UNION_SIZE_THRESHOLD_BYTES}, use
+     * <p>For data smaller than {@link IcingSearchEngine#mIcingDataUnionSizeThresholdBytes}, use
      * byte array to pass it. For data larger than that, use {@link SharedMemory} to pass it. Using
      * {@link SharedMemory} is more expensive so we want to avoid when possible.
      */
-    private static @NonNull IcingDataUnion createIcingDataUnion(@NonNull MessageLite data)
+    private @NonNull IcingDataUnion createIcingDataUnion(@NonNull MessageLite data)
             throws ErrnoException {
         IcingDataUnion union = new IcingDataUnion();
-        if (data.getSerializedSize() < ICING_DATA_UNION_SIZE_THRESHOLD_BYTES) {
+        if (data.getSerializedSize() < mIcingDataUnionSizeThresholdBytes) {
             union.setRawData(data.toByteArray());
         } else {
             union.setSharedMemory(createSharedMemory(data));
@@ -746,25 +743,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
-                .build();
-    }
-
-    private static @NonNull StatusProto latchWaitFailureStatus(@NonNull Exception e) {
-        Log.e(TAG, "Failed to wait for latch due to InterruptedException", e);
-        return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
-                .setMessage(
-                        "failed to wait for latch due to InterruptedException: " + e.getMessage())
-                .build();
-    }
-
-    private static @NonNull StatusProto latchWaitTimedOutStatus() {
-        return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
-                .setMessage(
-                        "timed out after waiting for latch for "
-                                + LATCH_TIMEOUT_SECONDS
-                                + " seconds")
                 .build();
     }
 

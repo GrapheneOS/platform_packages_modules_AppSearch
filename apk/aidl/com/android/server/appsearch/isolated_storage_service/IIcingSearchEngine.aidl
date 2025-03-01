@@ -28,9 +28,9 @@ interface IIcingSearchEngine {
   @nullable
   /*SetSchemaResultProto*/ byte[]  setSchema(in IcingDataUnion schemaProto, in boolean ignoreErrorsAndDeleteDocuments);
   @nullable
-  /*GetSchemaResultProto*/ byte[] getSchema();
+  /*GetSchemaResultProto*/ IcingDataUnion getSchema();
   @nullable
-  /*GetSchemaResultProto*/ byte[] getSchemaForDatabase(in String database);
+  /*GetSchemaResultProto*/ IcingDataUnion getSchemaForDatabase(in String database);
   @nullable
   /*GetSchemaTypeResultProto*/ byte[] getSchemaType(in String schemaType);
   @nullable
@@ -63,15 +63,15 @@ interface IIcingSearchEngine {
   @nullable
   /*DeleteBySchemaTypeResultProto*/ byte[] deleteBySchemaType(in String schemaType);
   @nullable
-  /*DeleteByQueryResultProto*/ byte[] deleteByQuery(in byte[] searchSpecProto, boolean returnDeletedDocumentInfo);
+  /*DeleteByQueryResultProto*/ IcingDataUnion deleteByQuery(in byte[] searchSpecProto, boolean returnDeletedDocumentInfo);
   @nullable
   /*PersistToDiskResultProto*/ byte[] persistToDisk(/*PersistType.Code*/ int persistTypeCode);
   @nullable
-  /*OptimizeResultProto*/ byte[] optimize();
+  /*OptimizeResultProto*/ IcingDataUnion optimize();
   @nullable
   /*GetOptimizeInfoResultProto*/ byte[] getOptimizeInfo();
   @nullable
-  /*StorageInfoResultProto*/ byte[] getStorageInfo();
+  /*StorageInfoResultProto*/ IcingDataUnion getStorageInfo();
   @nullable
   /*DebugInfoResultProto*/ byte[] getDebugInfo(/*DebugInfoVerbosity.Code*/ int verbosity);
   @nullable

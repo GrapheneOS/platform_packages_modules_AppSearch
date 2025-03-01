@@ -123,6 +123,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String ISOLATED_STORAGE_ENCRYPTED_STORAGE_BYTES =
             "isolated_storage_encrypted_storage_bytes";
     public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
+    public static final String ISOLATED_STORAGE_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES =
+            "isolated_storage_icing_data_union_size_threshold_bytes";
     public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
 
     /**
@@ -683,6 +685,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
+    public long getIsolatedStorageIcingDataUnionSizeThresholdBytes() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    ISOLATED_STORAGE_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES,
+                    IsolatedStorageServiceManager.DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES);
+        }
+    }
+
+    @Override
     public boolean shouldStoreParentInfoAsSyntheticProperty() {
         // This option is always true in Framework.
         return true;
@@ -1003,6 +1015,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                             key,
                             properties.getLong(
                                     key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
+                }
+                break;
+            case ISOLATED_STORAGE_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key,
+                            properties.getLong(
+                                    key,
+                                    IsolatedStorageServiceManager
+                                            .DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES));
                 }
                 break;
             case KEY_LIGHTWEIGHT_PERSIST_TYPE:
