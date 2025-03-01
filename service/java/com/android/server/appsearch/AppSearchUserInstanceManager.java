@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch;
 
+import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
@@ -262,12 +264,19 @@ public final class AppSearchUserInstanceManager {
         return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);
     }
 
-    /** Gets the isolated icing engine for the user if isolated storage is enabled. */
+    /**
+     * Gets the isolated icing engine for the user if isolated storage is enabled.
+     *
+     * @return IcingSearchEngineInterface or null if isolated storage is not enabled.
+     * @throws AppSearchException if isolated storage is enabled, but the isolated storage service
+     *     is unavailable or fails.
+     */
     @Nullable
     private IcingSearchEngineInterface maybeGetIsolatedIcingSearchEngine(
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
-            @NonNull ServiceAppSearchConfig config) {
+            @NonNull ServiceAppSearchConfig config)
+            throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
@@ -286,6 +295,14 @@ public final class AppSearchUserInstanceManager {
             icingInstance =
                     mIsolatedStorageServiceManagerLocked.get().getIcingInstance(userHandle, config);
         }
+
+        /* Enforce successful isolated storage creation when configured for use. */
+        if (icingInstance == null) {
+            Log.e(TAG, "Failed to get isolated storage instance!");
+            throw new AppSearchException(
+                    RESULT_INTERNAL_ERROR, "Failed to get isolated storage instance!");
+        }
+
         return icingInstance;
     }
 }
