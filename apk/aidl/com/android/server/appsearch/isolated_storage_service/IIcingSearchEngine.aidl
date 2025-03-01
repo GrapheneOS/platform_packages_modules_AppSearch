@@ -15,40 +15,65 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
-import android.os.SharedMemory;
-import com.android.server.appsearch.isolated_storage_service.IIcingSearchResultCallback;
+import com.android.server.appsearch.isolated_storage_service.IcingDataUnion;
 
 /**
  * The AIDL interface for the Icing search engine within the isolated storage service.
  * These APIs generally map to the available APIs in the Icing search engine library at external/icing/icing/icing-search-engine.h.
  */
-oneway interface IIcingSearchEngine {
-  void initialize(in byte[] icingSearchEngineOptionsProto, in IIcingSearchResultCallback callback);
+interface IIcingSearchEngine {
+  @nullable
+  /*InitializeResultProto*/ byte[] initialize(in byte[] icingSearchEngineOptionsProto);
   void close();
-  void setSchema(in SharedMemory schemaProto, in boolean ignoreErrorsAndDeleteDocuments, in IIcingSearchResultCallback callback);
-  void getSchema(in IIcingSearchResultCallback callback);
-  void getSchemaForDatabase(in String database, in IIcingSearchResultCallback callback);
-  void getSchemaType(in String schemaType, in IIcingSearchResultCallback callback);
-  void put(in SharedMemory documentProto, in IIcingSearchResultCallback callback);
-  void get(in String name_space, String uri, in byte[] getResultSpecProto, in IIcingSearchResultCallback callback);
-  void reportUsage(in byte[] usageReportProto, in IIcingSearchResultCallback callback);
-  void getAllNamespaces(in IIcingSearchResultCallback callback);
-  void search(in byte[] searchSpecProto, in byte[] scoringSpecProto, in byte[] resultSpecProto, in IIcingSearchResultCallback callback);
-  void getNextPage(long nextPageToken, in IIcingSearchResultCallback callback);
+  @nullable
+  /*SetSchemaResultProto*/ byte[]  setSchema(in IcingDataUnion schemaProto, in boolean ignoreErrorsAndDeleteDocuments);
+  @nullable
+  /*GetSchemaResultProto*/ IcingDataUnion getSchema();
+  @nullable
+  /*GetSchemaResultProto*/ IcingDataUnion getSchemaForDatabase(in String database);
+  @nullable
+  /*GetSchemaTypeResultProto*/ byte[] getSchemaType(in String schemaType);
+  @nullable
+  /*PutResultProto*/ byte[] put(in IcingDataUnion documentProto);
+  @nullable
+  /*GetResultProto*/ IcingDataUnion get(in String name_space, String uri, in byte[] getResultSpecProto);
+  @nullable
+  /*ReportUsageResultProto*/ byte[] reportUsage(in byte[] usageReportProto);
+  @nullable
+  /*GetAllNamespacesResultProto*/ byte[] getAllNamespaces();
+  @nullable
+  /*SearchResultProto*/ IcingDataUnion search(in byte[] searchSpecProto, in byte[] scoringSpecProto, in byte[] resultSpecProto);
+  @nullable
+  /*SearchResultProto*/ IcingDataUnion getNextPage(long nextPageToken);
   void invalidateNextPageToken(long nextPageToken);
-  void openWriteBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
-  void removeBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
-  void openReadBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
-  void commitBlob(in byte[] blobHandleProto, in IIcingSearchResultCallback callback);
-  void deleteByUri(in String name_space, in String uri, in IIcingSearchResultCallback callback);
-  void searchSuggestions(in byte[] suggestionSpecProto, in IIcingSearchResultCallback callback);
-  void deleteByNamespace(in String name_space, in IIcingSearchResultCallback callback);
-  void deleteBySchemaType(in String schemaType, in IIcingSearchResultCallback callback);
-  void deleteByQuery(in byte[] searchSpecProto, boolean returnDeletedDocumentInfo, in IIcingSearchResultCallback callback);
-  void persistToDisk(/*PersistType.Code*/ int persistTypeCode, in IIcingSearchResultCallback callback);
-  void optimize(in IIcingSearchResultCallback callback);
-  void getOptimizeInfo(in IIcingSearchResultCallback callback);
-  void getStorageInfo(in IIcingSearchResultCallback callback);
-  void getDebugInfo(/*DebugInfoVerbosity.Code*/ int verbosity, in IIcingSearchResultCallback callback);
-  void reset(in IIcingSearchResultCallback callback);
+  @nullable
+  /*BlobProto*/ byte[] openWriteBlob(in byte[] blobHandleProto);
+  @nullable
+  /*BlobProto*/ byte[] removeBlob(in byte[] blobHandleProto);
+  @nullable
+  /*BlobProto*/ byte[] openReadBlob(in byte[] blobHandleProto);
+  @nullable
+  /*BlobProto*/ byte[] commitBlob(in byte[] blobHandleProto);
+  @nullable
+  /*DeleteResultProto*/ byte[] deleteByUri(in String name_space, in String uri);
+  @nullable
+  /*SuggestionResponse*/ byte[] searchSuggestions(in byte[] suggestionSpecProto);
+  @nullable
+  /*DeleteByNamespaceResultProto*/ byte[] deleteByNamespace(in String name_space);
+  @nullable
+  /*DeleteBySchemaTypeResultProto*/ byte[] deleteBySchemaType(in String schemaType);
+  @nullable
+  /*DeleteByQueryResultProto*/ IcingDataUnion deleteByQuery(in byte[] searchSpecProto, boolean returnDeletedDocumentInfo);
+  @nullable
+  /*PersistToDiskResultProto*/ byte[] persistToDisk(/*PersistType.Code*/ int persistTypeCode);
+  @nullable
+  /*OptimizeResultProto*/ IcingDataUnion optimize();
+  @nullable
+  /*GetOptimizeInfoResultProto*/ byte[] getOptimizeInfo();
+  @nullable
+  /*StorageInfoResultProto*/ IcingDataUnion getStorageInfo();
+  @nullable
+  /*DebugInfoResultProto*/ byte[] getDebugInfo(/*DebugInfoVerbosity.Code*/ int verbosity);
+  @nullable
+  /*ResetResultProto*/ byte[] reset();
 }

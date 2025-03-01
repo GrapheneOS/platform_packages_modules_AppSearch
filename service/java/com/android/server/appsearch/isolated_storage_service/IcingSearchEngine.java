@@ -16,6 +16,7 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.os.RemoteException;
 import android.os.SharedMemory;
 import android.system.ErrnoException;
@@ -64,53 +65,48 @@ import com.google.protobuf.Parser;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 /** Icing engine backed by the isolated storage service. */
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
-    private static final long LATCH_TIMEOUT_SECONDS = 60;
 
     private final IIcingSearchEngine mEngine;
     private final IcingSearchEngineOptions mOptions;
+    private final long mIcingDataUnionSizeThresholdBytes;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
-            @NonNull IIcingSearchEngine engine, @NonNull IcingSearchEngineOptions options) {
+            @NonNull IIcingSearchEngine engine,
+            @NonNull IcingSearchEngineOptions options,
+            long icingDataUnionSizeThresholdBytes) {
         Log.d(TAG, "constructing");
         mEngine = Objects.requireNonNull(engine);
         mOptions = Objects.requireNonNull(options);
+        mIcingDataUnionSizeThresholdBytes = icingDataUnionSizeThresholdBytes;
     }
 
     @Override
     public void close() {
         Log.d(TAG, "closing");
+        try {
+            mEngine.close();
+        } catch (RemoteException e) {
+            Log.e(TAG, "failed to call close", e);
+        }
     }
 
     @NonNull
     @Override
     public InitializeResultProto initialize() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.initialize(
-                    mOptions.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.initialize(mOptions.toByteArray());
         } catch (RemoteException e) {
             return InitializeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 InitializeResultProto.getDefaultInstance(),
                 status -> InitializeResultProto.newBuilder().setStatus(status).build());
@@ -119,19 +115,12 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public SetSchemaResultProto setSchema(@NonNull SchemaProto schema) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.setSchema(
-                    createSharedMemory(schema),
-                    /* ignoreErrorsAndDeleteDocuments= */ false,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData =
+                    mEngine.setSchema(
+                            createIcingDataUnion(schema),
+                            /* ignoreErrorsAndDeleteDocuments= */ false);
         } catch (ErrnoException e) {
             return SetSchemaResultProto.newBuilder()
                     .setStatus(sharedMemoryCreateFailureStatus(e))
@@ -141,7 +130,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 SetSchemaResultProto.getDefaultInstance(),
                 status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
@@ -151,19 +139,10 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public SetSchemaResultProto setSchema(
             @NonNull SchemaProto schema, boolean ignoreErrorsAndDeleteDocuments) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.setSchema(
-                    createSharedMemory(schema),
-                    ignoreErrorsAndDeleteDocuments,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData =
+                    mEngine.setSchema(createIcingDataUnion(schema), ignoreErrorsAndDeleteDocuments);
         } catch (ErrnoException e) {
             return SetSchemaResultProto.newBuilder()
                     .setStatus(sharedMemoryCreateFailureStatus(e))
@@ -173,7 +152,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 SetSchemaResultProto.getDefaultInstance(),
                 status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
@@ -182,24 +160,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetSchemaResultProto getSchema() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.getSchema(
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion = mEngine.getSchema();
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                latch,
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 GetSchemaResultProto.getDefaultInstance(),
                 status -> GetSchemaResultProto.newBuilder().setStatus(status).build());
     }
@@ -207,25 +176,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetSchemaResultProto getSchemaForDatabase(@NonNull String database) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.getSchemaForDatabase(
-                    database,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion = mEngine.getSchemaForDatabase(database);
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                latch,
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 GetSchemaResultProto.getDefaultInstance(),
                 status -> GetSchemaResultProto.newBuilder().setStatus(status).build());
     }
@@ -233,18 +192,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetSchemaTypeResultProto getSchemaType(@NonNull String schemaType) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.getSchemaType(
-                    schemaType,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.getSchemaType(schemaType);
         } catch (RemoteException e) {
             return GetSchemaTypeResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -252,7 +202,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 GetSchemaTypeResultProto.getDefaultInstance(),
                 status -> GetSchemaTypeResultProto.newBuilder().setStatus(status).build());
@@ -261,18 +210,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public PutResultProto put(@NonNull DocumentProto document) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.put(
-                    createSharedMemory(document),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.put(createIcingDataUnion(document));
         } catch (ErrnoException e) {
             return PutResultProto.newBuilder()
                     .setStatus(sharedMemoryCreateFailureStatus(e))
@@ -282,7 +222,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 PutResultProto.getDefaultInstance(),
                 status -> PutResultProto.newBuilder().setStatus(status).build());
@@ -294,27 +233,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull String namespace,
             @NonNull String uri,
             @NonNull GetResultSpecProto getResultSpec) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<SharedMemory> resultSharedMemory = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.get(
-                    namespace,
-                    uri,
-                    getResultSpec.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultSharedMemory.set(result.data.getSharedMemory());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion = mEngine.get(namespace, uri, getResultSpec.toByteArray());
         } catch (RemoteException e) {
             return GetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromSharedMemory(
-                latch,
-                resultSharedMemory,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 GetResultProto.getDefaultInstance(),
                 status -> GetResultProto.newBuilder().setStatus(status).build());
     }
@@ -322,24 +249,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public ReportUsageResultProto reportUsage(@NonNull UsageReport usageReport) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.reportUsage(
-                    usageReport.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.reportUsage(usageReport.toByteArray());
         } catch (RemoteException e) {
             return ReportUsageResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 ReportUsageResultProto.getDefaultInstance(),
                 status -> ReportUsageResultProto.newBuilder().setStatus(status).build());
@@ -348,17 +265,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetAllNamespacesResultProto getAllNamespaces() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.getAllNamespaces(
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.getAllNamespaces();
         } catch (RemoteException e) {
             return GetAllNamespacesResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -366,7 +275,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 GetAllNamespacesResultProto.getDefaultInstance(),
                 status -> GetAllNamespacesResultProto.newBuilder().setStatus(status).build());
@@ -378,27 +286,19 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull SearchSpecProto searchSpec,
             @NonNull ScoringSpecProto scoringSpec,
             @NonNull ResultSpecProto resultSpec) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<SharedMemory> resultSharedMemory = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.search(
-                    searchSpec.toByteArray(),
-                    scoringSpec.toByteArray(),
-                    resultSpec.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultSharedMemory.set(result.data.getSharedMemory());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion =
+                    mEngine.search(
+                            searchSpec.toByteArray(),
+                            scoringSpec.toByteArray(),
+                            resultSpec.toByteArray());
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromSharedMemory(
-                latch,
-                resultSharedMemory,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 SearchResultProto.getDefaultInstance(),
                 status -> SearchResultProto.newBuilder().setStatus(status).build());
     }
@@ -406,25 +306,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public SearchResultProto getNextPage(long nextPageToken) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<SharedMemory> resultSharedMemory = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.getNextPage(
-                    nextPageToken,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultSharedMemory.set(result.data.getSharedMemory());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion = mEngine.getNextPage(nextPageToken);
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromSharedMemory(
-                latch,
-                resultSharedMemory,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 SearchResultProto.getDefaultInstance(),
                 status -> SearchResultProto.newBuilder().setStatus(status).build());
     }
@@ -441,24 +331,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BlobProto openWriteBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.openWriteBlob(
-                    blobHandle.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.openWriteBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 BlobProto.getDefaultInstance(),
                 status -> BlobProto.newBuilder().setStatus(status).build());
@@ -467,24 +347,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BlobProto removeBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.removeBlob(
-                    blobHandle.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.removeBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 BlobProto.getDefaultInstance(),
                 status -> BlobProto.newBuilder().setStatus(status).build());
@@ -493,24 +363,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BlobProto openReadBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.openReadBlob(
-                    blobHandle.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.openReadBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 BlobProto.getDefaultInstance(),
                 status -> BlobProto.newBuilder().setStatus(status).build());
@@ -519,24 +379,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BlobProto commitBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.commitBlob(
-                    blobHandle.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.commitBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 BlobProto.getDefaultInstance(),
                 status -> BlobProto.newBuilder().setStatus(status).build());
@@ -545,25 +395,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public DeleteResultProto delete(@NonNull String namespace, @NonNull String uri) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.deleteByUri(
-                    namespace,
-                    uri,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.deleteByUri(namespace, uri);
         } catch (RemoteException e) {
             return DeleteResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 DeleteResultProto.getDefaultInstance(),
                 status -> DeleteResultProto.newBuilder().setStatus(status).build());
@@ -572,24 +411,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public SuggestionResponse searchSuggestions(@NonNull SuggestionSpecProto suggestionSpec) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.searchSuggestions(
-                    suggestionSpec.toByteArray(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.searchSuggestions(suggestionSpec.toByteArray());
         } catch (RemoteException e) {
             return SuggestionResponse.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 SuggestionResponse.getDefaultInstance(),
                 status -> SuggestionResponse.newBuilder().setStatus(status).build());
@@ -598,18 +427,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public DeleteByNamespaceResultProto deleteByNamespace(@NonNull String namespace) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.deleteByNamespace(
-                    namespace,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.deleteByNamespace(namespace);
         } catch (RemoteException e) {
             return DeleteByNamespaceResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -617,7 +437,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 DeleteByNamespaceResultProto.getDefaultInstance(),
                 status -> DeleteByNamespaceResultProto.newBuilder().setStatus(status).build());
@@ -626,18 +445,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public DeleteBySchemaTypeResultProto deleteBySchemaType(@NonNull String schemaType) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.deleteBySchemaType(
-                    schemaType,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.deleteBySchemaType(schemaType);
         } catch (RemoteException e) {
             return DeleteBySchemaTypeResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -645,7 +455,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 DeleteBySchemaTypeResultProto.getDefaultInstance(),
                 status -> DeleteBySchemaTypeResultProto.newBuilder().setStatus(status).build());
@@ -654,28 +463,19 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public DeleteByQueryResultProto deleteByQuery(@NonNull SearchSpecProto searchSpec) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.deleteByQuery(
-                    searchSpec.toByteArray(),
-                    /* returnDeletedDocumentInfo= */ false,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion =
+                    mEngine.deleteByQuery(
+                            searchSpec.toByteArray(), /* returnDeletedDocumentInfo= */ false);
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         }
 
-        return getResponseProtoFromRawData(
-                latch,
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 DeleteByQueryResultProto.getDefaultInstance(),
                 status -> DeleteByQueryResultProto.newBuilder().setStatus(status).build());
     }
@@ -684,28 +484,18 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public DeleteByQueryResultProto deleteByQuery(
             @NonNull SearchSpecProto searchSpec, boolean returnDeletedDocumentInfo) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.deleteByQuery(
-                    searchSpec.toByteArray(),
-                    returnDeletedDocumentInfo,
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion =
+                    mEngine.deleteByQuery(searchSpec.toByteArray(), returnDeletedDocumentInfo);
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         }
 
-        return getResponseProtoFromRawData(
-                latch,
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 DeleteByQueryResultProto.getDefaultInstance(),
                 status -> DeleteByQueryResultProto.newBuilder().setStatus(status).build());
     }
@@ -713,18 +503,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public PersistToDiskResultProto persistToDisk(@NonNull PersistType.Code persistTypeCode) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.persistToDisk(
-                    persistTypeCode.getNumber(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.persistToDisk(persistTypeCode.getNumber());
         } catch (RemoteException e) {
             return PersistToDiskResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -732,7 +513,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 PersistToDiskResultProto.getDefaultInstance(),
                 status -> PersistToDiskResultProto.newBuilder().setStatus(status).build());
@@ -741,24 +521,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public OptimizeResultProto optimize() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.optimize(
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion = mEngine.optimize();
         } catch (RemoteException e) {
             return OptimizeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                latch,
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 OptimizeResultProto.getDefaultInstance(),
                 status -> OptimizeResultProto.newBuilder().setStatus(status).build());
     }
@@ -766,17 +537,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public GetOptimizeInfoResultProto getOptimizeInfo() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.getOptimizeInfo(
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.getOptimizeInfo();
         } catch (RemoteException e) {
             return GetOptimizeInfoResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -784,7 +547,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 GetOptimizeInfoResultProto.getDefaultInstance(),
                 status -> GetOptimizeInfoResultProto.newBuilder().setStatus(status).build());
@@ -793,24 +555,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public StorageInfoResultProto getStorageInfo() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        IcingDataUnion resultUnion;
         try {
-            mEngine.getStorageInfo(
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultUnion = mEngine.getStorageInfo();
         } catch (RemoteException e) {
             return StorageInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
-        return getResponseProtoFromRawData(
-                latch,
-                resultData,
+        return getResponseProtoFromIcingDataUnion(
+                resultUnion,
                 StorageInfoResultProto.getDefaultInstance(),
                 status -> StorageInfoResultProto.newBuilder().setStatus(status).build());
     }
@@ -818,24 +571,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public DebugInfoResultProto getDebugInfo(@NonNull DebugInfoVerbosity.Code verbosity) {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.getDebugInfo(
-                    verbosity.getNumber(),
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.getDebugInfo(verbosity.getNumber());
         } catch (RemoteException e) {
             return DebugInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 DebugInfoResultProto.getDefaultInstance(),
                 status -> DebugInfoResultProto.newBuilder().setStatus(status).build());
@@ -844,26 +587,35 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public ResetResultProto reset() {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<byte[]> resultData = new AtomicReference<>();
+        byte[] resultData;
         try {
-            mEngine.reset(
-                    new IIcingSearchResultCallback.Stub() {
-                        @Override
-                        public void onResult(IcingSearchResult result) {
-                            resultData.set(result.data.getRawData());
-                            latch.countDown();
-                        }
-                    });
+            resultData = mEngine.reset();
         } catch (RemoteException e) {
             return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
 
         return getResponseProtoFromRawData(
-                latch,
                 resultData,
                 ResetResultProto.getDefaultInstance(),
                 status -> ResetResultProto.newBuilder().setStatus(status).build());
+    }
+
+    /**
+     * Creates an {@link IcingDataUnion} instance to pass serialized {@code data}.
+     *
+     * <p>For data smaller than {@link IcingSearchEngine#mIcingDataUnionSizeThresholdBytes}, use
+     * byte array to pass it. For data larger than that, use {@link SharedMemory} to pass it. Using
+     * {@link SharedMemory} is more expensive so we want to avoid when possible.
+     */
+    private @NonNull IcingDataUnion createIcingDataUnion(@NonNull MessageLite data)
+            throws ErrnoException {
+        IcingDataUnion union = new IcingDataUnion();
+        if (data.getSerializedSize() < mIcingDataUnionSizeThresholdBytes) {
+            union.setRawData(data.toByteArray());
+        } else {
+            union.setSharedMemory(createSharedMemory(data));
+        }
+        return union;
     }
 
     /**
@@ -890,27 +642,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     }
 
     private static @NonNull <M extends MessageLite> M getResponseProtoFromRawData(
-            @NonNull CountDownLatch latch,
-            @NonNull AtomicReference<byte[]> result,
+            @Nullable byte[] result,
             @NonNull M defaultInstance,
             @NonNull Function<StatusProto, M> createResponseWithStatus) {
-        boolean latchCountReachedZero;
-        try {
-            latchCountReachedZero = latch.await(LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            return createResponseWithStatus.apply(latchWaitFailureStatus(e));
-        }
-
-        if (!latchCountReachedZero) {
-            // timeout happened
-            return createResponseWithStatus.apply(latchWaitTimedOutStatus());
-        }
-
         M resultProto = defaultInstance;
-        if (result.get() == null) return resultProto;
+        if (result == null) return resultProto;
 
         try {
-            resultProto = parseData(resultProto, result.get());
+            resultProto = parseData(resultProto, result);
         } catch (InvalidProtocolBufferException e) {
             return createResponseWithStatus.apply(protoParseFailureStatus(e));
         }
@@ -918,28 +657,16 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return resultProto;
     }
 
-    private static @NonNull <M extends MessageLite> M getResponseProtoFromSharedMemory(
-            @NonNull CountDownLatch latch,
-            @NonNull AtomicReference<SharedMemory> resultSharedMemory,
+    private static @NonNull <M extends MessageLite> M getResponseProtoFromIcingDataUnion(
+            @Nullable IcingDataUnion resultUnion,
             @NonNull M defaultInstance,
             @NonNull Function<StatusProto, M> createResponseWithStatus) {
-        boolean latchCountReachedZero;
-        try {
-            latchCountReachedZero = latch.await(LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            return createResponseWithStatus.apply(latchWaitFailureStatus(e));
-        }
-
-        if (!latchCountReachedZero) {
-            // timeout happened
-            return createResponseWithStatus.apply(latchWaitTimedOutStatus());
-        }
 
         M resultProto = defaultInstance;
-        if (resultSharedMemory.get() == null) return resultProto;
+        if (resultUnion == null) return resultProto;
 
         try {
-            resultProto = readFromSharedMemory(resultProto, resultSharedMemory.get());
+            resultProto = readFromIcingDataUnion(resultProto, resultUnion);
         } catch (InvalidProtocolBufferException e) {
             return createResponseWithStatus.apply(protoParseFailureStatus(e));
         } catch (ErrnoException e) {
@@ -957,8 +684,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return parser.parseFrom(data);
     }
 
+    private static @NonNull <M extends MessageLite> M readFromIcingDataUnion(
+            @NonNull M defaultInstance, @NonNull IcingDataUnion union)
+            throws ErrnoException, InvalidProtocolBufferException {
+        if (union.getTag() == IcingDataUnion.sharedMemory) {
+            return readFromSharedMemory(defaultInstance, union.getSharedMemory());
+        } else {
+            @SuppressWarnings("unchecked") // valid by protobuf contract
+            Parser<M> parser = (Parser<M>) defaultInstance.getParserForType();
+            return parser.parseFrom(union.getRawData());
+        }
+    }
+
     /**
-     * Reads raw bytes from a {@link SharedMemory} instance and parse it as {@link M}.
+     * Reads raw bytes from a {@link SharedMemory} instance and p throws ErrnoException,
+     * InvalidProtocolBufferExceptionarse it as {@link M}.
      *
      * <p>Use {@link SharedMemory} to overcome the binder transaction limit.
      *
@@ -1003,25 +743,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
-                .build();
-    }
-
-    private static @NonNull StatusProto latchWaitFailureStatus(@NonNull Exception e) {
-        Log.e(TAG, "Failed to wait for latch due to InterruptedException", e);
-        return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
-                .setMessage(
-                        "failed to wait for latch due to InterruptedException: " + e.getMessage())
-                .build();
-    }
-
-    private static @NonNull StatusProto latchWaitTimedOutStatus() {
-        return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
-                .setMessage(
-                        "timed out after waiting for latch for "
-                                + LATCH_TIMEOUT_SECONDS
-                                + " seconds")
                 .build();
     }
 

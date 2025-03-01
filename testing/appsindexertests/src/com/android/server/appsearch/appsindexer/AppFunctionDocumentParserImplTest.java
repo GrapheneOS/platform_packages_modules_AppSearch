@@ -20,10 +20,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.GenericDocument;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
 import org.junit.Before;
@@ -40,7 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 @RunWith(MockitoJUnitRunner.class)
-public class AppFunctionStaticMetadataParserImplTest {
+public class AppFunctionDocumentParserImplTest {
 
     private static final String TEST_PACKAGE_NAME = "com.example.app";
     private static final String TEST_INDEXER_PACKAGE_NAME = "com.android.test.indexer";
@@ -77,12 +79,12 @@ public class AppFunctionStaticMetadataParserImplTest {
     @Mock private Resources mResources;
     @Mock private AssetManager mAssetManager;
 
-    private AppFunctionStaticMetadataParser mParser;
+    private AppFunctionDocumentParser mParser;
 
     @Before
     public void setUp() throws Exception {
         mParser =
-                new AppFunctionStaticMetadataParserImpl(
+                new AppFunctionDocumentParserImpl(
                         TEST_INDEXER_PACKAGE_NAME, new TestAppsIndexerConfig());
 
         when(mPackageManager.getResourcesForApplication(TEST_PACKAGE_NAME)).thenReturn(mResources);
@@ -224,7 +226,7 @@ public class AppFunctionStaticMetadataParserImplTest {
     @Test
     public void parse_exceedMaxNumAppFunctions() throws Exception {
         mParser =
-                new AppFunctionStaticMetadataParserImpl(
+                new AppFunctionDocumentParserImpl(
                         TEST_INDEXER_PACKAGE_NAME,
                         new TestAppsIndexerConfig() {
                             @Override
@@ -262,22 +264,23 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
-        assertThat(appFunctions).containsKey("com.example.utils#print");
-        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getNamespace()).isEqualTo("app_functions");
-        assertThat(actualAppFunction.getId()).isEqualTo("com.example/com.example.utils#print");
+        assertThat(actualAppFunction.getId()).isEqualTo("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getSchemaType())
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
         assertThat(actualAppFunction.getPropertyString("functionId"))
@@ -295,26 +298,26 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print1</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print2</id>\n"
+                        + "    <id>com.example.utils#print2</id>\n"
                         + "    <functionId>com.example.utils#print2</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(2);
-        assertThat(appFunctions).containsKey("com.example.utils#print1");
-        assertThat(appFunctions).containsKey("com.example.utils#print2");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
     }
 
     @Test
@@ -333,7 +336,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
@@ -344,7 +347,7 @@ public class AppFunctionStaticMetadataParserImplTest {
     public void parseIntoMapForGivenSchemas_exceedMaxNumAppFunctions_parsesOnlyMaxNumAppFunctions()
             throws Exception {
         mParser =
-                new AppFunctionStaticMetadataParserImpl(
+                new AppFunctionDocumentParserImpl(
                         TEST_INDEXER_PACKAGE_NAME,
                         new TestAppsIndexerConfig() {
                             @Override
@@ -356,32 +359,32 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print1</id>\n"
+                        + "    <id>com.example.utils#print1</id>\n"
                         + "    <functionId>com.example.utils#print1</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print2</id>\n"
+                        + "    <id>com.example.utils#print2</id>\n"
                         + "    <functionId>com.example.utils#print2</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print3</id>\n"
+                        + "    <id>com.example.utils#print3</id>\n"
                         + "    <functionId>com.example.utils#print3</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(2);
-        assertThat(appFunctions).containsKey("com.example.utils#print1");
-        assertThat(appFunctions).containsKey("com.example.utils#print2");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print1");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print2");
     }
 
     @Test
@@ -391,7 +394,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <appFunctionParameterMetadata>\n"
                         + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
@@ -401,13 +404,14 @@ public class AppFunctionStaticMetadataParserImplTest {
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
-        assertThat(appFunctions).containsKey("com.example.utils#print");
-        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getPropertyString("functionId"))
                 .isEqualTo("com.example.utils#print");
         assertThat(
@@ -415,7 +419,41 @@ public class AppFunctionStaticMetadataParserImplTest {
                                 "appFunctionParameterMetadata.parameterName"))
                 .isEqualTo("test");
         assertThat(actualAppFunction.getPropertyDocument("appFunctionParameterMetadata").getId())
-                .isEqualTo("com.example.utils#print/appFunctionParameterMetadata-0");
+                .isEqualTo(
+                        "com.example.app/com.example.utils#print/appFunctionParameterMetadata-0");
+    }
+
+    @Test
+    public void parseIntoMapForGivenSchemas_multipleTypesOfRootDocuments() throws Exception {
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example.utils#print</id>\n"
+                        + "    <functionId>com.example.utils#print</functionId>\n"
+                        + "  </AppFunctionStaticMetadata>\n"
+                        + "  <AppFunctionParameterMetadata>\n"
+                        + "    <id>com.example.utils#printParameterMetadata</id>\n"
+                        + "    <parameterName>message</parameterName>\n"
+                        + "  </AppFunctionParameterMetadata>\n"
+                        + "</appfunctions>");
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+
+        assertThat(appFunctions).hasSize(2);
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
+        assertThat(actualAppFunction.getPropertyString("functionId"))
+                .isEqualTo("com.example.utils#print");
+        GenericDocument appFunctionParameterMetadataDocument =
+                appFunctions.get("com.example.app/com.example.utils#printParameterMetadata");
+        assertThat(appFunctionParameterMetadataDocument.getPropertyString("parameterName"))
+                .isEqualTo("message");
+        assertThat(appFunctionParameterMetadataDocument.getId())
+                .isEqualTo("com.example.app/com.example.utils#printParameterMetadata");
     }
 
     @Test
@@ -426,7 +464,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <appFunctionParameterMetadata>\n"
                         + "      <parameterName>test</parameterName>\n"
@@ -434,7 +472,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
@@ -448,7 +486,7 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <appFunctionParameterMetadata>\n"
                         + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
@@ -464,13 +502,14 @@ public class AppFunctionStaticMetadataParserImplTest {
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
-        assertThat(appFunctions).containsKey("com.example.utils#print");
-        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getPropertyString("functionId"))
                 .isEqualTo("com.example.utils#print");
         assertThat(
@@ -492,22 +531,23 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <appfunction>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <function__id>com.example.utils#print</function__id>\n"
                         + "    <enabled_by_default>true</enabled_by_default>\n"
                         + "    <scHema_veRsion>10</scHema_veRsion>\n"
                         + "  </appfunction>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
-        assertThat(appFunctions).containsKey("com.example.utils#print");
-        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getNamespace()).isEqualTo("app_functions");
-        assertThat(actualAppFunction.getId()).isEqualTo("com.example/com.example.utils#print");
+        assertThat(actualAppFunction.getId()).isEqualTo("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getSchemaType())
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
         assertThat(actualAppFunction.getPropertyString("functionId"))
@@ -523,22 +563,23 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <___>test</___>\n"
                         + "    <_schema_version_>test</_schema_version_>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
-        assertThat(appFunctions).containsKey("com.example.utils#print");
-        AppFunctionStaticMetadata actualAppFunction = appFunctions.get("com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getNamespace()).isEqualTo("app_functions");
-        assertThat(actualAppFunction.getId()).isEqualTo("com.example/com.example.utils#print");
+        assertThat(actualAppFunction.getId()).isEqualTo("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getSchemaType())
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
         assertThat(actualAppFunction.getPropertyString("functionId"))
@@ -551,7 +592,7 @@ public class AppFunctionStaticMetadataParserImplTest {
     public void parseIntoMapForGivenSchemas_exceedMaxAllowedDocSize_skipsTheAppFunction()
             throws Exception {
         mParser =
-                new AppFunctionStaticMetadataParserImpl(
+                new AppFunctionDocumentParserImpl(
                         TEST_INDEXER_PACKAGE_NAME,
                         new TestAppsIndexerConfig() {
                             @Override
@@ -563,14 +604,14 @@ public class AppFunctionStaticMetadataParserImplTest {
                 "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                         + "<appfunctions>\n"
                         + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example/com.example.utils#print</id>\n"
+                        + "    <id>com.example.utils#print</id>\n"
                         + "    <functionId>com.example.utils#print</functionId>\n"
                         + "    <enabledByDefault>true</enabledByDefault>\n"
                         + "    <schemaVersion>10</schemaVersion>\n"
                         + "  </AppFunctionStaticMetadata>\n"
                         + "</appfunctions>");
 
-        Map<String, AppFunctionStaticMetadata> appFunctions =
+        Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
 

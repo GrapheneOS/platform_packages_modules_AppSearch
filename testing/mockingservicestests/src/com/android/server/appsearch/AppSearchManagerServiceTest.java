@@ -31,6 +31,7 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_R
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -94,6 +95,7 @@ import android.app.appsearch.aidl.SearchSuggestionAidlRequest;
 import android.app.appsearch.aidl.SetSchemaAidlRequest;
 import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
+import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.observer.ObserverSpec;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
 import android.app.appsearch.stats.SchemaMigrationStats;
@@ -192,7 +194,8 @@ public class AppSearchManagerServiceTest {
         Context context = ApplicationProvider.getApplicationContext();
         mUserHandle = context.getUser();
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        mContext = new TestContext(context, mRoleManager, mDevicePolicyManager);
+        final boolean useIsolatedStorage = false;
+        mContext = new TestContext(context, mRoleManager, mDevicePolicyManager, useIsolatedStorage);
 
         // Set a test environment that provides a temporary folder for AppSearch
         File mAppSearchDir = mTemporaryFolder.newFolder();
@@ -1451,6 +1454,26 @@ public class AppSearchManagerServiceTest {
         verify(mLogger, timeout(1000).times(0)).logStats(any(CallStats.class));
     }
 
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ISOLATED_STORAGE)
+    public void testIsolatedStorageNotAvailable() throws Exception {
+        // Ensure that AppSearch fails if the isolated storage service fails
+        final boolean mUseIsolatedStorage = true;
+        Context context = ApplicationProvider.getApplicationContext();
+        // Create a new user, one was already created during setUp()
+        UserHandle testUserHandle = new UserHandle(1);
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        TestContext mTestContext =
+                new TestContext(context, mRoleManager, mDevicePolicyManager, mUseIsolatedStorage);
+        assertThrows(
+                AppSearchException.class,
+                () -> {
+                    AppSearchUserInstanceManager.getInstance()
+                            .getOrCreateUserInstance(mTestContext, testUserHandle, appSearchConfig);
+                });
+    }
+
     private void verifyLocalCallsResults(int resultCode) throws Exception {
         // These APIs are local calls since they specify a database. If the API specifies a target
         // package, then the target package matches the calling package
@@ -1902,15 +1925,20 @@ public class AppSearchManagerServiceTest {
     private static final class TestContext extends ContextWrapper {
         private final RoleManager mRoleManager;
         private final DevicePolicyManager mDevicePolicyManager;
+        private final boolean mUseIsolatedStorage;
 
         @Nullable private PackageManager mPackageManager;
         @Nullable private String mPackageName;
 
-        TestContext(Context base, RoleManager roleManager,
-                DevicePolicyManager devicePolicyManager) {
+        TestContext(
+                Context base,
+                RoleManager roleManager,
+                DevicePolicyManager devicePolicyManager,
+                boolean useIsolatedStorage) {
             super(base);
             mRoleManager = roleManager;
             mDevicePolicyManager = devicePolicyManager;
+            mUseIsolatedStorage = useIsolatedStorage;
         }
 
         @Override
@@ -1958,6 +1986,13 @@ public class AppSearchManagerServiceTest {
             }
             if (Context.DEVICE_POLICY_SERVICE.equals(name)) {
                 return mDevicePolicyManager;
+            }
+            /* TODO (b/399479359)
+             * Force use of native icing for AppSearchManagerServiceTests, which mocks
+             * servives and does have the isolated storage service
+             */
+            if (Context.VIRTUALIZATION_SERVICE.equals(name) && !mUseIsolatedStorage) {
+                return null;
             }
             return super.getSystemService(name);
         }
