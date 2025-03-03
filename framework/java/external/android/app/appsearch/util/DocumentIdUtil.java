@@ -68,7 +68,7 @@ public class DocumentIdUtil {
      *
      * <p>A qualified id is a String referring to the combined package name, database name,
      * namespace, and id of the document. It is useful for linking one document to another in order
-     * to perform a join operation.
+     * to perform a join operation with {@link JoinSpec}.
      *
      * @param packageName The package the document belongs to.
      * @param databaseName The database containing the document.

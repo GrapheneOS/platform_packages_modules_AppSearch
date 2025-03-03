@@ -408,3 +408,14 @@ flag {
     bug: "326987971"
     is_exported: true
 }
+
+flag {
+    name: "enable_app_search_manage_blob_files"
+    namespace: "appsearch"
+    description: "Enable AppSearch to manage blob files."
+    bug: "392140774"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

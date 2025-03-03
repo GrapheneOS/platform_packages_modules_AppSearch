@@ -24,6 +24,7 @@ import android.system.OsConstants;
 import android.util.Log;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.BatchPutResultProto;
 import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.DebugInfoResultProto;
 import com.google.android.icing.proto.DebugInfoVerbosity;
@@ -44,6 +45,7 @@ import com.google.android.icing.proto.OptimizeResultProto;
 import com.google.android.icing.proto.PersistToDiskResultProto;
 import com.google.android.icing.proto.PersistType;
 import com.google.android.icing.proto.PropertyProto;
+import com.google.android.icing.proto.PutDocumentRequest;
 import com.google.android.icing.proto.PutResultProto;
 import com.google.android.icing.proto.ReportUsageResultProto;
 import com.google.android.icing.proto.ResetResultProto;
@@ -225,6 +227,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 resultData,
                 PutResultProto.getDefaultInstance(),
                 status -> PutResultProto.newBuilder().setStatus(status).build());
+    }
+
+    @NonNull
+    @Override
+    public BatchPutResultProto batchPut(@NonNull PutDocumentRequest putDocumentRequest) {
+        // TODO(b/394875109): implement batch put and change PutDocumentRequest to
+        //   PutDocumentRequestProto
+        throw new UnsupportedOperationException("batchPut is temporarily unsupported.");
     }
 
     @NonNull
