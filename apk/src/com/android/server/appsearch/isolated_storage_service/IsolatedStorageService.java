@@ -16,11 +16,13 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SharedMemory;
 import android.os.SystemProperties;
+import android.os.storage.StorageManager;
 import android.system.OsConstants;
 import android.system.virtualmachine.VirtualMachine;
 import android.system.virtualmachine.VirtualMachineCallback;
@@ -34,10 +36,12 @@ import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,12 +65,42 @@ public class IsolatedStorageService extends Service {
     private static final boolean IS_DEBUG_BUILD =
             SystemProperties.getInt(SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD, /* def= */ 0) == 1;
 
+    /* Constant large storage size used for the VM's encrypted storage. The VM grows storage
+     * as needed and choosing a reasonably large storage size avoids costly storage resizing
+     * in the VM.
+     */
+    public static final long DEFAULT_ENCRYPTED_STORAGE_BYTES = 64_000_000_000L; // 64GB
+    private long mAvailableStorageBytes = DEFAULT_ENCRYPTED_STORAGE_BYTES;
+
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
 
     private volatile com.android.isolated_storage_service.IIsolatedStorageService
             mIsolatedStorageService;
+
+    /* Gets the size of the IsolatedStorageService encrypted storage. Set the size to the
+     * maximum number of bytes the app can allocate based on available device space.
+     */
+    private long getEncryptedStorageBytes() {
+        // mAvailableStorageBytes is initialized with the default storage value. Only query the
+        // storageManager if we have not done so before or a previous query failed.
+        if (mAvailableStorageBytes != DEFAULT_ENCRYPTED_STORAGE_BYTES) {
+            return mAvailableStorageBytes;
+        }
+
+        // Query the storageManager to determine the amount of space the app can allocate on device.
+        Context context = this.getApplicationContext();
+        StorageManager storageManager = context.getSystemService(StorageManager.class);
+        try {
+            UUID appInternalDir = storageManager.getUuidForPath(context.getFilesDir());
+            mAvailableStorageBytes = storageManager.getAllocatableBytes(appInternalDir);
+            Log.i(TAG, "Setting encrypted storage size to " + mAvailableStorageBytes + " bytes.");
+        } catch (IOException e) {
+            Log.i(TAG, "Setting encrypted storage size to " + mAvailableStorageBytes + " bytes.");
+        }
+        return mAvailableStorageBytes;
+    }
 
     @Override
     public void onCreate() {
@@ -138,7 +172,9 @@ public class IsolatedStorageService extends Service {
                             .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
                             .setProtectedVm(true)
                             .setDebugLevel(vmDebugLevel)
-                            .setEncryptedStorageBytes(serviceConfig.pVmEncryptedStorageBytes)
+                            // Set the maximum size of the VM encrypted storage. Storage is
+                            // allocated on an as needed basis.
+                            .setEncryptedStorageBytes(getEncryptedStorageBytes())
                             .setMemoryBytes(serviceConfig.pVmMemoryBytes)
                             .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
                             .setShouldUseHugepages(true)

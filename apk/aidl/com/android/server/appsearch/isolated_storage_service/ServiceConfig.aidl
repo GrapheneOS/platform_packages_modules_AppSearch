@@ -20,11 +20,6 @@ package com.android.server.appsearch.isolated_storage_service;
  */
 parcelable ServiceConfig {
   /**
-   * Size of pVM's encrypted storage in bytes.
-   */
-  long pVmEncryptedStorageBytes;
-
-  /**
    * Size of pVM's memory in bytes.
    */
   long pVmMemoryBytes;

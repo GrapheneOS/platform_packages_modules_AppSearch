@@ -66,7 +66,6 @@ public final class IsolatedStorageServiceManager {
 
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "appsearch.feature.enable_isolated_storage";
-    public static final long DEFAULT_ENCRYPTED_STORAGE_BYTES = 500_000_000;
     public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
@@ -180,8 +179,6 @@ public final class IsolatedStorageServiceManager {
 
     private ServiceConfig createServiceConfig() {
         ServiceConfig config = new ServiceConfig();
-        config.pVmEncryptedStorageBytes =
-                mAppSearchConfig.getIsolatedStorageEncryptedStorageBytes();
         config.pVmMemoryBytes = mAppSearchConfig.getIsolatedStorageMemoryBytes();
         config.icingDataUnionSizeThresholdBytes =
                 mAppSearchConfig.getIsolatedStorageIcingDataUnionSizeThresholdBytes();
