@@ -16,8 +16,21 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 /**
- * Callback for waiting for pVM payload to be ready.
+ * Configs for the isolated storage service.
  */
-oneway interface IVmPayloadReadyCallback {
-  void onReady();
+parcelable ServiceConfig {
+  /**
+   * Size of pVM's encrypted storage in bytes.
+   */
+  long pVmEncryptedStorageBytes;
+
+  /**
+   * Size of pVM's memory in bytes.
+   */
+  long pVmMemoryBytes;
+
+  /**
+   * Threshold to decide whether to use SharedMemory to pass icing data.
+   */
+  long icingDataUnionSizeThresholdBytes;
 }

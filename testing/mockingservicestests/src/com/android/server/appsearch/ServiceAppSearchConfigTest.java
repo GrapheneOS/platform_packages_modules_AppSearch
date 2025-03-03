@@ -34,6 +34,7 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_I
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ICING_USE_PERSISTENT_HASHMAP;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ICING_USE_PRE_MAPPING_WITH_FILE_BACKED_VECTOR;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ICING_USE_READ_ONLY_SEARCH;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_LIGHTWEIGHT_PERSIST_TYPE;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT;
@@ -82,7 +83,12 @@ import static com.android.server.appsearch.external.localstorage.IcingOptionsCon
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assume.assumeTrue;
+
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.provider.DeviceConfig;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 
 import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
@@ -91,14 +97,18 @@ import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
+import com.android.server.appsearch.icing.proto.PersistType;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 public class ServiceAppSearchConfigTest {
     @Rule
-    public final TestableDeviceConfig.TestableDeviceConfigRule
-            mDeviceConfigRule = new TestableDeviceConfig.TestableDeviceConfigRule();
+    public final RuleChain mRuleChain =
+        AppSearchTestUtils.createCommonTestRules()
+            .around(new TestableDeviceConfig.TestableDeviceConfigRule());
 
     @Test
     public void testDefaultValues_cachedMinTimeOptimizeThreshold() {
@@ -968,6 +978,63 @@ public class ServiceAppSearchConfigTest {
 
         assertThat(appSearchConfig.getMaxOpenBlobCount()).isEqualTo(1777);
         assertThat(appSearchConfig.getOrphanBlobTimeToLiveMs()).isEqualTo(1778);
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_RECOVERY_PROOF_PERSISTENCE)
+    public void testGetLightweightPersistType_defaultValue_returnsLite() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        assertThat(appSearchConfig.getLightweightPersistType())
+                .isEqualTo(PersistType.Code.LITE);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_RECOVERY_PROOF_PERSISTENCE)
+    public void testGetLightweightPersistType_defaultValue_returnsRecoveryProof() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        assertThat(appSearchConfig.getLightweightPersistType())
+                .isEqualTo(PersistType.Code.RECOVERY_PROOF);
+    }
+
+    @Test
+    public void testGetLightweightPersistType_valueOverride_returnsOverrideValue() {
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_LIGHTWEIGHT_PERSIST_TYPE,
+                Integer.toString(PersistType.Code.FULL.getNumber()),
+                /* makeDefault= */ false);
+
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        assertThat(appSearchConfig.getLightweightPersistType())
+                .isEqualTo(PersistType.Code.FULL);
+    }
+
+    @Test
+    public void testGetLightweightPersistType_invalidValueOverride_doesntReturnOverrideValue() {
+        // Override value to FULL so that we have a predictable value.
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_LIGHTWEIGHT_PERSIST_TYPE,
+                Integer.toString(PersistType.Code.FULL.getNumber()),
+                /* makeDefault= */ false);
+
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        assertThat(appSearchConfig.getLightweightPersistType())
+                .isEqualTo(PersistType.Code.FULL);
+
+        // Now try to override it with a value that is outside of the range of PersistType.Code.
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_LIGHTWEIGHT_PERSIST_TYPE,
+                Integer.toString(123),
+                /* makeDefault= */ false);
+
+        assertThat(appSearchConfig.getLightweightPersistType())
+                .isEqualTo(PersistType.Code.FULL);
     }
 
     @Test
