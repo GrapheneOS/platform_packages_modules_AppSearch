@@ -20,6 +20,7 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SharedMemory;
+import android.os.SystemProperties;
 import android.system.OsConstants;
 import android.system.virtualmachine.VirtualMachine;
 import android.system.virtualmachine.VirtualMachineCallback;
@@ -55,6 +56,10 @@ public class IsolatedStorageService extends Service {
 
     private static final String VM_NAME = "isolated_storage_service_vm";
     private static final String PAYLOAD_BINARY_NAME = "libisolated_storage_service.so";
+
+    private static final String SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD = "ro.debuggable";
+    private static final boolean IS_DEBUG_BUILD =
+            SystemProperties.getInt(SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD, /* def= */ 0) == 1;
 
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
@@ -123,20 +128,31 @@ public class IsolatedStorageService extends Service {
 
     private @Nullable VirtualMachine createVm(
             VirtualMachineManager vmm, ServiceConfig serviceConfig) {
-        VirtualMachineConfig config =
-                new VirtualMachineConfig.Builder(this)
-                        .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
-                        .setProtectedVm(true)
-                        .setDebugLevel(VirtualMachineConfig.DEBUG_LEVEL_FULL)
-                        .setEncryptedStorageBytes(serviceConfig.pVmEncryptedStorageBytes)
-                        .setMemoryBytes(serviceConfig.pVmMemoryBytes)
-                        .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
-                        .setShouldUseHugepages(true)
-                        .build();
+        final int vmDebugLevel =
+                IS_DEBUG_BUILD
+                        ? VirtualMachineConfig.DEBUG_LEVEL_FULL
+                        : VirtualMachineConfig.DEBUG_LEVEL_NONE;
         try {
-            return vmm.create(VM_NAME, config);
-        } catch (VirtualMachineException e) {
-            Log.e(TAG, "Failed to create virtual machine " + VM_NAME, e);
+            VirtualMachineConfig config =
+                    new VirtualMachineConfig.Builder(this)
+                            .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
+                            .setProtectedVm(true)
+                            .setDebugLevel(vmDebugLevel)
+                            .setEncryptedStorageBytes(serviceConfig.pVmEncryptedStorageBytes)
+                            .setMemoryBytes(serviceConfig.pVmMemoryBytes)
+                            .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
+                            .setShouldUseHugepages(true)
+                            .build();
+            try {
+                return vmm.create(VM_NAME, config);
+            } catch (VirtualMachineException e) {
+                Log.e(TAG, "Failed to create virtual machine " + VM_NAME, e);
+                return null;
+            }
+        } catch (IllegalArgumentException
+                | IllegalStateException
+                | UnsupportedOperationException e) {
+            Log.e(TAG, "Failed to create virtual machine config " + VM_NAME, e);
             return null;
         }
     }
