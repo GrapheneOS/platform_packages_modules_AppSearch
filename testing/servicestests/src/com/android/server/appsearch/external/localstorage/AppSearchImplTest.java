@@ -4042,16 +4042,18 @@ public class AppSearchImplTest {
     }
 
     @Test
-    public void testGetStorageInfoForPackage_nonexistentPackage() throws Exception {
+    public void testGetStorageInfoForPackages_nonexistentPackage() throws Exception {
         // "package2" doesn't exist yet, so it shouldn't have any storage size
-        StorageInfo storageInfo = mAppSearchImpl.getStorageInfoForPackage("nonexistent.package");
+        StorageInfo storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("nonexistent.package")));
         assertThat(storageInfo.getSizeBytes()).isEqualTo(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(0);
         assertThat(storageInfo.getAliveNamespacesCount()).isEqualTo(0);
     }
 
     @Test
-    public void testGetStorageInfoForPackage_withoutDocument() throws Exception {
+    public void testGetStorageInfoForPackages_withoutDocument() throws Exception {
         // Insert schema for "package1"
         List<AppSearchSchema> schemas =
                 Collections.singletonList(new AppSearchSchema.Builder("type").build());
@@ -4067,14 +4069,16 @@ public class AppSearchImplTest {
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Since "package1" doesn't have a document, it get any space attributed to it.
-        StorageInfo storageInfo = mAppSearchImpl.getStorageInfoForPackage("package1");
+        StorageInfo storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package1")));
         assertThat(storageInfo.getSizeBytes()).isEqualTo(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(0);
         assertThat(storageInfo.getAliveNamespacesCount()).isEqualTo(0);
     }
 
     @Test
-    public void testGetStorageInfoForPackage_proportionalToDocuments() throws Exception {
+    public void testGetStorageInfoForPackages_proportionalToDocuments() throws Exception {
         List<AppSearchSchema> schemas =
                 Collections.singletonList(new AppSearchSchema.Builder("type").build());
 
@@ -4128,13 +4132,17 @@ public class AppSearchImplTest {
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
 
-        StorageInfo storageInfo = mAppSearchImpl.getStorageInfoForPackage("package1");
+        StorageInfo storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package1")));
         long size1 = storageInfo.getSizeBytes();
         assertThat(size1).isGreaterThan(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(1);
         assertThat(storageInfo.getAliveNamespacesCount()).isEqualTo(1);
 
-        storageInfo = mAppSearchImpl.getStorageInfoForPackage("package2");
+        storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package2")));
         long size2 = storageInfo.getSizeBytes();
         assertThat(size2).isGreaterThan(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(2);
@@ -4274,7 +4282,7 @@ public class AppSearchImplTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
-    public void testGetStorageInfoForPackage_withBlob() throws Exception {
+    public void testGetStorageInfoForPackages_withBlob() throws Exception {
         mAppSearchImpl =
                 AppSearchImpl.create(
                         mAppSearchDir,
@@ -4319,10 +4327,14 @@ public class AppSearchImplTest {
             outputStream.flush();
         }
 
-        StorageInfo storageInfo1 = mAppSearchImpl.getStorageInfoForPackage("package1");
+        StorageInfo storageInfo1 =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package1")));
         assertThat(storageInfo1.getBlobsSizeBytes()).isEqualTo(15 * 1024);
         assertThat(storageInfo1.getBlobsCount()).isEqualTo(2);
-        StorageInfo storageInfo2 = mAppSearchImpl.getStorageInfoForPackage("package2");
+        StorageInfo storageInfo2 =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package2")));
         assertThat(storageInfo2.getBlobsSizeBytes()).isEqualTo(20 * 1024);
         assertThat(storageInfo2.getBlobsCount()).isEqualTo(1);
     }
@@ -4498,7 +4510,9 @@ public class AppSearchImplTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> mAppSearchImpl.getStorageInfoForPackage("package"));
+                () ->
+                        mAppSearchImpl.getStorageInfoForPackages(
+                                new ArraySet<>(Collections.singleton("package"))));
 
         assertThrows(
                 IllegalStateException.class,
