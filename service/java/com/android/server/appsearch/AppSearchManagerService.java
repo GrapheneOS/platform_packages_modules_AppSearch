@@ -145,6 +145,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -2934,8 +2935,11 @@ public class AppSearchManagerService extends SystemService {
                     stats.dataSize +=
                             userStorageInfo.getSizeBytesForPackage(packageName);
                 } else {
-                    stats.dataSize += instance.getAppSearchImpl()
-                            .getStorageInfoForPackage(packageName).getSizeBytes();
+                    stats.dataSize +=
+                            instance.getAppSearchImpl()
+                                    .getStorageInfoForPackages(
+                                            new ArraySet<>(Collections.singleton(packageName)))
+                                    .getSizeBytes();
                 }
             } catch (AppSearchException | RuntimeException e) {
                 Log.e(
@@ -2975,10 +2979,11 @@ public class AppSearchManagerService extends SystemService {
                                 packagesForUid[i]);
                     }
                 } else {
-                    for (int i = 0; i < packagesForUid.length; i++) {
-                        stats.dataSize += instance.getAppSearchImpl()
-                                .getStorageInfoForPackage(packagesForUid[i]).getSizeBytes();
-                    }
+                    Set<String> packageNames = new ArraySet<>(packagesForUid);
+                    stats.dataSize +=
+                            instance.getAppSearchImpl()
+                                    .getStorageInfoForPackages(packageNames)
+                                    .getSizeBytes();
                 }
             } catch (AppSearchException | RuntimeException e) {
                 Log.e(TAG, "Unable to augment storage stats for uid " + uid, e);
@@ -3011,11 +3016,15 @@ public class AppSearchManagerService extends SystemService {
                     List<PackageInfo> packagesForUser = mPackageManager.getInstalledPackagesAsUser(
                             /* flags= */ 0, userHandle.getIdentifier());
                     if (packagesForUser != null) {
+                        Set<String> packageNames = new ArraySet<>();
                         for (int i = 0; i < packagesForUser.size(); i++) {
                             String packageName = packagesForUser.get(i).packageName;
-                            stats.dataSize += instance.getAppSearchImpl()
-                                    .getStorageInfoForPackage(packageName).getSizeBytes();
+                            packageNames.add(packageName);
                         }
+                        stats.dataSize +=
+                                instance.getAppSearchImpl()
+                                        .getStorageInfoForPackages(packageNames)
+                                        .getSizeBytes();
                     }
                 }
             } catch (AppSearchException | RuntimeException e) {
