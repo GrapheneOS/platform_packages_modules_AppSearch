@@ -33,6 +33,7 @@ import com.android.server.appsearch.external.localstorage.SchemaCache;
 
 import com.google.android.icing.proto.DocumentProto;
 import com.google.android.icing.proto.DocumentProtoOrBuilder;
+import com.google.android.icing.proto.EmbeddingMatchSnippetProto;
 import com.google.android.icing.proto.PropertyProto;
 import com.google.android.icing.proto.SearchResultProto;
 import com.google.android.icing.proto.SnippetMatchProto;
@@ -104,8 +105,17 @@ public class SearchResultToProtoConverter {
                 SnippetProto.EntryProto entry = proto.getSnippet().getEntries(i);
                 for (int j = 0; j < entry.getSnippetMatchesCount(); j++) {
                     SearchResult.MatchInfo matchInfo =
-                            toMatchInfo(entry.getSnippetMatches(j), entry.getPropertyName());
+                            toMatchInfoWithTextMatch(
+                                    entry.getSnippetMatches(j), entry.getPropertyName());
                     builder.addMatchInfo(matchInfo);
+                }
+                if (Flags.enableEmbeddingMatchInfo()) {
+                    for (int j = 0; j < entry.getEmbeddingMatchesCount(); j++) {
+                        SearchResult.MatchInfo matchInfo =
+                                toMatchInfoWithEmbeddingMatch(
+                                        entry.getEmbeddingMatches(j), entry.getPropertyName());
+                        builder.addMatchInfo(matchInfo);
+                    }
                 }
             }
         }
@@ -153,7 +163,7 @@ public class SearchResultToProtoConverter {
         }
     }
 
-    private static SearchResult.MatchInfo toMatchInfo(
+    private static SearchResult.MatchInfo toMatchInfoWithTextMatch(
             @NonNull SnippetMatchProto snippetMatchProto, @NonNull String propertyPath) {
         int exactMatchPosition = snippetMatchProto.getExactMatchUtf16Position();
         return new SearchResult.MatchInfo.Builder(propertyPath)
@@ -170,6 +180,22 @@ public class SearchResultToProtoConverter {
                                 snippetMatchProto.getWindowUtf16Position(),
                                 snippetMatchProto.getWindowUtf16Position()
                                         + snippetMatchProto.getWindowUtf16Length()))
+                .build();
+    }
+
+    /**
+     * Returns a MatchInfo for an embedding match. Requires Flags.enableEmbeddingMatchInfo() = true.
+     */
+    private static SearchResult.MatchInfo toMatchInfoWithEmbeddingMatch(
+            @NonNull EmbeddingMatchSnippetProto embeddingMatchSnippetProto,
+            @NonNull String propertyPath) {
+        SearchResult.EmbeddingMatchInfo embeddingMatch =
+                new SearchResult.EmbeddingMatchInfo(
+                        embeddingMatchSnippetProto.getSemanticScore(),
+                        embeddingMatchSnippetProto.getEmbeddingQueryVectorIndex(),
+                        embeddingMatchSnippetProto.getEmbeddingQueryMetricType().getNumber());
+        return new SearchResult.MatchInfo.Builder(propertyPath)
+                .setEmbeddingMatch(embeddingMatch)
                 .build();
     }
 }

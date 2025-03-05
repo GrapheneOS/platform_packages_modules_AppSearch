@@ -24,12 +24,15 @@ import static com.android.server.appsearch.external.localstorage.util.PrefixUtil
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assume.assumeTrue;
+
 import android.app.appsearch.JoinSpec;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
@@ -466,6 +469,36 @@ public class SearchSpecToProtoConverterTest {
         assertThat(resultSpecProto.getSnippetSpec().getNumToSnippet()).isEqualTo(234);
         assertThat(resultSpecProto.getSnippetSpec().getNumMatchesPerProperty()).isEqualTo(345);
         assertThat(resultSpecProto.getSnippetSpec().getMaxWindowUtf32Length()).isEqualTo(456);
+    }
+
+    @Test
+    public void testToResultSpecProto_withEmbeddingMatchInfo() {
+        assumeTrue(Flags.enableEmbeddingMatchInfo());
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setResultCountPerPage(123)
+                        .setSnippetCount(234)
+                        .setSnippetCountPerProperty(345)
+                        .setMaxSnippetSize(456)
+                        .setRetrieveEmbeddingMatchInfos(true)
+                        .build();
+
+        SearchSpecToProtoConverter convert =
+                new SearchSpecToProtoConverter(
+                        /* queryExpression= */ "query",
+                        searchSpec,
+                        /* prefixes= */ ImmutableSet.of(),
+                        new NamespaceCache(ImmutableMap.of()),
+                        new SchemaCache(),
+                        mLocalStorageIcingOptionsConfig);
+        ResultSpecProto resultSpecProto =
+                convert.toResultSpecProto(new NamespaceCache(ImmutableMap.of()), new SchemaCache());
+
+        assertThat(resultSpecProto.getNumPerPage()).isEqualTo(123);
+        assertThat(resultSpecProto.getSnippetSpec().getNumToSnippet()).isEqualTo(234);
+        assertThat(resultSpecProto.getSnippetSpec().getNumMatchesPerProperty()).isEqualTo(345);
+        assertThat(resultSpecProto.getSnippetSpec().getMaxWindowUtf32Length()).isEqualTo(456);
+        assertThat(resultSpecProto.getSnippetSpec().getGetEmbeddingMatchInfo()).isTrue();
     }
 
     @Test
