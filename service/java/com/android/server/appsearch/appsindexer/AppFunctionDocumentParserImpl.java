@@ -377,6 +377,10 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
      * Tries to parse a single XML element and populate the {@link GenericDocument.Builder} object
      * recursively.
      *
+     * <p> When this function is called the parser should point to the xml element that marks
+     * the beginning of the {@link GenericDocument}, and would point to the end tag of the
+     * corresponding doc once this function completes.
+     *
      * @param parser the XmlPullParser positioned at the start of an XML element.
      * @param packageName the package name of the app that owns the XML element.
      * @param schemaType the type of the schema that the XML element belongs to.
@@ -402,6 +406,9 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
         String startTag = parser.getName();
         String currentPropertyPath;
         boolean wasDocIdSet = false;
+
+        // Skip the current tag that marks the beginning of the current document.
+        parser.next();
 
         while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
             switch (parser.getEventType()) {

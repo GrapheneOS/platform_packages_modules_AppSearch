@@ -234,4 +234,10 @@ public class FlagsTest {
                         "com.android.appsearch.flags"
                                 + ".enable_release_backup_schema_file_if_overlay_present");
     }
+
+    @Test
+    public void testFlagValue_enableEmbeddingMatchInfo() {
+        assertThat(Flags.FLAG_ENABLE_EMBEDDING_MATCH_INFO)
+                .isEqualTo("com.android.appsearch.flags.enable_embedding_match_info");
+    }
 }
