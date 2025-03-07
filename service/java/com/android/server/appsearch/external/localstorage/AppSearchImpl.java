@@ -2889,30 +2889,16 @@ public final class AppSearchImpl implements Closeable {
             @NonNull StorageInfoProto storageInfoProto,
             @NonNull String prefix,
             StorageInfo.@NonNull Builder storageInfoBuilder) {
-        if (storageInfoProto.getNamespaceBlobStorageInfoCount() == 0) {
-            return;
-        }
+        Set<String> prefixedNamespaces = new ArraySet<>();
         List<NamespaceBlobStorageInfoProto> blobStorageInfoProtos =
                 storageInfoProto.getNamespaceBlobStorageInfoList();
-        long blobSizeBytes = 0;
-        int blobCount = 0;
         for (int i = 0; i < blobStorageInfoProtos.size(); i++) {
-            NamespaceBlobStorageInfoProto blobStorageInfoProto = blobStorageInfoProtos.get(i);
-            if (blobStorageInfoProto.getNamespace().startsWith(prefix)) {
-                if (Flags.enableAppSearchManageBlobFiles()) {
-                    List<String> blobFileNames = blobStorageInfoProto.getBlobFileNamesList();
-                    for (int j = 0; j < blobFileNames.size(); j++) {
-                        File blobFile = new File(mBlobFilesDir, blobFileNames.get(j));
-                        blobSizeBytes += blobFile.length();
-                    }
-                    blobCount += blobFileNames.size();
-                } else {
-                    blobSizeBytes += blobStorageInfoProto.getBlobSize();
-                    blobCount += blobStorageInfoProto.getNumBlobs();
-                }
+            String prefixedNamespace = blobStorageInfoProtos.get(i).getNamespace();
+            if (prefixedNamespace.startsWith(prefix)) {
+                prefixedNamespaces.add(prefixedNamespace);
             }
         }
-        storageInfoBuilder.setBlobsCount(blobCount).setBlobsSizeBytes(blobSizeBytes);
+        getBlobStorageInfoForNamespaces(storageInfoProto, prefixedNamespaces, storageInfoBuilder);
     }
 
     /**
@@ -2926,7 +2912,7 @@ public final class AppSearchImpl implements Closeable {
      * @param storageInfoBuilder The {@link StorageInfo.Builder} used to and build the resulting
      *     {@link StorageInfo}. This builder will be modified with calculated values.
      */
-    private static void getBlobStorageInfoForNamespaces(
+    private void getBlobStorageInfoForNamespaces(
             @NonNull StorageInfoProto storageInfoProto,
             @NonNull Set<String> prefixedNamespaces,
             StorageInfo.@NonNull Builder storageInfoBuilder) {
@@ -2940,8 +2926,17 @@ public final class AppSearchImpl implements Closeable {
         for (int i = 0; i < blobStorageInfoProtos.size(); i++) {
             NamespaceBlobStorageInfoProto blobStorageInfoProto = blobStorageInfoProtos.get(i);
             if (prefixedNamespaces.contains(blobStorageInfoProto.getNamespace())) {
-                blobSizeBytes += blobStorageInfoProto.getBlobSize();
-                blobCount += blobStorageInfoProto.getNumBlobs();
+                if (Flags.enableAppSearchManageBlobFiles()) {
+                    List<String> blobFileNames = blobStorageInfoProto.getBlobFileNamesList();
+                    for (int j = 0; j < blobFileNames.size(); j++) {
+                        File blobFile = new File(mBlobFilesDir, blobFileNames.get(j));
+                        blobSizeBytes += blobFile.length();
+                    }
+                    blobCount += blobFileNames.size();
+                } else {
+                    blobSizeBytes += blobStorageInfoProto.getBlobSize();
+                    blobCount += blobStorageInfoProto.getNumBlobs();
+                }
             }
         }
         storageInfoBuilder.setBlobsCount(blobCount).setBlobsSizeBytes(blobSizeBytes);
