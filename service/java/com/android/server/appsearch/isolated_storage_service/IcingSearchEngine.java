@@ -54,6 +54,7 @@ import com.google.android.icing.proto.SchemaProto;
 import com.google.android.icing.proto.ScoringSpecProto;
 import com.google.android.icing.proto.SearchResultProto;
 import com.google.android.icing.proto.SearchSpecProto;
+import com.google.android.icing.proto.SetSchemaRequestProto;
 import com.google.android.icing.proto.SetSchemaResultProto;
 import com.google.android.icing.proto.StatusProto;
 import com.google.android.icing.proto.StorageInfoResultProto;
@@ -157,6 +158,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 resultData,
                 SetSchemaResultProto.getDefaultInstance(),
                 status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
+    }
+
+    /**
+     * Sets the schema for the icing instance.
+     *
+     * @param setSchemaRequest the request proto for setting the schema.
+     */
+    public SetSchemaResultProto setSchemaWithRequestProto(SetSchemaRequestProto setSchemaRequest) {
+        // TODO(b/337913932): have vm version support this api.
+        throw new UnsupportedOperationException(
+                "setSchemaWithRequestProto is temporarily unsupported.");
     }
 
     @NonNull
