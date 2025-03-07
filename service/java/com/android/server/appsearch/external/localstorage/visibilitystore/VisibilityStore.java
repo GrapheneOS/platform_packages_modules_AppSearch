@@ -189,6 +189,7 @@ public class VisibilityStore {
      *     contains schema type's visibility information.
      * @throws AppSearchException on AppSearchImpl error.
      */
+    @SuppressWarnings("deprecation")
     public void setVisibility(@NonNull List<InternalVisibilityConfig> prefixedVisibilityConfigs)
             throws AppSearchException {
         Objects.requireNonNull(prefixedVisibilityConfigs);
@@ -200,6 +201,7 @@ public class VisibilityStore {
             InternalVisibilityConfig prefixedVisibilityConfig = prefixedVisibilityConfigs.get(i);
             InternalVisibilityConfig oldVisibilityConfig =
                     mVisibilityConfigMap.get(prefixedVisibilityConfig.getSchemaType());
+            // TODO(b/394875109) switch to use batchPut
             mAppSearchImpl.putDocument(
                     VISIBILITY_PACKAGE_NAME,
                     mDatabaseName,
@@ -212,6 +214,7 @@ public class VisibilityStore {
             GenericDocument androidVOverlay =
                     VisibilityToDocumentConverter.createAndroidVOverlay(prefixedVisibilityConfig);
             if (androidVOverlay != null) {
+                // TODO(b/394875109) switch to use batchPut
                 mAppSearchImpl.putDocument(
                         VISIBILITY_PACKAGE_NAME,
                         mAndroidVOverlayDatabaseName,
@@ -375,6 +378,7 @@ public class VisibilityStore {
 
     /** Set the latest version of {@link InternalVisibilityConfig} and its schema to AppSearch. */
     @RequiresNonNull("mAppSearchImpl")
+    @SuppressWarnings("deprecation")
     private void setLatestSchemaAndDocuments(
             @UnderInitialization VisibilityStore this,
             @NonNull List<InternalVisibilityConfig> migratedDocuments)
@@ -420,6 +424,7 @@ public class VisibilityStore {
         for (int i = 0; i < migratedDocuments.size(); i++) {
             InternalVisibilityConfig migratedConfig = migratedDocuments.get(i);
             mVisibilityConfigMap.put(migratedConfig.getSchemaType(), migratedConfig);
+            // TODO(b/394875109) switch to use batchPut
             mAppSearchImpl.putDocument(
                     VISIBILITY_PACKAGE_NAME,
                     mDatabaseName,

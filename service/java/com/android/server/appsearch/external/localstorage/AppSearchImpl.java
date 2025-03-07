@@ -17,6 +17,7 @@
 package com.android.server.appsearch.external.localstorage;
 
 import static android.app.appsearch.AppSearchResult.RESULT_SECURITY_ERROR;
+import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 import static android.app.appsearch.InternalSetSchemaResponse.newFailedSetSchemaResponse;
 import static android.app.appsearch.InternalSetSchemaResponse.newSuccessfulSetSchemaResponse;
 
@@ -28,6 +29,7 @@ import static com.android.server.appsearch.external.localstorage.util.PrefixUtil
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.removePrefixesFromDocument;
 
 import android.annotation.WorkerThread;
+import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
@@ -81,6 +83,7 @@ import com.android.server.appsearch.external.localstorage.visibilitystore.Visibi
 
 import com.google.android.icing.IcingSearchEngine;
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.BatchPutResultProto;
 import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.DebugInfoProto;
 import com.google.android.icing.proto.DebugInfoResultProto;
@@ -104,6 +107,7 @@ import com.google.android.icing.proto.PersistToDiskResultProto;
 import com.google.android.icing.proto.PersistType;
 import com.google.android.icing.proto.PropertyConfigProto;
 import com.google.android.icing.proto.PropertyProto;
+import com.google.android.icing.proto.PutDocumentRequest;
 import com.google.android.icing.proto.PutResultProto;
 import com.google.android.icing.proto.ReportUsageResultProto;
 import com.google.android.icing.proto.ResetResultProto;
@@ -1057,6 +1061,188 @@ public final class AppSearchImpl implements Closeable {
     }
 
     /**
+     * Adds a list of documents to the AppSearch index.
+     *
+     * <p>This method belongs to mutate group.
+     *
+     * @param packageName The package name that owns this document.
+     * @param databaseName The databaseName this document resides in.
+     * @param documents A list of documents to index.
+     * @param batchResultBuilder The builder for returning the batch result.
+     * @param sendChangeNotifications Whether to dispatch {@link
+     *     android.app.appsearch.observer.DocumentChangeInfo} messages to observers for this change.
+     * @throws AppSearchException on IcingSearchEngine error.
+     */
+    public void batchPutDocuments(
+            @NonNull String packageName,
+            @NonNull String databaseName,
+            @NonNull List<GenericDocument> documents,
+            AppSearchBatchResult.@Nullable Builder<String, Void> batchResultBuilder,
+            boolean sendChangeNotifications,
+            @Nullable AppSearchLogger logger) {
+        // All the stats we want to print. This may not be necessary,
+        // but just to keep the behavior same as before.
+        // Use list instead of map as same id can appear more than once.
+        List<PutDocumentStats.Builder> allStatsList = new ArrayList<>();
+        List<PutDocumentStats.Builder> statsNotFilteredOut = new ArrayList<>();
+        long totalStartTimeMillis = SystemClock.elapsedRealtime();
+
+        mReadWriteLock.writeLock().lock();
+        try {
+            throwIfClosedLocked();
+
+            String prefix = createPrefix(packageName, databaseName);
+            PutDocumentRequest.Builder requestProtoBuilder = PutDocumentRequest.newBuilder();
+            for (int i = 0; i < documents.size(); ++i) {
+                String docId = documents.get(i).getId();
+                PutDocumentStats.Builder pStatsBuilder =
+                        new PutDocumentStats.Builder(packageName, databaseName);
+                // Previously we always log even if we reach the limit. To keep the behavior
+                // same as before, we will save all the stats created.
+                allStatsList.add(pStatsBuilder);
+
+                long generateDocumentProtoStartTimeMillis = 0;
+                long generateDocumentProtoEndTimeMillis = 0;
+                long rewriteDocumentTypeStartTimeMillis = 0;
+                long rewriteDocumentTypeEndTimeMillis = 0;
+                try {
+                    // Generate Document Proto
+                    generateDocumentProtoStartTimeMillis = SystemClock.elapsedRealtime();
+                    DocumentProto.Builder documentBuilder =
+                            GenericDocumentToProtoConverter.toDocumentProto(documents.get(i))
+                                    .toBuilder();
+                    generateDocumentProtoEndTimeMillis = SystemClock.elapsedRealtime();
+
+                    // Rewrite Document Type
+                    rewriteDocumentTypeStartTimeMillis = SystemClock.elapsedRealtime();
+                    addPrefixToDocument(documentBuilder, prefix);
+                    rewriteDocumentTypeEndTimeMillis = SystemClock.elapsedRealtime();
+                    DocumentProto finalDocument = documentBuilder.build();
+
+                    // Check limits
+                    enforceLimitConfigLocked(packageName, docId, finalDocument.getSerializedSize());
+
+                    requestProtoBuilder.addDocuments(finalDocument);
+                    statsNotFilteredOut.add(pStatsBuilder);
+                } catch (Throwable t) {
+                    if (batchResultBuilder != null) {
+                        batchResultBuilder.setResult(docId, throwableToFailedResult(t));
+                    }
+                } finally {
+                    //
+                    // At this point, the doc has either been put in the requestProto, or error
+                    // result be put in batchResultBuilder.
+                    //
+
+                    pStatsBuilder
+                            .setGenerateDocumentProtoLatencyMillis(
+                                    (int)
+                                            (generateDocumentProtoEndTimeMillis
+                                                    - generateDocumentProtoStartTimeMillis))
+                            .setRewriteDocumentTypesLatencyMillis(
+                                    (int)
+                                            (rewriteDocumentTypeEndTimeMillis
+                                                    - rewriteDocumentTypeStartTimeMillis));
+                }
+            }
+
+            // Put documents
+            PutDocumentRequest requestProto = requestProtoBuilder.build();
+            LogUtil.piiTrace(
+                    TAG,
+                    "batchPutDocument, request",
+                    requestProto.getDocumentsCount() + " docs",
+                    requestProto);
+            BatchPutResultProto batchPutResultProto =
+                    mIcingSearchEngineLocked.batchPut(requestProto);
+            // TODO(b/394875109) We can provide a better debug information for fast trace here.
+            LogUtil.piiTrace(
+                    TAG, "batchPutDocument", /* fastTraceObj= */ null, batchPutResultProto);
+
+            List<PutResultProto> putResultProtoList = batchPutResultProto.getPutResultProtosList();
+            for (int i = 0; i < putResultProtoList.size(); ++i) {
+                PutResultProto putResultProto = putResultProtoList.get(i);
+                String docId = putResultProto.getUri();
+                try {
+                    PutDocumentStats.Builder pStatsBuilder = statsNotFilteredOut.get(i);
+                    pStatsBuilder.setStatusCode(
+                            statusProtoToResultCode(putResultProto.getStatus()));
+                    AppSearchLoggerHelper.copyNativeStats(
+                            putResultProto.getPutDocumentStats(), pStatsBuilder);
+
+                    // If it is a failure, it will throw and the catch section will
+                    // set generated result
+                    checkSuccess(putResultProto.getStatus());
+                    if (batchResultBuilder != null) {
+                        batchResultBuilder.setSuccess(docId, /* value= */ null);
+                    }
+
+                    // Don't need to check the index here, as request doc list size should
+                    // definitely be bigger than response doc list size.
+                    DocumentProto documentProto = requestProto.getDocuments(i);
+                    if (!docId.equals(documentProto.getUri())) {
+                        // This shouldn't happen if native code implemented correctly.
+                        // Have a check here just in case something unexpected happens.
+                        Log.w(TAG, "id mismatch between request and response for batchPut");
+                        continue;
+                    }
+
+                    // Only update caches if the document is successfully put to Icing.
+                    // Prefixed namespace needed here.
+                    mNamespaceCacheLocked.addToDocumentNamespaceMap(
+                            prefix, documentProto.getNamespace());
+                    if (!Flags.enableDocumentLimiterReplaceTracking()
+                            || !putResultProto.getWasReplacement()) {
+                        // If the document was a replacement, then there is no need to report it
+                        // because the number of documents has not changed. We only need to report
+                        // "true" additions to the DocumentLimiter.
+                        // Although a replacement document will consume a document id,
+                        // the limit is only intended to apply to "living" documents.
+                        // It is the responsibility of AppSearch's optimization task to reclaim
+                        // space when needed.
+                        mDocumentLimiterLocked.reportDocumentAdded(
+                                packageName,
+                                () ->
+                                        getRawStorageInfoProto()
+                                                .getDocumentStorageInfo()
+                                                .getNamespaceStorageInfoList());
+                    }
+                    // Prepare notifications
+                    if (sendChangeNotifications) {
+                        mObserverManager.onDocumentChange(
+                                packageName,
+                                databaseName,
+                                PrefixUtil.removePrefix(documentProto.getNamespace()),
+                                PrefixUtil.removePrefix(documentProto.getSchema()),
+                                documentProto.getUri(),
+                                mDocumentVisibilityStoreLocked,
+                                mVisibilityCheckerLocked);
+                    }
+                } catch (Throwable t) {
+                    if (batchResultBuilder != null) {
+                        batchResultBuilder.setResult(docId, throwableToFailedResult(t));
+                    }
+                }
+            }
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+
+            if (logger != null && !allStatsList.isEmpty()) {
+                // This seems broken and no easy way to get accurate number.
+                int avgTotalLatencyMs =
+                        (int)
+                                ((SystemClock.elapsedRealtime() - totalStartTimeMillis)
+                                        / allStatsList.size());
+                for (int i = 0; i < allStatsList.size(); ++i) {
+                    PutDocumentStats.Builder pStatsBuilder = allStatsList.get(i);
+                    pStatsBuilder.setTotalLatencyMillis(avgTotalLatencyMs);
+                    logger.logStats(pStatsBuilder.build());
+                }
+            }
+        }
+    }
+
+    /**
      * Adds a document to the AppSearch index.
      *
      * <p>This method belongs to mutate group.
@@ -1067,7 +1253,11 @@ public final class AppSearchImpl implements Closeable {
      * @param sendChangeNotifications Whether to dispatch {@link
      *     android.app.appsearch.observer.DocumentChangeInfo} messages to observers for this change.
      * @throws AppSearchException on IcingSearchEngine error.
+     * @deprecated use {@link #batchPutDocuments(String, String, List, AppSearchBatchResult.Builder,
+     *     boolean, AppSearchLogger)}
      */
+    // TODO(b/394875109) keep this for now to make code sync easier.
+    @Deprecated
     public void putDocument(
             @NonNull String packageName,
             @NonNull String databaseName,

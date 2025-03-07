@@ -167,7 +167,7 @@ public final class SearchResult extends AbstractSafeParcelable {
                 if (matchInfo.getTextMatch() != null) {
                     // This is necessary in order to use the TextMatchInfo after IPC, since
                     // TextMatch.mPropertyPath is private and is not retained by SafeParcelable
-                    // across IPC
+                    // across IPC.
                     matchInfo.mTextMatch.setPropertyPath(matchInfo.getPropertyPath());
                 }
                 if (mMatchInfosCached != null) {
