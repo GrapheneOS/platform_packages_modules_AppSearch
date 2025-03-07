@@ -66,6 +66,7 @@ java_defaults {
         "framework-permission-s.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "framework-virtualization.stubs.module_lib",
+        "jspecify",
     ],
     optimize: {
         proguard_flags_files: ["proguard.flags"],
@@ -78,7 +79,6 @@ java_defaults {
         "com.android.isolated_storage_service",
         "com.android.server.appsearch",
         "com.google.android.icing",
-        "org.jspecify.annotations",
     ],
     jarjar_rules: "jarjar-rules.txt",
     visibility: [
