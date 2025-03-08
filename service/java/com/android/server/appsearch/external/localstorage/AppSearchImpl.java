@@ -1071,6 +1071,9 @@ public final class AppSearchImpl implements Closeable {
      * @param batchResultBuilder The builder for returning the batch result.
      * @param sendChangeNotifications Whether to dispatch {@link
      *     android.app.appsearch.observer.DocumentChangeInfo} messages to observers for this change.
+     * @param persistType The persist type used to call PersistToDisk inside Icing at the end of the
+     *     Put request. If UNKNOWN, PersistToDisk will not be called. See also {@link
+     *     #persistToDisk(PersistType.Code)}.
      * @throws AppSearchException on IcingSearchEngine error.
      */
     public void batchPutDocuments(
@@ -1079,7 +1082,9 @@ public final class AppSearchImpl implements Closeable {
             @NonNull List<GenericDocument> documents,
             AppSearchBatchResult.@Nullable Builder<String, Void> batchResultBuilder,
             boolean sendChangeNotifications,
-            @Nullable AppSearchLogger logger) {
+            @Nullable AppSearchLogger logger,
+            PersistType.@NonNull Code persistType)
+            throws AppSearchException {
         // All the stats we want to print. This may not be necessary,
         // but just to keep the behavior same as before.
         // Use list instead of map as same id can appear more than once.
@@ -1093,6 +1098,7 @@ public final class AppSearchImpl implements Closeable {
 
             String prefix = createPrefix(packageName, databaseName);
             PutDocumentRequest.Builder requestProtoBuilder = PutDocumentRequest.newBuilder();
+            requestProtoBuilder.setPersistType(persistType);
             for (int i = 0; i < documents.size(); ++i) {
                 String docId = documents.get(i).getId();
                 PutDocumentStats.Builder pStatsBuilder =
@@ -1223,6 +1229,9 @@ public final class AppSearchImpl implements Closeable {
                         batchResultBuilder.setResult(docId, throwableToFailedResult(t));
                     }
                 }
+            }
+            if (persistType != PersistType.Code.UNKNOWN) {
+                checkSuccess(batchPutResultProto.getPersistToDiskResultProto().getStatus());
             }
         } finally {
             mReadWriteLock.writeLock().unlock();

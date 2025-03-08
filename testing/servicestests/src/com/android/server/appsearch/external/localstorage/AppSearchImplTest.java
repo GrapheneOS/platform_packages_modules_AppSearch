@@ -734,7 +734,8 @@ public class AppSearchImplTest {
                 documents,
                 resultBuilder,
                 /* sendChangeNotifications= */ false,
-                /* logger= */ null);
+                /* logger= */ null,
+                PersistType.Code.LITE);
 
         assertThat(resultBuilder.build().getAll()).isEmpty();
         SearchSpec searchSpec =
@@ -778,7 +779,62 @@ public class AppSearchImplTest {
                 documents,
                 batchResultBuilder,
                 /* sendChangeNotifications= */ false,
-                /* logger= */ null);
+                /* logger= */ null,
+                PersistType.Code.LITE);
+        AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
+
+        // Check batchResult
+        assertThat(batchResult.getSuccesses())
+                .containsExactly("id1", null, "id2", null, "id3", null)
+                .inOrder();
+
+        SearchSpec searchSpec =
+                new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.query("package1", "database1", "", searchSpec, /* logger= */ null);
+
+        assertThat(searchResultPage.getResults()).hasSize(3);
+        assertThat(searchResultPage.getResults().get(0).getGenericDocument()).isEqualTo(document3);
+        assertThat(searchResultPage.getResults().get(1).getGenericDocument()).isEqualTo(document2);
+        assertThat(searchResultPage.getResults().get(2).getGenericDocument()).isEqualTo(document1);
+    }
+
+    @Test
+    public void testBatchPut_docsInsertedCorrectly_withoutPersistToDisk() throws Exception {
+        // Insert package1 schema
+        List<AppSearchSchema> schema1 =
+                ImmutableList.of(new AppSearchSchema.Builder("schema1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert three package1 documents
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+        GenericDocument document3 =
+                new GenericDocument.Builder<>("namespace", "id3", "schema1").build();
+        List<GenericDocument> documents = Arrays.asList(document1, document2, document3);
+
+        AppSearchBatchResult.Builder<String, Void> batchResultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package1",
+                "database1",
+                documents,
+                batchResultBuilder,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                // Specify UNKNOWN PersistType to indicate not to call persistToDisk at the end.
+                PersistType.Code.UNKNOWN);
         AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
 
         // Check batchResult
