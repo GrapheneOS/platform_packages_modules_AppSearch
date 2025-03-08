@@ -71,6 +71,7 @@ public class VisibilityStoreMigrationFromV2Test {
     }
 
     @Test
+    @SuppressWarnings("deprecation") // AppSearchImpl.putDocument
     public void testVisibilityMigration_from2() throws Exception {
         // As such, we can treat V2 documents as V3 documents when upgrading, but we need to test
         // this.
