@@ -36,6 +36,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
+import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
@@ -120,12 +121,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@SuppressWarnings("GuardedBy")
+@SuppressWarnings({"GuardedBy", "deprecation"})
 public class AppSearchImplTest {
     /**
      * Always trigger optimize in this class. OptimizeStrategy will be tested in its own test class.
@@ -703,6 +705,96 @@ public class AppSearchImplTest {
                 mAppSearchImpl.query(
                         "package", "EmptyDatabase", "", searchSpec, /* logger= */ null);
         assertThat(searchResultPage.getResults()).isEmpty();
+    }
+
+    @Test
+    public void testBatchPut_emptyList_noDocInserted() throws Exception {
+        // Insert package1 schema
+        List<AppSearchSchema> schema1 =
+                ImmutableList.of(new AppSearchSchema.Builder("schema1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert no documents
+        List<GenericDocument> documents = new ArrayList<>();
+
+        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package1",
+                "database1",
+                documents,
+                resultBuilder,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+
+        assertThat(resultBuilder.build().getAll()).isEmpty();
+        SearchSpec searchSpec =
+                new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.query("package1", "database1", "", searchSpec, /* logger= */ null);
+
+        assertThat(searchResultPage.getResults()).isEmpty();
+    }
+
+    @Test
+    public void testBatchPut_docsInsertedCorrectly() throws Exception {
+        // Insert package1 schema
+        List<AppSearchSchema> schema1 =
+                ImmutableList.of(new AppSearchSchema.Builder("schema1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert three package1 documents
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+        GenericDocument document3 =
+                new GenericDocument.Builder<>("namespace", "id3", "schema1").build();
+        List<GenericDocument> documents = Arrays.asList(document1, document2, document3);
+
+        AppSearchBatchResult.Builder<String, Void> batchResultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package1",
+                "database1",
+                documents,
+                batchResultBuilder,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+        AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
+
+        // Check batchResult
+        assertThat(batchResult.getSuccesses())
+                .containsExactly("id1", null, "id2", null, "id3", null)
+                .inOrder();
+
+        SearchSpec searchSpec =
+                new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.query("package1", "database1", "", searchSpec, /* logger= */ null);
+
+        assertThat(searchResultPage.getResults()).hasSize(3);
+        assertThat(searchResultPage.getResults().get(0).getGenericDocument()).isEqualTo(document3);
+        assertThat(searchResultPage.getResults().get(1).getGenericDocument()).isEqualTo(document2);
+        assertThat(searchResultPage.getResults().get(2).getGenericDocument()).isEqualTo(document1);
     }
 
     /**
@@ -4042,16 +4134,18 @@ public class AppSearchImplTest {
     }
 
     @Test
-    public void testGetStorageInfoForPackage_nonexistentPackage() throws Exception {
+    public void testGetStorageInfoForPackages_nonexistentPackage() throws Exception {
         // "package2" doesn't exist yet, so it shouldn't have any storage size
-        StorageInfo storageInfo = mAppSearchImpl.getStorageInfoForPackage("nonexistent.package");
+        StorageInfo storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("nonexistent.package")));
         assertThat(storageInfo.getSizeBytes()).isEqualTo(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(0);
         assertThat(storageInfo.getAliveNamespacesCount()).isEqualTo(0);
     }
 
     @Test
-    public void testGetStorageInfoForPackage_withoutDocument() throws Exception {
+    public void testGetStorageInfoForPackages_withoutDocument() throws Exception {
         // Insert schema for "package1"
         List<AppSearchSchema> schemas =
                 Collections.singletonList(new AppSearchSchema.Builder("type").build());
@@ -4067,14 +4161,16 @@ public class AppSearchImplTest {
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Since "package1" doesn't have a document, it get any space attributed to it.
-        StorageInfo storageInfo = mAppSearchImpl.getStorageInfoForPackage("package1");
+        StorageInfo storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package1")));
         assertThat(storageInfo.getSizeBytes()).isEqualTo(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(0);
         assertThat(storageInfo.getAliveNamespacesCount()).isEqualTo(0);
     }
 
     @Test
-    public void testGetStorageInfoForPackage_proportionalToDocuments() throws Exception {
+    public void testGetStorageInfoForPackages_proportionalToDocuments() throws Exception {
         List<AppSearchSchema> schemas =
                 Collections.singletonList(new AppSearchSchema.Builder("type").build());
 
@@ -4128,13 +4224,17 @@ public class AppSearchImplTest {
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
 
-        StorageInfo storageInfo = mAppSearchImpl.getStorageInfoForPackage("package1");
+        StorageInfo storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package1")));
         long size1 = storageInfo.getSizeBytes();
         assertThat(size1).isGreaterThan(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(1);
         assertThat(storageInfo.getAliveNamespacesCount()).isEqualTo(1);
 
-        storageInfo = mAppSearchImpl.getStorageInfoForPackage("package2");
+        storageInfo =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package2")));
         long size2 = storageInfo.getSizeBytes();
         assertThat(size2).isGreaterThan(0);
         assertThat(storageInfo.getAliveDocumentsCount()).isEqualTo(2);
@@ -4274,7 +4374,7 @@ public class AppSearchImplTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
-    public void testGetStorageInfoForPackage_withBlob() throws Exception {
+    public void testGetStorageInfoForPackages_withBlob() throws Exception {
         mAppSearchImpl =
                 AppSearchImpl.create(
                         mAppSearchDir,
@@ -4319,10 +4419,14 @@ public class AppSearchImplTest {
             outputStream.flush();
         }
 
-        StorageInfo storageInfo1 = mAppSearchImpl.getStorageInfoForPackage("package1");
+        StorageInfo storageInfo1 =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package1")));
         assertThat(storageInfo1.getBlobsSizeBytes()).isEqualTo(15 * 1024);
         assertThat(storageInfo1.getBlobsCount()).isEqualTo(2);
-        StorageInfo storageInfo2 = mAppSearchImpl.getStorageInfoForPackage("package2");
+        StorageInfo storageInfo2 =
+                mAppSearchImpl.getStorageInfoForPackages(
+                        new ArraySet<>(Collections.singleton("package2")));
         assertThat(storageInfo2.getBlobsSizeBytes()).isEqualTo(20 * 1024);
         assertThat(storageInfo2.getBlobsCount()).isEqualTo(1);
     }
@@ -4498,7 +4602,9 @@ public class AppSearchImplTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> mAppSearchImpl.getStorageInfoForPackage("package"));
+                () ->
+                        mAppSearchImpl.getStorageInfoForPackages(
+                                new ArraySet<>(Collections.singleton("package"))));
 
         assertThrows(
                 IllegalStateException.class,

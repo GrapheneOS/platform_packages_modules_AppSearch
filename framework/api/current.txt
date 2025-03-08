@@ -566,8 +566,19 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.SearchResult.Builder setRankingSignal(double);
   }
 
+  @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public static final class SearchResult.EmbeddingMatchInfo implements android.os.Parcelable {
+    ctor public SearchResult.EmbeddingMatchInfo(double, int, int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public int getEmbeddingSearchMetricType();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public int getQueryEmbeddingVectorIndex();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public double getSemanticScore();
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.SearchResult.EmbeddingMatchInfo> CREATOR;
+  }
+
   public static final class SearchResult.MatchInfo implements android.os.Parcelable {
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @Nullable public android.app.appsearch.SearchResult.EmbeddingMatchInfo getEmbeddingMatch();
     method @NonNull public CharSequence getExactMatch();
     method @NonNull public android.app.appsearch.SearchResult.MatchRange getExactMatchRange();
     method @NonNull public String getFullText();
@@ -577,6 +588,7 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.SearchResult.MatchRange getSnippetRange();
     method @NonNull public CharSequence getSubmatch();
     method @NonNull public android.app.appsearch.SearchResult.MatchRange getSubmatchRange();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @Nullable public android.app.appsearch.SearchResult.TextMatchInfo getTextMatch();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.SearchResult.MatchInfo> CREATOR;
   }
@@ -584,6 +596,7 @@ package android.app.appsearch {
   public static final class SearchResult.MatchInfo.Builder {
     ctor public SearchResult.MatchInfo.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.SearchResult.MatchInfo build();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public android.app.appsearch.SearchResult.MatchInfo.Builder setEmbeddingMatch(@Nullable android.app.appsearch.SearchResult.EmbeddingMatchInfo);
     method @NonNull public android.app.appsearch.SearchResult.MatchInfo.Builder setExactMatchRange(@NonNull android.app.appsearch.SearchResult.MatchRange);
     method @NonNull public android.app.appsearch.SearchResult.MatchInfo.Builder setSnippetRange(@NonNull android.app.appsearch.SearchResult.MatchRange);
     method @NonNull public android.app.appsearch.SearchResult.MatchInfo.Builder setSubmatchRange(@NonNull android.app.appsearch.SearchResult.MatchRange);
@@ -593,6 +606,20 @@ package android.app.appsearch {
     ctor public SearchResult.MatchRange(int, int);
     method public int getEnd();
     method public int getStart();
+  }
+
+  @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public static final class SearchResult.TextMatchInfo implements android.os.Parcelable {
+    ctor public SearchResult.TextMatchInfo(int, int, int, int, int, int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public CharSequence getExactMatch();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public android.app.appsearch.SearchResult.MatchRange getExactMatchRange();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public String getFullText();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public CharSequence getSnippet();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public android.app.appsearch.SearchResult.MatchRange getSnippetRange();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public CharSequence getSubmatch();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public android.app.appsearch.SearchResult.MatchRange getSubmatchRange();
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.SearchResult.TextMatchInfo> CREATOR;
   }
 
   public class SearchResults implements java.io.Closeable {
@@ -633,6 +660,7 @@ package android.app.appsearch {
     method public boolean isNumericSearchEnabled();
     method @FlaggedApi("com.android.appsearch.flags.enable_scorable_property") public boolean isScorablePropertyRankingEnabled();
     method public boolean isVerbatimSearchEnabled();
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public boolean shouldRetrieveEmbeddingMatchInfos();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.SearchSpec> CREATOR;
     field @FlaggedApi("com.android.appsearch.flags.enable_schema_embedding_property_config") public static final int EMBEDDING_SEARCH_METRIC_TYPE_COSINE = 1; // 0x1
@@ -709,6 +737,7 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.SearchSpec.Builder setRankingStrategy(@NonNull String);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setResultCountPerPage(@IntRange(from=0, to=0x2710) int);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setResultGrouping(int, int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public android.app.appsearch.SearchSpec.Builder setRetrieveEmbeddingMatchInfos(boolean);
     method @FlaggedApi("com.android.appsearch.flags.enable_scorable_property") @NonNull public android.app.appsearch.SearchSpec.Builder setScorablePropertyRankingEnabled(boolean);
     method @FlaggedApi("com.android.appsearch.flags.enable_search_spec_set_search_source_log_tag") @NonNull public android.app.appsearch.SearchSpec.Builder setSearchSourceLogTag(@NonNull String);
     method @NonNull public android.app.appsearch.SearchSpec.Builder setSnippetCount(@IntRange(from=0, to=0x2710) int);
