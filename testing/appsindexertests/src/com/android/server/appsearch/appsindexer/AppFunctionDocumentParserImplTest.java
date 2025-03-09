@@ -73,6 +73,11 @@ public class AppFunctionDocumentParserImplTest {
                                     new AppSearchSchema.StringPropertyConfig.Builder(
                                                     "parameterName")
                                             .build())
+                            .addProperty(
+                                    new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                                    "selfReference",
+                                                    "AppFunctionParameterMetadata-com.example.app")
+                                            .build())
                             .build());
 
     @Mock private PackageManager mPackageManager;
@@ -421,6 +426,51 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(actualAppFunction.getPropertyDocument("appFunctionParameterMetadata").getId())
                 .isEqualTo(
                         "com.example.app/com.example.utils#print/appFunctionParameterMetadata-0");
+    }
+
+    @Test
+    public void parseIntoMapForGivenSchemas_singleAppFunctionWithSelfReferencingSchema()
+            throws Exception {
+        setXmlInput(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                        + "<appfunctions>\n"
+                        + "  <AppFunctionStaticMetadata>\n"
+                        + "    <id>com.example.utils#print</id>\n"
+                        + "    <functionId>com.example.utils#print</functionId>\n"
+                        + "    <appFunctionParameterMetadata>\n"
+                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
+                        + "</id>\n"
+                        + "      <parameterName>test</parameterName>\n"
+                        + "    <selfReference>\n"
+                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-1"
+                        + "</id>\n"
+                        + "      <parameterName>selfReferencingParam</parameterName>\n"
+                        + "    </selfReference>\n"
+                        + "    </appFunctionParameterMetadata>\n"
+                        + "  </AppFunctionStaticMetadata>\n"
+                        + "</appfunctions>");
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+
+        assertThat(appFunctions).hasSize(1);
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
+        assertThat(actualAppFunction.getPropertyString("functionId"))
+                .isEqualTo("com.example.utils#print");
+        assertThat(
+                        actualAppFunction.getPropertyString(
+                                "appFunctionParameterMetadata.parameterName"))
+                .isEqualTo("test");
+        assertThat(actualAppFunction.getPropertyDocument("appFunctionParameterMetadata").getId())
+                .isEqualTo(
+                        "com.example.app/com.example.utils#print/appFunctionParameterMetadata-0");
+        assertThat(
+                        actualAppFunction.getPropertyString(
+                                "appFunctionParameterMetadata.selfReference.parameterName"))
+                .isEqualTo("selfReferencingParam");
     }
 
     @Test

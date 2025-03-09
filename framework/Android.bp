@@ -70,6 +70,9 @@ java_sdk_library {
         enabled: true,
         optimize: true,
         shrink: true,
+        // Enable R8 compat mode. R8 full mode implicitly adds -allowaccessmodification,
+        // which may cause non-public fields and methods to become public.
+        proguard_compatibility: true,
         proguard_flags_files: ["proguard.flags"],
     },
     plugins: [

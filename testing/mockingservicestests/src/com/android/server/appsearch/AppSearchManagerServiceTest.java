@@ -1458,19 +1458,19 @@ public class AppSearchManagerServiceTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ISOLATED_STORAGE)
     public void testIsolatedStorageNotAvailable() throws Exception {
         // Ensure that AppSearch fails if the isolated storage service fails
-        final boolean mUseIsolatedStorage = true;
+        final boolean useIsolatedStorage = true;
         Context context = ApplicationProvider.getApplicationContext();
         // Create a new user, one was already created during setUp()
         UserHandle testUserHandle = new UserHandle(1);
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
-        TestContext mTestContext =
-                new TestContext(context, mRoleManager, mDevicePolicyManager, mUseIsolatedStorage);
+        TestContext testContext =
+                new TestContext(context, mRoleManager, mDevicePolicyManager, useIsolatedStorage);
         assertThrows(
                 AppSearchException.class,
                 () -> {
                     AppSearchUserInstanceManager.getInstance()
-                            .getOrCreateUserInstance(mTestContext, testUserHandle, appSearchConfig);
+                            .getOrCreateUserInstance(testContext, testUserHandle, appSearchConfig);
                 });
     }
 
