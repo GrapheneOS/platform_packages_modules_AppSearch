@@ -36,6 +36,8 @@ interface IIcingSearchEngine {
   @nullable
   /*PutResultProto*/ byte[] put(in IcingDataUnion documentProto);
   @nullable
+  /*BatchPutResultProto*/ byte[] batchPut(in IcingDataUnion putDocumentRequestProto);
+  @nullable
   /*GetResultProto*/ IcingDataUnion get(in String name_space, String uri, in byte[] getResultSpecProto);
   @nullable
   /*ReportUsageResultProto*/ byte[] reportUsage(in byte[] usageReportProto);

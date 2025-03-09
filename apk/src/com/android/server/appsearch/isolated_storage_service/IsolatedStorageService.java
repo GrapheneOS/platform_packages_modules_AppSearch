@@ -433,6 +433,11 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
+        public byte[] batchPut(IcingDataUnion putDocumentRequestProto) throws RemoteException {
+            return mVmEngine.batchPut(readFromIcingDataUnion(putDocumentRequestProto));
+        }
+
+        @Override
         public IcingDataUnion get(String namespace, String uri, byte[] getResultSpecProto)
                 throws RemoteException {
             return createIcingDataUnion(mVmEngine.get(namespace, uri, getResultSpecProto));
