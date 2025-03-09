@@ -23,7 +23,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchManager;
@@ -818,7 +818,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 mConfigForTest, mSingleThreadedExecutor);
         try {
             mInstance.startAsync();
-            verifyZeroInteractions(mockJobScheduler);
+            verifyNoMoreInteractions(mockJobScheduler);
         } finally {
             // unregisters observers registered by startAsync()
             mInstance.shutdown();
@@ -1045,7 +1045,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(settings.getLastContactDeleteTimestampMillis()).isEqualTo(futureDeleteTimestamp);
 
         // Verify no full update job was scheduled
-        verifyZeroInteractions(mockJobScheduler);
+        verifyNoMoreInteractions(mockJobScheduler);
     }
 
     @Test
