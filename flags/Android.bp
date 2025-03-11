@@ -20,6 +20,7 @@ java_aconfig_library {
         "//cts/tests/appsearch:__subpackages__",
         "//frameworks/base",
         "//packages/modules/AppSearch/testing:__subpackages__",
+        "//packages/modules/Permission/tests/cts/permissionpolicy",
     ],
     mode: "exported",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],

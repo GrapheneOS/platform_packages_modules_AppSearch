@@ -23,8 +23,12 @@ import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_ST
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Binder;
 import android.os.IBinder;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.system.virtualmachine.VirtualMachine;
@@ -224,7 +228,6 @@ public class IsolatedStorageService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: b/384768541 - ensure only AppSearch can bind to this service.
         return mIsolatedStorageServiceStub.asBinder();
     }
 
@@ -234,6 +237,32 @@ public class IsolatedStorageService extends Service {
 
         @GuardedBy("mConfigLocked")
         private final AtomicReference<ServiceConfig> mConfigLocked = new AtomicReference<>();
+
+        // We check here instead of onBind as IBinder can be passed around.
+        @Override
+        public boolean onTransact(int code, Parcel data, Parcel reply, int flags)
+                throws RemoteException {
+            checkCallerPermission();
+            return super.onTransact(code, data, reply, flags);
+        }
+
+        // We only allow packages with BIND_APPSEARCH_ISOLATED_STORAGE_SERVICE permission to do the
+        // binder call to this service.
+        // Furthermore, we only want system_server to bind to this service.
+        private void checkCallerPermission() {
+            int checkPermission =
+                    checkCallingPermission(
+                            "android.permission.BIND_APP_SEARCH_ISOLATED_STORAGE_SERVICE");
+            if (checkPermission != PackageManager.PERMISSION_GRANTED) {
+                throw new SecurityException("Permission check failed with code " + checkPermission);
+            }
+
+            // check to only allow system_server access.
+            if (Binder.getCallingUid() != Process.SYSTEM_UID) {
+                throw new SecurityException(
+                        "Only system server is allowed to bind to this service.");
+            }
+        }
 
         @Override
         public void setup(ServiceConfig config) throws RemoteException {
