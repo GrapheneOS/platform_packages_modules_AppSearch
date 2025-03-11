@@ -21,6 +21,7 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.RemoveByDocumentIdRequest;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 
 import org.jspecify.annotations.NonNull;
 
@@ -35,7 +36,7 @@ import java.util.Objects;
  *
  * @hide
  */
-public final class RemoveStats {
+public final class RemoveStats extends BaseStats {
     /** Types of stats available for remove API. */
     @IntDef(
             value = {
@@ -80,7 +81,7 @@ public final class RemoveStats {
     private final int mNativeNumDocumentsDeleted;
 
     RemoveStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mPackageName = builder.mPackageName;
         mDatabase = builder.mDatabase;
         mStatusCode = builder.mStatusCode;
@@ -128,7 +129,7 @@ public final class RemoveStats {
     }
 
     /** Builder for {@link RemoveStats}. */
-    public static class Builder {
+    public static class Builder extends BaseStats.Builder<RemoveStats.Builder> {
         final @NonNull String mPackageName;
         final @NonNull String mDatabase;
         @AppSearchResult.ResultCode int mStatusCode;
@@ -179,6 +180,7 @@ public final class RemoveStats {
         }
 
         /** Creates a {@link RemoveStats}. */
+        @Override
         public @NonNull RemoveStats build() {
             return new RemoveStats(/* builder= */ this);
         }

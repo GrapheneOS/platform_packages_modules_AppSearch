@@ -19,6 +19,7 @@ package com.android.server.appsearch.external.localstorage.stats;
 import android.annotation.IntDef;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 import android.util.ArraySet;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -29,7 +30,6 @@ import org.jspecify.annotations.Nullable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -44,7 +44,7 @@ import java.util.Set;
  *
  * @hide
  */
-public class CallStats {
+public class CallStats extends BaseStats {
     /** Call types. */
     @IntDef(
             value = {
@@ -184,7 +184,7 @@ public class CallStats {
     private final int mNumOperationsFailed;
 
     CallStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mPackageName = builder.mPackageName;
         mDatabase = builder.mDatabase;
         mStatusCode = builder.mStatusCode;
@@ -258,7 +258,7 @@ public class CallStats {
     }
 
     /** Builder for {@link CallStats}. */
-    public static class Builder {
+    public static class Builder extends BaseStats.Builder<CallStats.Builder> {
         @Nullable String mPackageName;
         @Nullable String mDatabase;
         @AppSearchResult.ResultCode int mStatusCode;
@@ -345,6 +345,7 @@ public class CallStats {
         }
 
         /** Creates {@link CallStats} object from {@link Builder} instance. */
+        @Override
         public @NonNull CallStats build() {
             return new CallStats(/* builder= */ this);
         }

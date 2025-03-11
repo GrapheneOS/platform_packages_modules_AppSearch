@@ -20,6 +20,7 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema.StringPropertyConfig.JoinableValueType;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 
 import com.android.internal.util.Preconditions;
 
@@ -36,7 +37,7 @@ import java.util.Objects;
  *
  * @hide
  */
-public final class SearchStats {
+public final class SearchStats extends BaseStats {
     /** Types of Visibility scopes available for search. */
     @IntDef(
             value = {
@@ -165,7 +166,7 @@ public final class SearchStats {
     private final @Nullable String mSearchSourceLogTag;
 
     SearchStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mPackageName = builder.mPackageName;
         mDatabase = builder.mDatabase;
         mStatusCode = builder.mStatusCode;
@@ -373,7 +374,7 @@ public final class SearchStats {
     }
 
     /** Builder for {@link SearchStats} */
-    public static class Builder {
+    public static class Builder extends BaseStats.Builder<SearchStats.Builder> {
         final @NonNull String mPackageName;
         @Nullable String mDatabase;
         @AppSearchResult.ResultCode int mStatusCode;
@@ -641,6 +642,7 @@ public final class SearchStats {
          * Constructs a new {@link SearchStats} from the contents of this {@link
          * SearchStats.Builder}.
          */
+        @Override
         public @NonNull SearchStats build() {
             if (mDatabase == null) {
                 Preconditions.checkState(
