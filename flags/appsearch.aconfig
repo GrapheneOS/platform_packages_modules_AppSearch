@@ -476,3 +476,14 @@ flag {
     bug: "395128139"
     is_exported: true
 }
+
+flag {
+    name: "enable_batch_put"
+    namespace: "appsearch"
+    description: "Uses the new batch put API from Icing."
+    bug: "394875109"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

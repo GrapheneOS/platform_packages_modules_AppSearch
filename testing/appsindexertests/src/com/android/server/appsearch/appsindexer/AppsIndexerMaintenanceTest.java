@@ -31,7 +31,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
@@ -321,7 +321,7 @@ public class AppsIndexerMaintenanceTest {
         mAppsIndexerMaintenanceService.doUpdateForUser(
                 mContextWrapper, mParams, DEFAULT_USER_HANDLE, new CancellationSignal());
 
-        verifyZeroInteractions(mMockJobScheduler);
+        verifyNoMoreInteractions(mMockJobScheduler);
     }
 
     @Test
