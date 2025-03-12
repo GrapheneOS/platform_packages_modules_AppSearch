@@ -199,6 +199,9 @@ public final class IsolatedStorageServiceManager {
     private ServiceConfig createServiceConfig() {
         ServiceConfig config = new ServiceConfig();
         config.pVmMemoryBytes = mAppSearchConfig.getIsolatedStorageMemoryBytes();
+        config.pCachedSamplingInterval = mAppSearchConfig.getCachedSamplingIntervalDefault();
+        config.pCachedMinTimeIntervalBetweenSamplesMillis =
+                mAppSearchConfig.getCachedMinTimeIntervalBetweenSamplesMillis();
         return config;
     }
 
