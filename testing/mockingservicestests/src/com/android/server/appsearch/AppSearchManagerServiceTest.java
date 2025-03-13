@@ -32,6 +32,7 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_R
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -135,6 +136,7 @@ import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.ClickActionGenericDocument;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchActionGenericDocument;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.usage.StorageStatsManagerLocal;
 
 import com.google.common.util.concurrent.SettableFuture;
@@ -1455,8 +1457,8 @@ public class AppSearchManagerServiceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ISOLATED_STORAGE)
     public void testIsolatedStorageNotAvailable() throws Exception {
+        assumeTrue(IsolatedStorageServiceManager.isolatedStorageFlagsSet());
         // Ensure that AppSearch fails if the isolated storage service fails
         final boolean useIsolatedStorage = true;
         Context context = ApplicationProvider.getApplicationContext();
