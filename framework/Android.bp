@@ -52,6 +52,14 @@ filegroup {
     path: "java/external",
 }
 
+filegroup {
+    name: "framework-appsearch-safeparcel-sources",
+    srcs: [
+        "java/android/app/appsearch/safeparcel/*.java",
+    ],
+    path: "java",
+}
+
 java_sdk_library {
     name: "framework-appsearch",
     srcs: [":framework-appsearch-sources"],
