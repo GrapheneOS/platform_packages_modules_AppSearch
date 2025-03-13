@@ -21,6 +21,7 @@ import static android.app.appsearch.stats.SchemaMigrationStats.SECOND_CALL_APPLY
 
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.stats.SchemaMigrationStats;
 
 import com.android.internal.util.Preconditions;
@@ -30,12 +31,11 @@ import org.jspecify.annotations.NonNull;
 import java.util.Objects;
 
 /**
- * Class holds detailed stats for {@link
- * android.app.appsearch.AppSearchSession#setSchema(SetSchemaRequest)}.
+ * Class holds detailed stats for {@link android.app.appsearch.AppSearchSession#setSchema}.
  *
  * @hide
  */
-public final class SetSchemaStats {
+public final class SetSchemaStats extends BaseStats {
 
     private final @NonNull String mPackageName;
 
@@ -65,7 +65,7 @@ public final class SetSchemaStats {
     @SchemaMigrationStats.SchemaMigrationCallType private final int mSchemaMigrationCallType;
 
     SetSchemaStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mPackageName = builder.mPackageName;
         mDatabase = builder.mDatabase;
         mStatusCode = builder.mStatusCode;
@@ -227,7 +227,7 @@ public final class SetSchemaStats {
     }
 
     /** Builder for {@link SetSchemaStats}. */
-    public static class Builder {
+    public static class Builder extends BaseStats.Builder<SetSchemaStats.Builder> {
         final @NonNull String mPackageName;
         final @NonNull String mDatabase;
         @AppSearchResult.ResultCode int mStatusCode;
@@ -432,6 +432,7 @@ public final class SetSchemaStats {
         }
 
         /** Builds a new {@link SetSchemaStats} from the {@link Builder}. */
+        @Override
         public @NonNull SetSchemaStats build() {
             return new SetSchemaStats(/* builder= */ this);
         }
