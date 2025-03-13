@@ -19,6 +19,7 @@ java_aconfig_library {
         "//cts/tests/appfunctions:__subpackages__",
         "//cts/tests/appsearch:__subpackages__",
         "//frameworks/base",
+        "//packages/apps/GmsCompat:__subpackages__",
         "//packages/modules/AppSearch/testing:__subpackages__",
     ],
     mode: "exported",
