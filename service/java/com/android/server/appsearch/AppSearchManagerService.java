@@ -801,6 +801,9 @@ public class AppSearchManagerService extends SystemService {
                                 ++operationFailureCount;
                             }
                         }
+
+                        // Now that the batch has been written. Persist the newly written data.
+                        instance.getAppSearchImpl().persistToDisk(PersistType.Code.LITE);
                     } else {
                         if (!documentParcels.isEmpty() || !takenActionDocumentParcels.isEmpty()) {
                             // List to hold the current batch.
