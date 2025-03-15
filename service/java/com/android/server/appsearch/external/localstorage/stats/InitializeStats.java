@@ -19,19 +19,19 @@ package com.android.server.appsearch.external.localstorage.stats;
 import android.annotation.IntDef;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 
 import org.jspecify.annotations.NonNull;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.Objects;
 
 /**
  * Class holds detailed stats for initialization
  *
  * @hide
  */
-public final class InitializeStats {
+public final class InitializeStats extends BaseStats {
     /**
      * The cause of IcingSearchEngine recovering from a previous bad state during initialization.
      */
@@ -248,7 +248,7 @@ public final class InitializeStats {
     }
 
     InitializeStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mStatusCode = builder.mStatusCode;
         mTotalLatencyMillis = builder.mTotalLatencyMillis;
         mHasDeSync = builder.mHasDeSync;
@@ -270,7 +270,7 @@ public final class InitializeStats {
     }
 
     /** Builder for {@link InitializeStats}. */
-    public static class Builder {
+    public static class Builder extends BaseStats.Builder<InitializeStats.Builder> {
         @AppSearchResult.ResultCode int mStatusCode;
 
         int mTotalLatencyMillis;
@@ -452,6 +452,7 @@ public final class InitializeStats {
          * Constructs a new {@link InitializeStats} from the contents of this {@link
          * InitializeStats.Builder}
          */
+        @Override
         public @NonNull InitializeStats build() {
             return new InitializeStats(/* builder= */ this);
         }

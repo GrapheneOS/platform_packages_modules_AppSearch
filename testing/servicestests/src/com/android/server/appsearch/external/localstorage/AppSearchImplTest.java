@@ -77,6 +77,10 @@ import com.android.server.appsearch.appsearch.proto.PackageIdentifierProto;
 import com.android.server.appsearch.appsearch.proto.VisibilityConfigProto;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
+import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
+import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
+import com.android.server.appsearch.external.localstorage.stats.SearchStats;
+import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
@@ -87,6 +91,7 @@ import com.android.server.appsearch.icing.proto.DebugInfoVerbosity;
 import com.android.server.appsearch.icing.proto.DocumentProto;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
 import com.android.server.appsearch.icing.proto.GetSchemaResultProto;
+import com.android.server.appsearch.icing.proto.IcingSearchEngineOptions;
 import com.android.server.appsearch.icing.proto.PersistType;
 import com.android.server.appsearch.icing.proto.PropertyConfigProto;
 import com.android.server.appsearch.icing.proto.PropertyProto;
@@ -734,7 +739,8 @@ public class AppSearchImplTest {
                 documents,
                 resultBuilder,
                 /* sendChangeNotifications= */ false,
-                /* logger= */ null);
+                /* logger= */ null,
+                PersistType.Code.LITE);
 
         assertThat(resultBuilder.build().getAll()).isEmpty();
         SearchSpec searchSpec =
@@ -778,7 +784,62 @@ public class AppSearchImplTest {
                 documents,
                 batchResultBuilder,
                 /* sendChangeNotifications= */ false,
-                /* logger= */ null);
+                /* logger= */ null,
+                PersistType.Code.LITE);
+        AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
+
+        // Check batchResult
+        assertThat(batchResult.getSuccesses())
+                .containsExactly("id1", null, "id2", null, "id3", null)
+                .inOrder();
+
+        SearchSpec searchSpec =
+                new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.query("package1", "database1", "", searchSpec, /* logger= */ null);
+
+        assertThat(searchResultPage.getResults()).hasSize(3);
+        assertThat(searchResultPage.getResults().get(0).getGenericDocument()).isEqualTo(document3);
+        assertThat(searchResultPage.getResults().get(1).getGenericDocument()).isEqualTo(document2);
+        assertThat(searchResultPage.getResults().get(2).getGenericDocument()).isEqualTo(document1);
+    }
+
+    @Test
+    public void testBatchPut_docsInsertedCorrectly_withoutPersistToDisk() throws Exception {
+        // Insert package1 schema
+        List<AppSearchSchema> schema1 =
+                ImmutableList.of(new AppSearchSchema.Builder("schema1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert three package1 documents
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+        GenericDocument document3 =
+                new GenericDocument.Builder<>("namespace", "id3", "schema1").build();
+        List<GenericDocument> documents = Arrays.asList(document1, document2, document3);
+
+        AppSearchBatchResult.Builder<String, Void> batchResultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package1",
+                "database1",
+                documents,
+                batchResultBuilder,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                // Specify UNKNOWN PersistType to indicate not to call persistToDisk at the end.
+                PersistType.Code.UNKNOWN);
         AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
 
         // Check batchResult
@@ -4646,7 +4707,7 @@ public class AppSearchImplTest {
                         "package", "database", "namespace1", "id1", Collections.emptyMap());
         assertThat(getResult).isEqualTo(document);
 
-        // Inialize a new instance of AppSearch to test initialization.
+        // Initialize a new instance of AppSearch to test initialization.
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         AppSearchImpl appSearchImpl2 =
                 AppSearchImpl.create(
@@ -4734,7 +4795,7 @@ public class AppSearchImplTest {
                         "package", "database", "namespace1", "id2", Collections.emptyMap());
         assertThat(getResult).isEqualTo(document2);
 
-        // Inialize a new instance of AppSearch to test initialization.
+        // Initialize a new instance of AppSearch to test initialization.
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         AppSearchImpl appSearchImpl2 =
                 AppSearchImpl.create(
@@ -4839,7 +4900,7 @@ public class AppSearchImplTest {
                         "package", "database", "namespace2", "id2", Collections.emptyMap());
         assertThat(getResult).isEqualTo(document2);
 
-        // Inialize a new instance of AppSearch to test initialization.
+        // Initialize a new instance of AppSearch to test initialization.
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         AppSearchImpl appSearchImpl2 =
                 AppSearchImpl.create(
@@ -4907,7 +4968,7 @@ public class AppSearchImplTest {
                         "package", "database", "namespace1", "id1", Collections.emptyMap());
         assertThat(getResult).isEqualTo(document);
 
-        // Inialize a new instance of AppSearch to test initialization.
+        // Initialize a new instance of AppSearch to test initialization.
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         AppSearchImpl appSearchImpl2 =
                 AppSearchImpl.create(
@@ -4995,7 +5056,7 @@ public class AppSearchImplTest {
                         "package", "database", "namespace1", "id2", Collections.emptyMap());
         assertThat(getResult).isEqualTo(document2);
 
-        // Inialize a new instance of AppSearch to test initialization.
+        // Initialize a new instance of AppSearch to test initialization.
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         AppSearchImpl appSearchImpl2 =
                 AppSearchImpl.create(
@@ -5335,6 +5396,193 @@ public class AppSearchImplTest {
                 .isEqualTo(2);
         // +2 (document and blob db) * (2 for VisibilitySchema +1 for VisibilityOverlay)
         assertThat(debugInfo.getSchemaInfo().getSchema().getTypesList()).hasSize(7);
+    }
+
+    @Test
+    public void testStatsIsLaunchAegis() throws Exception {
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        IcingSearchEngineOptions options =
+                mUnlimitedConfig.toIcingSearchEngineOptions(mAppSearchDir.getAbsolutePath());
+        IcingSearchEngine icingSearchEngine = new IcingSearchEngine(options);
+        // the bit mask for only enable launch VM feature.
+        int onlyLaunchVMFeature = 1;
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mUnlimitedConfig,
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        icingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Initialization and check initStats
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
+
+        // Set a schema and check SetSchemaStats
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(new AppSearchSchema.Builder("type").build());
+        SetSchemaStats.Builder setSchemaStatsBuilder =
+                new SetSchemaStats.Builder("package", "database");
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        SetSchemaStats setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
+
+        // Add documents and test putDocumentStats.
+        AppSearchLogger fakeLogger =
+                new AppSearchLogger() {
+                    @Override
+                    public void logStats(@NonNull PutDocumentStats stats) {
+                        assertThat(stats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
+                    }
+
+                    @Override
+                    public void logStats(@NonNull SearchStats stats) {
+                        assertThat(stats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
+                    }
+                };
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace1", "id1", "type").build();
+        mAppSearchImpl.putDocument(
+                "package", "database", document, /* sendChangeNotifications= */ false, fakeLogger);
+
+        List<GenericDocument> documents = new ArrayList<>();
+        documents.add(document);
+        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package1",
+                "database1",
+                documents,
+                resultBuilder,
+                /* sendChangeNotifications= */ false,
+                fakeLogger,
+                PersistType.Code.LITE);
+
+        mAppSearchImpl.query(
+                "package", "database", "", new SearchSpec.Builder().build(), fakeLogger);
+
+        // Delete the document and check remove stats
+        RemoveStats.Builder removeStatsBuilder = new RemoveStats.Builder("package", "database");
+        mAppSearchImpl.removeByQuery(
+                "package",
+                "database",
+                "",
+                new SearchSpec.Builder()
+                        .addFilterNamespaces("namespace1")
+                        .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
+                        .build(),
+                removeStatsBuilder);
+        RemoveStats removeStats = removeStatsBuilder.build();
+        assertThat(removeStats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
+
+        // Trigger optimize and check optimize stats
+        OptimizeStats.Builder optimizeStatsBuilder = new OptimizeStats.Builder();
+        mAppSearchImpl.optimize(optimizeStatsBuilder);
+        OptimizeStats optimizeStats = optimizeStatsBuilder.build();
+        assertThat(optimizeStats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
+    }
+
+    @Test
+    public void testStatsIsNotLaunchAegis() throws Exception {
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // the bit mask for nothing enabled feature.
+        int noLaunchFeature = 0;
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mUnlimitedConfig,
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        // Initialization and check initStats
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
+
+        // Set a schema and check SetSchemaStats
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(new AppSearchSchema.Builder("type").build());
+        SetSchemaStats.Builder setSchemaStatsBuilder =
+                new SetSchemaStats.Builder("package", "database");
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        SetSchemaStats setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
+
+        // Add documents and test putDocumentStats.
+        AppSearchLogger fakeLogger =
+                new AppSearchLogger() {
+                    @Override
+                    public void logStats(@NonNull PutDocumentStats stats) {
+                        assertThat(stats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
+                    }
+
+                    @Override
+                    public void logStats(@NonNull SearchStats stats) {
+                        assertThat(stats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
+                    }
+                };
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace1", "id1", "type").build();
+        mAppSearchImpl.putDocument(
+                "package", "database", document, /* sendChangeNotifications= */ false, fakeLogger);
+
+        List<GenericDocument> documents = new ArrayList<>();
+        documents.add(document);
+        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package1",
+                "database1",
+                documents,
+                resultBuilder,
+                /* sendChangeNotifications= */ false,
+                fakeLogger,
+                PersistType.Code.LITE);
+
+        mAppSearchImpl.query(
+                "package", "database", "", new SearchSpec.Builder().build(), fakeLogger);
+
+        // Delete the document and check remove stats
+        RemoveStats.Builder removeStatsBuilder = new RemoveStats.Builder("package", "database");
+        mAppSearchImpl.removeByQuery(
+                "package",
+                "database",
+                "",
+                new SearchSpec.Builder()
+                        .addFilterNamespaces("namespace1")
+                        .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
+                        .build(),
+                removeStatsBuilder);
+        RemoveStats removeStats = removeStatsBuilder.build();
+        assertThat(removeStats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
+
+        // Trigger optimize and check optimize stats
+        OptimizeStats.Builder optimizeStatsBuilder = new OptimizeStats.Builder();
+        mAppSearchImpl.optimize(optimizeStatsBuilder);
+        OptimizeStats optimizeStats = optimizeStatsBuilder.build();
+        assertThat(optimizeStats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
     }
 
     @Test
