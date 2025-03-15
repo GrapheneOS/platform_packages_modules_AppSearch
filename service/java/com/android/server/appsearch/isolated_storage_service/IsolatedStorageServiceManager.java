@@ -44,6 +44,8 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.ResetResultProto;
+import com.google.android.icing.proto.StatusProto;
 
 import java.util.List;
 import java.util.Map;
@@ -123,6 +125,31 @@ public final class IsolatedStorageServiceManager {
         // Devices that support AVF are not required to support protected VMs.
         return (vmm != null)
                 && ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0);
+    }
+
+    /** Removes the icing instance for the corresponding userHandle */
+    public void removeUserInstance(UserHandle userHandle) {
+        synchronized (mIcingInstancesLocked) {
+            IcingSearchEngineInterface instance = mIcingInstancesLocked.remove(userHandle);
+            if (instance != null) {
+                // Delete the corresponding user data in isolated storage
+                ResetResultProto result = instance.clearAndDestroy();
+                if (result.getStatus().getCode() != StatusProto.Code.OK) {
+                    Log.i(
+                            TAG,
+                            "Error while deleting isolated storage data for user: " + userHandle);
+                }
+                try {
+                    // Remove the Icing connection from the VM Isolated Storage Service
+                    mVmIsolatedStorageService.removeIcingConnection(userHandle.getIdentifier());
+                } catch (RemoteException e) {
+                    Log.e(
+                            TAG,
+                            "Unable to remove Isolated Icing connection for user: " + userHandle,
+                            e);
+                }
+            }
+        }
     }
 
     /** Binds to the isolated storage service if not already. */

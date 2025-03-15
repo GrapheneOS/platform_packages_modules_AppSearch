@@ -122,7 +122,7 @@ public final class AppSearchUserInstanceManager {
      *
      * <p>All mutations applied to the underlying {@link AppSearchImpl} will be persisted to disk.
      *
-     * @param userHandle The multi-user user handle of the user that need to be removed.
+     * @param userHandle The multi-user user handle of the user that needs to be removed.
      */
     public void closeAndRemoveUserInstance(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
@@ -134,6 +134,29 @@ public final class AppSearchUserInstanceManager {
         }
         synchronized (mStorageInfoLocked) {
             mStorageInfoLocked.remove(userHandle);
+        }
+    }
+
+    /**
+     * Removes the user data for the given {@link AppSearchUserInstance} user. This is handled
+     * automatically by the system unless isolated storage is used.
+     *
+     * @param userHandle The multi-user user handle of the user that needs to be removed.
+     * @param userContext Context for the user instance being removed.
+     */
+    public void removeUserData(
+            @NonNull UserHandle userHandle,
+            @NonNull Context userContext,
+            @NonNull ServiceAppSearchConfig config) {
+        Objects.requireNonNull(userHandle);
+        Objects.requireNonNull(userContext);
+        Objects.requireNonNull(config);
+
+        // Remove the icing user instance in IsolatedStorageService
+        if (IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
+            synchronized (mIsolatedStorageServiceManagerLocked) {
+                mIsolatedStorageServiceManagerLocked.get().removeUserInstance(userHandle);
+            }
         }
     }
 
