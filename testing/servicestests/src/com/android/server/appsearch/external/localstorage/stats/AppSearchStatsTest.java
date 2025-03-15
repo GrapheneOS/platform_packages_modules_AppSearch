@@ -46,6 +46,7 @@ public class AppSearchStatsTest {
                         .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                         .setNumOperationsSucceeded(numOperationsSucceeded)
                         .setNumOperationsFailed(numOperationsFailed)
+                        .setLaunchVMEnabled(true)
                         .build();
 
         assertThat(cStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
@@ -57,6 +58,25 @@ public class AppSearchStatsTest {
         assertThat(cStats.getCallType()).isEqualTo(callType);
         assertThat(cStats.getNumOperationsSucceeded()).isEqualTo(numOperationsSucceeded);
         assertThat(cStats.getNumOperationsFailed()).isEqualTo(numOperationsFailed);
+        assertThat(cStats.getEnabledFeatures()).isEqualTo(1);
+    }
+
+    @Test
+    public void testAppSearchStats_setLaunchVMEnabled_false() {
+        final CallStats cStats =
+                new CallStats.Builder()
+                        .setPackageName(TEST_PACKAGE_NAME)
+                        .setDatabase(TEST_DATA_BASE)
+                        .setStatusCode(TEST_STATUS_CODE)
+                        .setTotalLatencyMillis(TEST_TOTAL_LATENCY_MILLIS)
+                        .setLaunchVMEnabled(false)
+                        .build();
+
+        assertThat(cStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
+        assertThat(cStats.getDatabase()).isEqualTo(TEST_DATA_BASE);
+        assertThat(cStats.getStatusCode()).isEqualTo(TEST_STATUS_CODE);
+        assertThat(cStats.getTotalLatencyMillis()).isEqualTo(TEST_TOTAL_LATENCY_MILLIS);
+        assertThat(cStats.getEnabledFeatures()).isEqualTo(0);
     }
 
     @Test
@@ -87,6 +107,7 @@ public class AppSearchStatsTest {
         final int nativeIntegerIndexLatencyMillis = 10;
         final int nativeQualifiedIdJoinIndexLatencyMillis = 11;
         final int nativeLiteIndexSortLatencyMillis = 12;
+        final int enabledFeatures = 1;
         final PutDocumentStats.Builder pStatsBuilder =
                 new PutDocumentStats.Builder(TEST_PACKAGE_NAME, TEST_DATA_BASE)
                         .setStatusCode(TEST_STATUS_CODE)
@@ -103,7 +124,8 @@ public class AppSearchStatsTest {
                         .setNativeIntegerIndexLatencyMillis(nativeIntegerIndexLatencyMillis)
                         .setNativeQualifiedIdJoinIndexLatencyMillis(
                                 nativeQualifiedIdJoinIndexLatencyMillis)
-                        .setNativeLiteIndexSortLatencyMillis(nativeLiteIndexSortLatencyMillis);
+                        .setNativeLiteIndexSortLatencyMillis(nativeLiteIndexSortLatencyMillis)
+                        .setLaunchVMEnabled(true);
 
         final PutDocumentStats pStats = pStatsBuilder.build();
 
@@ -131,6 +153,7 @@ public class AppSearchStatsTest {
                 .isEqualTo(nativeQualifiedIdJoinIndexLatencyMillis);
         assertThat(pStats.getNativeLiteIndexSortLatencyMillis())
                 .isEqualTo(nativeLiteIndexSortLatencyMillis);
+        assertThat(pStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
     }
 
     @Test
@@ -147,6 +170,7 @@ public class AppSearchStatsTest {
         int nativeDocumentStoreDataStatus = 10;
         int nativeNumDocuments = 11;
         int nativeNumSchemaTypes = 12;
+        int enabledFeatures = 1;
 
         final InitializeStats.Builder iStatsBuilder =
                 new InitializeStats.Builder()
@@ -168,7 +192,8 @@ public class AppSearchStatsTest {
                         .setDocumentCount(nativeNumDocuments)
                         .setSchemaTypeCount(nativeNumSchemaTypes)
                         .setHasReset(true)
-                        .setResetStatusCode(AppSearchResult.RESULT_INVALID_SCHEMA);
+                        .setResetStatusCode(AppSearchResult.RESULT_INVALID_SCHEMA)
+                        .setLaunchVMEnabled(true);
         final InitializeStats iStats = iStatsBuilder.build();
 
         assertThat(iStats.getStatusCode()).isEqualTo(TEST_STATUS_CODE);
@@ -194,6 +219,7 @@ public class AppSearchStatsTest {
         assertThat(iStats.getSchemaTypeCount()).isEqualTo(nativeNumSchemaTypes);
         assertThat(iStats.hasReset()).isTrue();
         assertThat(iStats.getResetStatusCode()).isEqualTo(AppSearchResult.RESULT_INVALID_SCHEMA);
+        assertThat(iStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
     }
 
     @Test
@@ -222,6 +248,7 @@ public class AppSearchStatsTest {
         int javaToNativeJniLatencyMillis = 21;
         int nativeToJavaJniLatencyMillis = 22;
         String searchSourceLogTag = "tag";
+        int enabledFeatures = 1;
         final SearchStats.Builder sStatsBuilder =
                 new SearchStats.Builder(visibilityScope, TEST_PACKAGE_NAME)
                         .setDatabase(TEST_DATA_BASE)
@@ -249,7 +276,8 @@ public class AppSearchStatsTest {
                         .setNativeLockAcquisitionLatencyMillis(nativeLockAcquisitionLatencyMillis)
                         .setJavaToNativeJniLatencyMillis(javaToNativeJniLatencyMillis)
                         .setNativeToJavaJniLatencyMillis(nativeToJavaJniLatencyMillis)
-                        .setSearchSourceLogTag(searchSourceLogTag);
+                        .setSearchSourceLogTag(searchSourceLogTag)
+                        .setLaunchVMEnabled(true);
         final SearchStats sStats = sStatsBuilder.build();
 
         assertThat(sStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
@@ -288,6 +316,7 @@ public class AppSearchStatsTest {
         assertThat(sStats.getNativeToJavaJniLatencyMillis())
                 .isEqualTo(nativeToJavaJniLatencyMillis);
         assertThat(sStats.getSearchSourceLogTag()).isEqualTo(searchSourceLogTag);
+        assertThat(sStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
     }
 
     @Test
@@ -311,6 +340,7 @@ public class AppSearchStatsTest {
         int getOldSchemaLatencyMillis = 16;
         int getObserverLatencyMillis = 17;
         int sendNotificationLatencyMillis = 18;
+        int enabledFeatures = 1;
         SetSchemaStats sStats =
                 new SetSchemaStats.Builder(TEST_PACKAGE_NAME, TEST_DATA_BASE)
                         .setStatusCode(TEST_STATUS_CODE)
@@ -338,6 +368,7 @@ public class AppSearchStatsTest {
                         .setPreparingChangeNotificationLatencyMillis(sendNotificationLatencyMillis)
                         .setSchemaMigrationCallType(
                                 SchemaMigrationStats.SECOND_CALL_APPLY_NEW_SCHEMA)
+                        .setLaunchVMEnabled(true)
                         .build();
 
         assertThat(sStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
@@ -375,6 +406,7 @@ public class AppSearchStatsTest {
                 .isEqualTo(sendNotificationLatencyMillis);
         assertThat(sStats.getSchemaMigrationCallType())
                 .isEqualTo(SchemaMigrationStats.SECOND_CALL_APPLY_NEW_SCHEMA);
+        assertThat(sStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
     }
 
     @Test
@@ -427,6 +459,7 @@ public class AppSearchStatsTest {
         int nativeLatencyMillis = 1;
         @RemoveStats.DeleteType int deleteType = 2;
         int documentDeletedCount = 3;
+        int enabledFeatures = 1;
 
         final RemoveStats rStats =
                 new RemoveStats.Builder(TEST_PACKAGE_NAME, TEST_DATA_BASE)
@@ -435,6 +468,7 @@ public class AppSearchStatsTest {
                         .setNativeLatencyMillis(nativeLatencyMillis)
                         .setDeleteType(deleteType)
                         .setDeletedDocumentCount(documentDeletedCount)
+                        .setLaunchVMEnabled(true)
                         .build();
 
         assertThat(rStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
@@ -444,6 +478,7 @@ public class AppSearchStatsTest {
         assertThat(rStats.getNativeLatencyMillis()).isEqualTo(nativeLatencyMillis);
         assertThat(rStats.getDeleteType()).isEqualTo(deleteType);
         assertThat(rStats.getDeletedDocumentCount()).isEqualTo(documentDeletedCount);
+        assertThat(rStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
     }
 
     @Test
@@ -454,6 +489,7 @@ public class AppSearchStatsTest {
         int nativeNumOriginalDocuments = 4;
         int nativeNumDeletedDocuments = 5;
         int nativeNumExpiredDocuments = 6;
+        int enabledFeatures = 1;
         long nativeStorageSizeBeforeBytes = Integer.MAX_VALUE + 1;
         long nativeStorageSizeAfterBytes = Integer.MAX_VALUE + 2;
         long nativeTimeSinceLastOptimizeMillis = Integer.MAX_VALUE + 3;
@@ -472,6 +508,7 @@ public class AppSearchStatsTest {
                         .setStorageSizeBeforeBytes(nativeStorageSizeBeforeBytes)
                         .setStorageSizeAfterBytes(nativeStorageSizeAfterBytes)
                         .setTimeSinceLastOptimizeMillis(nativeTimeSinceLastOptimizeMillis)
+                        .setLaunchVMEnabled(true)
                         .build();
 
         assertThat(oStats.getStatusCode()).isEqualTo(TEST_STATUS_CODE);
@@ -489,5 +526,6 @@ public class AppSearchStatsTest {
         assertThat(oStats.getStorageSizeAfterBytes()).isEqualTo(nativeStorageSizeAfterBytes);
         assertThat(oStats.getTimeSinceLastOptimizeMillis())
                 .isEqualTo(nativeTimeSinceLastOptimizeMillis);
+        assertThat(oStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
     }
 }
