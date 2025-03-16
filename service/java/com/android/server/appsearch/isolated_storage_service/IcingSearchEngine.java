@@ -244,9 +244,29 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BatchPutResultProto batchPut(@NonNull PutDocumentRequest putDocumentRequest) {
-        // TODO(b/394875109): implement batch put and change PutDocumentRequest to
-        //   PutDocumentRequestProto
-        throw new UnsupportedOperationException("batchPut is temporarily unsupported.");
+        byte[] resultData;
+        try {
+            resultData = mEngine.batchPut(createIcingDataUnion(putDocumentRequest));
+        } catch (ErrnoException e) {
+            return BatchPutResultProto.newBuilder()
+                    // TODO(b/401245113) set status when the change is available.
+                    // .setStatus(sharedMemoryCreateFailureStatus(e))
+                    .build();
+        } catch (RemoteException e) {
+            return BatchPutResultProto.newBuilder()
+                    // TODO(b/401245113) set status when the change is available.
+                    // .setStatus(remoteExceptionStatus(e))
+                    .build();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                BatchPutResultProto.getDefaultInstance(),
+                status ->
+                        BatchPutResultProto.newBuilder()
+                                // TODO(b/401245113) set status when the change is available.
+                                // .setStatus(status)
+                                .build());
     }
 
     @NonNull

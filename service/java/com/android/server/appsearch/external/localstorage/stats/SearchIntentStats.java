@@ -18,6 +18,7 @@ package com.android.server.appsearch.external.localstorage.stats;
 
 import android.annotation.IntDef;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -42,7 +43,7 @@ import java.util.Objects;
  *
  * @hide
  */
-public final class SearchIntentStats {
+public final class SearchIntentStats extends BaseStats {
     /** AppSearch query correction type compared with the previous query. */
     @IntDef(
             value = {
@@ -82,7 +83,7 @@ public final class SearchIntentStats {
     private final @NonNull List<ClickStats> mClicksStats;
 
     SearchIntentStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mPackageName = builder.mPackageName;
         mDatabase = builder.mDatabase;
         mPrevQuery = builder.mPrevQuery;
@@ -144,7 +145,7 @@ public final class SearchIntentStats {
     }
 
     /** Builder for {@link SearchIntentStats} */
-    public static final class Builder {
+    public static final class Builder extends BaseStats.Builder<SearchIntentStats.Builder> {
         private final @NonNull String mPackageName;
 
         private @Nullable String mDatabase;
@@ -269,6 +270,7 @@ public final class SearchIntentStats {
         }
 
         /** Builds a new {@link SearchIntentStats} from the {@link Builder}. */
+        @Override
         public @NonNull SearchIntentStats build() {
             mBuilt = true;
             return new SearchIntentStats(/* builder= */ this);

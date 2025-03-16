@@ -33,7 +33,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
@@ -352,7 +352,7 @@ public class ContactsIndexerMaintenanceTest {
         mIndexerMaintenanceService.doUpdateForUser(
                 mContextWrapper, mParams, DEFAULT_USER_HANDLE, new CancellationSignal());
 
-        verifyZeroInteractions(mockJobScheduler);
+        verifyNoMoreInteractions(mockJobScheduler);
     }
 
     @Test

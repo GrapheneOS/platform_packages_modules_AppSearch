@@ -18,17 +18,16 @@ package com.android.server.appsearch.external.localstorage.stats;
 
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 
 import org.jspecify.annotations.NonNull;
-
-import java.util.Objects;
 
 /**
  * Class holds detailed stats for Optimize.
  *
  * @hide
  */
-public final class OptimizeStats {
+public final class OptimizeStats extends BaseStats {
     /**
      * The status code returned by {@link AppSearchResult#getResultCode()} for the call or internal
      * state.
@@ -63,7 +62,7 @@ public final class OptimizeStats {
     private final long mNativeTimeSinceLastOptimizeMillis;
 
     OptimizeStats(@NonNull Builder builder) {
-        Objects.requireNonNull(builder);
+        super(builder);
         mStatusCode = builder.mStatusCode;
         mTotalLatencyMillis = builder.mTotalLatencyMillis;
         mNativeLatencyMillis = builder.mNativeLatencyMillis;
@@ -138,7 +137,7 @@ public final class OptimizeStats {
     }
 
     /** Builder for {@link RemoveStats}. */
-    public static class Builder {
+    public static class Builder extends BaseStats.Builder<OptimizeStats.Builder> {
         /**
          * The status code returned by {@link AppSearchResult#getResultCode()} for the call or
          * internal state.
@@ -238,6 +237,7 @@ public final class OptimizeStats {
         }
 
         /** Creates a {@link OptimizeStats}. */
+        @Override
         public @NonNull OptimizeStats build() {
             return new OptimizeStats(/* builder= */ this);
         }

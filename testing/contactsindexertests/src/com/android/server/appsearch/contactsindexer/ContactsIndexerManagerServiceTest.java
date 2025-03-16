@@ -156,8 +156,8 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
 
             CountDownLatch fullUpdateLatch = countDownAppSearchDocumentChanges(100);
             // Clear the user data for the CP2 package which should trigger a full update
-            SystemUtil.runShellCommand(
-                    "pm clear --user " + mContext.getUserId() + " com.android.providers.contacts");
+            SystemUtil.runShellCommand("pm clear --user " + mContext.getUserId() + " "
+                    + mContactsIndexerManagerService.getContactsProviderPackageName());
             // Wait for full update to run and index all 100 contacts.
             assertThat(fullUpdateLatch.await(10L, TimeUnit.SECONDS)).isTrue();
 
