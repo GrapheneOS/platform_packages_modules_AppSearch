@@ -37,7 +37,6 @@ import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
 
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 import com.android.server.appsearch.indexer.IndexerLocalService;
@@ -158,8 +157,7 @@ public final class ContactsIndexerManagerService extends SystemService {
     }
 
     /** Returns the package name where the Contacts Provider is hosted. */
-    @VisibleForTesting
-    String getContactsProviderPackageName() {
+    private String getContactsProviderPackageName() {
         PackageManager pm = mContext.getPackageManager();
         List<ProviderInfo> providers =
                 pm.queryContentProviders(
