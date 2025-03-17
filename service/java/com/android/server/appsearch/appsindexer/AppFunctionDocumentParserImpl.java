@@ -28,7 +28,6 @@ import android.util.Log;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
-import com.android.server.appsearch.external.localstorage.converter.GenericDocumentToProtoConverter;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -57,12 +56,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
     private final int mMaxAppFunctions;
 
     /**
-     * The maximum allowed size of a AppFunctionStaticMetadata generic document when parsed using an
-     * app defined schema.
-     */
-    private final int mMaxAllowedAppFunctionDocSizeInBytes;
-
-    /**
      * @param indexerPackageName the name of the package performing the indexing. This should be the
      *     same as the package running the apps indexer.
      * @param config the app indexer config used to enforce various limits during parsing.
@@ -71,7 +64,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
             @NonNull String indexerPackageName, AppsIndexerConfig config) {
         mIndexerPackageName = Objects.requireNonNull(indexerPackageName);
         mMaxAppFunctions = config.getMaxAppFunctionsPerPackage();
-        mMaxAllowedAppFunctionDocSizeInBytes = config.getMaxAllowedAppFunctionDocSizeInBytes();
     }
 
     // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
@@ -356,10 +348,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                         appFnDocBuilder);
 
                 AppFunctionDocument appFunctionDocument = appFnDocBuilder.build();
-                // Skip docs exceeding max size.
-                if (!validateDocumentSize(appFunctionDocument)) {
-                    continue;
-                }
                 appFnMetadatas.put(appFunctionDocument.getId(), appFunctionDocument);
                 if (appFnMetadatas.size() >= mMaxAppFunctions) {
                     if (LogUtil.DEBUG) {
@@ -377,9 +365,9 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
      * Tries to parse a single XML element and populate the {@link GenericDocument.Builder} object
      * recursively.
      *
-     * <p> When this function is called the parser should point to the xml element that marks
-     * the beginning of the {@link GenericDocument}, and would point to the end tag of the
-     * corresponding doc once this function completes.
+     * <p>When this function is called the parser should point to the xml element that marks the
+     * beginning of the {@link GenericDocument}, and would point to the end tag of the corresponding
+     * doc once this function completes.
      *
      * @param parser the XmlPullParser positioned at the start of an XML element.
      * @param packageName the package name of the app that owns the XML element.
@@ -599,26 +587,5 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
             default:
                 // fall-through
         }
-    }
-
-    /**
-     * Returns whether the app function document size is less than or equal to {@link
-     * #mMaxAllowedAppFunctionDocSizeInBytes}.
-     *
-     * @param appFnMetadata the app function metadata document to validate.
-     */
-    private boolean validateDocumentSize(@NonNull GenericDocument appFnMetadata) {
-        Objects.requireNonNull(appFnMetadata);
-
-        if (GenericDocumentToProtoConverter.toDocumentProto(appFnMetadata).getSerializedSize()
-                > mMaxAllowedAppFunctionDocSizeInBytes) {
-            Log.w(
-                    TAG,
-                    "Function exceeds the max allowed size of an app function document: "
-                            + appFnMetadata.getPropertyString(
-                                    AppFunctionStaticMetadata.PROPERTY_FUNCTION_ID));
-            return false;
-        }
-        return true;
     }
 }
