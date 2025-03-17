@@ -88,6 +88,7 @@ import android.app.appsearch.aidl.UnregisterObserverCallbackAidlRequest;
 import android.app.appsearch.aidl.WriteSearchResultsToFileAidlRequest;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.safeparcel.GenericDocumentParcel;
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
@@ -528,11 +529,13 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                         instance.getLogger().logStats(setSchemaStatsBuilder
                                 .setStatusCode(statusCode)
                                 .setSchemaMigrationCallType(request.getSchemaMigrationCallType())
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -627,6 +630,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -698,6 +702,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -913,6 +918,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
 
                         // Extract metrics from taken action generic documents and add log.
@@ -922,7 +928,8 @@ public class AppSearchManagerService extends SystemService {
                                     .logStats(mSearchSessionStatsExtractor.extract(
                                             callingPackageName,
                                             request.getDatabaseName(),
-                                            takenActionGenericDocuments));
+                                            takenActionGenericDocuments,
+                                            instance.isVMEnabled()));
                         }
                     }
                 }
@@ -1082,6 +1089,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1177,6 +1185,7 @@ public class AppSearchManagerService extends SystemService {
                                         estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1274,6 +1283,7 @@ public class AppSearchManagerService extends SystemService {
                                         estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1372,6 +1382,7 @@ public class AppSearchManagerService extends SystemService {
                                         estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
 
@@ -1482,6 +1493,7 @@ public class AppSearchManagerService extends SystemService {
                                         estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1564,6 +1576,7 @@ public class AppSearchManagerService extends SystemService {
                                         estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1644,6 +1657,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1737,6 +1751,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -1835,7 +1850,8 @@ public class AppSearchManagerService extends SystemService {
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
-                                .setNumOperationsFailed(operationFailureCount);
+                                .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled());
                         instance.getLogger().logStats(builder.build());
                         instance.getLogger().logStats(statsBuilder.build());
                     }
@@ -1907,6 +1923,7 @@ public class AppSearchManagerService extends SystemService {
                                     .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                     .setNumOperationsSucceeded(operationSuccessCount)
                                     .setNumOperationsFailed(operationFailureCount)
+                                    .setLaunchVMEnabled(instance.isVMEnabled())
                                     .build());
                         }
                     }
@@ -2002,6 +2019,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -2127,11 +2145,15 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
+                        long enabledFeatures = new BaseStats.Builder<>()
+                                .setLaunchVMEnabled(true).build().getEnabledFeatures();
                         instance.getLogger().logStats(schemaMigrationStatsBuilder
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setSaveDocumentLatencyMillis(saveDocumentLatencyMillis)
+                                .setEnabledFeatures(enabledFeatures)
                                 .build());
                     }
                 }
@@ -2210,6 +2232,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -2306,6 +2329,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -2406,6 +2430,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -2491,6 +2516,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -2561,6 +2587,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }
@@ -2625,6 +2652,7 @@ public class AppSearchManagerService extends SystemService {
                                     .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                     .setNumOperationsSucceeded(operationSuccessCount)
                                     .setNumOperationsFailed(operationFailureCount)
+                                    .setLaunchVMEnabled(instance.isVMEnabled())
                                     .build());
                         }
                     }
@@ -2722,6 +2750,7 @@ public class AppSearchManagerService extends SystemService {
                             .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                             .setNumOperationsSucceeded(operationSuccessCount)
                             .setNumOperationsFailed(operationFailureCount)
+                            .setLaunchVMEnabled(instance.isVMEnabled())
                             .build());
                 }
             }
@@ -2788,6 +2817,7 @@ public class AppSearchManagerService extends SystemService {
                             .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                             .setNumOperationsSucceeded(operationSuccessCount)
                             .setNumOperationsFailed(operationFailureCount)
+                            .setLaunchVMEnabled(instance.isVMEnabled())
                             .build());
                 }
             }
@@ -2854,6 +2884,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                                 .setNumOperationsSucceeded(operationSuccessCount)
                                 .setNumOperationsFailed(operationFailureCount)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
                     }
                 }

@@ -56,6 +56,11 @@ public final class AppSearchUserInstance {
         return mVisibilityChecker;
     }
 
+    /** Whether the pVM is enabled in AppSearch */
+    public boolean isVMEnabled() {
+        return mAppSearchImpl.isVMEnabled();
+    }
+
     @VisibleForTesting
     void setLoggerForTest(@NonNull InternalAppSearchLogger logger) {
         mLogger = Objects.requireNonNull(logger);
