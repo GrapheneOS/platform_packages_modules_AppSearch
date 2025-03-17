@@ -736,7 +736,9 @@ public class AppSearchManagerService extends SystemService {
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
                 int operationFailureCount = 0;
-                List<GenericDocument> takenActionGenericDocuments = null;  // initialize later
+                // initialize later.
+                // This is only used for logging stats.
+                List<GenericDocument> takenActionGenericDocuments = null;
 
                 try {
                     AppSearchBatchResult.Builder<String, Void> resultBuilder =
@@ -746,6 +748,11 @@ public class AppSearchManagerService extends SystemService {
                             request.getDocumentsParcel().getDocumentParcels();
                     List<GenericDocumentParcel> takenActionDocumentParcels =
                             request.getDocumentsParcel().getTakenActionGenericDocumentParcels();
+                    // Write GenericDocument of taken actions
+                    if (!takenActionDocumentParcels.isEmpty()) {
+                        takenActionGenericDocuments =
+                                new ArrayList<>(takenActionDocumentParcels.size());
+                    }
 
                     // Write GenericDocument of general documents
                     if (!Flags.enableBatchPut()) {
@@ -772,11 +779,6 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
 
-                        // Write GenericDocument of taken actions
-                        if (!takenActionDocumentParcels.isEmpty()) {
-                            takenActionGenericDocuments =
-                                    new ArrayList<>(takenActionDocumentParcels.size());
-                        }
                         for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
                             GenericDocument document =
                                     new GenericDocument(takenActionDocumentParcels.get(i));
@@ -840,8 +842,10 @@ public class AppSearchManagerService extends SystemService {
                                             PersistType.Code.UNKNOWN);
                                     currentBatch.clear();
                                 }
-                                currentBatch.add(
-                                        new GenericDocument(takenActionDocumentParcels.get(i)));
+                                GenericDocument document = new GenericDocument(
+                                        takenActionDocumentParcels.get(i));
+                                takenActionGenericDocuments.add(document);
+                                currentBatch.add(document);
                             }
                             // flush the last batch with PersistType.Code.LITE.
                             instance.getAppSearchImpl().batchPutDocuments(
