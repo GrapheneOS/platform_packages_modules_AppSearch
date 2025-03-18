@@ -51,6 +51,7 @@ java_defaults {
     min_sdk_version: "Tiramisu",
     static_libs: [
         "com.android.appsearch.isolated_storage_service.aidl-java",
+        "com.android.isolated_storage_service.aidl-java",
         "icing-java-proto-lite",
         "libicing-java",
         "statslog-appsearch-lib",

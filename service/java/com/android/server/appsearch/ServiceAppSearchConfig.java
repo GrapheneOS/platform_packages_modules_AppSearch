@@ -217,14 +217,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /**
-     * The threshold to decide whether to use {@link android.os.SharedMemory SharedMemory} for icing
-     * data passing between the isolated storage service and AppSearch.
-     */
-    default long getIsolatedStorageIcingDataUnionSizeThresholdBytes() {
-        return IsolatedStorageServiceManager.DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES;
-    }
-
-    /**
      * Default min time interval between consecutive optimize calls in millis if there is no value
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.
      */

@@ -23,9 +23,4 @@ parcelable ServiceConfig {
    * Size of pVM's memory in bytes.
    */
   long pVmMemoryBytes;
-
-  /**
-   * Threshold to decide whether to use SharedMemory to pass icing data.
-   */
-  long icingDataUnionSizeThresholdBytes;
 }
