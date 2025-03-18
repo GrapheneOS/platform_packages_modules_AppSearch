@@ -528,6 +528,13 @@ flag {
     namespace: "appsearch"
     description: "Enables new optimize strategy for active result states."
     bug: "409070736"
+}
+
+flag {
+    name: "enable_storage_info_cache"
+    namespace: "appsearch"
+    description: "Enables the StorageInfo cache in AppSearchImpl."
+    bug: "395156359"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

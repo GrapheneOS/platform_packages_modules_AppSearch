@@ -69,15 +69,43 @@ public final class UserStorageInfo {
      */
     public void updateStorageInfoFile(@NonNull AppSearchImpl appSearchImpl) {
         Objects.requireNonNull(appSearchImpl);
-        mReadWriteLock.writeLock().lock();
-        try (FileOutputStream out = new FileOutputStream(mStorageInfoFile)) {
-            appSearchImpl.getRawStorageInfoProto().writeTo(out);
-        } catch (IOException | AppSearchException | RuntimeException e) {
-            Log.w(TAG, "Failed to dump storage info into file", e);
+        StorageInfoProto storageInfo = null;
+        try {
+            storageInfo = appSearchImpl.getRawStorageInfoProto();
+        } catch (AppSearchException e) {
+            Log.w(TAG, "Failed to get native storage info", e);
             ExceptionUtil.handleException(e);
-        } finally {
-            mReadWriteLock.writeLock().unlock();
         }
+        updateStorageInfoCache(storageInfo);
+        updateFile(storageInfo);
+    }
+
+    /**
+     * Updates storage info file with the latest storage info.
+     */
+    public void updateStorageInfoCache(@NonNull StorageInfoProto storageInfo) {
+        Objects.requireNonNull(storageInfo);
+        mTotalStorageSizeBytes = storageInfo.getTotalStorageSize();
+        mPackageStorageSizeMap = calculatePackageStorageInfoMap(storageInfo);
+    }
+
+    /**
+     * Clears the in-memory storage info cache.
+     * Resets the total storage size and clears the package storage size map.
+     */
+    public void dropStorageInfoCache() {
+        mTotalStorageSizeBytes = 0;
+        mPackageStorageSizeMap = Collections.emptyMap();
+    }
+
+    /**
+     * Checks if the storage info cache is empty.
+     *
+     * @return {@code true} if the cache is empty, otherwise {@code false}.
+     */
+    public boolean isCacheEmpty() {
+        return mTotalStorageSizeBytes == 0
+            && mPackageStorageSizeMap.isEmpty();
     }
 
     /**
@@ -102,22 +130,34 @@ public final class UserStorageInfo {
     @RequiresNonNull("mStorageInfoFile")
     @VisibleForTesting
     void readStorageInfoFromFile(@UnderInitialization UserStorageInfo this) {
-        if (mStorageInfoFile.exists()) {
-            mReadWriteLock.readLock().lock();
-            try (InputStream in = new FileInputStream(mStorageInfoFile)) {
-                StorageInfoProto storageInfo = StorageInfoProto.parseFrom(in);
-                mTotalStorageSizeBytes = storageInfo.getTotalStorageSize();
-                mPackageStorageSizeMap = calculatePackageStorageInfoMap(storageInfo);
-                return;
-            } catch (IOException | RuntimeException e) {
-                Log.w(TAG, "Failed to read storage info from file", e);
-                ExceptionUtil.handleException(e);
-            } finally {
-                mReadWriteLock.readLock().unlock();
-            }
+        if (!mStorageInfoFile.exists()) {
+            dropStorageInfoCache();
+            return;
         }
-        mTotalStorageSizeBytes = 0;
-        mPackageStorageSizeMap = Collections.emptyMap();
+
+        StorageInfoProto storageInfo = null;
+        mReadWriteLock.readLock().lock();
+        try (InputStream in = new FileInputStream(mStorageInfoFile)) {
+            storageInfo = StorageInfoProto.parseFrom(in);
+        } catch (IOException | RuntimeException e) {
+            Log.w(TAG, "Failed to read storage info from file", e);
+            ExceptionUtil.handleException(e);
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+        updateStorageInfoCache(storageInfo);
+    }
+
+    private void updateFile(@NonNull StorageInfoProto storageInfo) {
+        mReadWriteLock.writeLock().lock();
+        try (FileOutputStream out = new FileOutputStream(mStorageInfoFile)) {
+            storageInfo.writeTo(out);
+        } catch (IOException | RuntimeException e) {
+            Log.w(TAG, "Failed to dump storage info into file", e);
+            ExceptionUtil.handleException(e);
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
     }
 
     /** Calculates storage usage byte size for packages from a {@link StorageInfoProto}. */
