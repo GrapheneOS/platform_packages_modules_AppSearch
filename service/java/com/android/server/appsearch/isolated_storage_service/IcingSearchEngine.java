@@ -23,6 +23,7 @@ import android.util.Log;
 import com.android.isolated_storage_service.IIcingSearchEngine;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.BatchGetResultProto;
 import com.google.android.icing.proto.BatchPutResultProto;
 import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.DebugInfoResultProto;
@@ -260,6 +261,13 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 resultData,
                 GetResultProto.getDefaultInstance(),
                 status -> GetResultProto.newBuilder().setStatus(status).build());
+    }
+
+    @NonNull
+    @Override
+    public BatchGetResultProto batchGet(@NonNull GetResultSpecProto getResultSpec) {
+        // TODO(b/396144272): Implement this
+        throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @NonNull

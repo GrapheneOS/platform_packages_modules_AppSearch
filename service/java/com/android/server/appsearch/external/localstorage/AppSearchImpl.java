@@ -189,10 +189,6 @@ public final class AppSearchImpl implements Closeable {
     /** A value 0 means that there're no more pages in the search results. */
     private static final long EMPTY_PAGE_TOKEN = 0;
 
-    // TODO(b/401245113) make this configurable.
-    // Transaction limit for pVM is 600kb. So this limit needs to be smaller than that.
-    private static final int MAX_NUMBER_OF_BYTES_BUFFERED = 512 * 1024; // 512KB
-
     @VisibleForTesting static final int CHECK_OPTIMIZE_INTERVAL = 100;
 
     /** A GetResultSpec that uses projection to skip all properties. */
@@ -213,7 +209,7 @@ public final class AppSearchImpl implements Closeable {
     @VisibleForTesting
     final IcingSearchEngineInterface mIcingSearchEngineLocked;
 
-    private final boolean mIsAegisEnabled;
+    private final boolean mIsVMEnabled;
 
     @GuardedBy("mReadWriteLock")
     private final SchemaCache mSchemaCacheLocked = new SchemaCache();
@@ -346,10 +342,10 @@ public final class AppSearchImpl implements Closeable {
                         TAG,
                         "Constructing IcingSearchEngine, response",
                         Objects.hashCode(mIcingSearchEngineLocked));
-                mIsAegisEnabled = false;
+                mIsVMEnabled = false;
             } else {
                 mIcingSearchEngineLocked = icingSearchEngine;
-                mIsAegisEnabled = true;
+                mIsVMEnabled = true;
             }
 
             // The core initialization procedure. If any part of this fails, we bail into
@@ -369,7 +365,7 @@ public final class AppSearchImpl implements Closeable {
                                     statusProtoToResultCode(initializeResultProto.getStatus()))
                             // TODO(b/173532925) how to get DeSyncs value
                             .setHasDeSync(false)
-                            .setLaunchVMEnabled(mIsAegisEnabled);
+                            .setLaunchVMEnabled(mIsVMEnabled);
                     AppSearchLoggerHelper.copyNativeStats(
                             initializeResultProto.getInitializeStats(), initStatsBuilder);
                 }
@@ -581,7 +577,7 @@ public final class AppSearchImpl implements Closeable {
                                 (int)
                                         (SystemClock.elapsedRealtime()
                                                 - javaLockAcquisitionLatencyStartMillis))
-                        .setLaunchVMEnabled(mIsAegisEnabled);
+                        .setLaunchVMEnabled(mIsVMEnabled);
             }
             if (mObserverManager.isPackageObserved(packageName)) {
                 return doSetSchemaWithChangeNotificationLocked(
@@ -1111,8 +1107,10 @@ public final class AppSearchImpl implements Closeable {
             List<PutDocumentRequest.Builder> requestBuilderList = new ArrayList<>();
             // This is to make sure the batching size is at least getMaxDocumentSizeBytes.
             // Otherwise one valid size doc may not fit into a batch.
-            int maxBufferedBytes = Integer.max(MAX_NUMBER_OF_BYTES_BUFFERED,
-                    mConfig.getMaxDocumentSizeBytes());
+            int maxBufferedBytes =
+                    Integer.max(
+                            mConfig.getMaxByteLimitForBatchPut(),
+                            mConfig.getMaxDocumentSizeBytes());
             int currentTotalBytes = 0;
             PutDocumentRequest.Builder currentBatchBuilder =
                     PutDocumentRequest.newBuilder().setPersistType(PersistType.Code.UNKNOWN);
@@ -1120,7 +1118,7 @@ public final class AppSearchImpl implements Closeable {
                 String docId = documents.get(i).getId();
                 PutDocumentStats.Builder pStatsBuilder =
                         new PutDocumentStats.Builder(packageName, databaseName)
-                                .setLaunchVMEnabled(mIsAegisEnabled);
+                                .setLaunchVMEnabled(mIsVMEnabled);
                 // Previously we always log even if we reach the limit. To keep the behavior
                 // same as before, we will save all the stats created.
                 allStatsList.add(pStatsBuilder);
@@ -1150,14 +1148,14 @@ public final class AppSearchImpl implements Closeable {
                     // to see if we want to finish the current batch and build a PutRequestProto.
                     // based on how we calculate maxBufferedBytes, serializedSizeBytes is guaranteed
                     // to be smaller or same as maxBufferedBytes.
-                    if (currentTotalBytes + serializedSizeBytes > maxBufferedBytes) {
+                    if (serializedSizeBytes > maxBufferedBytes - currentTotalBytes) {
                         // Time to finish the current batch.
                         requestBuilderList.add(currentBatchBuilder);
 
                         // reset everything for next batch
                         currentBatchBuilder =
-                                PutDocumentRequest.newBuilder().setPersistType(
-                                        PersistType.Code.UNKNOWN);
+                                PutDocumentRequest.newBuilder()
+                                        .setPersistType(PersistType.Code.UNKNOWN);
                         currentTotalBytes = 0;
                     }
 
@@ -1198,15 +1196,13 @@ public final class AppSearchImpl implements Closeable {
                 LogUtil.piiTrace(
                         TAG,
                         "batchPutDocument, request",
-                        requestProto.getDocumentsCount() + " docs",
+                        requestProto.getDocumentsCount(),
                         requestProto);
                 BatchPutResultProto batchPutResultProto =
                         mIcingSearchEngineLocked.batchPut(requestProto);
                 // TODO(b/394875109) We can provide a better debug information for fast trace here.
                 LogUtil.piiTrace(
-                        TAG, "batchPutDocument",
-                        /* fastTraceObj= */ null,
-                        batchPutResultProto);
+                        TAG, "batchPutDocument", /* fastTraceObj= */ null, batchPutResultProto);
 
                 List<PutResultProto> putResultProtoList =
                         batchPutResultProto.getPutResultProtosList();
@@ -1215,8 +1211,8 @@ public final class AppSearchImpl implements Closeable {
                     String docId = putResultProto.getUri();
                     try {
                         if (statsIndex <= statsNotFilteredOut.size()) {
-                            PutDocumentStats.Builder pStatsBuilder = statsNotFilteredOut.get(
-                                    statsIndex);
+                            PutDocumentStats.Builder pStatsBuilder =
+                                    statsNotFilteredOut.get(statsIndex);
                             pStatsBuilder.setStatusCode(
                                     statusProtoToResultCode(putResultProto.getStatus()));
                             AppSearchLoggerHelper.copyNativeStats(
@@ -1224,11 +1220,11 @@ public final class AppSearchImpl implements Closeable {
                         } else {
                             // since it is just stats, we just log the debug message if
                             // something goes wrong.
-                            LogUtil.piiTrace(TAG, "batchPutDocument",
+                            LogUtil.piiTrace(
+                                    TAG,
+                                    "batchPutDocument",
                                     "index out of boundary for stats",
-                                    "index out of boundary for stats: index " +
-                                            statsIndex + " but statsList size is " +
-                                            statsNotFilteredOut.size());
+                                    statsNotFilteredOut);
                         }
 
                         // If it is a failure, it will throw and the catch section will
@@ -1336,7 +1332,7 @@ public final class AppSearchImpl implements Closeable {
         if (logger != null) {
             pStatsBuilder =
                     new PutDocumentStats.Builder(packageName, databaseName)
-                            .setLaunchVMEnabled(mIsAegisEnabled);
+                            .setLaunchVMEnabled(mIsVMEnabled);
         }
         long totalStartTimeMillis = SystemClock.elapsedRealtime();
 
@@ -2039,7 +2035,7 @@ public final class AppSearchImpl implements Closeable {
                     new SearchStats.Builder(SearchStats.VISIBILITY_SCOPE_LOCAL, packageName)
                             .setDatabase(databaseName)
                             .setSearchSourceLogTag(searchSpec.getSearchSourceLogTag())
-                            .setLaunchVMEnabled(mIsAegisEnabled);
+                            .setLaunchVMEnabled(mIsVMEnabled);
         }
 
         long javaLockAcquisitionLatencyStartMillis = SystemClock.elapsedRealtime();
@@ -2120,7 +2116,7 @@ public final class AppSearchImpl implements Closeable {
                                     SearchStats.VISIBILITY_SCOPE_GLOBAL,
                                     callerAccess.getCallingPackageName())
                             .setSearchSourceLogTag(searchSpec.getSearchSourceLogTag())
-                            .setLaunchVMEnabled(mIsAegisEnabled);
+                            .setLaunchVMEnabled(mIsVMEnabled);
         }
 
         long javaLockAcquisitionLatencyStartMillis = SystemClock.elapsedRealtime();
@@ -2397,7 +2393,7 @@ public final class AppSearchImpl implements Closeable {
                                 (int)
                                         (SystemClock.elapsedRealtime()
                                                 - javaLockAcquisitionLatencyStartMillis))
-                        .setLaunchVMEnabled(mIsAegisEnabled);
+                        .setLaunchVMEnabled(mIsVMEnabled);
             }
             throwIfClosedLocked();
 
@@ -2586,7 +2582,7 @@ public final class AppSearchImpl implements Closeable {
             if (removeStatsBuilder != null) {
                 removeStatsBuilder
                         .setStatusCode(statusProtoToResultCode(deleteResultProto.getStatus()))
-                        .setLaunchVMEnabled(mIsAegisEnabled);
+                        .setLaunchVMEnabled(mIsVMEnabled);
                 AppSearchLoggerHelper.copyNativeStats(
                         deleteResultProto.getDeleteStats(), removeStatsBuilder);
             }
@@ -2701,7 +2697,7 @@ public final class AppSearchImpl implements Closeable {
                 removeStatsBuilder
                         .setTotalLatencyMillis(
                                 (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis))
-                        .setLaunchVMEnabled(mIsAegisEnabled);
+                        .setLaunchVMEnabled(mIsVMEnabled);
             }
         }
     }
@@ -3574,7 +3570,7 @@ public final class AppSearchImpl implements Closeable {
                     optimizeResultProto);
             if (builder != null) {
                 builder.setStatusCode(statusProtoToResultCode(optimizeResultProto.getStatus()))
-                        .setLaunchVMEnabled(mIsAegisEnabled);
+                        .setLaunchVMEnabled(mIsVMEnabled);
                 AppSearchLoggerHelper.copyNativeStats(
                         optimizeResultProto.getOptimizeStats(), builder);
             }
