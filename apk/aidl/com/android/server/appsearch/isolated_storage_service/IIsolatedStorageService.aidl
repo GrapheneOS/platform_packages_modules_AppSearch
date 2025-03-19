@@ -15,7 +15,7 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
-import com.android.server.appsearch.isolated_storage_service.IIcingSearchEngine;
+import android.os.ParcelFileDescriptor;
 import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
 
 /**
@@ -29,13 +29,12 @@ interface IIsolatedStorageService {
     const int PORT = 5678;
 
     /**
-     * Sets up the sercie.
+     * Sets up the service.
      */
     void setup(in ServiceConfig config);
 
     /**
-     * Gets an Icing connection for the given userId. Creates a new Icing connection if one does not
-     * already exist for the given userId.
+     * Gets the connection to the pVM.
      */
-    IIcingSearchEngine getIcingSearchEngine(in int userId);
+    ParcelFileDescriptor getVmConnection();
 }
