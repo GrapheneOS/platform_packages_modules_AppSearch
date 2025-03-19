@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.StatsManager;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.content.Context;
@@ -114,9 +115,16 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
             try {
                 AppSearchUserInstance userInstance =
                         userInstanceManager.getUserInstance(userHandle);
+                long enabledFeatures =
+                        new BaseStats.Builder<>()
+                                .setLaunchVMEnabled(userInstance.isVMEnabled())
+                                .build()
+                                .getEnabledFeatures();
                 StorageInfoProto storageInfoProto =
                         userInstance.getAppSearchImpl().getRawStorageInfoProto();
-                data.add(buildStatsEvent(userHandle.getIdentifier(), storageInfoProto));
+                data.add(
+                        buildStatsEvent(
+                                userHandle.getIdentifier(), storageInfoProto, enabledFeatures));
             } catch (AppSearchException | RuntimeException e) {
                 Log.e(TAG, "Failed to pull the storage info for user " + userHandle.toString(), e);
                 ExceptionUtil.handleException(e);
@@ -147,14 +155,17 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
     }
 
     private static StatsEvent buildStatsEvent(
-            @UserIdInt int userId, @NonNull StorageInfoProto storageInfoProto) {
+            @UserIdInt int userId,
+            @NonNull StorageInfoProto storageInfoProto,
+            long enabledFeatures) {
         return AppSearchStatsLog.buildStatsEvent(
                 AppSearchStatsLog.APP_SEARCH_STORAGE_INFO,
                 userId,
                 storageInfoProto.getTotalStorageSize(),
                 getDocumentStorageInfoBytes(storageInfoProto.getDocumentStorageInfo()),
                 getSchemaStoreStorageInfoBytes(storageInfoProto.getSchemaStoreStorageInfo()),
-                getIndexStorageInfoBytes(storageInfoProto.getIndexStorageInfo()));
+                getIndexStorageInfoBytes(storageInfoProto.getIndexStorageInfo()),
+                enabledFeatures);
     }
 
     private static byte[] getDocumentStorageInfoBytes(@NonNull DocumentStorageInfoProto proto) {
