@@ -57,7 +57,7 @@ public final class IsolatedStorageServiceManager {
     public static final int DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE = 512 * 1024;
 
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
-            "appsearch.feature.enable_isolated_storage";
+            "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
