@@ -266,8 +266,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BatchGetResultProto batchGet(@NonNull GetResultSpecProto getResultSpec) {
-        // TODO(b/396144272): Implement this
-        throw new UnsupportedOperationException("Not implemented yet.");
+        byte[] resultData;
+        try {
+            resultData = mEngine.batchGet(getResultSpec.toByteArray());
+        } catch (RemoteException e) {
+            return BatchGetResultProto.newBuilder()
+                    .setStatus(remoteExceptionStatus(e))
+                    .build();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                BatchGetResultProto.getDefaultInstance(),
+                status ->
+                        BatchGetResultProto.newBuilder()
+                                .setStatus(status)
+                                .build());
     }
 
     @NonNull
