@@ -189,10 +189,6 @@ public final class AppSearchImpl implements Closeable {
     /** A value 0 means that there're no more pages in the search results. */
     private static final long EMPTY_PAGE_TOKEN = 0;
 
-    // TODO(b/401245113) make this configurable.
-    // Transaction limit for pVM is 600kb. So this limit needs to be smaller than that.
-    private static final int MAX_NUMBER_OF_BYTES_BUFFERED = 512 * 1024; // 512KB
-
     @VisibleForTesting static final int CHECK_OPTIMIZE_INTERVAL = 100;
 
     /** A GetResultSpec that uses projection to skip all properties. */
@@ -1116,8 +1112,10 @@ public final class AppSearchImpl implements Closeable {
             List<PutDocumentRequest.Builder> requestBuilderList = new ArrayList<>();
             // This is to make sure the batching size is at least getMaxDocumentSizeBytes.
             // Otherwise one valid size doc may not fit into a batch.
-            int maxBufferedBytes = Integer.max(MAX_NUMBER_OF_BYTES_BUFFERED,
-                    mConfig.getMaxDocumentSizeBytes());
+            int maxBufferedBytes =
+                    Integer.max(
+                            mConfig.getMaxByteLimitForBatchPut(),
+                            mConfig.getMaxDocumentSizeBytes());
             int currentTotalBytes = 0;
             PutDocumentRequest.Builder currentBatchBuilder =
                     PutDocumentRequest.newBuilder().setPersistType(PersistType.Code.UNKNOWN);
@@ -1155,14 +1153,14 @@ public final class AppSearchImpl implements Closeable {
                     // to see if we want to finish the current batch and build a PutRequestProto.
                     // based on how we calculate maxBufferedBytes, serializedSizeBytes is guaranteed
                     // to be smaller or same as maxBufferedBytes.
-                    if (currentTotalBytes + serializedSizeBytes > maxBufferedBytes) {
+                    if (serializedSizeBytes > maxBufferedBytes - currentTotalBytes) {
                         // Time to finish the current batch.
                         requestBuilderList.add(currentBatchBuilder);
 
                         // reset everything for next batch
                         currentBatchBuilder =
-                                PutDocumentRequest.newBuilder().setPersistType(
-                                        PersistType.Code.UNKNOWN);
+                                PutDocumentRequest.newBuilder()
+                                        .setPersistType(PersistType.Code.UNKNOWN);
                         currentTotalBytes = 0;
                     }
 
@@ -1203,15 +1201,13 @@ public final class AppSearchImpl implements Closeable {
                 LogUtil.piiTrace(
                         TAG,
                         "batchPutDocument, request",
-                        requestProto.getDocumentsCount() + " docs",
+                        requestProto.getDocumentsCount(),
                         requestProto);
                 BatchPutResultProto batchPutResultProto =
                         mIcingSearchEngineLocked.batchPut(requestProto);
                 // TODO(b/394875109) We can provide a better debug information for fast trace here.
                 LogUtil.piiTrace(
-                        TAG, "batchPutDocument",
-                        /* fastTraceObj= */ null,
-                        batchPutResultProto);
+                        TAG, "batchPutDocument", /* fastTraceObj= */ null, batchPutResultProto);
 
                 List<PutResultProto> putResultProtoList =
                         batchPutResultProto.getPutResultProtosList();
@@ -1220,8 +1216,8 @@ public final class AppSearchImpl implements Closeable {
                     String docId = putResultProto.getUri();
                     try {
                         if (statsIndex <= statsNotFilteredOut.size()) {
-                            PutDocumentStats.Builder pStatsBuilder = statsNotFilteredOut.get(
-                                    statsIndex);
+                            PutDocumentStats.Builder pStatsBuilder =
+                                    statsNotFilteredOut.get(statsIndex);
                             pStatsBuilder.setStatusCode(
                                     statusProtoToResultCode(putResultProto.getStatus()));
                             AppSearchLoggerHelper.copyNativeStats(
@@ -1229,11 +1225,11 @@ public final class AppSearchImpl implements Closeable {
                         } else {
                             // since it is just stats, we just log the debug message if
                             // something goes wrong.
-                            LogUtil.piiTrace(TAG, "batchPutDocument",
+                            LogUtil.piiTrace(
+                                    TAG,
+                                    "batchPutDocument",
                                     "index out of boundary for stats",
-                                    "index out of boundary for stats: index " +
-                                            statsIndex + " but statsList size is " +
-                                            statsNotFilteredOut.size());
+                                    statsNotFilteredOut);
                         }
 
                         // If it is a failure, it will throw and the catch section will
