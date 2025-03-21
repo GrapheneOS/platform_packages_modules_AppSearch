@@ -118,7 +118,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS =
             "app_function_call_timeout_millis";
     public static final String KEY_FULLY_PERSIST_JOB_INTERVAL = "fully_persist_job_interval";
-    public static final String KEY_PERSIST_DELAY = "persist_delay";
     public static final String KEY_MAX_OPEN_BLOB_COUNT = "max_open_blob_count";
     public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
     public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
@@ -171,7 +170,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
         KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
         KEY_FULLY_PERSIST_JOB_INTERVAL,
-        KEY_PERSIST_DELAY,
         KEY_MAX_OPEN_BLOB_COUNT,
         KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS,
         KEY_LIGHTWEIGHT_PERSIST_TYPE
@@ -604,14 +602,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
-    public long getCachedPersistDelayMillis() {
-        synchronized (mLock) {
-            throwIfClosedLocked();
-            return mBundleLocked.getLong(KEY_PERSIST_DELAY, DEFAULT_PERSIST_DELAY);
-        }
-    }
-
-    @Override
     public int getIntegerIndexBucketSplitThreshold() {
         synchronized (mLock) {
             throwIfClosedLocked();
@@ -973,11 +963,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 synchronized (mLock) {
                     mBundleLocked.putLong(
                             key, properties.getLong(key, DEFAULT_FULLY_PERSIST_JOB_INTERVAL));
-                }
-                break;
-            case KEY_PERSIST_DELAY:
-                synchronized (mLock) {
-                    mBundleLocked.putLong(key, properties.getLong(key, DEFAULT_PERSIST_DELAY));
                 }
                 break;
             case KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS:
