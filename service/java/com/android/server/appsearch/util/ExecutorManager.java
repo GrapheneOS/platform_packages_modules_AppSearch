@@ -43,7 +43,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -77,6 +80,15 @@ public class ExecutorManager {
                         /* priority= */ 0); // priority is unused.
     }
 
+    /**
+     * Creates a new single-threaded {@link ScheduledExecutorService} for scheduling and running
+     * background tasks in AppSearch.
+     */
+    @NonNull
+    public static ScheduledExecutorService createDefaultScheduledExecutorService() {
+        return Executors.newSingleThreadScheduledExecutor();
+    }
+
     private final ServiceAppSearchConfig mAppSearchConfig;
 
     /**
@@ -85,6 +97,14 @@ public class ExecutorManager {
      */
     @GuardedBy("mPerUserExecutorsLocked")
     private final Map<UserHandle, ExecutorService> mPerUserExecutorsLocked = new ArrayMap<>();
+
+    /**
+     * A map of per-user scheduled executors for scheduled work. These can be started or shut down
+     * via this class's public API.
+     */
+    @GuardedBy("mPerUserScheduledExecutorsLocked")
+    private final Map<UserHandle, ScheduledExecutorService> mPerUserScheduledExecutorsLocked =
+            new ArrayMap<>();
 
     public ExecutorManager(@NonNull ServiceAppSearchConfig appSearchConfig) {
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
@@ -112,6 +132,21 @@ public class ExecutorManager {
         }
     }
 
+    /** Gets the scheduled executor service for the given user, creating it if it does not exist. */
+    @NonNull
+    public ScheduledExecutorService getOrCreateUserScheduledExecutor(
+            @NonNull UserHandle userHandle) {
+        Objects.requireNonNull(userHandle);
+        synchronized (mPerUserScheduledExecutorsLocked) {
+            ScheduledExecutorService executor = mPerUserScheduledExecutorsLocked.get(userHandle);
+            if (executor == null) {
+                executor = createDefaultScheduledExecutorService();
+                mPerUserScheduledExecutorsLocked.put(userHandle, executor);
+            }
+            return executor;
+        }
+    }
+
     /**
      * Gracefully shuts down the executor for the given user if there is one, waiting up to 30
      * seconds for jobs to finish.
@@ -131,6 +166,15 @@ public class ExecutorManager {
             // user instance, meaning pending tasks may crash when AppSearchImpl closes under
             // them.
             executor.awaitTermination(30, TimeUnit.SECONDS);
+        }
+
+        ScheduledExecutorService scheduleExecutor;
+        synchronized (mPerUserScheduledExecutorsLocked) {
+            scheduleExecutor = mPerUserScheduledExecutorsLocked.remove(userHandle);
+        }
+        if (scheduleExecutor != null) {
+            scheduleExecutor.shutdown();
+            scheduleExecutor.awaitTermination(30, TimeUnit.SECONDS);
         }
     }
 
@@ -278,6 +322,29 @@ public class ExecutorManager {
 
         synchronized (mPerUserExecutorsLocked) {
             getOrCreateUserExecutor(targetUser).execute(lambda);
+        }
+    }
+
+    /**
+     * Schedules a task to be executed on the ScheduledExecutorService for the given user.
+     *
+     * @param targetUser The user for whom the task should be scheduled.
+     * @param lambda     The task to be executed.
+     * @param delay      The time from now to delay execution.
+     * @param unit       The time unit of the delay parameter.
+     * @return the ScheduledFuture for the task.
+     */
+    public ScheduledFuture<?> scheduleLambdaForUserNoCallbackAsync(
+            @NonNull UserHandle targetUser,
+            @NonNull Runnable lambda,
+            long delay,
+            @NonNull TimeUnit unit) {
+        Objects.requireNonNull(targetUser);
+        Objects.requireNonNull(lambda);
+        Objects.requireNonNull(unit);
+
+        synchronized (mPerUserScheduledExecutorsLocked) {
+            return getOrCreateUserScheduledExecutor(targetUser).schedule(lambda, delay, unit);
         }
     }
 
