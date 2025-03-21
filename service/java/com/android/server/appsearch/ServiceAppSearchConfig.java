@@ -17,7 +17,6 @@
 package com.android.server.appsearch;
 
 import static android.text.format.DateUtils.DAY_IN_MILLIS;
-import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 
 import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
@@ -96,9 +95,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
 
     /** The default interval in millisecond to trigger fully persist job. */
     long DEFAULT_FULLY_PERSIST_JOB_INTERVAL = DAY_IN_MILLIS;
-
-    /** The default delay in millisecond to schedule persistToDisk after putDocuments. */
-    long DEFAULT_PERSIST_DELAY = MINUTE_IN_MILLIS;
 
     /**
      * The default number of active fds an app is allowed to open for read and write blob from
@@ -214,9 +210,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      * Returns the time interval to schedule a full persist to disk back ground job in milliseconds.
      */
     long getCachedFullyPersistJobIntervalMillis();
-
-    /** Returns the delay in millisecond to schedule persistToDisk after putDocuments. */
-    long getCachedPersistDelayMillis();
 
     /** Returns the memory size in bytes for isolated storage. */
     default long getIsolatedStorageMemoryBytes() {

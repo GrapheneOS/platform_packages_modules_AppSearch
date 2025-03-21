@@ -43,7 +43,6 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_M
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS;
-import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_PERSIST_DELAY;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_API_COSTS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_ENABLED;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
@@ -72,7 +71,6 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_LITE_I
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_MAX_OPEN_BLOB_COUNT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
-import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_PERSIST_DELAY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_ENABLED;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
@@ -206,7 +204,6 @@ public class ServiceAppSearchConfigTest {
                 .isEqualTo(DEFAULT_USE_NEW_QUALIFIED_ID_JOIN_INDEX);
         assertThat(appSearchConfig.getCachedFullyPersistJobIntervalMillis())
                 .isEqualTo(DEFAULT_FULLY_PERSIST_JOB_INTERVAL);
-        assertThat(appSearchConfig.getCachedPersistDelayMillis()).isEqualTo(DEFAULT_PERSIST_DELAY);
         assertThat(appSearchConfig.getMaxOpenBlobCount()).isEqualTo(DEFAULT_MAX_OPEN_BLOB_COUNT);
         assertThat(appSearchConfig.getOrphanBlobTimeToLiveMs())
                 .isEqualTo(DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS);
@@ -944,28 +941,6 @@ public class ServiceAppSearchConfigTest {
     }
 
     @Test
-    public void testCustomizedValueOverride_persistDelay() {
-        DeviceConfig.setProperty(
-                DeviceConfig.NAMESPACE_APPSEARCH,
-                KEY_PERSIST_DELAY,
-                Integer.toString(2003),
-                /* makeDefault= */ false);
-
-        ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
-        assertThat(appSearchConfig.getCachedPersistDelayMillis()).isEqualTo(2003);
-
-        // Override
-        DeviceConfig.setProperty(
-                DeviceConfig.NAMESPACE_APPSEARCH,
-                KEY_PERSIST_DELAY,
-                Integer.toString(1777),
-                /* makeDefault= */ false);
-
-        assertThat(appSearchConfig.getCachedPersistDelayMillis()).isEqualTo(1777);
-    }
-
-    @Test
     public void testCustomizedValueOverride_blobStore() {
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
@@ -1164,9 +1139,6 @@ public class ServiceAppSearchConfigTest {
         Assert.assertThrows("Trying to use a closed AppSearchConfig instance.",
                 IllegalStateException.class,
                 () -> appSearchConfig.getCachedFullyPersistJobIntervalMillis());
-        Assert.assertThrows("Trying to use a closed AppSearchConfig instance.",
-                IllegalStateException.class,
-                () -> appSearchConfig.getCachedPersistDelayMillis());
         Assert.assertThrows(
                 "Trying to use a closed AppSearchConfig instance.",
                 IllegalStateException.class,
