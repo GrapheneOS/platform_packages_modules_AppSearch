@@ -25,6 +25,7 @@ android_test {
         "android.app.appfunctions.flags-aconfig-java",
         "androidx.test.ext.junit",
         "androidx.test.rules",
+        "appsearch-apk-for-tests",
         "appsearch_flags_java_lib",
         "compatibility-device-util-axt",
         "flag-junit",

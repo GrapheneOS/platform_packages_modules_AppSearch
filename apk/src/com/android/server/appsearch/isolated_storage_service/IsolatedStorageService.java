@@ -15,6 +15,12 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
+import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_ERROR;
+import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_FINISH;
+import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_READY;
+import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_START;
+import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_STOP;
+
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -33,6 +39,9 @@ import android.util.Log;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.android.server.appsearch.stats.IsolateStorageServiceLogger;
+import com.android.server.appsearch.stats.VMPayloadStats;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -115,7 +124,8 @@ public class IsolatedStorageService extends Service {
             future.cancel(/* mayInterruptIfRunning= */ true);
             return future;
         }
-        VmCallback vmCallback = new VmCallback(future);
+        IsolateStorageServiceLogger logger = new IsolateStorageServiceLogger(config);
+        VmCallback vmCallback = new VmCallback(future, logger);
         mVm.setCallback(mExecutorService, vmCallback);
         try {
             mVm.run();
@@ -191,35 +201,52 @@ public class IsolatedStorageService extends Service {
     private class VmCallback implements VirtualMachineCallback {
 
         private final CompletableFuture<Void> mFuture;
+        private final IsolateStorageServiceLogger mLogger;
 
-        VmCallback(@NonNull CompletableFuture<Void> future) {
+        VmCallback(@NonNull CompletableFuture<Void> future, IsolateStorageServiceLogger logger) {
             mFuture = Objects.requireNonNull(future);
+            mLogger = Objects.requireNonNull(logger);
         }
 
         @Override
         public void onPayloadStarted(VirtualMachine vm) {
             Log.i(TAG, "Payload started");
+            VMPayloadStats stats = new VMPayloadStats.Builder(CALLBACK_TYPE_START).build();
+            mLogger.logStats(stats);
         }
 
         @Override
         public void onPayloadReady(VirtualMachine vm) {
             Log.i(TAG, "Payload ready");
             mFuture.complete(null);
+            VMPayloadStats stats = new VMPayloadStats.Builder(CALLBACK_TYPE_READY).build();
+            mLogger.logStats(stats);
         }
 
         @Override
         public void onPayloadFinished(VirtualMachine vm, int exitCode) {
             Log.i(TAG, "Payload finished. Code: " + exitCode);
+            VMPayloadStats stats =
+                    new VMPayloadStats.Builder(CALLBACK_TYPE_FINISH).setExitCode(exitCode).build();
+            mLogger.logStats(stats);
         }
 
         @Override
         public void onError(VirtualMachine vm, int errorCode, String errorMessage) {
             Log.e(TAG, "Error " + VM_NAME + " code : " + errorCode + " msg : " + errorMessage);
+            VMPayloadStats stats =
+                    new VMPayloadStats.Builder(CALLBACK_TYPE_ERROR).setErrorCode(errorCode).build();
+            mLogger.logStats(stats);
         }
 
         @Override
         public void onStopped(VirtualMachine vm, int stopReason) {
             Log.w(TAG, VM_NAME + " stopped, reason : " + stopReason);
+            VMPayloadStats stats =
+                    new VMPayloadStats.Builder(CALLBACK_TYPE_STOP)
+                            .setStopReason(stopReason)
+                            .build();
+            mLogger.logStats(stats);
         }
     }
 
@@ -238,6 +265,7 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void setup(ServiceConfig config) throws RemoteException {
+            Objects.requireNonNull(config);
             synchronized (mConfigLocked) {
                 if (mConfigLocked.get() != null) {
                     Log.w(TAG, "Service already set up");
