@@ -23,4 +23,10 @@ parcelable ServiceConfig {
    * Size of pVM's memory in bytes.
    */
   long pVmMemoryBytes;
+
+  /** The cached value for sampling interval for all the stats. */
+  int pCachedSamplingInterval;
+
+  /** The min time interval between samples in millis */
+  long pCachedMinTimeIntervalBetweenSamplesMillis;
 }

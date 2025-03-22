@@ -73,6 +73,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             "sampling_interval_for_optimize_stats";
     public static final String KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES =
             "limit_config_max_document_size_bytes";
+    public static final String KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT =
+            "limit_config_max_byte_limit_batch_put";
     public static final String KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT =
             "limit_config_per_package_document_count_limit";
     public static final String KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD =
@@ -368,6 +370,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
 
     @Override
     public int getMaxDocumentSizeBytes() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(
+                    KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
+                    DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES);
+        }
+    }
+
+    @Override
+    public int getMaxByteLimitForBatchPut() {
         synchronized (mLock) {
             throwIfClosedLocked();
             return mBundleLocked.getInt(
@@ -745,6 +757,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 }
                 break;
             case KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES:
+            case KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT:
                 synchronized (mLock) {
                     mBundleLocked.putInt(
                             key,

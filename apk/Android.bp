@@ -46,6 +46,7 @@ appsearch_java_defaults {
         "androidx.appcompat_appcompat",
         "com.android.appsearch.isolated_storage_service.aidl-java",
         "com.android.isolated_storage_service.aidl-java",
+        "statslog-appsearch-lib",
     ],
     libs: [
         "androidx.annotation_annotation",
@@ -73,4 +74,12 @@ android_app {
     ],
     compile_multilib: "first",
     apex_available: ["com.android.appsearch"],
+}
+
+// A special library created strictly for use by the tests as they need the implementation library
+// but that is not available when building from prebuilts. Using a library with a different name to
+// what is used by the prebuilts ensures that this will never depend on the prebuilt.
+java_library {
+    name: "appsearch-apk-for-tests",
+    defaults: ["appsearch-apk-defaults"],
 }
