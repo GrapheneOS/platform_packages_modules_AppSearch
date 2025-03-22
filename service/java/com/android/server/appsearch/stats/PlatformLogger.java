@@ -293,7 +293,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                     stats.getEstimatedBinderLatencyMillis(),
                     stats.getNumOperationsSucceeded(),
                     stats.getNumOperationsFailed(),
-                    numReportedCalls);
+                    numReportedCalls,
+                    stats.getEnabledFeatures());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -342,7 +343,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                     stats.getGetOldSchemaLatencyMillis(),
                     stats.getGetObserverLatencyMillis(),
                     stats.getPreparingChangeNotificationLatencyMillis(),
-                    stats.getSchemaMigrationCallType());
+                    stats.getSchemaMigrationCallType(),
+                    stats.getEnabledFeatures());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -367,11 +369,12 @@ public final class PlatformLogger implements InternalAppSearchLogger {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             // ignore close exception
             AppSearchStatsLog.write(
-                    AppSearchStatsLog.APP_SEARCH_SET_SCHEMA_STATS_REPORTED,
+                    AppSearchStatsLog.APP_SEARCH_SCHEMA_MIGRATION_STATS_REPORTED,
                     extraStats.mSamplingInterval,
                     extraStats.mSkippedSampleCount,
                     extraStats.mPackageUid,
                     hashCodeForDatabase,
+                    stats.getStatusCode(),
                     stats.getTotalLatencyMillis(),
                     stats.getGetSchemaLatencyMillis(),
                     stats.getQueryAndTransformLatencyMillis(),
@@ -418,7 +421,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                     stats.getNativeIndexMergeLatencyMillis(),
                     stats.getNativeDocumentSizeBytes(),
                     stats.getNativeNumTokensIndexed(),
-                    /* nativeExceededMaxNumTokens= */ false /* Deprecated and removed */);
+                    /* nativeExceededMaxNumTokens= */ false /* Deprecated and removed */,
+                    stats.getEnabledFeatures());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -476,7 +480,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                     stats.getJoinType(),
                     stats.getNumJoinedResultsCurrentPage(),
                     stats.getJoinLatencyMillis(),
-                    hashCodeForSearchSourceLogTag);
+                    hashCodeForSearchSourceLogTag,
+                    stats.getEnabledFeatures());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -516,7 +521,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 stats.getDocumentCount(),
                 stats.getSchemaTypeCount(),
                 stats.hasReset(),
-                stats.getResetStatusCode());
+                stats.getResetStatusCode(),
+                stats.getEnabledFeatures());
     }
 
     @GuardedBy("mLock")
@@ -538,7 +544,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 stats.getExpiredDocumentCount(),
                 stats.getStorageSizeBeforeBytes(),
                 stats.getStorageSizeAfterBytes(),
-                stats.getTimeSinceLastOptimizeMillis());
+                stats.getTimeSinceLastOptimizeMillis(),
+                stats.getEnabledFeatures());
     }
 
     @GuardedBy("mLock")
@@ -578,6 +585,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
         int[] clicksResultRankGlobal = new int[clicksStats.size()];
         int numClicks = clicksStats.size();
         int numGoodClicks = 0;
+        long enabledFeatures = searchIntentStats.getEnabledFeatures();
         for (int i = 0; i < clicksStats.size(); ++i) {
             ClickStats clickStats = clicksStats.get(i);
 
@@ -614,7 +622,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                 clicksTimestampMillis,
                 clicksTimeStayOnResultMillis,
                 clicksResultRankInBlock,
-                clicksResultRankGlobal);
+                clicksResultRankGlobal,
+                enabledFeatures);
 
         // Only log restricted atoms for QUERY_CORRECTION_TYPE_ABANDONMENT to catch query correction
         // for common synonyms, abbreviation, nicknames and rebranded names, e.g. "Robert" -> "Bob".
@@ -634,7 +643,8 @@ public final class PlatformLogger implements InternalAppSearchLogger {
                     searchIntentStats.getNumResultsFetched(),
                     numClicks,
                     numGoodClicks,
-                    searchIntentStats.getQueryCorrectionType());
+                    searchIntentStats.getQueryCorrectionType(),
+                    enabledFeatures);
         }
     }
 

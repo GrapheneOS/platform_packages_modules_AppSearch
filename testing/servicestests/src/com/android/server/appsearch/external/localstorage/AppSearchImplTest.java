@@ -5399,7 +5399,7 @@ public class AppSearchImplTest {
     }
 
     @Test
-    public void testStatsIsLaunchAegis() throws Exception {
+    public void testStatsIsLaunchVM() throws Exception {
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         IcingSearchEngineOptions options =
                 mUnlimitedConfig.toIcingSearchEngineOptions(mAppSearchDir.getAbsolutePath());
@@ -5494,7 +5494,7 @@ public class AppSearchImplTest {
     }
 
     @Test
-    public void testStatsIsNotLaunchAegis() throws Exception {
+    public void testStatsIsNotLaunchVM() throws Exception {
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // the bit mask for nothing enabled feature.
         int noLaunchFeature = 0;
@@ -5618,6 +5618,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -5726,6 +5731,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -5805,6 +5815,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -5862,6 +5877,11 @@ public class AppSearchImplTest {
                                     @Override
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
+                                    }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
                                     }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
@@ -6014,6 +6034,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -6136,6 +6161,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -6219,6 +6249,11 @@ public class AppSearchImplTest {
                                     @Override
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
+                                    }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
                                     }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
@@ -6413,6 +6448,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -6520,6 +6560,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -6597,6 +6642,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -6665,6 +6715,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -6722,6 +6777,11 @@ public class AppSearchImplTest {
                                     @Override
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
+                                    }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
                                     }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
@@ -6798,6 +6858,11 @@ public class AppSearchImplTest {
                                     @Override
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
+                                    }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
                                     }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
@@ -6947,6 +7012,11 @@ public class AppSearchImplTest {
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
                                     }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
+                                    }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
                         /* initStatsBuilder= */ null,
@@ -7039,6 +7109,11 @@ public class AppSearchImplTest {
                                     @Override
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
+                                    }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
                                     }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
@@ -7190,6 +7265,11 @@ public class AppSearchImplTest {
                                     @Override
                                     public int getMaxOpenBlobCount() {
                                         return Integer.MAX_VALUE;
+                                    }
+
+                                    @Override
+                                    public int getMaxByteLimitForBatchPut() {
+                                        return getMaxDocumentSizeBytes();
                                     }
                                 },
                                 new LocalStorageIcingOptionsConfig()),
@@ -7364,6 +7444,11 @@ public class AppSearchImplTest {
                             public int getMaxOpenBlobCount() {
                                 return 2;
                             }
+
+                            @Override
+                            public int getMaxByteLimitForBatchPut() {
+                                return getMaxDocumentSizeBytes();
+                            }
                         },
                         new LocalStorageIcingOptionsConfig());
         mAppSearchImpl =
@@ -7436,6 +7521,11 @@ public class AppSearchImplTest {
                             @Override
                             public int getMaxOpenBlobCount() {
                                 return 2;
+                            }
+
+                            @Override
+                            public int getMaxByteLimitForBatchPut() {
+                                return getMaxDocumentSizeBytes();
                             }
                         },
                         new LocalStorageIcingOptionsConfig());

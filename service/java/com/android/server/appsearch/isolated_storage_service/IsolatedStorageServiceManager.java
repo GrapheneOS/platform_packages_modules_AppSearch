@@ -30,6 +30,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
+import android.system.virtualmachine.VirtualMachine;
 import android.system.virtualmachine.VirtualMachineManager;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -45,7 +46,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /** Manages the isolated storage service and provides related services. */
 public final class IsolatedStorageServiceManager {
@@ -56,16 +56,8 @@ public final class IsolatedStorageServiceManager {
     // max doc size is 512 KiB, and also leave some room for non-page fields in the response protos.
     public static final int DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE = 512 * 1024;
 
-    /**
-     * The default threshold to decide whether to use {@link android.os.SharedMemory SharedMemory}
-     * for icing data passing between the isolated storage service and AppSearch.
-     *
-     * <p>This is a cautious value set to half of {@link android.os.IBinder#MAX_IPC_SIZE}.
-     */
-    public static final int DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES = 32 * 1024;
-
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
-            "appsearch.feature.enable_isolated_storage";
+            "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
@@ -76,8 +68,10 @@ public final class IsolatedStorageServiceManager {
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
 
-    private final AtomicReference<IIsolatedStorageService> mIsolatedStorageServiceLocked =
-            new AtomicReference<>();
+    // The isolated storage service implemented by the apk to manage VM and pass VM connections.
+    private IIsolatedStorageService mIsolatedStorageService;
+    // The isolated storage service implemented by the VM to access icing.
+    private com.android.isolated_storage_service.IIsolatedStorageService mVmIsolatedStorageService;
 
     @GuardedBy("mIcingInstancesLocked")
     private final Map<UserHandle, IcingSearchEngineInterface> mIcingInstancesLocked =
@@ -91,7 +85,7 @@ public final class IsolatedStorageServiceManager {
 
     /** Gets whether isolated storage should be used. */
     public static boolean useIsolatedStorage(Context context) {
-        return isolatedStorageFlagsSet() && deviceSupportsVms(context);
+        return isolatedStorageFlagsSet() && deviceSupportsVmsAndNewApis(context);
     }
 
     /** Gets whether isolated storage flags are all set. */
@@ -101,8 +95,15 @@ public final class IsolatedStorageServiceManager {
                         SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE, /* def= */ false);
     }
 
-    private static boolean deviceSupportsVms(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false;
+    /** Checks whether the device supports protect VMs, and new FD->IBinder VM APIs. */
+    private static boolean deviceSupportsVmsAndNewApis(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+            Log.i(
+                    TAG,
+                    "API level too low to support isolated storage service: "
+                            + Build.VERSION.SDK_INT);
+            return false;
+        }
         VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
         // Devices that support AVF are not required to support protected VMs.
         return (vmm != null)
@@ -112,7 +113,7 @@ public final class IsolatedStorageServiceManager {
     /** Starts the isolated storage service if not already. */
     @WorkerThread
     public void startIsolatedStorageService() {
-        if (mIsolatedStorageServiceLocked.get() != null) {
+        if (mIsolatedStorageService != null) {
             return;
         }
 
@@ -136,10 +137,28 @@ public final class IsolatedStorageServiceManager {
             ExceptionUtil.handleException(e);
             return;
         }
-        if (mIsolatedStorageServiceLocked.get() == null) {
+        if (mIsolatedStorageService == null) {
             return;
         }
         waitForVmPayloadReady();
+        try {
+            IBinder iBinder =
+                    VirtualMachine.binderFromPreconnectedClient(
+                            () -> {
+                                try {
+                                    return mIsolatedStorageService.getVmConnection();
+                                } catch (RemoteException e) {
+                                    Log.e(TAG, "Unable to get vm connection", e);
+                                    throw new RuntimeException(e);
+                                }
+                            });
+            mVmIsolatedStorageService =
+                    com.android.isolated_storage_service.IIsolatedStorageService.Stub.asInterface(
+                            iBinder);
+        } catch (Exception e) {
+            Log.e(TAG, "Unable to connect to vm", e);
+            ExceptionUtil.handleException(e);
+        }
     }
 
     /**
@@ -170,7 +189,7 @@ public final class IsolatedStorageServiceManager {
 
     private void waitForVmPayloadReady() {
         try {
-            mIsolatedStorageServiceLocked.get().setup(createServiceConfig());
+            mIsolatedStorageService.setup(createServiceConfig());
         } catch (RemoteException e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
             ExceptionUtil.handleRemoteException(e);
@@ -180,8 +199,9 @@ public final class IsolatedStorageServiceManager {
     private ServiceConfig createServiceConfig() {
         ServiceConfig config = new ServiceConfig();
         config.pVmMemoryBytes = mAppSearchConfig.getIsolatedStorageMemoryBytes();
-        config.icingDataUnionSizeThresholdBytes =
-                mAppSearchConfig.getIsolatedStorageIcingDataUnionSizeThresholdBytes();
+        config.pCachedSamplingInterval = mAppSearchConfig.getCachedSamplingIntervalDefault();
+        config.pCachedMinTimeIntervalBetweenSamplesMillis =
+                mAppSearchConfig.getCachedMinTimeIntervalBetweenSamplesMillis();
         return config;
     }
 
@@ -192,7 +212,7 @@ public final class IsolatedStorageServiceManager {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
 
-        if (mIsolatedStorageServiceLocked.get() == null) {
+        if (mIsolatedStorageService == null) {
             return null;
         }
 
@@ -204,11 +224,9 @@ public final class IsolatedStorageServiceManager {
                 try {
                     instance =
                             new IcingSearchEngine(
-                                    mIsolatedStorageServiceLocked
-                                            .get()
-                                            .getIcingSearchEngine(userHandle.getIdentifier()),
-                                    config.toIcingSearchEngineOptions(/* baseDir= */ "appsearch"),
-                                    config.getIsolatedStorageIcingDataUnionSizeThresholdBytes());
+                                    mVmIsolatedStorageService.getOrCreateIcingConnection(
+                                            userHandle.getIdentifier()),
+                                    config.toIcingSearchEngineOptions(/* baseDir= */ "appsearch"));
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);
@@ -232,7 +250,7 @@ public final class IsolatedStorageServiceManager {
 
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
-            mIsolatedStorageServiceLocked.set(IIsolatedStorageService.Stub.asInterface(service));
+            mIsolatedStorageService = IIsolatedStorageService.Stub.asInterface(service);
             Log.i(TAG, "IsolatedStorageService connected");
             mFuture.complete(null);
         }
@@ -240,21 +258,21 @@ public final class IsolatedStorageServiceManager {
         @Override
         public void onServiceDisconnected(ComponentName className) {
             Log.i(TAG, "IsolatedStorageService disconnected");
-            mIsolatedStorageServiceLocked.set(null);
+            mIsolatedStorageService = null;
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
         @Override
         public void onBindingDied(ComponentName className) {
             Log.i(TAG, "IsolatedStorageService binding died");
-            mIsolatedStorageServiceLocked.set(null);
+            mIsolatedStorageService = null;
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
         @Override
         public void onNullBinding(ComponentName className) {
             Log.i(TAG, "IsolatedStorageService null binding");
-            mIsolatedStorageServiceLocked.set(null);
+            mIsolatedStorageService = null;
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
     }

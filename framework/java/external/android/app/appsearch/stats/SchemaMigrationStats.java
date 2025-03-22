@@ -102,6 +102,9 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
     @Field(id = 14, getter = "getTotalSuccessMigratedDocumentCount")
     private final int mTotalSuccessMigratedDocumentCount;
 
+    @Field(id = 15, getter = "getEnabledFeatures")
+    private final long mEnabledFeatures;
+
     /** Build a {@link SchemaMigrationStats} from the given parameters. */
     @Constructor
     public SchemaMigrationStats(
@@ -118,7 +121,8 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
             @Param(id = 11) int saveDocumentLatencyMillis,
             @Param(id = 12) int totalNeedMigratedDocumentCount,
             @Param(id = 13) int migrationFailureCount,
-            @Param(id = 14) int totalSuccessMigratedDocumentCount) {
+            @Param(id = 14) int totalSuccessMigratedDocumentCount,
+            @Param(id = 15) long enabledFeatures) {
         mPackageName = packageName;
         mDatabase = database;
         mStatusCode = statusCode;
@@ -133,6 +137,7 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
         mTotalNeedMigratedDocumentCount = totalNeedMigratedDocumentCount;
         mMigrationFailureCount = migrationFailureCount;
         mTotalSuccessMigratedDocumentCount = totalSuccessMigratedDocumentCount;
+        mEnabledFeatures = enabledFeatures;
     }
 
     /** Returns calling package name. */
@@ -222,6 +227,11 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
         return mTotalSuccessMigratedDocumentCount;
     }
 
+    /** Returns the bitmask representing the enabled features. */
+    public long getEnabledFeatures() {
+        return mEnabledFeatures;
+    }
+
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         SchemaMigrationStatsCreator.writeToParcel(this, dest, flags);
@@ -244,6 +254,7 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
         int mTotalNeedMigratedDocumentCount;
         int mMigrationFailureCount;
         int mTotalSuccessMigratedDocumentCount;
+        long mEnabledFeatures;
 
         /** Creates a {@link SchemaMigrationStats.Builder}. */
         public Builder(@NonNull String packageName, @NonNull String database) {
@@ -274,6 +285,7 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
             mTotalNeedMigratedDocumentCount = stats.mTotalNeedMigratedDocumentCount;
             mMigrationFailureCount = stats.mMigrationFailureCount;
             mTotalSuccessMigratedDocumentCount = stats.mTotalSuccessMigratedDocumentCount;
+            mEnabledFeatures = stats.mEnabledFeatures;
         }
 
         /** Sets status code for the schema migration action. */
@@ -366,6 +378,13 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
             return this;
         }
 
+        /** Sets bitmask for all enabled features . */
+        @CanIgnoreReturnValue
+        public @NonNull Builder setEnabledFeatures(long enabledFeatures) {
+            mEnabledFeatures = enabledFeatures;
+            return this;
+        }
+
         /**
          * Builds a new {@link SchemaMigrationStats} from the {@link SchemaMigrationStats.Builder}.
          */
@@ -384,7 +403,8 @@ public final class SchemaMigrationStats extends AbstractSafeParcelable {
                     mSaveDocumentLatencyMillis,
                     mTotalNeedMigratedDocumentCount,
                     mMigrationFailureCount,
-                    mTotalSuccessMigratedDocumentCount);
+                    mTotalSuccessMigratedDocumentCount,
+                    mEnabledFeatures);
         }
     }
 }

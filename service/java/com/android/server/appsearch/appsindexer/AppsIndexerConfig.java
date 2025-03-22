@@ -33,7 +33,7 @@ public interface AppsIndexerConfig {
     long DEFAULT_APPS_UPDATE_INTERVAL_MILLIS = TimeUnit.DAYS.toMillis(30); // 30 days.
 
     /** The default maximum number of app functions per package that the app indexer will index. */
-    int DEFAULT_MAX_APP_FUNCTIONS_PER_PACKAGE = 500;
+    int DEFAULT_MAX_APP_FUNCTIONS_PER_PACKAGE = 250;
 
     /**
      * The default maximum number of app function schemas per package that the app indexer will
@@ -66,9 +66,6 @@ public interface AppsIndexerConfig {
 
     /** Returns the max number of app function schemas the app indexer will index per package. */
     int getMaxAllowedAppFunctionSchemasPerPackage();
-
-    /** Returns the max allowed document size of an app function document. */
-    int getMaxAllowedAppFunctionDocSizeInBytes();
 
     /**
      * Returns the minimum time required to wait before attempting a firstRun sync after a previous

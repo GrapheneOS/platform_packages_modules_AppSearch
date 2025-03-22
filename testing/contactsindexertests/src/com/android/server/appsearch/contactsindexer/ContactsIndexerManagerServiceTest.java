@@ -26,6 +26,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.UiAutomation;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSessionShim;
@@ -41,6 +42,8 @@ import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.app.job.JobScheduler;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.pm.PackageManager;
+import android.content.pm.ProviderInfo;
 import android.content.pm.UserInfo;
 import android.provider.ContactsContract;
 
@@ -56,6 +59,7 @@ import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,6 +68,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -116,6 +121,9 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
 
     @Test
     public void testCP2Clear_runsFullUpdate() throws Exception {
+        String contactsProviderPackageName = getContactsProviderPackageName();
+        Assume.assumeNotNull(contactsProviderPackageName);
+
         // This config prevents delta updates from indexing any contacts
         ContactsIndexerConfig config = new TestContactsIndexerConfig() {
             @Override
@@ -157,7 +165,7 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
             CountDownLatch fullUpdateLatch = countDownAppSearchDocumentChanges(100);
             // Clear the user data for the CP2 package which should trigger a full update
             SystemUtil.runShellCommand("pm clear --user " + mContext.getUserId() + " "
-                    + mContactsIndexerManagerService.getContactsProviderPackageName());
+                    + contactsProviderPackageName);
             // Wait for full update to run and index all 100 contacts.
             assertThat(fullUpdateLatch.await(10L, TimeUnit.SECONDS)).isTrue();
 
@@ -179,6 +187,23 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
             mContactsIndexerManagerService.onUserStopping(targetUser);
             mUiAutomation.dropShellPermissionIdentity();
         }
+    }
+
+    /** Returns null if the contacts provider package cannot be queried. */
+    @Nullable private String getContactsProviderPackageName() {
+        PackageManager pm = mContext.getPackageManager();
+        List<ProviderInfo> providers =
+                pm.queryContentProviders(
+                        /* processName= */ null,
+                        /* uid= */ 0,
+                        PackageManager.ComponentInfoFlags.of(0));
+        for (int i = 0; i < providers.size(); i++) {
+            ProviderInfo providerInfo = providers.get(i);
+            if (ContactsContract.AUTHORITY.equals(providerInfo.authority)) {
+                return providerInfo.packageName;
+            }
+        }
+        return null;
     }
 
     // This tests a local scheduled job for Contacts Indexer in the test package
