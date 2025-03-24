@@ -71,14 +71,6 @@ public class FrameworkAppsIndexerConfig implements AppsIndexerConfig {
     }
 
     @Override
-    public int getMaxAllowedAppFunctionDocSizeInBytes() {
-        return DeviceConfig.getInt(
-                DeviceConfig.NAMESPACE_APPSEARCH,
-                KEY_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES,
-                DEFAULT_MAX_ALLOWED_APP_FUNCTION_DOC_SIZE_IN_BYTES);
-    }
-
-    @Override
     public long getMinTimeBetweenFirstSyncsMillis() {
         return DeviceConfig.getLong(
                 DeviceConfig.NAMESPACE_APPSEARCH,

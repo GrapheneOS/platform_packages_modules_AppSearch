@@ -59,7 +59,6 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_U
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
-import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD;
@@ -83,21 +82,18 @@ import static com.android.server.appsearch.external.localstorage.IcingOptionsCon
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.Assume.assumeTrue;
-
 import android.app.appsearch.testutil.AppSearchTestUtils;
-import android.provider.DeviceConfig;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.provider.DeviceConfig;
 
 import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
-import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
-
 import com.android.server.appsearch.icing.proto.PersistType;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -115,13 +111,11 @@ public class ServiceAppSearchConfigTest {
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
 
-        if (Flags.enableFourHourMinTimeOptimizeThreshold()) {
-            assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
-                    .isEqualTo(DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
-        } else {
-            assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
-                    .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
-        }
+        // TODO (b/385020106): figure out how to make the default 0 timeSinceLastOptimize work
+        //  with a higher threshold and return 4 hours when
+        //  Flags.enable_four_hour_min_optimize_threshold is true
+        assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
     }
 
     @Test

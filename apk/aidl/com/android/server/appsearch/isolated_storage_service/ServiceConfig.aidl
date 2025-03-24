@@ -24,8 +24,9 @@ parcelable ServiceConfig {
    */
   long pVmMemoryBytes;
 
-  /**
-   * Threshold to decide whether to use SharedMemory to pass icing data.
-   */
-  long icingDataUnionSizeThresholdBytes;
+  /** The cached value for sampling interval for all the stats. */
+  int pCachedSamplingInterval;
+
+  /** The min time interval between samples in millis */
+  long pCachedMinTimeIntervalBetweenSamplesMillis;
 }

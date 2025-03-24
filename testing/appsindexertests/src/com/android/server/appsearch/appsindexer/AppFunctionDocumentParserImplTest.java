@@ -637,34 +637,4 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(actualAppFunction.getPropertyNames())
                 .containsExactly("functionId", "packageName", "mobileApplicationQualifiedId");
     }
-
-    @Test
-    public void parseIntoMapForGivenSchemas_exceedMaxAllowedDocSize_skipsTheAppFunction()
-            throws Exception {
-        mParser =
-                new AppFunctionDocumentParserImpl(
-                        TEST_INDEXER_PACKAGE_NAME,
-                        new TestAppsIndexerConfig() {
-                            @Override
-                            public int getMaxAllowedAppFunctionDocSizeInBytes() {
-                                return 0;
-                            }
-                        });
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
-
-        Map<String, AppFunctionDocument> appFunctions =
-                mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
-
-        assertThat(appFunctions).isEmpty();
-    }
 }

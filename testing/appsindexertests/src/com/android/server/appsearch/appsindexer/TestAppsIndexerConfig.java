@@ -38,11 +38,6 @@ public class TestAppsIndexerConfig implements AppsIndexerConfig {
     }
 
     @Override
-    public int getMaxAllowedAppFunctionDocSizeInBytes() {
-        return 4 * 1024; // 4KiB
-    }
-
-    @Override
     public long getMinTimeBetweenFirstSyncsMillis() {
         return 500;
     }

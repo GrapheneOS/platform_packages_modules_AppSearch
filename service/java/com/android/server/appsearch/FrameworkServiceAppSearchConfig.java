@@ -73,6 +73,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             "sampling_interval_for_optimize_stats";
     public static final String KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES =
             "limit_config_max_document_size_bytes";
+    public static final String KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT =
+            "limit_config_max_byte_limit_batch_put";
     public static final String KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT =
             "limit_config_per_package_document_count_limit";
     public static final String KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD =
@@ -121,8 +123,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_MAX_OPEN_BLOB_COUNT = "max_open_blob_count";
     public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
     public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
-    public static final String ISOLATED_STORAGE_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES =
-            "isolated_storage_icing_data_union_size_threshold_bytes";
     public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
 
     /**
@@ -370,6 +370,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
 
     @Override
     public int getMaxDocumentSizeBytes() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(
+                    KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
+                    DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES);
+        }
+    }
+
+    @Override
+    public int getMaxByteLimitForBatchPut() {
         synchronized (mLock) {
             throwIfClosedLocked();
             return mBundleLocked.getInt(
@@ -673,16 +683,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
-    public long getIsolatedStorageIcingDataUnionSizeThresholdBytes() {
-        synchronized (mLock) {
-            throwIfClosedLocked();
-            return mBundleLocked.getLong(
-                    ISOLATED_STORAGE_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES,
-                    IsolatedStorageServiceManager.DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES);
-        }
-    }
-
-    @Override
     public boolean shouldStoreParentInfoAsSyntheticProperty() {
         // This option is always true in Framework.
         return true;
@@ -757,6 +757,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 }
                 break;
             case KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES:
+            case KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT:
                 synchronized (mLock) {
                     mBundleLocked.putInt(
                             key,
@@ -994,16 +995,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                             key,
                             properties.getLong(
                                     key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
-                }
-                break;
-            case ISOLATED_STORAGE_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES:
-                synchronized (mLock) {
-                    mBundleLocked.putLong(
-                            key,
-                            properties.getLong(
-                                    key,
-                                    IsolatedStorageServiceManager
-                                            .DEFAULT_ICING_DATA_UNION_SIZE_THRESHOLD_BYTES));
                 }
                 break;
             case KEY_LIGHTWEIGHT_PERSIST_TYPE:
