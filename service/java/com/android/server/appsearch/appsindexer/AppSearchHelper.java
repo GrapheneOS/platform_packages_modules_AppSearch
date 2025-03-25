@@ -592,10 +592,12 @@ public class AppSearchHelper implements Closeable {
                         .setJoinSpec(appFunctionJoinSpec)
                         .build();
 
-        SyncSearchResults results =
-                mSyncAppSearchAppsDbSession.search("", mobileApplicationSearchSpec);
-
-        return collectAppFunctionDocumentsFromAllPages(results, new ArraySet<>(appPackageIds));
+        try (SyncSearchResults results =
+                mSyncAppSearchAppsDbSession.search("", mobileApplicationSearchSpec)) {
+            return collectAppFunctionDocumentsFromAllPages(results, new ArraySet<>(appPackageIds));
+        } catch (IOException e) {
+            throw new AppSearchException(RESULT_IO_ERROR, "Failed to close search results", e);
+        }
     }
 
     /**
