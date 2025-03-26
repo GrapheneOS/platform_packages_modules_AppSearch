@@ -223,6 +223,12 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES;
     }
 
+    /** Returns whether or not AppSearch should use Isolated Storage */
+    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+    default boolean getIsolatedStorageEnabled() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED;
+    }
+
     /**
      * Default min time interval between consecutive optimize calls in millis if there is no value
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.

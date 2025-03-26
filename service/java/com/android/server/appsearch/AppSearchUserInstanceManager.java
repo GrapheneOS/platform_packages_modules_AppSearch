@@ -233,7 +233,7 @@ public final class AppSearchUserInstanceManager {
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
         if (LogUtil.INFO) {
-            if (IsolatedStorageServiceManager.useIsolatedStorage(userContext)) {
+            if (IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
                 Log.i(TAG, "Creating new AppSearch instance in isolated storage.");
             } else {
                 Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
@@ -285,7 +285,7 @@ public final class AppSearchUserInstanceManager {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
 
-        if (!IsolatedStorageServiceManager.useIsolatedStorage(userContext)) {
+        if (!IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
             Log.i(TAG, "Isolated storage is not enabled.");
             return null;
         }

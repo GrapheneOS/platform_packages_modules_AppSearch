@@ -59,6 +59,8 @@ public final class IsolatedStorageServiceManager {
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
+    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
@@ -84,8 +86,14 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Gets whether isolated storage should be used. */
-    public static boolean useIsolatedStorage(Context context) {
-        return isolatedStorageFlagsSet() && deviceSupportsVmsAndNewApis(context);
+    public static boolean useIsolatedStorage(
+            @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(appSearchConfig);
+        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+        return appSearchConfig.getIsolatedStorageEnabled()
+                && isolatedStorageFlagsSet()
+                && deviceSupportsVmsAndNewApis(context);
     }
 
     /** Gets whether isolated storage flags are all set. */
