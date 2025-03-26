@@ -487,3 +487,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_query_visibility_documents"
+    namespace: "appsearch"
+    description: "Improve load visibility store performance."
+    bug: "404622915"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

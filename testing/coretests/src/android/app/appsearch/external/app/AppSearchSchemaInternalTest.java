@@ -108,7 +108,7 @@ public class AppSearchSchemaInternalTest {
                 .hasMessageThat()
                 .contains(
                         "Cannot set delete propagation without setting"
-                                + " JOINABLE_VALUE_TYPE_QUALIFIED_ID.");
+                            + " JOINABLE_VALUE_TYPE_QUALIFIED_ID.");
     }
 
     @Test

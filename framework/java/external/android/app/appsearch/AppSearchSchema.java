@@ -1076,7 +1076,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     Preconditions.checkState(
                             mCardinality != CARDINALITY_REPEATED,
                             "Cannot set JOINABLE_VALUE_TYPE_QUALIFIED_ID with"
-                                    + " CARDINALITY_REPEATED.");
+                                + " CARDINALITY_REPEATED.");
                 }
                 if (mDeletePropagationType != DELETE_PROPAGATION_TYPE_NONE) {
                     Preconditions.checkState(
