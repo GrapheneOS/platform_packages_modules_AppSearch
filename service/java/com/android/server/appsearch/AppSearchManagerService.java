@@ -42,6 +42,7 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.CommitBlobResponse;
 import android.app.appsearch.GenericDocument;
+import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.InternalVisibilityConfig;
@@ -1037,62 +1038,134 @@ public class AppSearchManagerService extends SystemService {
                 int operationSuccessCount = 0;
                 int operationFailureCount = 0;
                 try {
+                    instance = mAppSearchUserInstanceManager.getUserInstance(userToQuery);
                     AppSearchBatchResult.Builder<String, GenericDocumentParcel> resultBuilder =
                             new AppSearchBatchResult.Builder<>();
-                    instance = mAppSearchUserInstanceManager.getUserInstance(userToQuery);
-                    for (String id : request.getGetByDocumentIdRequest().getIds()) {
-                        try {
-                            GenericDocument document;
-                            if (global) {
-                                boolean callerHasSystemAccess = instance.getVisibilityChecker()
-                                        .doesCallerHaveSystemAccess(
-                                                request.getCallerAttributionSource()
-                                                        .getPackageName());
+
+                    if (!Flags.enableBatchGet()) {
+                        for (String id : request.getGetByDocumentIdRequest().getIds()) {
+                            try {
+                                GenericDocument document;
+                                if (global) {
+                                    boolean callerHasSystemAccess = instance.getVisibilityChecker()
+                                            .doesCallerHaveSystemAccess(
+                                                    request.getCallerAttributionSource()
+                                                            .getPackageName());
+                                    Map<String, List<String>> typePropertyPaths =
+                                            request.getGetByDocumentIdRequest().getProjections();
+                                    if (request.isForEnterprise()) {
+                                        EnterpriseSearchSpecTransformer.transformPropertiesMap(
+                                                typePropertyPaths);
+                                    }
+                                    document = instance.getAppSearchImpl().globalGetDocument(
+                                            request.getTargetPackageName(),
+                                            request.getDatabaseName(),
+                                            request.getGetByDocumentIdRequest().getNamespace(),
+                                            id,
+                                            typePropertyPaths,
+                                            new FrameworkCallerAccess(
+                                                    request.getCallerAttributionSource(),
+                                                    callerHasSystemAccess,
+                                                    request.isForEnterprise()));
+                                    if (request.isForEnterprise()) {
+                                        document =
+                                                EnterpriseSearchResultPageTransformer
+                                                        .transformDocument(
+                                                                request.getTargetPackageName(),
+                                                                request.getDatabaseName(),
+                                                                document);
+                                    }
+                                } else {
+                                    document = instance.getAppSearchImpl().getDocument(
+                                            request.getTargetPackageName(),
+                                            request.getDatabaseName(),
+                                            request.getGetByDocumentIdRequest().getNamespace(),
+                                            id,
+                                            request.getGetByDocumentIdRequest().getProjections());
+                                }
+                                ++operationSuccessCount;
+                                resultBuilder.setSuccess(id, document.getDocumentParcel());
+                            } catch (AppSearchException | RuntimeException e) {
+                                // Since we can only include one status code in the atom,
+                                // for failures, we would just save the one for the last failure
+                                // Also, we don't rethrow here, so we can keep trying for
+                                // the following ones.
+                                AppSearchResult<GenericDocumentParcel> result =
+                                        throwableToFailedResult(e);
+                                resultBuilder.setResult(id, result);
+                                statusCode = result.getResultCode();
+                                ++operationFailureCount;
+                            }
+                        }
+                    } else if (!request.getGetByDocumentIdRequest().getIds().isEmpty()) {
+                        AppSearchBatchResult<String, GenericDocument> getDocumentsResult;
+                        if (global) {
+                            boolean callerHasSystemAccess = instance.getVisibilityChecker()
+                                    .doesCallerHaveSystemAccess(
+                                            request.getCallerAttributionSource()
+                                                    .getPackageName());
+                            GetByDocumentIdRequest getByDocumentIdRequest =
+                                    request.getGetByDocumentIdRequest();
+                            if (request.isForEnterprise()) {
+                                // Rebuild a GetByDocumentIdRequest with
+                                // a modified typePropertyPaths
+                                GetByDocumentIdRequest.Builder builder =
+                                        new GetByDocumentIdRequest.Builder(
+                                                getByDocumentIdRequest.getNamespace());
+                                builder.addIds(getByDocumentIdRequest.getIds());
                                 Map<String, List<String>> typePropertyPaths =
-                                        request.getGetByDocumentIdRequest().getProjections();
-                                if (request.isForEnterprise()) {
-                                    EnterpriseSearchSpecTransformer.transformPropertiesMap(
-                                            typePropertyPaths);
+                                        getByDocumentIdRequest.getProjections();
+                                EnterpriseSearchSpecTransformer.transformPropertiesMap(
+                                        typePropertyPaths);
+                                for (Map.Entry<String, List<String>> entry :
+                                        typePropertyPaths.entrySet()) {
+                                    builder.addProjection(entry.getKey(), entry.getValue());
                                 }
-                                document = instance.getAppSearchImpl().globalGetDocument(
+                                getByDocumentIdRequest = builder.build();
+                            }
+                            getDocumentsResult = instance.getAppSearchImpl().batchGetDocuments(
+                                    request.getTargetPackageName(),
+                                    request.getDatabaseName(),
+                                    getByDocumentIdRequest,
+                                    new FrameworkCallerAccess(
+                                            request.getCallerAttributionSource(),
+                                            callerHasSystemAccess,
+                                            request.isForEnterprise()));
+                        } else {
+                            getDocumentsResult = instance.getAppSearchImpl().batchGetDocuments(
+                                    request.getTargetPackageName(),
+                                    request.getDatabaseName(),
+                                    request.getGetByDocumentIdRequest(),
+                                    /*callerAccess=*/ null);
+                        }
+
+                        // Build the result to be returned.
+                        for (Map.Entry<String, GenericDocument> entry :
+                                getDocumentsResult.getSuccesses().entrySet()) {
+                            GenericDocument document = entry.getValue();
+                            if (request.isForEnterprise()) {
+                                document = EnterpriseSearchResultPageTransformer.transformDocument(
                                         request.getTargetPackageName(),
                                         request.getDatabaseName(),
-                                        request.getGetByDocumentIdRequest().getNamespace(),
-                                        id,
-                                        typePropertyPaths,
-                                        new FrameworkCallerAccess(
-                                                request.getCallerAttributionSource(),
-                                                callerHasSystemAccess,
-                                                request.isForEnterprise()));
-                                if (request.isForEnterprise()) {
-                                    document =
-                                            EnterpriseSearchResultPageTransformer.transformDocument(
-                                                    request.getTargetPackageName(),
-                                                    request.getDatabaseName(),
-                                                    document);
-                                }
-                            } else {
-                                document = instance.getAppSearchImpl().getDocument(
-                                        request.getTargetPackageName(),
-                                        request.getDatabaseName(),
-                                        request.getGetByDocumentIdRequest().getNamespace(),
-                                        id,
-                                        request.getGetByDocumentIdRequest().getProjections());
+                                        document);
                             }
                             ++operationSuccessCount;
-                            resultBuilder.setSuccess(id, document.getDocumentParcel());
-                        } catch (AppSearchException | RuntimeException e) {
-                            // Since we can only include one status code in the atom,
-                            // for failures, we would just save the one for the last failure
-                            // Also, we don't rethrow here, so we can keep trying for
-                            // the following ones.
-                            AppSearchResult<GenericDocumentParcel> result =
-                                    throwableToFailedResult(e);
-                            resultBuilder.setResult(id, result);
-                            statusCode = result.getResultCode();
+                            resultBuilder.setSuccess(entry.getKey(), document.getDocumentParcel());
+                        }
+
+                        for (Map.Entry<String, AppSearchResult<GenericDocument>> entry :
+                                getDocumentsResult.getFailures().entrySet()) {
+                            AppSearchResult<GenericDocument> failure = entry.getValue();
                             ++operationFailureCount;
+                            statusCode = failure.getResultCode();
+                            // We can't use the result from Icing directly as the type is
+                            // AppSearchResult<GenericDocument>,
+                            // not AppSearchResult<GenericDocumentParcel>
+                            resultBuilder.setResult(entry.getKey(),
+                                    AppSearchResult.newFailedResult(failure));
                         }
                     }
+
                     invokeCallbackOnResult(callback, AppSearchBatchResultParcel
                             .fromStringToGenericDocumentParcel(resultBuilder.build()));
                 } catch (RuntimeException e) {
