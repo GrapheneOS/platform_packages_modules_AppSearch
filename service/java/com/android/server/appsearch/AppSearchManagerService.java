@@ -3032,7 +3032,10 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(userHandle);
 
             try {
-                mServiceImplHelper.verifyUserUnlocked(userHandle);
+                if (mServiceImplHelper.isUserLocked(userHandle)) {
+                    // No need to get stats for locked user.
+                    return;
+                }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
                 if (instance == null) {
@@ -3070,7 +3073,10 @@ public class AppSearchManagerService extends SystemService {
 
             UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
             try {
-                mServiceImplHelper.verifyUserUnlocked(userHandle);
+                if (mServiceImplHelper.isUserLocked(userHandle)) {
+                    // No need to get stats for locked user.
+                    return;
+                }
                 String[] packagesForUid = mPackageManager.getPackagesForUid(uid);
                 if (packagesForUid == null) {
                     return;
@@ -3111,7 +3117,10 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(userHandle);
 
             try {
-                mServiceImplHelper.verifyUserUnlocked(userHandle);
+                if (mServiceImplHelper.isUserLocked(userHandle)) {
+                    // No need to get stats for locked user.
+                    return;
+                }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
                 if (instance == null) {
