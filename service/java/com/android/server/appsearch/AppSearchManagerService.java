@@ -2311,82 +2311,11 @@ public class AppSearchManagerService extends SystemService {
         public void executeAppFunction(
                 @NonNull ExecuteAppFunctionAidlRequest request,
                 @NonNull IAppSearchResultCallback callback) {
-            Objects.requireNonNull(request);
-            Objects.requireNonNull(callback);
-
-            long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
-
-            String callingPackageName = request.getCallerAttributionSource().getPackageName();
-            UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
-                    request.getCallerAttributionSource(), request.getUserHandle(), callback);
-            if (targetUser == null) {
-                return;  // Verification failed; verifyIncomingCall triggered callback.
-            }
-            if (checkCallDenied(
-                    callingPackageName, /* databaseName= */ null,
-                    CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION, callback, targetUser,
-                    request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
-                    /* numOperations= */ 1)) {
-                return;
-            }
-
-            // Log the stats as well whenever we invoke the AppSearchResultCallback.
-            final SafeOneTimeAppSearchResultCallback safeCallback =
-                    new SafeOneTimeAppSearchResultCallback(callback, result -> {
-                        AppSearchUserInstance instance =
-                                mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                        int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
-                        int estimatedBinderLatencyMillis =
-                                2 * (int) (totalLatencyStartTimeMillis
-                                        - request.getBinderCallStartTimeMillis());
-                        instance.getLogger().logStats(new CallStats.Builder()
-                                .setPackageName(callingPackageName)
-                                .setStatusCode(result.getResultCode())
-                                .setTotalLatencyMillis(totalLatencyMillis)
-                                .setCallType(CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION)
-                                .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
-                                .build());
-                    });
-
-            // TODO(b/327134039): Add a new policy for this in W timeframe.
-            if (mServiceImplHelper.isUserOrganizationManaged(targetUser)) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_SECURITY_ERROR,
-                        "Cannot run on a device with a device owner or from the managed profile."));
-                return;
-            }
-
-            String targetPackageName = request.getClientRequest().getTargetPackageName();
-            if (TextUtils.isEmpty(targetPackageName)) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_INVALID_ARGUMENT,
-                        "targetPackageName cannot be empty."));
-                return;
-            }
-            if (!verifyExecuteAppFunctionCaller(
-                    callingPackageName,
-                    targetPackageName,
-                    targetUser)) {
-                safeCallback.onFailedResult(AppSearchResult.newFailedResult(
-                        RESULT_SECURITY_ERROR,
-                        callingPackageName + " is not allowed to call executeAppFunction"));
-                return;
-            }
-
-            boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(
-                    targetUser, callback, callingPackageName,
-                    CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION,
-                    () -> executeAppFunctionUnchecked(
-                            request.getClientRequest(),
-                            targetUser,
-                            safeCallback));
-            if (!callAccepted) {
-                logRateLimitedOrCallDeniedCallStats(callingPackageName, /* databaseName= */ null,
-                        CallStats.CALL_TYPE_EXECUTE_APP_FUNCTION, targetUser,
-                        request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
-                        /*numOperations=*/ 1, RESULT_RATE_LIMITED);
-            }
+            // The API is guarded by a feature flag that was never launched to nextfood.
+            // However, there is a way to call a hidden API. Removing the code and
+            // throw an Exception for callers trying to call this hidden API.
+            // Note that since Android 16, this API is moved to AppFunctionManager.
+            throw new UnsupportedOperationException("Moved to AppFunctionManager.");
         }
 
         /**
