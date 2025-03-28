@@ -498,3 +498,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_strict_page_byte_size_limit"
+    namespace: "appsearch"
+    description: "Enables strict byte size enforcement on a result page."
+    bug: "392648537"
+}
