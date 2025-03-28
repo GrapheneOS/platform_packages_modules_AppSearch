@@ -24,6 +24,7 @@ import static android.system.OsConstants.O_WRONLY;
 
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DENYLIST;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ISOLATED_STORAGE_ENABLED;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_API_COSTS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_ENABLED;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
@@ -1466,6 +1467,13 @@ public class AppSearchManagerServiceTest {
         UserHandle testUserHandle = new UserHandle(1);
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLED,
+                Boolean.toString(true),
+                false);
+        assertThat(appSearchConfig.getIsolatedStorageEnabled()).isEqualTo(true);
         TestContext testContext =
                 new TestContext(context, mRoleManager, mDevicePolicyManager, useIsolatedStorage);
         assertThrows(
