@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -187,6 +188,15 @@ public final class AppsIndexerUserInstance {
             }
         } catch (AppSearchException e) {
             pw.println("Error in dumping indexed applications");
+        }
+        pw.println("Apps Indexer Logs:");
+        Collection<String> logs = mSettings.getLogLines();
+        if (logs.isEmpty()) {
+            pw.println("  No logs available.");
+        } else {
+            for (String log : logs) {
+                pw.println("  " + log);
+            }
         }
     }
 
