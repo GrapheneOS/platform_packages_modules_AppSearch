@@ -26,12 +26,14 @@ import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
  * storage is encrypted.
  */
 interface IIsolatedStorageService {
-    const int PORT = 5678;
-
     /**
-     * Sets up the service.
+     * Starts the pVM.
+     *
+     * @param config The service configuration.
+     * @param timeoutSeconds The timeout in seconds when waiting for the pVm payload to be ready.
+     * @return true if the pVm payload is ready, false otherwise. If false, please retry.
      */
-    void setup(in ServiceConfig config);
+    boolean startVm(in ServiceConfig config, long timeoutSeconds);
 
     /**
      * Gets the connection to the pVM.

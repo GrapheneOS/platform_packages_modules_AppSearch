@@ -115,15 +115,6 @@ flag {
 }
 
 flag {
-    name: "enable_app_functions"
-    namespace: "appsearch"
-    description: "Guards everything related to AppFunction."
-    bug: "327134039"
-    is_fixed_read_only: true
-    is_exported: true
-}
-
-flag {
     name: "enable_generic_document_over_ipc"
     namespace: "appsearch"
     description: "Guards system API for parcelling Generic documents."
@@ -483,6 +474,26 @@ flag {
     description: "Uses the new batch put API from Icing."
     bug: "394875109"
     is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_query_visibility_documents"
+    namespace: "appsearch"
+    description: "Improve load visibility store performance."
+    bug: "404622915"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_batch_get"
+    namespace: "appsearch"
+    description: "Uses the new batch get API from Icing."
+    bug: "401245769"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

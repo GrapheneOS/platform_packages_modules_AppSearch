@@ -120,10 +120,13 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS =
             "app_function_call_timeout_millis";
     public static final String KEY_FULLY_PERSIST_JOB_INTERVAL = "fully_persist_job_interval";
+    public static final String KEY_PERSIST_DELAY = "persist_delay";
     public static final String KEY_MAX_OPEN_BLOB_COUNT = "max_open_blob_count";
     public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
     public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
     public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
+    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+    public static final String KEY_ISOLATED_STORAGE_ENABLED = "isolated_storage_enabled";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -172,9 +175,12 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
         KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
         KEY_FULLY_PERSIST_JOB_INTERVAL,
+        KEY_PERSIST_DELAY,
         KEY_MAX_OPEN_BLOB_COUNT,
         KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS,
-        KEY_LIGHTWEIGHT_PERSIST_TYPE
+        KEY_LIGHTWEIGHT_PERSIST_TYPE,
+        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+        KEY_ISOLATED_STORAGE_ENABLED
     };
 
     // Lock needed for all the operations in this class.
@@ -614,6 +620,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
+    public long getCachedPersistDelayMillis() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(KEY_PERSIST_DELAY, DEFAULT_PERSIST_DELAY);
+        }
+    }
+
+    @Override
     public int getIntegerIndexBucketSplitThreshold() {
         synchronized (mLock) {
             throwIfClosedLocked();
@@ -679,6 +693,17 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             return mBundleLocked.getLong(
                     ISOLATED_STORAGE_MEMORY_BYTES,
                     IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES);
+        }
+    }
+
+    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+    @Override
+    public boolean getIsolatedStorageEnabled() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getBoolean(
+                    KEY_ISOLATED_STORAGE_ENABLED,
+                    IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED);
         }
     }
 
@@ -978,6 +1003,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                             key, properties.getLong(key, DEFAULT_FULLY_PERSIST_JOB_INTERVAL));
                 }
                 break;
+            case KEY_PERSIST_DELAY:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(key, properties.getLong(key, DEFAULT_PERSIST_DELAY));
+                }
+                break;
             case KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS:
                 synchronized (mLock) {
                     mBundleLocked.putLong(
@@ -995,6 +1025,18 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                             key,
                             properties.getLong(
                                     key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
+                }
+                break;
+                // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before
+                // launch
+            case KEY_ISOLATED_STORAGE_ENABLED:
+                synchronized (mLock) {
+                    mBundleLocked.putBoolean(
+                            key,
+                            properties.getBoolean(
+                                    key,
+                                    IsolatedStorageServiceManager
+                                            .DEFAULT_ISOLATED_STORAGE_ENABLED));
                 }
                 break;
             case KEY_LIGHTWEIGHT_PERSIST_TYPE:

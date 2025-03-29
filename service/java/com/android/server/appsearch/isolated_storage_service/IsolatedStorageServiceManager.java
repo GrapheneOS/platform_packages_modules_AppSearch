@@ -15,9 +15,12 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
+import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
+import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.ExceptionUtil;
 import android.content.ComponentName;
 import android.content.Context;
@@ -27,6 +30,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
@@ -59,19 +63,24 @@ public final class IsolatedStorageServiceManager {
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
+    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
     private static final int FUTURE_WAIT_TIMEOUT_SECONDS = 5;
+    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
+    private static final int MAX_VM_START_RETRIES = 3;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
 
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
-    private IIsolatedStorageService mIsolatedStorageService;
+    private volatile IIsolatedStorageService mIsolatedStorageService;
     // The isolated storage service implemented by the VM to access icing.
-    private com.android.isolated_storage_service.IIsolatedStorageService mVmIsolatedStorageService;
+    private volatile com.android.isolated_storage_service.IIsolatedStorageService
+            mVmIsolatedStorageService;
 
     @GuardedBy("mIcingInstancesLocked")
     private final Map<UserHandle, IcingSearchEngineInterface> mIcingInstancesLocked =
@@ -84,8 +93,14 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Gets whether isolated storage should be used. */
-    public static boolean useIsolatedStorage(Context context) {
-        return isolatedStorageFlagsSet() && deviceSupportsVmsAndNewApis(context);
+    public static boolean useIsolatedStorage(
+            @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(appSearchConfig);
+        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
+        return appSearchConfig.getIsolatedStorageEnabled()
+                && isolatedStorageFlagsSet()
+                && deviceSupportsVmsAndNewApis(context);
     }
 
     /** Gets whether isolated storage flags are all set. */
@@ -112,14 +127,16 @@ public final class IsolatedStorageServiceManager {
 
     /** Starts the isolated storage service if not already. */
     @WorkerThread
-    public void startIsolatedStorageService() {
+    public void startIsolatedStorageService() throws AppSearchException {
         if (mIsolatedStorageService != null) {
+            Log.i(TAG, "Isolated storage service already started");
             return;
         }
 
         String packageName = maybeGetPackageName(mContext);
         if (packageName == null) {
-            return;
+            throw new AppSearchException(
+                    RESULT_INTERNAL_ERROR, "Unable to get isolated storage service package name");
         }
 
         Intent intent = new Intent();
@@ -134,11 +151,12 @@ public final class IsolatedStorageServiceManager {
             future.get(FUTURE_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
-            ExceptionUtil.handleException(e);
-            return;
+            throw new AppSearchException(
+                    RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
         }
         if (mIsolatedStorageService == null) {
-            return;
+            throw new AppSearchException(
+                    RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
         }
         waitForVmPayloadReady();
         try {
@@ -146,19 +164,28 @@ public final class IsolatedStorageServiceManager {
                     VirtualMachine.binderFromPreconnectedClient(
                             () -> {
                                 try {
-                                    return mIsolatedStorageService.getVmConnection();
-                                } catch (RemoteException e) {
+                                    ParcelFileDescriptor pfd = getVmConnection();
+                                    return pfd;
+                                } catch (Exception e) {
                                     Log.e(TAG, "Unable to get vm connection", e);
                                     throw new RuntimeException(e);
                                 }
                             });
+            if (iBinder == null) {
+                throw new NullPointerException("Null binder when connecting to VM");
+            }
             mVmIsolatedStorageService =
                     com.android.isolated_storage_service.IIsolatedStorageService.Stub.asInterface(
                             iBinder);
         } catch (Exception e) {
             Log.e(TAG, "Unable to connect to vm", e);
-            ExceptionUtil.handleException(e);
+            throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm", e);
         }
+        if (mVmIsolatedStorageService == null) {
+            Log.e(TAG, "Failed to connect to vm");
+            throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm");
+        }
+        Log.i(TAG, "Successfully connected to vm");
     }
 
     /**
@@ -187,13 +214,38 @@ public final class IsolatedStorageServiceManager {
         return resolveInfos.get(0).serviceInfo.packageName;
     }
 
-    private void waitForVmPayloadReady() {
+    private void waitForVmPayloadReady() throws AppSearchException {
+        boolean vmStarted = false;
+        ServiceConfig serviceConfig = createServiceConfig();
         try {
-            mIsolatedStorageService.setup(createServiceConfig());
-        } catch (RemoteException e) {
+            for (int i = 0; i < MAX_VM_START_RETRIES; i++) {
+                if (mIsolatedStorageService.startVm(serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS)) {
+                    vmStarted = true;
+                    break;
+                }
+                Log.w(TAG, "Unable to wait for payload ready, retrying");
+            }
+        } catch (Exception e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
-            ExceptionUtil.handleRemoteException(e);
+            throw new AppSearchException(
+                    RESULT_INTERNAL_ERROR, "Failed to start VM and load payload");
         }
+        if (!vmStarted) {
+            throw new AppSearchException(
+                    RESULT_INTERNAL_ERROR, "Unable to wait for payload ready after retries");
+        }
+    }
+
+    @NonNull
+    private ParcelFileDescriptor getVmConnection()
+            throws RemoteException, NullPointerException, IllegalStateException {
+        ParcelFileDescriptor pfd = mIsolatedStorageService.getVmConnection();
+        if (pfd == null) {
+            throw new NullPointerException("Null PFD VM connection");
+        } else if (pfd.getFd() < 0) {
+            throw new IllegalStateException("PFD VM connection is an invalid FD: " + pfd.getFd());
+        }
+        return pfd;
     }
 
     private ServiceConfig createServiceConfig() {
