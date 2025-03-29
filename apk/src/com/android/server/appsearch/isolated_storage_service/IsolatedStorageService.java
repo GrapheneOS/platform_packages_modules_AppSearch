@@ -23,8 +23,12 @@ import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_ST
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Binder;
 import android.os.IBinder;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.system.virtualmachine.VirtualMachine;
@@ -34,7 +38,6 @@ import android.system.virtualmachine.VirtualMachineException;
 import android.system.virtualmachine.VirtualMachineManager;
 import android.util.Log;
 
-import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -46,7 +49,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Service that provides isolated storage.
@@ -74,8 +77,9 @@ public class IsolatedStorageService extends Service {
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
+    private final CompletableFuture<Void> mPayloadReadyFuture = new CompletableFuture<>();
 
-    private VirtualMachine mVm;
+    private volatile VirtualMachine mVm;
 
     @Override
     public void onCreate() {
@@ -88,23 +92,20 @@ public class IsolatedStorageService extends Service {
         return START_STICKY;
     }
 
-    private CompletableFuture<Void> startVm(ServiceConfig config) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    private void tryStartVm(ServiceConfig config)
+            throws VirtualMachineException, NullPointerException {
         mVm = maybeCreateVm(config);
         if (mVm == null) {
-            Log.e(TAG, "Unable to create/get VirtualMachine");
-            future.cancel(/* mayInterruptIfRunning= */ true);
-            return future;
+            throw new NullPointerException("VM instance is null");
+        }
+        if (mVm.getStatus() == VirtualMachine.STATUS_RUNNING) {
+            Log.w(TAG, "vm is already running");
+            return;
         }
         IsolateStorageServiceLogger logger = new IsolateStorageServiceLogger(config);
-        VmCallback vmCallback = new VmCallback(future, logger);
+        VmCallback vmCallback = new VmCallback(mPayloadReadyFuture, logger);
         mVm.setCallback(mExecutorService, vmCallback);
-        try {
-            mVm.run();
-        } catch (VirtualMachineException e) {
-            Log.e(TAG, "Failed to run " + VM_NAME, e);
-        }
-        return future;
+        mVm.run();
     }
 
     /**
@@ -224,42 +225,60 @@ public class IsolatedStorageService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: b/384768541 - ensure only AppSearch can bind to this service.
         return mIsolatedStorageServiceStub.asBinder();
     }
 
     /** Implementation of the {@link IIsolatedStorageService}. */
     private class IsolatedStorageServiceStub extends IIsolatedStorageService.Stub {
-        private static final int PAYLOAD_READY_WAIT_TIMEOUT_SECONDS = 15;
 
-        @GuardedBy("mConfigLocked")
-        private final AtomicReference<ServiceConfig> mConfigLocked = new AtomicReference<>();
-
+        // We check here instead of onBind as IBinder can be passed around.
         @Override
-        public void setup(ServiceConfig config) throws RemoteException {
-            Objects.requireNonNull(config);
-            synchronized (mConfigLocked) {
-                if (mConfigLocked.get() != null) {
-                    Log.w(TAG, "Service already set up");
-                    return;
-                }
-                mConfigLocked.set(config);
-                try {
-                    startVm(config).get(PAYLOAD_READY_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    Log.e(TAG, "Unable to wait for payload ready", e);
-                    throw new RemoteException(e.getMessage());
-                }
+        public boolean onTransact(int code, Parcel data, Parcel reply, int flags)
+                throws RemoteException {
+            checkCallerPermission();
+            return super.onTransact(code, data, reply, flags);
+        }
+
+        // We only allow packages with BIND_APPSEARCH_ISOLATED_STORAGE_SERVICE permission to do the
+        // binder call to this service.
+        // Furthermore, we only want system_server to bind to this service.
+        private void checkCallerPermission() {
+            int checkPermission =
+                    checkCallingPermission(
+                            "android.permission.BIND_APP_SEARCH_ISOLATED_STORAGE_SERVICE");
+            if (checkPermission != PackageManager.PERMISSION_GRANTED) {
+                throw new SecurityException("Permission check failed with code " + checkPermission);
+            }
+
+            // check to only allow system_server access.
+            if (Binder.getCallingUid() != Process.SYSTEM_UID) {
+                throw new SecurityException(
+                        "Only system server is allowed to bind to this service.");
             }
         }
 
         @Override
-        public ParcelFileDescriptor getVmConnection() throws RemoteException {
-            synchronized (mConfigLocked) {
-                if (mConfigLocked.get() == null) {
-                    throw new RemoteException("Service not set up yet");
+        public boolean startVm(ServiceConfig config, long timeoutSeconds) throws RemoteException {
+            if (!mPayloadReadyFuture.isDone()) {
+                try {
+                    tryStartVm(config);
+                    mPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+                } catch (InterruptedException | TimeoutException e) {
+                    Log.w(TAG, "Unable to wait for payload ready", e);
+                    return false;
+                } catch (Exception e) {
+                    Log.e(TAG, "Unable to start VM", e);
+                    throw new RemoteException(e.getMessage());
                 }
-                if (mVm == null) {
+            }
+            return true;
+        }
+
+        @Override
+        public ParcelFileDescriptor getVmConnection() throws RemoteException {
+            if (mVm == null
+                    || mVm.getStatus() != VirtualMachine.STATUS_RUNNING
+                    || !mPayloadReadyFuture.isDone()) {
                     throw new RemoteException("pVM payload is not ready/available");
                 }
                 try {
@@ -269,7 +288,6 @@ public class IsolatedStorageService extends Service {
                     Log.e(TAG, "Unable to connect vsock", e);
                     throw new RemoteException(e.getMessage());
                 }
-            }
         }
     }
 }
