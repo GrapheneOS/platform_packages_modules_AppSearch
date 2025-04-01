@@ -252,4 +252,10 @@ public class FlagsTest {
         assertThat(Flags.FLAG_ENABLE_STRICT_PAGE_BYTE_SIZE_LIMIT)
                 .isEqualTo("com.android.appsearch.flags.enable_strict_page_byte_size_limit");
     }
+
+    @Test
+    public void testFlagValue_enableCompressionThreshold() {
+        assertThat(Flags.FLAG_ENABLE_COMPRESSION_THRESHOLD)
+                .isEqualTo("com.android.appsearch.flags.enable_compression_threshold");
+    }
 }
