@@ -240,4 +240,16 @@ public class FlagsTest {
         assertThat(Flags.FLAG_ENABLE_EMBEDDING_MATCH_INFO)
                 .isEqualTo("com.android.appsearch.flags.enable_embedding_match_info");
     }
+
+    @Test
+    public void testFlagValue_enableQueryVisibilityDocuments() {
+        assertThat(Flags.FLAG_ENABLE_QUERY_VISIBILITY_DOCUMENTS)
+                .isEqualTo("com.android.appsearch.flags.enable_query_visibility_documents");
+    }
+
+    @Test
+    public void testFlagValue_enableStrictPageByteSizeLimit() {
+        assertThat(Flags.FLAG_ENABLE_STRICT_PAGE_BYTE_SIZE_LIMIT)
+                .isEqualTo("com.android.appsearch.flags.enable_strict_page_byte_size_limit");
+    }
 }
