@@ -5403,7 +5403,8 @@ public class AppSearchImplTest {
     public void testStatsIsLaunchVM() throws Exception {
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         IcingSearchEngineOptions options =
-                mUnlimitedConfig.toIcingSearchEngineOptions(mAppSearchDir.getAbsolutePath());
+                mUnlimitedConfig.toIcingSearchEngineOptions(
+                        mAppSearchDir.getAbsolutePath(), /* isVMEnabled= */ true);
         IcingSearchEngine icingSearchEngine = new IcingSearchEngine(options);
         // the bit mask for only enable launch VM feature.
         int onlyLaunchVMFeature = 1;
@@ -10095,7 +10096,7 @@ public class AppSearchImplTest {
         IcingSearchEngineInterface modifiedIcingInstance =
                 new IcingSearchEngine(
                         mUnlimitedConfig.toIcingSearchEngineOptions(
-                                mAppSearchDir.getAbsolutePath())) {
+                                mAppSearchDir.getAbsolutePath(), /* isVMEnabled= */ true)) {
                     @Override
                     public GetSchemaResultProto getSchema() {
                         GetSchemaResultProto.Builder resultBuilder = super.getSchema().toBuilder();

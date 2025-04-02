@@ -3344,6 +3344,10 @@ public class AppSearchManagerService extends SystemService {
             if (persistToDiskFuture == null || persistToDiskFuture.isDone()) {
                 persistToDiskFuture = mExecutorManager.scheduleLambdaForUserNoCallbackAsync(
                         targetUser, () -> {
+                            if (mServiceImplHelper.isUserLocked(targetUser)) {
+                                // Skip the persistToDisk call if the user is locked.
+                                return;
+                            }
                             try {
                                 instance.getAppSearchImpl().persistToDisk(persistType);
                             } catch (Exception e) {

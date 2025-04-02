@@ -278,7 +278,8 @@ public final class IsolatedStorageServiceManager {
                             new IcingSearchEngine(
                                     mVmIsolatedStorageService.getOrCreateIcingConnection(
                                             userHandle.getIdentifier()),
-                                    config.toIcingSearchEngineOptions(/* baseDir= */ "appsearch"));
+                                    config.toIcingSearchEngineOptions(
+                                            /* baseDir= */ "appsearch", /* isVMEnabled= */ true));
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);

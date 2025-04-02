@@ -251,7 +251,8 @@ public interface IcingOptionsConfig {
      *
      * @param baseDir base directory of the icing instance.
      */
-    default @NonNull IcingSearchEngineOptions toIcingSearchEngineOptions(@NonNull String baseDir) {
+    default @NonNull IcingSearchEngineOptions toIcingSearchEngineOptions(
+            @NonNull String baseDir, boolean isVMEnabled) {
         return IcingSearchEngineOptions.newBuilder()
                 .setBaseDir(baseDir)
                 .setMaxTokenLength(getMaxTokenLength())
@@ -284,6 +285,11 @@ public interface IcingOptionsConfig {
                 .setEnableMarkerFileForOptimize(Flags.enableMarkerFileForOptimize())
                 .setReleaseBackupSchemaFileIfOverlayPresent(
                         Flags.enableReleaseBackupSchemaFileIfOverlayPresent())
+                // This is a necessary bug fix for the VMEnabled case. VMEnabled is guarded by its
+                // own trunk-stable flag, therefore this can be included there. Otherwise, we should
+                // use this trank-stable flag.
+                .setEnableStrictPageByteSizeLimit(
+                        Flags.enableStrictPageByteSizeLimit() || isVMEnabled)
                 .build();
     }
 }
