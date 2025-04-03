@@ -62,7 +62,7 @@ public final class IsolatedStorageServiceManager {
 
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
-    public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
+    public static final long DEFAULT_MEMORY_BYTES = 512_000_000;
     // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = false;
     private static final String ISOLATED_STORAGE_SERVICE =
