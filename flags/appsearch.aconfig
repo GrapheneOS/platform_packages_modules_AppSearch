@@ -505,3 +505,13 @@ flag {
     description: "Enables strict byte size enforcement on a result page."
     bug: "392648537"
 }
+
+flag {
+    name: "enable_compression_threshold"
+    namespace: "appsearch"
+    description: "Enables compression threshold."
+    bug: "406066880"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
