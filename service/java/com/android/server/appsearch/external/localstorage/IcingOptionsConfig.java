@@ -80,6 +80,8 @@ public interface IcingOptionsConfig {
 
     String DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH = "";
 
+    int DEFAULT_COMPRESSION_THRESHOLD_BYTES = 600;
+
     /**
      * The maximum allowable token length. All tokens in excess of this size will be truncated to
      * max_token_length before being indexed.
@@ -247,6 +249,13 @@ public interface IcingOptionsConfig {
     @NonNull String getIcuDataFileAbsolutePath();
 
     /**
+     * The threshold in bytes for compressing documents. If a document is larger than or equal to
+     * this threshold, it will be compressed based on getCompressionLevel(). 0 means always
+     * compress.
+     */
+    int getCompressionThresholdBytes();
+
+    /**
      * Converts to an {@link IcingSearchEngineOptions} instance.
      *
      * @param baseDir base directory of the icing instance.
@@ -290,6 +299,9 @@ public interface IcingOptionsConfig {
                 // use this trank-stable flag.
                 .setEnableStrictPageByteSizeLimit(
                         Flags.enableStrictPageByteSizeLimit() || isVMEnabled)
+                .setCompressionThresholdBytes(
+                        (Flags.enableCompressionThreshold() || isVMEnabled)
+                                ? Math.max(0, getCompressionThresholdBytes()) : 0)
                 .build();
     }
 }
