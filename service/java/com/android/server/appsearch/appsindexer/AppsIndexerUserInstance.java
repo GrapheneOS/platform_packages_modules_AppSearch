@@ -37,6 +37,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
@@ -163,9 +167,31 @@ public final class AppsIndexerUserInstance {
         // we only have one thread to handle all the updates. It is possible we might run into
         // race condition if there is an update running while those numbers are being printed.
         // This is acceptable though for debug purpose, so still no lock here.
-        pw.println("last_update_timestamp_millis: " + mSettings.getLastUpdateTimestampMillis());
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
         pw.println(
-                "last_app_update_timestamp_millis: " + mSettings.getLastAppUpdateTimestampMillis());
+                "last_update_timestamp_millis: "
+                        + formatTimestamp(mSettings.getLastUpdateTimestampMillis(), dateFormat));
+        pw.println(
+                "last_app_update_timestamp_millis: "
+                        + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis(), dateFormat));
+        try (AppSearchHelper appSearchHelper = new AppSearchHelper(mContext)) {
+            Map<String, Long> appLastUpdatedTimeMillisMap = appSearchHelper.getAppsFromAppSearch();
+            pw.println("Indexed Apps:");
+            for (Map.Entry<String, Long> appLastUpdatedEntry :
+                    appLastUpdatedTimeMillisMap.entrySet()) {
+                pw.println(
+                        "    packageName: "
+                                + appLastUpdatedEntry.getKey()
+                                + " lastUpdatedTimestamp: "
+                                + formatTimestamp(appLastUpdatedEntry.getValue(), dateFormat));
+            }
+        } catch (AppSearchException e) {
+            pw.println("Error in dumping indexed applications");
+        }
+    }
+
+    private static String formatTimestamp(long timestampInMillis, SimpleDateFormat formatter) {
+        return formatter.format(Instant.ofEpochMilli(timestampInMillis));
     }
 
     /**
