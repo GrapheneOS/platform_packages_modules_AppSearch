@@ -5403,7 +5403,8 @@ public class AppSearchImplTest {
     public void testStatsIsLaunchVM() throws Exception {
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         IcingSearchEngineOptions options =
-                mUnlimitedConfig.toIcingSearchEngineOptions(mAppSearchDir.getAbsolutePath());
+                mUnlimitedConfig.toIcingSearchEngineOptions(
+                        mAppSearchDir.getAbsolutePath(), /* isVMEnabled= */ true);
         IcingSearchEngine icingSearchEngine = new IcingSearchEngine(options);
         // the bit mask for only enable launch VM feature.
         int onlyLaunchVMFeature = 1;
@@ -10095,7 +10096,7 @@ public class AppSearchImplTest {
         IcingSearchEngineInterface modifiedIcingInstance =
                 new IcingSearchEngine(
                         mUnlimitedConfig.toIcingSearchEngineOptions(
-                                mAppSearchDir.getAbsolutePath())) {
+                                mAppSearchDir.getAbsolutePath(), /* isVMEnabled= */ true)) {
                     @Override
                     public GetSchemaResultProto getSchema() {
                         GetSchemaResultProto.Builder resultBuilder = super.getSchema().toBuilder();
@@ -10159,5 +10160,113 @@ public class AppSearchImplTest {
                         /* callerAccess= */ null);
 
         assertThat(batchGetResult.getAll()).isEmpty();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_COMPRESSION_THRESHOLD)
+    public void testCompressionThreshold() throws Exception {
+        mAppSearchImpl.close();
+        // Initialize AppSearch with a small compression threshold, which should force
+        // compression for large documents.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(),
+                                new LocalStorageIcingOptionsConfig() {
+                                    @Override
+                                    public int getCompressionThresholdBytes() {
+                                        return 10;
+                                    }
+                                }),
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                                "largeString")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Add a large document
+        GenericDocument largeDoc =
+                new GenericDocument.Builder<>("namespace", "id1", "Type")
+                        .setPropertyString(
+                                "largeString",
+                                // A string of 10000 'A' characters.
+                                new String(new char[10000]).replace('\0', 'A'))
+                        .build();
+        mAppSearchImpl.putDocument(
+                "package",
+                "database",
+                largeDoc,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+        mAppSearchImpl.optimize(/* builder= */ null);
+        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+
+        // Record storage size (the document should be compressed)
+        StorageInfoProto storageInfo = mAppSearchImpl.getRawStorageInfoProto();
+        long compressedSize = storageInfo.getDocumentStorageInfo().getDocumentLogSize();
+        assertThat(compressedSize).isGreaterThan(0);
+
+        // Close and re-open AppSearchImpl with a larger threshold, which should disable
+        // compression for the document.
+        mAppSearchImpl.close();
+        AppSearchConfig configLargeThreshold =
+                new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(),
+                        new LocalStorageIcingOptionsConfig() {
+                            @Override
+                            public int getCompressionThresholdBytes() {
+                                return 100000;
+                            }
+                        });
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        configLargeThreshold,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        // Run optimize, and test that the document is decompressed based on the new threshold.
+        mAppSearchImpl.optimize(/* builder= */ null);
+
+        // Record storage size again (should be uncompressed)
+        storageInfo = mAppSearchImpl.getRawStorageInfoProto();
+        long uncompressedSize = storageInfo.getDocumentStorageInfo().getDocumentLogSize();
+        assertThat(uncompressedSize).isGreaterThan(0);
+
+        // Check that previous size (compressed) is smaller than the latter (uncompressed)
+        assertThat(compressedSize).isLessThan(uncompressedSize);
     }
 }

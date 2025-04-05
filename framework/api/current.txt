@@ -602,14 +602,17 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.SearchResult.MatchInfo.Builder setSubmatchRange(@NonNull android.app.appsearch.SearchResult.MatchRange);
   }
 
-  public static final class SearchResult.MatchRange {
+  public static final class SearchResult.MatchRange implements android.os.Parcelable {
     ctor public SearchResult.MatchRange(int, int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method public int getEnd();
     method public int getStart();
+    method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.SearchResult.MatchRange> CREATOR;
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") public static final class SearchResult.TextMatchInfo implements android.os.Parcelable {
-    ctor public SearchResult.TextMatchInfo(int, int, int, int, int, int);
+    ctor public SearchResult.TextMatchInfo(@NonNull android.app.appsearch.SearchResult.MatchRange, @NonNull android.app.appsearch.SearchResult.MatchRange, @NonNull android.app.appsearch.SearchResult.MatchRange);
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public final int describeContents();
     method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public CharSequence getExactMatch();
     method @FlaggedApi("com.android.appsearch.flags.enable_embedding_match_info") @NonNull public android.app.appsearch.SearchResult.MatchRange getExactMatchRange();

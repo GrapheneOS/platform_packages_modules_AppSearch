@@ -19,6 +19,7 @@ package com.android.server.appsearch;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_BYTES_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DENYLIST;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DOC_COUNT_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_FULLY_PERSIST_JOB_INTERVAL;
@@ -59,6 +60,7 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_T
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH;
@@ -212,6 +214,8 @@ public class ServiceAppSearchConfigTest {
                 .isEqualTo(DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS);
         assertThat(appSearchConfig.getIcuDataFileAbsolutePath())
                 .isEqualTo(DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH);
+        assertThat(appSearchConfig.getCompressionThresholdBytes())
+                .isEqualTo(DEFAULT_COMPRESSION_THRESHOLD_BYTES);
     }
 
     @Test
@@ -746,6 +750,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_ICING_LITE_INDEX_SORT_AT_INDEXING, Boolean.toString(true), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ICING_LITE_INDEX_SORT_SIZE, Integer.toString(1003), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1004), false);
 
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
@@ -761,6 +767,7 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getIntegerIndexBucketSplitThreshold()).isEqualTo(1002);
         assertThat(appSearchConfig.getLiteIndexSortAtIndexing()).isEqualTo(true);
         assertThat(appSearchConfig.getLiteIndexSortSize()).isEqualTo(1003);
+        assertThat(appSearchConfig.getCompressionThresholdBytes()).isEqualTo(1004);
     }
 
     @Test
@@ -789,6 +796,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_ICING_LITE_INDEX_SORT_AT_INDEXING, Boolean.toString(true), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ICING_LITE_INDEX_SORT_SIZE, Integer.toString(1003), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1004), false);
 
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
@@ -818,6 +827,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_ICING_LITE_INDEX_SORT_AT_INDEXING, Boolean.toString(false), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ICING_LITE_INDEX_SORT_SIZE, Integer.toString(1004), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1005), false);
 
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(25);
         assertThat(appSearchConfig.getIndexMergeSize()).isEqualTo(2000);
@@ -831,6 +842,7 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getIntegerIndexBucketSplitThreshold()).isEqualTo(1003);
         assertThat(appSearchConfig.getLiteIndexSortAtIndexing()).isEqualTo(false);
         assertThat(appSearchConfig.getLiteIndexSortSize()).isEqualTo(1004);
+        assertThat(appSearchConfig.getCompressionThresholdBytes()).isEqualTo(1005);
     }
 
     @Test
@@ -1175,5 +1187,9 @@ public class ServiceAppSearchConfigTest {
                 "Trying to use a closed AppSearchConfig instance.",
                 IllegalStateException.class,
                 () -> appSearchConfig.getOrphanBlobTimeToLiveMs());
+        Assert.assertThrows(
+                "Trying to use a closed AppSearchConfig instance.",
+                IllegalStateException.class,
+                () -> appSearchConfig.getCompressionThresholdBytes());
     }
 }

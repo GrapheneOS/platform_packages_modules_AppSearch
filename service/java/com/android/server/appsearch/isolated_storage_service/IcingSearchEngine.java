@@ -65,6 +65,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -266,22 +267,103 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BatchGetResultProto batchGet(@NonNull GetResultSpecProto getResultSpec) {
-        byte[] resultData;
+        BatchGetResultProto responseForTheFirstCall = null;
+        // Used to rewrite the response from the 1st call if limit is reached.
+        BatchGetResultProto.Builder responseBuilderIfLimitReached = null;
+
         try {
-            resultData = mEngine.batchGet(getResultSpec.toByteArray());
+            // TODO(b/401245769) this could be set directly in the caller so we don't need to do
+            //  this extra toBuilder here.
+            // The transaction limit for the VM is 600KB. We just use the same limit for query here.
+            GetResultSpecProto.Builder requestBuilder = getResultSpec.toBuilder()
+                    .setNumTotalDocumentBytesToReturn(
+                            IsolatedStorageServiceManager
+                                    .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
+            int numIdsRequested = getResultSpec.getIdsList().size();
+            // tracks the previous curIndex value
+            int prevIndex = 0;
+            // tracks the doc position in the response being rewritten. It is being used to rewrite
+            // the result
+            // if we reach the limit.
+            int curIndex = 0;
+
+            // TODO(b/401245769) We can refactor this do-while with some helper functions to make
+            //  the logic easier to follow.
+
+            // We do one batchGet first, and if we see from some id we reach the limit, we will
+            // call batchGet again and rewrite the response to retrieve all the docs.
+            do {
+                getResultSpec = requestBuilder.build();
+                // requestBuilder is reused for all the batchGet so we need to clear ids here.
+                requestBuilder.clearIds();
+
+                byte[] resultData = mEngine.batchGet(getResultSpec.toByteArray());
+                BatchGetResultProto response = getResponseProtoFromRawData(
+                        resultData,
+                        BatchGetResultProto.getDefaultInstance(),
+                        status ->
+                                BatchGetResultProto.newBuilder()
+                                        .setStatus(status)
+                                        .build());
+                List<GetResultProto> getResultProtoList = response.getGetResultProtosList();
+
+                if (responseForTheFirstCall == null) {
+                    responseForTheFirstCall = response;
+                }
+
+                // This flag is set when we see the first ABORTED to indicate for the current
+                // batchGet, we can't get all the documents out due to reaching the limit
+                // Right now in Icing, if we hit the limit, we will fail the remaining ids.
+                // So we don't need to check the status code for the rest of the results if
+                // this flag is true.
+                boolean limitReached = false;
+                prevIndex = curIndex; // saves the previous position.
+                // TODO(b/401245769) We can set a different status code to indicate we reach
+                //  the limit and should retry to avoid entering this loop unnecessarily.
+                for (int i = 0; i < getResultProtoList.size(); ++i) {
+                    GetResultProto getResultProto = getResultProtoList.get(i);
+                    if (!limitReached
+                            && getResultProto.getStatus().getCode() != StatusProto.Code.ABORTED) {
+                        if (responseBuilderIfLimitReached != null) {
+                            // This is not the 1st call so we need to rewrite the result for
+                            // curIndex.
+                            responseBuilderIfLimitReached.setGetResultProtos(curIndex,
+                                    getResultProto);
+                        }
+                        // Advance the index in the final result as we won't retry for
+                        // the current id.
+                        ++curIndex;
+                    } else {
+                        //
+                        // We hit the limit and need to retry.
+                        //
+                        if (responseBuilderIfLimitReached == null) {
+                            // This is the first call. Create response builder from the 1st call.
+                            responseBuilderIfLimitReached = responseForTheFirstCall.toBuilder();
+                        }
+                        limitReached = true;
+                        requestBuilder.addIds(getResultProto.getUri());
+                    }
+                }
+
+                // We exit if
+                // 1) we have gotten all the docs we need out(curIndex == requestIdsSize).
+                // OR
+                // 2) curIndex is not changed(prevIndex == curIndex).
+                // It means somehow we get stuck. It could be the asked doc size is always bigger
+                // than the limit set. In this case, we should just exit.
+            } while(curIndex < numIdsRequested && prevIndex < curIndex);
         } catch (RemoteException e) {
             return BatchGetResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         }
 
-        return getResponseProtoFromRawData(
-                resultData,
-                BatchGetResultProto.getDefaultInstance(),
-                status ->
-                        BatchGetResultProto.newBuilder()
-                                .setStatus(status)
-                                .build());
+        if (responseBuilderIfLimitReached == null) {
+            // We didn't reach the limit.
+            return responseForTheFirstCall;
+        }
+        return responseBuilderIfLimitReached.build();
     }
 
     @NonNull
