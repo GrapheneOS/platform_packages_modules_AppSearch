@@ -17,10 +17,13 @@
 package com.android.server.appsearch;
 
 import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
+import static android.app.appsearch.AppSearchResult.RESULT_OK;
+import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
+import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.LogUtil;
 import android.content.Context;
@@ -246,26 +249,35 @@ public final class AppSearchUserInstanceManager {
             frameworkRevocableFileDescriptorStore =
                     new FrameworkRevocableFileDescriptorStore(userContext, config);
         }
-        AppSearchImpl appSearchImpl =
-                AppSearchImpl.create(
-                        icingDir,
-                        config,
-                        initStatsBuilder,
-                        visibilityCheckerImpl,
-                        frameworkRevocableFileDescriptorStore,
-                        maybeGetIsolatedIcingSearchEngine(userContext, userHandle, config),
-                        new ServiceOptimizeStrategy(config));
+        @AppSearchResult.ResultCode int statusCode = RESULT_OK;
+        try {
+            AppSearchImpl appSearchImpl =
+                    AppSearchImpl.create(
+                            icingDir,
+                            config,
+                            initStatsBuilder,
+                            visibilityCheckerImpl,
+                            frameworkRevocableFileDescriptorStore,
+                            maybeGetIsolatedIcingSearchEngine(userContext, userHandle, config),
+                            new ServiceOptimizeStrategy(config));
 
-        // Update storage info file
-        UserStorageInfo userStorageInfo =
-                getOrCreateUserStorageInfoInstance(userContext, userHandle);
-        userStorageInfo.updateStorageInfoFile(appSearchImpl);
+            // Update storage info file
+            UserStorageInfo userStorageInfo =
+                    getOrCreateUserStorageInfoInstance(userContext, userHandle);
+            userStorageInfo.updateStorageInfoFile(appSearchImpl);
 
-        initStatsBuilder.setTotalLatencyMillis(
-                (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis));
-        logger.logStats(initStatsBuilder.build());
-
-        return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);
+            return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);
+        } catch (AppSearchException e) {
+            AppSearchResult<Void> failedResult = throwableToFailedResult(e);
+            statusCode = failedResult.getResultCode();
+            throw e;
+        } finally {
+            initStatsBuilder
+                    .setTotalLatencyMillis(
+                            (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis))
+                    .setStatusCode(statusCode);
+            logger.logStats(initStatsBuilder.build());
+        }
     }
 
     /**
