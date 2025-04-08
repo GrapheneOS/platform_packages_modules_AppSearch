@@ -10191,7 +10191,7 @@ public class AppSearchImplTest {
                         new AppSearchSchema.Builder("Type")
                                 .addProperty(
                                         new AppSearchSchema.StringPropertyConfig.Builder(
-                                                "largeString")
+                                                        "largeString")
                                                 .setCardinality(
                                                         AppSearchSchema.PropertyConfig
                                                                 .CARDINALITY_OPTIONAL)
