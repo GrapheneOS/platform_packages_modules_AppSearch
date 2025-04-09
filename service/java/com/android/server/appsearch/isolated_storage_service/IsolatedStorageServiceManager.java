@@ -69,7 +69,7 @@ public final class IsolatedStorageServiceManager {
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
-    private static final int FUTURE_WAIT_TIMEOUT_SECONDS = 5;
+    private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
     private static final int MAX_VM_START_RETRIES = 3;
 
@@ -125,13 +125,14 @@ public final class IsolatedStorageServiceManager {
                 && ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0);
     }
 
-    /** Starts the isolated storage service if not already. */
+    /** Binds to the isolated storage service if not already. */
     @WorkerThread
-    public void startIsolatedStorageService() throws AppSearchException {
+    private void bindIsolatedStorageService() throws AppSearchException {
         if (mIsolatedStorageService != null) {
-            Log.i(TAG, "Isolated storage service already started");
+            Log.i(TAG, "Isolated storage service already bound");
             return;
         }
+        Log.i(TAG, "Binding to " + ISOLATED_STORAGE_SERVICE);
 
         String packageName = maybeGetPackageName(mContext);
         if (packageName == null) {
@@ -148,16 +149,27 @@ public final class IsolatedStorageServiceManager {
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
                 UserHandle.SYSTEM);
         try {
-            future.get(FUTURE_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            future.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
             throw new AppSearchException(
                     RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
         }
         if (mIsolatedStorageService == null) {
+            Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
             throw new AppSearchException(
                     RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
         }
+    }
+
+    /** Connects to the VM isolated storage service if not already. */
+    @WorkerThread
+    private void connectToVmIsolatedStorageService() throws AppSearchException {
+        if (mVmIsolatedStorageService != null) {
+            Log.i(TAG, "VM already connected");
+            return;
+        }
+        Log.i(TAG, "Connecting to vm");
         waitForVmPayloadReady();
         try {
             IBinder iBinder =
@@ -260,16 +272,20 @@ public final class IsolatedStorageServiceManager {
     /** Gets isolated storage backed icing instance for user. */
     @WorkerThread
     public @Nullable IcingSearchEngineInterface getIcingInstance(
-            @NonNull UserHandle userHandle, @NonNull ServiceAppSearchConfig config) {
+            @NonNull UserHandle userHandle, @NonNull ServiceAppSearchConfig config)
+            throws AppSearchException {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
 
-        if (mIsolatedStorageService == null) {
-            return null;
-        }
-
         IcingSearchEngineInterface instance;
         synchronized (mIcingInstancesLocked) {
+            if (mIsolatedStorageService == null) {
+                bindIsolatedStorageService();
+            }
+            if (mVmIsolatedStorageService == null) {
+                connectToVmIsolatedStorageService();
+            }
+
             instance = mIcingInstancesLocked.get(userHandle);
             if (instance == null) {
                 Log.i(TAG, "getting isolated icing instance for user " + userHandle);

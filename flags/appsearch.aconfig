@@ -515,3 +515,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_compression_mem_level_one"
+    namespace: "appsearch"
+    description: "Enables using a compression mem-level of 1."
+    bug: "405420968"
+}

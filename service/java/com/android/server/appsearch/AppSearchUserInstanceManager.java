@@ -295,7 +295,6 @@ public final class AppSearchUserInstanceManager {
             if (mIsolatedStorageServiceManagerLocked.get() == null) {
                 mIsolatedStorageServiceManagerLocked.set(
                         new IsolatedStorageServiceManager(userContext, config));
-                mIsolatedStorageServiceManagerLocked.get().startIsolatedStorageService();
             }
             icingInstance =
                     mIsolatedStorageServiceManagerLocked.get().getIcingInstance(userHandle, config);
