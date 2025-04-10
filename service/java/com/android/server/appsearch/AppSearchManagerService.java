@@ -267,11 +267,7 @@ public class AppSearchManagerService extends SystemService {
                             "Extra " + Intent.EXTRA_USER + " is missing in the intent: " + intent);
                     return;
                 }
-                // We can handle user removal the same way as user stopping: shut down the executor
-                // and close icing. The data of AppSearch is saved in the "credential encrypted"
-                // system directory of each user. That directory will be auto-deleted when a user is
-                // removed, so we don't need it handle it specially.
-                onUserStopping(userHandle);
+                onUserRemoved(userHandle);
             } else {
                 Log.e(TAG, "Received unknown intent: " + intent);
             }
@@ -433,6 +429,33 @@ public class AppSearchManagerService extends SystemService {
         } catch (InterruptedException | RuntimeException e) {
             Log.e(TAG, "Unable to remove data for: " + userHandle, e);
             ExceptionUtil.handleException(e);
+        }
+    }
+
+    // When a user is removed, two INTENTS are received: one for userStopped and one for
+    // userRemoved. When onUserStopped is called, the AppSearch instance is destroyed and
+    // marked as "closed". However, during destruction we do not know if onUserStopped was
+    // called because a user paused their profile or the profile is being removed. Thus we
+    // cannot remove user data in onUserStopped. Create a specific onUserRemoved function
+    // to ensure the user data is properly destroyed when a user profile is removed.
+    private void onUserRemoved(@NonNull UserHandle userHandle) {
+        Objects.requireNonNull(userHandle);
+        if (LogUtil.INFO) {
+            Log.i(TAG, "Removing AppSearch user and associated data for user " + userHandle);
+        }
+        // We can handle user removal the same way as user stopping: shut down the executor
+        // and close icing. The data of AppSearch is saved in the "credential encrypted"
+        // system directory of each user. That directory will be auto-deleted when a user is
+        // removed, so we don't need it handle it specially.
+        //
+        // When isolated storage is enabled, we must explicitly delete the data in the AppSearch
+        // user instance.
+        onUserStopping(userHandle);
+        Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
+        try {
+            mAppSearchUserInstanceManager.removeUserData(userHandle, userContext, mAppSearchConfig);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Unable to remove user data: " + userHandle, e);
         }
     }
 

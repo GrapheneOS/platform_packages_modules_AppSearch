@@ -722,8 +722,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public ResetResultProto clearAndDestroy() {
-        // TODO(b/402219328): Implement this
-        throw new UnsupportedOperationException("Not implemented yet.");
+        byte[] resultData;
+        try {
+            resultData = mEngine.clearAndDestroy();
+        } catch (RemoteException e) {
+            return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                ResetResultProto.getDefaultInstance(),
+                status -> ResetResultProto.newBuilder().setStatus(status).build());
     }
 
     private static @NonNull <M extends MessageLite> M getResponseProtoFromRawData(
