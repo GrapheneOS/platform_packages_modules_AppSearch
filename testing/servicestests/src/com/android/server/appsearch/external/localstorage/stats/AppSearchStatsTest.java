@@ -108,6 +108,8 @@ public class AppSearchStatsTest {
         final int nativeQualifiedIdJoinIndexLatencyMillis = 11;
         final int nativeLiteIndexSortLatencyMillis = 12;
         final int enabledFeatures = 1;
+        int metadataTermIndexLatencyMillis = 13;
+        int embeddingIndexLatencyMillis = 14;
         final PutDocumentStats.Builder pStatsBuilder =
                 new PutDocumentStats.Builder(TEST_PACKAGE_NAME, TEST_DATA_BASE)
                         .setStatusCode(TEST_STATUS_CODE)
@@ -125,7 +127,9 @@ public class AppSearchStatsTest {
                         .setNativeQualifiedIdJoinIndexLatencyMillis(
                                 nativeQualifiedIdJoinIndexLatencyMillis)
                         .setNativeLiteIndexSortLatencyMillis(nativeLiteIndexSortLatencyMillis)
-                        .setLaunchVMEnabled(true);
+                        .setLaunchVMEnabled(true)
+                        .setMetadataTermIndexLatencyMillis(metadataTermIndexLatencyMillis)
+                        .setEmbeddingIndexLatencyMillis(embeddingIndexLatencyMillis);
 
         final PutDocumentStats pStats = pStatsBuilder.build();
 
@@ -154,6 +158,9 @@ public class AppSearchStatsTest {
         assertThat(pStats.getNativeLiteIndexSortLatencyMillis())
                 .isEqualTo(nativeLiteIndexSortLatencyMillis);
         assertThat(pStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
+        assertThat(pStats.getMetadataTermIndexLatencyMillis())
+                .isEqualTo(metadataTermIndexLatencyMillis);
+        assertThat(pStats.getEmbeddingIndexLatencyMillis()).isEqualTo(embeddingIndexLatencyMillis);
     }
 
     @Test
@@ -460,6 +467,12 @@ public class AppSearchStatsTest {
         @RemoveStats.DeleteType int deleteType = 2;
         int documentDeletedCount = 3;
         int enabledFeatures = 1;
+        int queryLength = 4;
+        int numTerms = 5;
+        int numNamespacesFiltered = 6;
+        int numSchemaTypesFiltered = 7;
+        int parseQueryLatencyMillis = 8;
+        int documentRemovalLatencyMillis = 9;
 
         final RemoveStats rStats =
                 new RemoveStats.Builder(TEST_PACKAGE_NAME, TEST_DATA_BASE)
@@ -469,6 +482,12 @@ public class AppSearchStatsTest {
                         .setDeleteType(deleteType)
                         .setDeletedDocumentCount(documentDeletedCount)
                         .setLaunchVMEnabled(true)
+                        .setQueryLength(queryLength)
+                        .setNumTerms(numTerms)
+                        .setNumNamespacesFiltered(numNamespacesFiltered)
+                        .setNumSchemaTypesFiltered(numSchemaTypesFiltered)
+                        .setParseQueryLatencyMillis(parseQueryLatencyMillis)
+                        .setDocumentRemovalLatencyMillis(documentRemovalLatencyMillis)
                         .build();
 
         assertThat(rStats.getPackageName()).isEqualTo(TEST_PACKAGE_NAME);
@@ -479,6 +498,13 @@ public class AppSearchStatsTest {
         assertThat(rStats.getDeleteType()).isEqualTo(deleteType);
         assertThat(rStats.getDeletedDocumentCount()).isEqualTo(documentDeletedCount);
         assertThat(rStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
+        assertThat(rStats.getQueryLength()).isEqualTo(queryLength);
+        assertThat(rStats.getNumTerms()).isEqualTo(numTerms);
+        assertThat(rStats.getNumNamespacesFiltered()).isEqualTo(numNamespacesFiltered);
+        assertThat(rStats.getNumSchemaTypesFiltered()).isEqualTo(numSchemaTypesFiltered);
+        assertThat(rStats.getParseQueryLatencyMillis()).isEqualTo(parseQueryLatencyMillis);
+        assertThat(rStats.getDocumentRemovalLatencyMillis())
+                .isEqualTo(documentRemovalLatencyMillis);
     }
 
     @Test
@@ -493,6 +519,9 @@ public class AppSearchStatsTest {
         long nativeStorageSizeBeforeBytes = Integer.MAX_VALUE + 1;
         long nativeStorageSizeAfterBytes = Integer.MAX_VALUE + 2;
         long nativeTimeSinceLastOptimizeMillis = Integer.MAX_VALUE + 3;
+        int indexRestorationMode = 1;
+        int numOriginalNamespaces = 7;
+        int numDeletedNamespaces = 8;
 
         final OptimizeStats oStats =
                 new OptimizeStats.Builder()
@@ -509,6 +538,9 @@ public class AppSearchStatsTest {
                         .setStorageSizeAfterBytes(nativeStorageSizeAfterBytes)
                         .setTimeSinceLastOptimizeMillis(nativeTimeSinceLastOptimizeMillis)
                         .setLaunchVMEnabled(true)
+                        .setIndexRestorationMode(indexRestorationMode)
+                        .setNumOriginalNamespaces(numOriginalNamespaces)
+                        .setNumDeletedNamespaces(numDeletedNamespaces)
                         .build();
 
         assertThat(oStats.getStatusCode()).isEqualTo(TEST_STATUS_CODE);
@@ -527,5 +559,8 @@ public class AppSearchStatsTest {
         assertThat(oStats.getTimeSinceLastOptimizeMillis())
                 .isEqualTo(nativeTimeSinceLastOptimizeMillis);
         assertThat(oStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
+        assertThat(oStats.getIndexRestorationMode()).isEqualTo(indexRestorationMode);
+        assertThat(oStats.getNumOriginalNamespaces()).isEqualTo(numOriginalNamespaces);
+        assertThat(oStats.getNumDeletedNamespaces()).isEqualTo(numDeletedNamespaces);
     }
 }
