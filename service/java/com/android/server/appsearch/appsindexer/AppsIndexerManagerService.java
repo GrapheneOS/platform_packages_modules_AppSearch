@@ -29,12 +29,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ResolveInfo;
 import android.os.CancellationSignal;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
@@ -42,6 +44,7 @@ import com.android.server.appsearch.indexer.IndexerLocalService;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -186,10 +189,10 @@ public final class AppsIndexerManagerService extends SystemService {
     private class AppsProviderChangedReceiver extends BroadcastReceiver {
 
         /**
-         * Checks if the entire package was changed, or if the intent just represents a component
-         * change.
+         * Return true if the entire package was changed, or if the AppFunction Component was
+         * changed, false otherwise.
          */
-        private boolean isEntirePackageChanged(@NonNull Intent intent) {
+        private boolean shouldRunIndexerOnPackageChange(@NonNull Intent intent) {
             Objects.requireNonNull(intent);
             String[] changedComponents =
                     intent.getStringArrayExtra(Intent.EXTRA_CHANGED_COMPONENT_NAME_LIST);
@@ -209,6 +212,24 @@ public final class AppsIndexerManagerService extends SystemService {
                 if (changedComponent.equals(changedPackage)) {
                     return true;
                 }
+
+                // If the state of AppFunctionService component is changed within the package,
+                // indexer should be rerun. AppFunctionService component is identified by checking
+                // if it matches the app function intent filter.
+                if (Flags.enableIndexerRunOnAppFunctionComponentChange()) {
+                    Intent appFunctionServiceIntent =
+                            new Intent("android.app.appfunctions.AppFunctionService")
+                                    .setPackage(changedPackage);
+                    List<ResolveInfo> services =
+                            mContext.getPackageManager()
+                                    .queryIntentServices(appFunctionServiceIntent, /* flags= */ 0);
+
+                    for (int j = 0; j < services.size(); j++) {
+                        if (changedComponent.equals(services.get(j).serviceInfo.name)) {
+                            return true;
+                        }
+                    }
+                }
             }
             return false;
         }
@@ -222,7 +243,7 @@ public final class AppsIndexerManagerService extends SystemService {
 
                 switch (intent.getAction()) {
                     case Intent.ACTION_PACKAGE_CHANGED:
-                        if (!isEntirePackageChanged(intent)) {
+                        if (!shouldRunIndexerOnPackageChange(intent)) {
                             // If it was just a component change, do not run the indexer
                             return;
                         }
