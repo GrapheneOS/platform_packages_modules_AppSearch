@@ -373,6 +373,31 @@ public final class SearchStats extends BaseStats {
         return mSearchSourceLogTag;
     }
 
+    @Override
+    public String toString() {
+        return String.format(
+                "SearchStats {\n"
+                    + "package=%s, database=%s, visibility=%d,  status=%d, first_page=%b,"
+                    + " num_docs_matched=%d\n"
+                    + "total_latency=%d, search_spec_rewrite_latency=%d,"
+                    + " search_result_rewrite_latency=%d, native_latency%d, query_parse_latency=%d,"
+                    + " scoring_latency=%d, ranking_latency=%d, retrieval_latency=%d",
+                mPackageName,
+                mDatabase,
+                mVisibilityScope,
+                mStatusCode,
+                mNativeIsFirstPage,
+                mNativeNumDocumentsScored,
+                mTotalLatencyMillis,
+                mRewriteSearchSpecLatencyMillis,
+                mRewriteSearchResultLatencyMillis,
+                mNativeLatencyMillis,
+                mNativeParseQueryLatencyMillis,
+                mNativeScoringLatencyMillis,
+                mNativeRankingLatencyMillis,
+                mNativeDocumentRetrievingLatencyMillis);
+    }
+
     /** Builder for {@link SearchStats} */
     public static class Builder extends BaseStats.Builder<SearchStats.Builder> {
         final @NonNull String mPackageName;
