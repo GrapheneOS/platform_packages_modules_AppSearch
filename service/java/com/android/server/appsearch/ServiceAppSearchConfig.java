@@ -250,6 +250,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
                 : PersistType.Code.LITE;
     }
 
+    /** Default mem level used for document compression. */
+    default int defaultCompressionMemLevel() {
+        return Flags.enableCompressionMemLevelOne() ? 1 : DEFAULT_COMPRESSION_MEM_LEVEL;
+    }
+
     /**
      * Closes this {@link AppSearchConfig}.
      *

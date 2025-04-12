@@ -17,10 +17,13 @@
 package com.android.server.appsearch;
 
 import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
+import static android.app.appsearch.AppSearchResult.RESULT_OK;
+import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
+import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.LogUtil;
 import android.content.Context;
@@ -44,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Manages the lifecycle of AppSearch classes that should only be initialized once per device-user
@@ -56,7 +60,9 @@ public final class AppSearchUserInstanceManager {
 
     private static volatile AppSearchUserInstanceManager sAppSearchUserInstanceManager;
 
-    @GuardedBy("mInstancesLocked")
+    private final ReentrantLock mInstanceMapLock = new ReentrantLock();
+
+    @GuardedBy("mInstanceMapLock")
     private final Map<UserHandle, AppSearchUserInstance> mInstancesLocked = new ArrayMap<>();
 
     @GuardedBy("mStorageInfoLocked")
@@ -107,13 +113,16 @@ public final class AppSearchUserInstanceManager {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
 
-        synchronized (mInstancesLocked) {
+        mInstanceMapLock.lock();
+        try {
             AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
             if (instance == null) {
                 instance = createUserInstance(userContext, userHandle, config);
                 mInstancesLocked.put(userHandle, instance);
             }
             return instance;
+        } finally {
+            mInstanceMapLock.unlock();
         }
     }
 
@@ -122,18 +131,45 @@ public final class AppSearchUserInstanceManager {
      *
      * <p>All mutations applied to the underlying {@link AppSearchImpl} will be persisted to disk.
      *
-     * @param userHandle The multi-user user handle of the user that need to be removed.
+     * @param userHandle The multi-user user handle of the user that needs to be removed.
      */
     public void closeAndRemoveUserInstance(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
-        synchronized (mInstancesLocked) {
-            AppSearchUserInstance instance = mInstancesLocked.remove(userHandle);
-            if (instance != null) {
-                instance.getAppSearchImpl().close();
-            }
+        AppSearchUserInstance instance;
+        mInstanceMapLock.lock();
+        try {
+            instance = mInstancesLocked.remove(userHandle);
+        } finally {
+            mInstanceMapLock.unlock();
+        }
+        if (instance != null) {
+            instance.getAppSearchImpl().close();
         }
         synchronized (mStorageInfoLocked) {
             mStorageInfoLocked.remove(userHandle);
+        }
+    }
+
+    /**
+     * Removes the user data for the given {@link AppSearchUserInstance} user. This is handled
+     * automatically by the system unless isolated storage is used.
+     *
+     * @param userHandle The multi-user user handle of the user that needs to be removed.
+     * @param userContext Context for the user instance being removed.
+     */
+    public void removeUserData(
+            @NonNull UserHandle userHandle,
+            @NonNull Context userContext,
+            @NonNull ServiceAppSearchConfig config) {
+        Objects.requireNonNull(userHandle);
+        Objects.requireNonNull(userContext);
+        Objects.requireNonNull(config);
+
+        // Remove the icing user instance in IsolatedStorageService
+        if (IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
+            synchronized (mIsolatedStorageServiceManagerLocked) {
+                mIsolatedStorageServiceManagerLocked.get().removeUserInstance(userHandle);
+            }
         }
     }
 
@@ -151,7 +187,8 @@ public final class AppSearchUserInstanceManager {
     @NonNull
     public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
-        synchronized (mInstancesLocked) {
+        mInstanceMapLock.lock();
+        try {
             AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
             if (instance == null) {
                 // Impossible scenario, user cannot call an uninitialized SearchSession,
@@ -161,6 +198,8 @@ public final class AppSearchUserInstanceManager {
                         "AppSearchUserInstance has never been created for: " + userHandle);
             }
             return instance;
+        } finally {
+            mInstanceMapLock.unlock();
         }
     }
 
@@ -168,14 +207,25 @@ public final class AppSearchUserInstanceManager {
      * Returns the initialized {@link AppSearchUserInstance} for the given user, or {@code null} if
      * no such instance exists.
      *
+     * This method will NOT block on creation of {@link AppSearchUserInstance} and will instead
+     * return null;
+     *
      * @param userHandle The multi-user handle of the device user calling AppSearch
      */
     @Nullable
     public AppSearchUserInstance getUserInstanceOrNull(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
-        synchronized (mInstancesLocked) {
-            return mInstancesLocked.get(userHandle);
+        AppSearchUserInstance instance = null;
+        // mInstanceMapLock being held is unlikely unless we're creating a UserInstance. If we're
+        // in the midst of UserInstance creation, we should avoid blocking and simply return null.
+        if (mInstanceMapLock.tryLock()) {
+            try {
+                instance = mInstancesLocked.get(userHandle);
+            } finally {
+                mInstanceMapLock.unlock();
+            }
         }
+        return instance;
     }
 
     /**
@@ -210,8 +260,11 @@ public final class AppSearchUserInstanceManager {
      */
     @NonNull
     public List<UserHandle> getAllUserHandles() {
-        synchronized (mInstancesLocked) {
+        mInstanceMapLock.lock();
+        try {
             return new ArrayList<>(mInstancesLocked.keySet());
+        } finally {
+            mInstanceMapLock.unlock();
         }
     }
 
@@ -246,26 +299,35 @@ public final class AppSearchUserInstanceManager {
             frameworkRevocableFileDescriptorStore =
                     new FrameworkRevocableFileDescriptorStore(userContext, config);
         }
-        AppSearchImpl appSearchImpl =
-                AppSearchImpl.create(
-                        icingDir,
-                        config,
-                        initStatsBuilder,
-                        visibilityCheckerImpl,
-                        frameworkRevocableFileDescriptorStore,
-                        maybeGetIsolatedIcingSearchEngine(userContext, userHandle, config),
-                        new ServiceOptimizeStrategy(config));
+        @AppSearchResult.ResultCode int statusCode = RESULT_OK;
+        try {
+            AppSearchImpl appSearchImpl =
+                    AppSearchImpl.create(
+                            icingDir,
+                            config,
+                            initStatsBuilder,
+                            visibilityCheckerImpl,
+                            frameworkRevocableFileDescriptorStore,
+                            maybeGetIsolatedIcingSearchEngine(userContext, userHandle, config),
+                            new ServiceOptimizeStrategy(config));
 
-        // Update storage info file
-        UserStorageInfo userStorageInfo =
-                getOrCreateUserStorageInfoInstance(userContext, userHandle);
-        userStorageInfo.updateStorageInfoFile(appSearchImpl);
+            // Update storage info file
+            UserStorageInfo userStorageInfo =
+                    getOrCreateUserStorageInfoInstance(userContext, userHandle);
+            userStorageInfo.updateStorageInfoFile(appSearchImpl);
 
-        initStatsBuilder.setTotalLatencyMillis(
-                (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis));
-        logger.logStats(initStatsBuilder.build());
-
-        return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);
+            return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);
+        } catch (AppSearchException e) {
+            AppSearchResult<Void> failedResult = throwableToFailedResult(e);
+            statusCode = failedResult.getResultCode();
+            throw e;
+        } finally {
+            initStatsBuilder
+                    .setTotalLatencyMillis(
+                            (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis))
+                    .setStatusCode(statusCode);
+            logger.logStats(initStatsBuilder.build());
+        }
     }
 
     /**
@@ -295,7 +357,6 @@ public final class AppSearchUserInstanceManager {
             if (mIsolatedStorageServiceManagerLocked.get() == null) {
                 mIsolatedStorageServiceManagerLocked.set(
                         new IsolatedStorageServiceManager(userContext, config));
-                mIsolatedStorageServiceManagerLocked.get().startIsolatedStorageService();
             }
             icingInstance =
                     mIsolatedStorageServiceManagerLocked.get().getIcingInstance(userHandle, config);

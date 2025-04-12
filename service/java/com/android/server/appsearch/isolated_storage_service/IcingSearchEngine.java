@@ -719,6 +719,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 status -> ResetResultProto.newBuilder().setStatus(status).build());
     }
 
+    @NonNull
+    @Override
+    public ResetResultProto clearAndDestroy() {
+        byte[] resultData;
+        try {
+            resultData = mEngine.clearAndDestroy();
+        } catch (RemoteException e) {
+            return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                ResetResultProto.getDefaultInstance(),
+                status -> ResetResultProto.newBuilder().setStatus(status).build());
+    }
+
     private static @NonNull <M extends MessageLite> M getResponseProtoFromRawData(
             @Nullable byte[] result,
             @NonNull M defaultInstance,

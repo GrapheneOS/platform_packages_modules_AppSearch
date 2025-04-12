@@ -61,7 +61,7 @@ import java.util.Objects;
  *
  * @hide
  */
-public final class PlatformLogger implements InternalAppSearchLogger {
+public class PlatformLogger implements InternalAppSearchLogger {
     private static final String TAG = "AppSearchPlatformLogger";
 
     // Context of the user we're logging for.
@@ -106,6 +106,7 @@ public final class PlatformLogger implements InternalAppSearchLogger {
      */
     @GuardedBy("mLock")
     private ArrayDeque<ApiCallRecord> mLastNCalls = new ArrayDeque<>();
+
 
     /** Helper class to hold platform specific stats for statsd. */
     static final class ExtraStats {

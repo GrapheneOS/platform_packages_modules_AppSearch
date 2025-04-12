@@ -31,6 +31,7 @@ import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallback
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
@@ -49,12 +50,14 @@ import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.OpenBlobForReadResponse;
 import android.app.appsearch.OpenBlobForWriteResponse;
 import android.app.appsearch.RemoveBlobResponse;
+import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResultPage;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SearchSuggestionResult;
 import android.app.appsearch.SetSchemaResponse;
 import android.app.appsearch.SetSchemaResponse.MigrationFailure;
 import android.app.appsearch.StorageInfo;
+import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.app.appsearch.aidl.AppSearchBatchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcelV2;
@@ -105,6 +108,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -125,6 +129,7 @@ import com.android.server.appsearch.external.localstorage.usagereporting.SearchS
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore;
 import com.android.server.appsearch.observer.AppSearchObserverProxy;
+import com.android.server.appsearch.stats.PlatformLogger;
 import com.android.server.appsearch.stats.StatsCollector;
 import com.android.server.appsearch.transformer.EnterpriseSearchResultPageTransformer;
 import com.android.server.appsearch.transformer.EnterpriseSearchSpecTransformer;
@@ -267,11 +272,7 @@ public class AppSearchManagerService extends SystemService {
                             "Extra " + Intent.EXTRA_USER + " is missing in the intent: " + intent);
                     return;
                 }
-                // We can handle user removal the same way as user stopping: shut down the executor
-                // and close icing. The data of AppSearch is saved in the "credential encrypted"
-                // system directory of each user. That directory will be auto-deleted when a user is
-                // removed, so we don't need it handle it specially.
-                onUserStopping(userHandle);
+                onUserRemoved(userHandle);
             } else {
                 Log.e(TAG, "Received unknown intent: " + intent);
             }
@@ -433,6 +434,33 @@ public class AppSearchManagerService extends SystemService {
         } catch (InterruptedException | RuntimeException e) {
             Log.e(TAG, "Unable to remove data for: " + userHandle, e);
             ExceptionUtil.handleException(e);
+        }
+    }
+
+    // When a user is removed, two INTENTS are received: one for userStopped and one for
+    // userRemoved. When onUserStopped is called, the AppSearch instance is destroyed and
+    // marked as "closed". However, during destruction we do not know if onUserStopped was
+    // called because a user paused their profile or the profile is being removed. Thus we
+    // cannot remove user data in onUserStopped. Create a specific onUserRemoved function
+    // to ensure the user data is properly destroyed when a user profile is removed.
+    private void onUserRemoved(@NonNull UserHandle userHandle) {
+        Objects.requireNonNull(userHandle);
+        if (LogUtil.INFO) {
+            Log.i(TAG, "Removing AppSearch user and associated data for user " + userHandle);
+        }
+        // We can handle user removal the same way as user stopping: shut down the executor
+        // and close icing. The data of AppSearch is saved in the "credential encrypted"
+        // system directory of each user. That directory will be auto-deleted when a user is
+        // removed, so we don't need it handle it specially.
+        //
+        // When isolated storage is enabled, we must explicitly delete the data in the AppSearch
+        // user instance.
+        onUserStopping(userHandle);
+        Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
+        try {
+            mAppSearchUserInstanceManager.removeUserData(userHandle, userContext, mAppSearchConfig);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Unable to remove user data: " + userHandle, e);
         }
     }
 
@@ -3102,6 +3130,7 @@ public class AppSearchManagerService extends SystemService {
             if (args != null) {
                 for (int i = 0; i < args.length; i++) {
                     String arg = args[i];
+
                     if (Objects.equals(arg, "-h")) {
                         pw.println(
                                 "Dumps the internal state of AppSearch platform storage and "
@@ -3112,6 +3141,36 @@ public class AppSearchManagerService extends SystemService {
                         // "-a" is included when adb dumps all services e.g. in adb bugreport so we
                         // want to run in verbose mode when this happens
                         verbose = true;
+                    } else if (arg.startsWith("--query")) {
+                        if (Binder.getCallingUid() != Process.ROOT_UID) {
+                            pw.println("Query requires root.");
+                            return;
+                        }
+                        if (!"eng".equals(Build.TYPE) && !"userdebug".equals(Build.TYPE)) {
+                            pw.println("Query requires eng or userdebug build.");
+                            return;
+                        }
+
+                        String query = arg.substring("--query".length(), arg.length());
+                        if (query.startsWith("=")) {
+                            query = query.substring(1, query.length());
+                        }
+                        if (query.startsWith("\"") && query.endsWith("\"") && query.length() > 1) {
+                            query = query.substring(1, query.length() - 1);
+                        }
+
+                        for (int j = i + 1; j < args.length; j++) {
+                            if (query.length() > 0) query += " ";
+                            query += args[j];
+                        }
+
+                        pw.println("Dump with query: \"" + query + "\"");
+                        runCommandLineQuery(pw, query);
+                        return;
+                    } else {
+                        pw.println(String.format("AppSearch unrecognized arg: \"%s\".", arg));
+                        // TODO: we do not return here, though it's probably okay, it
+                        // may require more testing.
                     }
                 }
             }
@@ -3119,6 +3178,78 @@ public class AppSearchManagerService extends SystemService {
             dumpContactsIndexer(pw, verbose);
             dumpAppsIndexer(pw);
             dumpAppOpenEventIndexer(pw);
+        }
+    }
+
+    @BinderThread
+    @SuppressLint("WrongThread")
+    private void runCommandLineQuery(@NonNull PrintWriter pw, @NonNull String query) {
+        Objects.requireNonNull(pw);
+        UserHandle currentUser = UserHandle.getUserHandleForUid(Binder.getCallingUid());
+        try {
+            AppSearchUserInstance instance =
+                    mAppSearchUserInstanceManager.getUserInstance(currentUser);
+            SearchSpec querySearchSpec =
+                    new SearchSpec.Builder()
+                            .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
+                            .setResultCountPerPage(25)
+                            .build();
+            List<SearchStats> statsList = new ArrayList<>();
+            PlatformLogger logger =
+                    new PlatformLogger(mContext, mAppSearchConfig) {
+                        @Override
+                        public void logStats(@NonNull SearchStats stats) {
+                            statsList.add(stats);
+                        }
+                    };
+            SearchResultPage searchResultPage =
+                    instance.getAppSearchImpl()
+                            .globalQuery(
+                                    query,
+                                    querySearchSpec,
+                                    new FrameworkCallerAccess(
+                                            new AppSearchAttributionSource(
+                                                    mContext.getPackageName(),
+                                                    Process.myUid(),
+                                                    Process.myPid()),
+                                            /* callerHasSystemAccess= */ true,
+                                            /* sForEnterprise= */ false),
+                                    logger);
+            while (!searchResultPage.getResults().isEmpty()) {
+                printResultPage(pw, searchResultPage);
+                SearchStats.Builder statsBuilder =
+                        new SearchStats.Builder(VISIBILITY_SCOPE_GLOBAL, mContext.getPackageName());
+                searchResultPage =
+                        instance.getAppSearchImpl()
+                                .getNextPage(
+                                        mContext.getPackageName(),
+                                        searchResultPage.getNextPageToken(),
+                                        statsBuilder);
+                statsList.add(statsBuilder.build());
+            }
+            printStats(pw, statsList);
+        } catch (Exception e) {
+            Log.e(TAG, "Encountered exception ", e);
+        }
+    }
+
+    private void printResultPage(PrintWriter pw, SearchResultPage page) {
+        pw.println("Printing result page: ");
+        for (SearchResult result : page.getResults()) {
+            pw.println(
+                    String.format(
+                            "Result={pkg=%s, db=%s, ns=%s, id=%s}",
+                            result.getPackageName(),
+                            result.getDatabaseName(),
+                            result.getGenericDocument().getNamespace(),
+                            result.getGenericDocument().getId()));
+        }
+    }
+
+    private void printStats(PrintWriter pw, List<SearchStats> stats) {
+        pw.println("Printing search stats: ");
+        for (SearchStats s : stats) {
+            pw.println(s);
         }
     }
 

@@ -80,6 +80,8 @@ public class IsolatedStorageService extends Service {
     private final CompletableFuture<Void> mPayloadReadyFuture = new CompletableFuture<>();
 
     private volatile VirtualMachine mVm;
+    private volatile com.android.isolated_storage_service.IIsolatedStorageService
+            mVmIsolatedStorageService;
 
     @Override
     public void onCreate() {
@@ -90,6 +92,17 @@ public class IsolatedStorageService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "onStartCommand. flags = " + flags + ", startId = " + startId);
         return START_STICKY;
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        if (mVmIsolatedStorageService != null) {
+            try {
+                mVmIsolatedStorageService.trimMemory();
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to trim memory", e);
+            }
+        }
     }
 
     private void tryStartVm(ServiceConfig config)
@@ -191,6 +204,16 @@ public class IsolatedStorageService extends Service {
         @Override
         public void onPayloadReady(VirtualMachine vm) {
             Log.i(TAG, "Payload ready");
+            try {
+                mVmIsolatedStorageService =
+                        com.android.isolated_storage_service.IIsolatedStorageService.Stub
+                                .asInterface(
+                                        vm.connectToVsockServer(
+                                                com.android.isolated_storage_service
+                                                        .IIsolatedStorageService.PORT));
+            } catch (VirtualMachineException e) {
+                Log.e(TAG, "Failed to connect to " + VM_NAME, e);
+            }
             mFuture.complete(null);
             VMPayloadStats stats = new VMPayloadStats.Builder(CALLBACK_TYPE_READY).build();
             mLogger.logStats(stats);

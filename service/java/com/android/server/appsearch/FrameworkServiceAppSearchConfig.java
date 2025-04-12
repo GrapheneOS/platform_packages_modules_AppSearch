@@ -24,7 +24,6 @@ import android.os.Bundle;
 import android.provider.DeviceConfig;
 import android.provider.DeviceConfig.OnPropertiesChangedListener;
 
-import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.IcingOptionsConfig;
@@ -129,6 +128,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     public static final String KEY_ISOLATED_STORAGE_ENABLED = "isolated_storage_enabled";
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
+    public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -183,7 +183,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_LIGHTWEIGHT_PERSIST_TYPE,
         // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
         KEY_ISOLATED_STORAGE_ENABLED,
-        KEY_COMPRESSION_THRESHOLD_BYTES
+        KEY_COMPRESSION_THRESHOLD_BYTES,
+        KEY_COMPRESSION_MEM_LEVEL
     };
 
     // Lock needed for all the operations in this class.
@@ -745,6 +746,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         }
     }
 
+    @Override
+    public int getCompressionMemLevel() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(KEY_COMPRESSION_MEM_LEVEL, defaultCompressionMemLevel());
+        }
+    }
+
     @GuardedBy("mLock")
     private void throwIfClosedLocked() {
         if (mIsClosedLocked) {
@@ -1065,6 +1074,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 synchronized (mLock) {
                     mBundleLocked.putInt(
                             key, properties.getInt(key, DEFAULT_COMPRESSION_THRESHOLD_BYTES));
+                }
+                break;
+            case KEY_COMPRESSION_MEM_LEVEL:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(key, properties.getInt(key, defaultCompressionMemLevel()));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:

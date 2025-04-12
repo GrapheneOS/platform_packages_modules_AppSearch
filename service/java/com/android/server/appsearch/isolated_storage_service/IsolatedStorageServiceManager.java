@@ -44,6 +44,8 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.ResetResultProto;
+import com.google.android.icing.proto.StatusProto;
 
 import java.util.List;
 import java.util.Map;
@@ -62,14 +64,14 @@ public final class IsolatedStorageServiceManager {
 
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
-    public static final long DEFAULT_MEMORY_BYTES = 1_000_000_000;
+    public static final long DEFAULT_MEMORY_BYTES = 512_000_000;
     // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
-    private static final int FUTURE_WAIT_TIMEOUT_SECONDS = 5;
+    private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
     private static final int MAX_VM_START_RETRIES = 3;
 
@@ -125,13 +127,39 @@ public final class IsolatedStorageServiceManager {
                 && ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0);
     }
 
-    /** Starts the isolated storage service if not already. */
+    /** Removes the icing instance for the corresponding userHandle */
+    public void removeUserInstance(UserHandle userHandle) {
+        synchronized (mIcingInstancesLocked) {
+            IcingSearchEngineInterface instance = mIcingInstancesLocked.remove(userHandle);
+            if (instance != null) {
+                // Delete the corresponding user data in isolated storage
+                ResetResultProto result = instance.clearAndDestroy();
+                if (result.getStatus().getCode() != StatusProto.Code.OK) {
+                    Log.i(
+                            TAG,
+                            "Error while deleting isolated storage data for user: " + userHandle);
+                }
+                try {
+                    // Remove the Icing connection from the VM Isolated Storage Service
+                    mVmIsolatedStorageService.removeIcingConnection(userHandle.getIdentifier());
+                } catch (RemoteException e) {
+                    Log.e(
+                            TAG,
+                            "Unable to remove Isolated Icing connection for user: " + userHandle,
+                            e);
+                }
+            }
+        }
+    }
+
+    /** Binds to the isolated storage service if not already. */
     @WorkerThread
-    public void startIsolatedStorageService() throws AppSearchException {
+    private void bindIsolatedStorageService() throws AppSearchException {
         if (mIsolatedStorageService != null) {
-            Log.i(TAG, "Isolated storage service already started");
+            Log.i(TAG, "Isolated storage service already bound");
             return;
         }
+        Log.i(TAG, "Binding to " + ISOLATED_STORAGE_SERVICE);
 
         String packageName = maybeGetPackageName(mContext);
         if (packageName == null) {
@@ -148,16 +176,27 @@ public final class IsolatedStorageServiceManager {
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
                 UserHandle.SYSTEM);
         try {
-            future.get(FUTURE_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            future.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
             throw new AppSearchException(
                     RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
         }
         if (mIsolatedStorageService == null) {
+            Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
             throw new AppSearchException(
                     RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
         }
+    }
+
+    /** Connects to the VM isolated storage service if not already. */
+    @WorkerThread
+    private void connectToVmIsolatedStorageService() throws AppSearchException {
+        if (mVmIsolatedStorageService != null) {
+            Log.i(TAG, "VM already connected");
+            return;
+        }
+        Log.i(TAG, "Connecting to vm");
         waitForVmPayloadReady();
         try {
             IBinder iBinder =
@@ -260,16 +299,20 @@ public final class IsolatedStorageServiceManager {
     /** Gets isolated storage backed icing instance for user. */
     @WorkerThread
     public @Nullable IcingSearchEngineInterface getIcingInstance(
-            @NonNull UserHandle userHandle, @NonNull ServiceAppSearchConfig config) {
+            @NonNull UserHandle userHandle, @NonNull ServiceAppSearchConfig config)
+            throws AppSearchException {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
 
-        if (mIsolatedStorageService == null) {
-            return null;
-        }
-
         IcingSearchEngineInterface instance;
         synchronized (mIcingInstancesLocked) {
+            if (mIsolatedStorageService == null) {
+                bindIsolatedStorageService();
+            }
+            if (mVmIsolatedStorageService == null) {
+                connectToVmIsolatedStorageService();
+            }
+
             instance = mIcingInstancesLocked.get(userHandle);
             if (instance == null) {
                 Log.i(TAG, "getting isolated icing instance for user " + userHandle);

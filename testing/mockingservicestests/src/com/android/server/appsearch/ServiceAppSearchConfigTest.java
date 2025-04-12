@@ -19,6 +19,7 @@ package com.android.server.appsearch;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_BYTES_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_COMPRESSION_MEM_LEVEL;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DENYLIST;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DOC_COUNT_OPTIMIZE_THRESHOLD;
@@ -80,6 +81,7 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_L
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_SAMPLING_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_TIME_OPTIMIZE_THRESHOLD_MILLIS;
+import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_COMPRESSION_MEM_LEVEL;
 import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH;
 import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS;
 import static com.android.server.appsearch.external.localstorage.IcingOptionsConfig.DEFAULT_USE_NEW_QUALIFIED_ID_JOIN_INDEX;
@@ -120,6 +122,19 @@ public class ServiceAppSearchConfigTest {
         //  Flags.enable_four_hour_min_optimize_threshold is true
         assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
                 .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+    }
+
+    @Test
+    public void testDefaultValues_compressionMemLevel() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+
+        if (Flags.enableCompressionMemLevelOne()) {
+            assertThat(appSearchConfig.getCompressionMemLevel()).isEqualTo(1);
+        } else {
+            assertThat(appSearchConfig.getCompressionMemLevel())
+                    .isEqualTo(DEFAULT_COMPRESSION_MEM_LEVEL);
+        }
     }
 
     @Test
@@ -798,6 +813,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_ICING_LITE_INDEX_SORT_SIZE, Integer.toString(1003), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1004), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_COMPRESSION_MEM_LEVEL, Integer.toString(3), false);
 
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
@@ -829,6 +846,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_ICING_LITE_INDEX_SORT_SIZE, Integer.toString(1004), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1005), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_COMPRESSION_MEM_LEVEL, Integer.toString(4), false);
 
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(25);
         assertThat(appSearchConfig.getIndexMergeSize()).isEqualTo(2000);
@@ -843,6 +862,7 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getLiteIndexSortAtIndexing()).isEqualTo(false);
         assertThat(appSearchConfig.getLiteIndexSortSize()).isEqualTo(1004);
         assertThat(appSearchConfig.getCompressionThresholdBytes()).isEqualTo(1005);
+        assertThat(appSearchConfig.getCompressionMemLevel()).isEqualTo(4);
     }
 
     @Test
@@ -1191,5 +1211,9 @@ public class ServiceAppSearchConfigTest {
                 "Trying to use a closed AppSearchConfig instance.",
                 IllegalStateException.class,
                 () -> appSearchConfig.getCompressionThresholdBytes());
+        Assert.assertThrows(
+                "Trying to use a closed AppSearchConfig instance.",
+                IllegalStateException.class,
+                () -> appSearchConfig.getCompressionMemLevel());
     }
 }
