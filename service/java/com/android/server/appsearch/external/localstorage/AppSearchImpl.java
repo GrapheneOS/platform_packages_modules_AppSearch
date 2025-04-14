@@ -2030,11 +2030,16 @@ public final class AppSearchImpl implements Closeable {
                         // Not passing cause in AppSearchException as that violates privacy
                         // guarantees as user could differentiate between document not existing
                         // and not having access.
-                        resultBuilder.setResult(id,
-                                new AppSearchException(AppSearchResult.RESULT_NOT_FOUND,
-                                        "Document (" +
-                                                request.getNamespace() + ", " + id
-                                                + ") not found.").toAppSearchResult());
+                        resultBuilder.setResult(
+                                id,
+                                new AppSearchException(
+                                                AppSearchResult.RESULT_NOT_FOUND,
+                                                "Document ("
+                                                        + request.getNamespace()
+                                                        + ", "
+                                                        + id
+                                                        + ") not found.")
+                                        .toAppSearchResult());
                     } else {
                         resultBuilder.setResult(id, throwableToFailedResult(t));
                     }
