@@ -22,6 +22,7 @@ import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_ST
 import static com.android.server.appsearch.stats.VMPayloadStats.CALLBACK_TYPE_STOP;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Binder;
@@ -61,13 +62,7 @@ public class IsolatedStorageService extends Service {
 
     private static final String TAG = "IsolatedStorageService";
 
-    // Name during original testing, before APEX was added. Since old storage
-    // is associated with this, if using this VM, we would get the following
-    // error on the test devices with the old DICE keychain:
-    // - microdroid_manager: microdroid_manager: Failed with Failed to create VM secrets
-    // - Secretkeeper get failed: DicePolicyError.
-    private static final String VM_OLD_NAME = "isolated_storage_service_vm";
-    private static final String VM_NAME = "isolated_storage_service2_vm";
+    private static final String VM_NAME = "isolated_storage_service_vm";
     private static final String PAYLOAD_BINARY_NAME = "libicing_anywhere.so";
 
     private static final String SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD = "ro.debuggable";
@@ -140,7 +135,8 @@ public class IsolatedStorageService extends Service {
      * VM and return it. Return {@code null} if failed to get or create the VM.
      */
     private @Nullable VirtualMachine maybeCreateVm(ServiceConfig config) {
-        VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
+        Context context = createDeviceProtectedStorageContext();
+        VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
             Log.e(TAG, "Unable to get VirtualMachineManager");
             return null;
@@ -159,26 +155,22 @@ public class IsolatedStorageService extends Service {
         } else {
             Log.i(TAG, "Virtual machine " + VM_NAME + " is deleted. Creating one");
         }
-        return createVm(vmm, config);
+        return createVm(context, vmm, config);
     }
 
     private @Nullable VirtualMachine createVm(
-            VirtualMachineManager vmm, ServiceConfig serviceConfig) {
-        // This is for original dogfood devices. We can delete this code
-        // any time after launch.
-        try {
-            vmm.delete(VM_OLD_NAME);
-        } catch (Exception e) {
-            Log.w(TAG, "Tried to delete old VM, resulting in: " + VM_OLD_NAME, e);
-        }
-
+            Context context, VirtualMachineManager vmm, ServiceConfig serviceConfig) {
+        // TODO(b/416335564): clean up isolated_storage_service_vm and isolated_storage_service_vm2
+        // in CE
         final int vmDebugLevel =
                 IS_DEBUG_BUILD
                         ? VirtualMachineConfig.DEBUG_LEVEL_FULL
                         : VirtualMachineConfig.DEBUG_LEVEL_NONE;
         try {
+            // TODO(b/406258175): enable delayed encrypted store setup to allow icing data to be
+            //  protected by CE
             VirtualMachineConfig config =
-                    new VirtualMachineConfig.Builder(this)
+                    new VirtualMachineConfig.Builder(context)
                             .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
                             .setProtectedVm(true)
                             .setDebugLevel(vmDebugLevel)

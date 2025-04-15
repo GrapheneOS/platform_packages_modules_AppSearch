@@ -142,7 +142,7 @@ public final class IsolatedStorageServiceManager {
      * <p>This will bind to the isolated storage service, start the VM, and connects to the VM if
      * not already.
      */
-    private void initialize() throws AppSearchException {
+    public void initialize() throws AppSearchException {
         initialize(false);
     }
 
