@@ -95,6 +95,23 @@ public class ServiceOptimizeStrategyTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldOptimize_timeThresholdWithActiveResultStates() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedTimeOptimizeThresholdMs())
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold() - 1)
+                        .setOptimizableDocs(
+                                mAppSearchConfig.getCachedDocCountOptimizeThreshold() - 1)
+                        .setNumActiveResultStates(1)
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
     public void testShouldOptimize_docCountThreshold() {
         GetOptimizeInfoResultProto optimizeInfo =
                 GetOptimizeInfoResultProto.newBuilder()
@@ -135,6 +152,38 @@ public class ServiceOptimizeStrategyTest {
                         .setEstimatedOptimizableBytes(
                                 mAppSearchConfig.getCachedBytesOptimizeThreshold())
                         .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldOptimize_noActiveResultStates() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setNumActiveResultStates(0)
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldNotOptimize_hasActiveResultStates() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setNumActiveResultStates(1)
                         .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
                         .build();
         assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
