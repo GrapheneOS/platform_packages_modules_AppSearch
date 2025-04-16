@@ -32,6 +32,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.Signature;
+import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.text.TextUtils;
@@ -44,6 +45,12 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStatic
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -331,12 +338,12 @@ public final class AppsUtil {
      *
      * @see #buildAppFunctionDocumentsIntoMap(PackageManager, Map, String, AppsIndexerConfig, Map)
      */
-    @VisibleForTesting
-    static Map<String, Map<String, ? extends AppFunctionDocument>> buildAppFunctionDocumentsIntoMap(
-            @NonNull PackageManager packageManager,
-            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-            @NonNull AppFunctionDocumentParser parser,
-            @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
+    private static Map<String, Map<String, ? extends AppFunctionDocument>>
+            buildAppFunctionDocumentsIntoMap(
+                    @NonNull PackageManager packageManager,
+                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
+                    @NonNull AppFunctionDocumentParser parser,
+                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
         Objects.requireNonNull(parser);
@@ -344,57 +351,74 @@ public final class AppsUtil {
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
             PackageInfo packageInfo = entry.getKey();
             ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
-            if (resolveInfo == null) {
-                continue;
-            }
-
-            String assetFilePath;
+            if (resolveInfo == null) continue;
             boolean isDynamicSchemaDefined =
                     schemasPerPackage != null
                             && !schemasPerPackage
                                     .getOrDefault(packageInfo.packageName, Collections.emptyMap())
                                     .isEmpty();
-
-            // Currently SDK will generate two files for hardcoded and dynamic schemas respectively
-            // so that devices running older AppSearch versions that are incompatible with new
-            // format can continue to parse app function documents while newer versions can use v2
-            // file for constructing app function documents with dynamic schema and more properties.
-            // TODO(b/386676297) - Merge these two when enough devices have changes to support
-            // dynamic schema.
-            String appFunctionXmlPropertyName =
+            // Choose appropriate property name based on schema type
+            String xmlPropertyName =
                     isDynamicSchemaDefined
                             ? "android.app.appfunctions.v2"
                             : "android.app.appfunctions";
+            PackageManager.Property xmlProperty;
             try {
-                PackageManager.Property property =
+                xmlProperty =
                         packageManager.getProperty(
-                                appFunctionXmlPropertyName,
+                                xmlPropertyName,
                                 new ComponentName(
                                         resolveInfo.serviceInfo.packageName,
                                         resolveInfo.serviceInfo.name));
-                assetFilePath = property.getString();
             } catch (PackageManager.NameNotFoundException e) {
-                Log.w(TAG, "buildAppFunctionMetadataFromPackageInfo: Failed to get property", e);
+                Log.w(TAG, "Failed to get property for: " + packageInfo.packageName, e);
                 continue;
             }
 
-            if (assetFilePath != null) {
-                if (isDynamicSchemaDefined) {
-                    appFunctions.put(
-                            packageInfo.packageName,
-                            parser.parseIntoMapForGivenSchemas(
-                                    packageManager,
-                                    packageInfo.packageName,
-                                    assetFilePath,
-                                    schemasPerPackage.get(packageInfo.packageName)));
+            if (!isDynamicSchemaDefined && xmlProperty.isString()) {
+                Map<String, ? extends AppFunctionDocument> parsedMap =
+                        parser.parseIntoMap(
+                                packageManager,
+                                packageInfo.packageName,
+                                Objects.requireNonNull(xmlProperty.getString()));
+                appFunctions.put(packageInfo.packageName, parsedMap);
+                continue;
+            }
+
+            // Parse with dynamic schema
+            try {
+                Resources resources =
+                        packageManager.getResourcesForApplication(packageInfo.packageName);
+                XmlPullParser xmlPullParser;
+
+                if (xmlProperty.isResourceId()) {
+                    xmlPullParser = resources.getXml(xmlProperty.getResourceId());
+                } else if (xmlProperty.isString()) {
+                    AssetManager assetManager = resources.getAssets();
+                    xmlPullParser = XmlPullParserFactory.newInstance().newPullParser();
+                    xmlPullParser.setInput(
+                            new InputStreamReader(
+                                    assetManager.open(
+                                            Objects.requireNonNull(xmlProperty.getString()))));
                 } else {
-                    appFunctions.put(
-                            packageInfo.packageName,
-                            parser.parseIntoMap(
-                                    packageManager, packageInfo.packageName, assetFilePath));
+                    continue;
                 }
+
+                Map<String, ? extends AppFunctionDocument> parsedMap =
+                        parser.parseIntoMapForGivenSchemas(
+                                packageManager,
+                                packageInfo.packageName,
+                                xmlPullParser,
+                                schemasPerPackage.get(packageInfo.packageName));
+                appFunctions.put(packageInfo.packageName, parsedMap);
+
+            } catch (PackageManager.NameNotFoundException
+                    | XmlPullParserException
+                    | IOException e) {
+                Log.w(TAG, "Failed to parse dynamic XML for: " + packageInfo.packageName, e);
             }
         }
+
         return appFunctions;
     }
 

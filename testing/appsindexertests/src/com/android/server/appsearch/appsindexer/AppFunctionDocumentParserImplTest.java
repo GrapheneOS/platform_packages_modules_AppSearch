@@ -25,6 +25,8 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 
+import androidx.annotation.NonNull;
+
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
@@ -33,10 +35,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -265,20 +271,21 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_singleAppFunctionWithPrimitiveProperties()
             throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -297,28 +304,36 @@ public class AppFunctionDocumentParserImplTest {
                 .isEqualTo("com.android.test.indexer$apps-db/apps#com.example.app");
     }
 
+    @NonNull
+    private static XmlPullParser getXmlPullParser(String xml) throws XmlPullParserException {
+        XmlPullParser xmlPullParser = XmlPullParserFactory.newInstance().newPullParser();
+        xmlPullParser.setInput(new InputStreamReader(new ByteArrayInputStream(xml.getBytes())));
+        return xmlPullParser;
+    }
+
     @Test
     public void parseIntoMapForGivenSchemas_multipleAppFunctions() throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print1</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print2</id>\n"
-                        + "    <functionId>com.example.utils#print2</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print1</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print2</id>\n"
+                                + "    <functionId>com.example.utils#print2</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(2);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -327,23 +342,24 @@ public class AppFunctionDocumentParserImplTest {
 
     @Test
     public void parseIntoMapForGivenSchemas_malformedXml_returnsEmptyMap() throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <functionId>com.example.utils#print2</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <functionId>com.example.utils#print2</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).isEmpty();
     }
@@ -360,32 +376,33 @@ public class AppFunctionDocumentParserImplTest {
                                 return 2;
                             }
                         });
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print1</id>\n"
-                        + "    <functionId>com.example.utils#print1</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print2</id>\n"
-                        + "    <functionId>com.example.utils#print2</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print3</id>\n"
-                        + "    <functionId>com.example.utils#print3</functionId>\n"
-                        + "    <enabledByDefault>true</enabledByDefault>\n"
-                        + "    <schemaVersion>10</schemaVersion>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print1</id>\n"
+                                + "    <functionId>com.example.utils#print1</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print2</id>\n"
+                                + "    <functionId>com.example.utils#print2</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print3</id>\n"
+                                + "    <functionId>com.example.utils#print3</functionId>\n"
+                                + "    <enabledByDefault>true</enabledByDefault>\n"
+                                + "    <schemaVersion>10</schemaVersion>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(2);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print1");
@@ -395,23 +412,24 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_singleAppFunctionWithDocumentProperties()
             throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <appFunctionParameterMetadata>\n"
-                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
-                        + "</id>\n"
-                        + "      <parameterName>test</parameterName>\n"
-                        + "    </appFunctionParameterMetadata>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <appFunctionParameterMetadata>\n"
+                                + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
+                                + "</id>\n"
+                                + "      <parameterName>test</parameterName>\n"
+                                + "    </appFunctionParameterMetadata>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -431,28 +449,29 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_singleAppFunctionWithSelfReferencingSchema()
             throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <appFunctionParameterMetadata>\n"
-                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
-                        + "</id>\n"
-                        + "      <parameterName>test</parameterName>\n"
-                        + "    <selfReference>\n"
-                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-1"
-                        + "</id>\n"
-                        + "      <parameterName>selfReferencingParam</parameterName>\n"
-                        + "    </selfReference>\n"
-                        + "    </appFunctionParameterMetadata>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <appFunctionParameterMetadata>\n"
+                                + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
+                                + "</id>\n"
+                                + "      <parameterName>test</parameterName>\n"
+                                + "    <selfReference>\n"
+                                + "      <id>com.example.utils#print/appFunctionParameterMetadata-1"
+                                + "</id>\n"
+                                + "      <parameterName>selfReferencingParam</parameterName>\n"
+                                + "    </selfReference>\n"
+                                + "    </appFunctionParameterMetadata>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -475,22 +494,23 @@ public class AppFunctionDocumentParserImplTest {
 
     @Test
     public void parseIntoMapForGivenSchemas_multipleTypesOfRootDocuments() throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "  <AppFunctionParameterMetadata>\n"
-                        + "    <id>com.example.utils#printParameterMetadata</id>\n"
-                        + "    <parameterName>message</parameterName>\n"
-                        + "  </AppFunctionParameterMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "  <AppFunctionParameterMetadata>\n"
+                                + "    <id>com.example.utils#printParameterMetadata</id>\n"
+                                + "    <parameterName>message</parameterName>\n"
+                                + "  </AppFunctionParameterMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(2);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -510,21 +530,22 @@ public class AppFunctionDocumentParserImplTest {
     public void
             parseIntoMapForGivenSchemas_singleFunctionWithDocumentProperties_missingIdInNestedDoc()
                     throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <appFunctionParameterMetadata>\n"
-                        + "      <parameterName>test</parameterName>\n"
-                        + "    </appFunctionParameterMetadata>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <appFunctionParameterMetadata>\n"
+                                + "      <parameterName>test</parameterName>\n"
+                                + "    </appFunctionParameterMetadata>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).isEmpty();
     }
@@ -532,29 +553,30 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_singleAppFunctionWithRepeatedProperties()
             throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <appFunctionParameterMetadata>\n"
-                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
-                        + "</id>\n"
-                        + "      <parameterName>test1</parameterName>\n"
-                        + "      <parameterName>test2</parameterName>\n"
-                        + "    </appFunctionParameterMetadata>\n"
-                        + "    <appFunctionParameterMetadata>\n"
-                        + "      <id>com.example.utils#print/appFunctionParameterMetadata-1"
-                        + "</id>\n"
-                        + "      <parameterName>test3</parameterName>\n"
-                        + "    </appFunctionParameterMetadata>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <appFunctionParameterMetadata>\n"
+                                + "      <id>com.example.utils#print/appFunctionParameterMetadata-0"
+                                + "</id>\n"
+                                + "      <parameterName>test1</parameterName>\n"
+                                + "      <parameterName>test2</parameterName>\n"
+                                + "    </appFunctionParameterMetadata>\n"
+                                + "    <appFunctionParameterMetadata>\n"
+                                + "      <id>com.example.utils#print/appFunctionParameterMetadata-1"
+                                + "</id>\n"
+                                + "      <parameterName>test3</parameterName>\n"
+                                + "    </appFunctionParameterMetadata>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -577,20 +599,21 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_validXmlWithUnderscores_worksWithDynamicSchemas()
             throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <appfunction>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <function__id>com.example.utils#print</function__id>\n"
-                        + "    <enabled_by_default>true</enabled_by_default>\n"
-                        + "    <scHema_veRsion>10</scHema_veRsion>\n"
-                        + "  </appfunction>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <appfunction>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <function__id>com.example.utils#print</function__id>\n"
+                                + "    <enabled_by_default>true</enabled_by_default>\n"
+                                + "    <scHema_veRsion>10</scHema_veRsion>\n"
+                                + "  </appfunction>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -609,20 +632,21 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_xmlTagWithStartingOrOnlyUnderscores_propertiesIgnored()
             throws Exception {
-        setXmlInput(
-                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                        + "<appfunctions>\n"
-                        + "  <AppFunctionStaticMetadata>\n"
-                        + "    <id>com.example.utils#print</id>\n"
-                        + "    <functionId>com.example.utils#print</functionId>\n"
-                        + "    <___>test</___>\n"
-                        + "    <_schema_version_>test</_schema_version_>\n"
-                        + "  </AppFunctionStaticMetadata>\n"
-                        + "</appfunctions>");
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <___>test</___>\n"
+                                + "    <_schema_version_>test</_schema_version_>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");

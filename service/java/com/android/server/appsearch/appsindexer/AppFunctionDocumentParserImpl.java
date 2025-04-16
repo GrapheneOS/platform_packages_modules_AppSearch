@@ -283,27 +283,19 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
     public Map<String, AppFunctionDocument> parseIntoMapForGivenSchemas(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
-            @NonNull String assetFilePath,
+            @NonNull XmlPullParser xmlPullParser,
             @NonNull Map<String, AppSearchSchema> schemas) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageName);
-        Objects.requireNonNull(assetFilePath);
+        Objects.requireNonNull(xmlPullParser);
         Objects.requireNonNull(schemas);
 
         try {
-            return parseAppFunctionsIntoMapForGivenSchemas(
-                    initializeParser(packageManager, packageName, assetFilePath),
-                    packageName,
-                    schemas);
+            return parseAppFunctionsIntoMapForGivenSchemas(xmlPullParser, packageName, schemas);
         } catch (Exception ex) {
             // The code parses an XML file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
-            Log.e(
-                    TAG,
-                    String.format(
-                            "Failed to parse XML from package '%s', asset file '%s'",
-                            packageName, assetFilePath),
-                    ex);
+            Log.e(TAG, String.format("Failed to parse XML from package '%s'", packageName), ex);
         }
         return Collections.emptyMap();
     }
