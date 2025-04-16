@@ -522,3 +522,13 @@ flag {
     description: "Enables using a compression mem-level of 1."
     bug: "405420968"
 }
+
+flag {
+    name: "enable_new_optimize_strategy_for_active_result_states"
+    namespace: "appsearch"
+    description: "Enables new optimize strategy for active result states."
+    bug: "409070736"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
