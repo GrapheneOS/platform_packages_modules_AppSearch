@@ -224,7 +224,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /** Returns whether or not AppSearch should use Isolated Storage */
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     default boolean getIsolatedStorageEnabled() {
         return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED;
     }

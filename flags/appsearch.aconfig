@@ -522,3 +522,20 @@ flag {
     description: "Enables using a compression mem-level of 1."
     bug: "405420968"
 }
+
+flag {
+    name: "enable_new_optimize_strategy_for_active_result_states"
+    namespace: "appsearch"
+    description: "Enables new optimize strategy for active result states."
+    bug: "409070736"
+}
+
+flag {
+    name: "enable_storage_info_cache"
+    namespace: "appsearch"
+    description: "Enables the StorageInfo cache in AppSearchImpl."
+    bug: "395156359"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

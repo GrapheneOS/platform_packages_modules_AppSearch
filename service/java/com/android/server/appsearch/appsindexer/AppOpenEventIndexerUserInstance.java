@@ -27,13 +27,17 @@ import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.AppSearchComponentFactory;
+import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.util.ExecutorManager;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -173,24 +177,32 @@ public final class AppOpenEventIndexerUserInstance {
 
     /** Schedule an update on single threaded executor. */
     public void updateAsync() {
-        executeOnSingleThreadedExecutor(
-                () -> {
-                    doUpdate();
-                    schedulePeriodicUpdate();
-                });
+        updateAsync(() -> {});
     }
 
     /**
-     * Schedule an update on a single-threaded executor.
+     * Schedule an update on a single-threaded executor. Mainly to be used for testing, where the
+     * callback is used to wait for the update to complete.
      *
      * @param callback A callback to be invoked after the update is complete.
      */
     void updateAsync(@NonNull Runnable callback) {
+        AppOpenEventStats.Builder appOpenEventStatsBuilder = new AppOpenEventStats.Builder();
+        appOpenEventStatsBuilder.setUpdateStartTimestampMillis(System.currentTimeMillis());
+        long startTimeMillis = System.currentTimeMillis();
         executeOnSingleThreadedExecutor(
                 () -> {
                     try {
-                        doUpdate();
+                        doUpdate(appOpenEventStatsBuilder);
                         schedulePeriodicUpdate();
+                        appOpenEventStatsBuilder.setTotalLatencyMillis(
+                                System.currentTimeMillis() - startTimeMillis);
+                        InternalAppSearchLogger logger =
+                                AppSearchComponentFactory.createLoggerInstance(
+                                        mContext,
+                                        AppSearchComponentFactory.getConfigInstance(
+                                                mSingleThreadedExecutor));
+                        logger.logStats(appOpenEventStatsBuilder.build());
                     } finally {
                         callback.run();
                     }
@@ -258,8 +270,9 @@ public final class AppOpenEventIndexerUserInstance {
      * {@code MIN_TIME_BETWEEN_UPDATES_MILLIS} it will be a no-op.
      */
     @VisibleForTesting
-    void doUpdate() {
+    void doUpdate(@NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder) {
         try {
+            Objects.requireNonNull(appOpenEventStatsBuilder);
             if (Flags.enableAppOpenEventsIndexerCheckPriorAttempt()) {
                 long now = System.currentTimeMillis();
                 long lastRun = mAppOpenEventIndexerSettings.getLastAttemptedUpdateTimestampMillis();
@@ -285,7 +298,8 @@ public final class AppOpenEventIndexerUserInstance {
                 Log.w(TAG, "Skipping update because last update was too recent");
                 return;
             }
-            mAppOpenEventIndexerImpl.doUpdate(mAppOpenEventIndexerSettings);
+            mAppOpenEventIndexerImpl.doUpdate(
+                    mAppOpenEventIndexerSettings, appOpenEventStatsBuilder);
             mAppOpenEventIndexerSettings.persist();
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);

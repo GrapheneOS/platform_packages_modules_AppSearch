@@ -128,6 +128,7 @@ public class CallStats extends BaseStats {
     public static final int CALL_TYPE_GLOBAL_OPEN_READ_BLOB = 35;
     public static final int CALL_TYPE_REMOVE_BLOB = 36;
     public static final int CALL_TYPE_SET_BLOB_VISIBILITY = 37;
+    public static final int CALL_TYPE_APP_OPEN_EVENT_INDEXER = 38;
 
     // These strings are for the subset of call types that correspond to an AppSearchManager API
     private static final String CALL_TYPE_STRING_INITIALIZE = "initialize";
