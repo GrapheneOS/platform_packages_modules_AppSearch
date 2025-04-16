@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
@@ -27,6 +28,7 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.SystemClock;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -96,7 +98,8 @@ public final class AppsIndexerImpl implements Closeable {
 
         // Search AppSearch for MobileApplication objects to get a "current" list of indexed apps.
         long beforeGetTimestamp = SystemClock.elapsedRealtime();
-        Map<String, Long> appUpdatedTimestamps = mAppSearchHelper.getAppsFromAppSearch();
+        Map<String, MobileApplication> previouslyIndexedAppDetails =
+                mAppSearchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
 
         appsUpdateStats.mAppSearchGetLatencyMillis =
                 SystemClock.elapsedRealtime() - beforeGetTimestamp;
@@ -136,6 +139,8 @@ public final class AppsIndexerImpl implements Closeable {
         // First loop, determine the status of apps
         for (Map.Entry<PackageInfo, ResolveInfos> packageEntry : packagesToIndex.entrySet()) {
             PackageInfo packageInfo = packageEntry.getKey();
+            ResolveInfo appFunctionServiceResolveInfo =
+                    packageEntry.getValue().getAppFunctionServiceInfo();
             packagesToIndexIdSet.add(packageInfo.packageName);
 
             // Update the most recent timestamp as we iterate
@@ -143,14 +148,28 @@ public final class AppsIndexerImpl implements Closeable {
                 mostRecentAppUpdatedTimestampMillis = packageInfo.lastUpdateTime;
             }
 
-            Long storedAppUpdateTime = appUpdatedTimestamps.get(packageInfo.packageName);
+            long storedAppUpdateTime = -1;
 
-            if (storedAppUpdateTime == null) {
+            boolean storedIsAppFunctionServiceEnabled = false;
+
+            MobileApplication appDetails = previouslyIndexedAppDetails.get(packageInfo.packageName);
+            if (appDetails != null) {
+                storedAppUpdateTime = appDetails.getUpdatedTimestamp();
+                storedIsAppFunctionServiceEnabled = appDetails.isAppFunctionServiceEnabled();
+            }
+
+            if (storedAppUpdateTime == -1) {
                 // New app.
                 addedOrRemovedFlag = true;
                 appsUpdateStats.mNumberOfAppsAdded++;
                 packagesToBeAddedOrUpdated.put(packageInfo, packageEntry.getValue());
-            } else if (packageInfo.lastUpdateTime != storedAppUpdateTime || isFullUpdateRequired) {
+            } else if (isPackageUpdatedOrChanged(
+                            packageManager,
+                            packageInfo,
+                            storedAppUpdateTime,
+                            appFunctionServiceResolveInfo,
+                            storedIsAppFunctionServiceEnabled)
+                    || isFullUpdateRequired) {
                 // Package last update timestamp discrepancy between AppSearch and PackageManager
                 // or app indexer code was updated. Add this to the list of updated
                 // apps so we can check what functions are indexed in AppSearch
@@ -164,7 +183,7 @@ public final class AppsIndexerImpl implements Closeable {
         }
 
         // Now check for removed apps
-        for (String appPackageId : appUpdatedTimestamps.keySet()) {
+        for (String appPackageId : previouslyIndexedAppDetails.keySet()) {
             if (!packagesToIndexIdSet.contains(appPackageId)) {
                 // App was removed, remove all it's functions. This is simple because removing the
                 // schema will remove all the functions. Do not add the app to the list of schemas
@@ -329,17 +348,19 @@ public final class AppsIndexerImpl implements Closeable {
             settings.appendLog(String.format("Error updating apps indexer: %s", e));
             throw e;
         } finally {
-            Set<String> removedApps = new ArraySet<>(appUpdatedTimestamps.keySet());
+            Set<String> removedApps = new ArraySet<>(previouslyIndexedAppDetails.keySet());
             removedApps.removeAll(packagesToIndexIdSet);
 
             List<String> addedAppPackageNames = new ArrayList<>();
             List<String> updatedAppPackageNames = new ArrayList<>();
             for (Map.Entry<PackageInfo, ResolveInfos> entry :
                     packagesToBeAddedOrUpdated.entrySet()) {
-                if (!appUpdatedTimestamps.containsKey(entry.getKey().packageName)) {
+                if (!previouslyIndexedAppDetails.containsKey(entry.getKey().packageName)) {
                     addedAppPackageNames.add(entry.getKey().packageName);
                 } else if (entry.getKey().lastUpdateTime
-                        != appUpdatedTimestamps.get(entry.getKey().packageName)) {
+                        != previouslyIndexedAppDetails
+                                .get(entry.getKey().packageName)
+                                .getUpdatedTimestamp()) {
                     updatedAppPackageNames.add(entry.getKey().packageName);
                 }
             }
@@ -373,6 +394,43 @@ public final class AppsIndexerImpl implements Closeable {
                                                     functionLogLimit,
                                                     allDeletedFunctions.size()))));
         }
+    }
+
+    /**
+     * Returns true if the package update time is not equal to stored app update time or if
+     * AppFunctionService enabled state is not the same as the stored one.
+     *
+     * @param packageManager PackageManager instance.
+     * @param packageInfo Current information of the package with last update time.
+     * @param storedAppUpdateTime The update time stored for the package in appsearch.
+     * @param appFunctionServiceResolveInfo Current resolve info for the AppFunctionService in the
+     *     package.
+     * @param storedIsAppFunctionServiceEnabled Stored enabled state for the AppFunctionService in
+     *     apppsearch.
+     */
+    private static boolean isPackageUpdatedOrChanged(
+            PackageManager packageManager,
+            @NonNull PackageInfo packageInfo,
+            long storedAppUpdateTime,
+            @Nullable ResolveInfo appFunctionServiceResolveInfo,
+            boolean storedIsAppFunctionServiceEnabled) {
+        if (packageInfo.lastUpdateTime != storedAppUpdateTime) {
+            return true;
+        }
+
+        if (!Flags.enableIndexerRunOnAppFunctionComponentChange()) {
+            return false;
+        }
+
+        if (appFunctionServiceResolveInfo == null) {
+            // appFunctionServiceResolveInfo being null means the service is disabled/does not
+            // exist, hence the package status is determined by the stored state.
+            return storedIsAppFunctionServiceEnabled;
+        }
+
+        boolean isAppFunctionServiceEnabled =
+                AppsUtil.isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo);
+        return isAppFunctionServiceEnabled != storedIsAppFunctionServiceEnabled;
     }
 
     /**
