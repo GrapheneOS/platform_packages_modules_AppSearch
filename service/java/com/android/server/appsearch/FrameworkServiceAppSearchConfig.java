@@ -125,7 +125,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
     public static final String KEY_ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
     public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     public static final String KEY_ISOLATED_STORAGE_ENABLED = "isolated_storage_enabled";
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
@@ -184,7 +183,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             KEY_LIGHTWEIGHT_PERSIST_TYPE,
             KEY_ISOLATED_STORAGE_MEMORY_BYTES,
             KEY_LIGHTWEIGHT_PERSIST_TYPE,
-            // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
             KEY_ISOLATED_STORAGE_ENABLED,
             KEY_COMPRESSION_THRESHOLD_BYTES,
             KEY_USE_FIXED_EXECUTOR_SERVICE,
@@ -704,7 +702,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         }
     }
 
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     @Override
     public boolean getIsolatedStorageEnabled() {
         synchronized (mLock) {
@@ -1052,8 +1049,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                                     key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
                 }
                 break;
-                // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before
-                // launch
             case KEY_ISOLATED_STORAGE_ENABLED:
                 synchronized (mLock) {
                     mBundleLocked.putBoolean(

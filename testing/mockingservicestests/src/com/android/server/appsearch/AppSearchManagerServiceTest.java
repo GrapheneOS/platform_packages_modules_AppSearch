@@ -1467,7 +1467,6 @@ public class AppSearchManagerServiceTest {
         UserHandle testUserHandle = new UserHandle(1);
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
-        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_ENABLED,
