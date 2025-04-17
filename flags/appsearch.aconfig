@@ -528,6 +528,9 @@ flag {
     namespace: "appsearch"
     description: "Enables new optimize strategy for active result states."
     bug: "409070736"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
