@@ -285,6 +285,7 @@ class TestUtils {
         String pkgName = FAKE_PACKAGE_PREFIX + variant;
         ResolveInfo mockResolveInfo = new ResolveInfo();
         mockResolveInfo.serviceInfo = new ServiceInfo();
+        mockResolveInfo.serviceInfo.applicationInfo = new ApplicationInfo();
         mockResolveInfo.serviceInfo.packageName = pkgName;
         mockResolveInfo.serviceInfo.name = pkgName + ".FakeActivity";
 
