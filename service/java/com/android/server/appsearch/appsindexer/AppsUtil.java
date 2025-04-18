@@ -38,6 +38,7 @@ import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
@@ -161,7 +162,7 @@ public final class AppsUtil {
         Intent appFunctionServiceIntent = new Intent("android.app.appfunctions.AppFunctionService");
         Map<String, ResolveInfo> packageNameToAppFunctionServiceInfo = new ArrayMap<>();
         List<ResolveInfo> services =
-                packageManager.queryIntentServices(appFunctionServiceIntent, 0);
+                packageManager.queryIntentServices(appFunctionServiceIntent, /* flags= */ 0);
         for (int i = 0; i < services.size(); i++) {
             ResolveInfo resolveInfo = services.get(i);
             packageNameToAppFunctionServiceInfo.put(
@@ -209,10 +210,8 @@ public final class AppsUtil {
 
         List<MobileApplication> mobileApplications = new ArrayList<>();
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
-            ResolveInfo resolveInfo = entry.getValue().getLaunchActivityResolveInfo();
-
             MobileApplication mobileApplication =
-                    createMobileApplication(packageManager, entry.getKey(), resolveInfo);
+                    createMobileApplication(packageManager, entry.getKey(), entry.getValue());
             if (mobileApplication != null) {
                 mobileApplications.add(mobileApplication);
             }
@@ -465,9 +464,10 @@ public final class AppsUtil {
     private static MobileApplication createMobileApplication(
             @NonNull PackageManager packageManager,
             @NonNull PackageInfo packageInfo,
-            @Nullable ResolveInfo resolveInfo) {
+            @NonNull ResolveInfos resolveInfos) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfo);
+        Objects.requireNonNull(resolveInfos);
 
         byte[] certificate = getCertificate(packageInfo);
         if (certificate == null) {
@@ -480,15 +480,25 @@ public final class AppsUtil {
                         .setCreationTimestampMillis(packageInfo.firstInstallTime)
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
-        if (resolveInfo == null) {
+        ResolveInfo appFunctionServiceResolveInfo = resolveInfos.getAppFunctionServiceInfo();
+        if (Flags.enableIndexerRunOnAppFunctionComponentChange()
+                && appFunctionServiceResolveInfo != null) {
+            builder.setIsAppFunctionServiceEnabled(
+                    isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo));
+        }
+
+        ResolveInfo launchActivityResolveInfo = resolveInfos.getLaunchActivityResolveInfo();
+        if (launchActivityResolveInfo == null) {
             return builder.build();
         }
-        String applicationDisplayName = resolveInfo.loadLabel(packageManager).toString();
+        String applicationDisplayName =
+                launchActivityResolveInfo.loadLabel(packageManager).toString();
         if (TextUtils.isEmpty(applicationDisplayName)) {
             applicationDisplayName = packageInfo.applicationInfo.className;
         }
         builder.setDisplayName(applicationDisplayName);
-        String iconUri = getActivityIconUriString(packageManager, resolveInfo.activityInfo);
+        String iconUri =
+                getActivityIconUriString(packageManager, launchActivityResolveInfo.activityInfo);
         if (iconUri != null) {
             builder.setIconUri(iconUri);
         }
@@ -498,10 +508,31 @@ public final class AppsUtil {
             // This can be different from applicationDisplayName, and should be indexed
             builder.setAlternateNames(applicationLabel);
         }
-        if (resolveInfo.activityInfo.name != null) {
-            builder.setClassName(resolveInfo.activityInfo.name);
+        if (launchActivityResolveInfo.activityInfo.name != null) {
+            builder.setClassName(launchActivityResolveInfo.activityInfo.name);
         }
         return builder.build();
+    }
+
+    /**
+     * Returns the current enabled state of AppFunctionService component specified by
+     * appFunctionServiceResolveInfo.
+     */
+    public static boolean isAppFunctionServiceEnabled(
+            @NonNull PackageManager packageManager,
+            @NonNull ResolveInfo appFunctionServiceResolveInfo) {
+        int currentAppFunctionServiceState =
+                packageManager.getComponentEnabledSetting(
+                        new ComponentName(
+                                appFunctionServiceResolveInfo.serviceInfo.packageName,
+                                appFunctionServiceResolveInfo.serviceInfo.name));
+
+        boolean isAppFunctionServiceEnabled =
+                currentAppFunctionServiceState == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
+                        ? appFunctionServiceResolveInfo.serviceInfo.isEnabled()
+                        : currentAppFunctionServiceState
+                                == PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
+        return isAppFunctionServiceEnabled;
     }
 
     /**

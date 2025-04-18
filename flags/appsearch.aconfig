@@ -539,3 +539,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_indexer_run_on_app_function_component_change"
+    namespace: "appsearch"
+    description: "Enables running apps indexer when app function component within an app changes."
+    bug: "409611864"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
