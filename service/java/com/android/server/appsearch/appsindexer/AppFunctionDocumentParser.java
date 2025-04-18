@@ -22,6 +22,8 @@ import android.content.pm.PackageManager;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
+import org.xmlpull.v1.XmlPullParser;
+
 import java.util.List;
 import java.util.Map;
 
@@ -69,8 +71,8 @@ public interface AppFunctionDocumentParser {
             @NonNull String assetFilePath);
 
     /**
-     * Parses metadata about App Functions from the given XML asset file, using type information
-     * from the given schemas.
+     * Parses metadata about App Functions from the given XML parser, using type information from
+     * the given schemas.
      *
      * <p>Note: The following requirements must be met for successful parsing:
      *
@@ -81,8 +83,9 @@ public interface AppFunctionDocumentParser {
      * </ul>
      *
      * @param packageManager the PackageManager used to access app resources.
-     * @param packageName the package name of the app whose assets contain the XML file.
-     * @param assetFilePath the path to the XML file within the app's assets.
+     * @param packageName the package name of the app for which app functions are being indexed.
+     * @param xmlParser an {@link XmlPullParser} instance that can be used to read the app function
+     *     documents serialized as XML in the app's APK.
      * @param schemas the mapping of schema types to their corresponding {@link AppSearchSchema}
      *     objects.
      * @return a mapping of document IDs to their corresponding {@link AppFunctionDocument} objects.
@@ -93,6 +96,6 @@ public interface AppFunctionDocumentParser {
     Map<String, AppFunctionDocument> parseIntoMapForGivenSchemas(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
-            @NonNull String assetFilePath,
+            @NonNull XmlPullParser xmlParser,
             @NonNull Map<String, AppSearchSchema> schemas);
 }
