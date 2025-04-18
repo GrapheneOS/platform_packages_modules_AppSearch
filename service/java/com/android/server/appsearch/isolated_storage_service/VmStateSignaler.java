@@ -24,10 +24,18 @@ public final class VmStateSignaler {
     private final Handler mHandler;
     private final Runnable mVmStateIdleSetter;
 
+    private volatile Boolean mIsIdle = null;
+
     public VmStateSignaler() {
         System.loadLibrary("appsearchservice");
         mHandler = new Handler(Looper.getMainLooper());
-        mVmStateIdleSetter = () -> notifyIdle(true);
+        mVmStateIdleSetter =
+                () -> {
+                    if (mIsIdle == null || !mIsIdle) {
+                        mIsIdle = true;
+                        notifyIdle(true);
+                    }
+                };
     }
 
     /**
@@ -36,10 +44,13 @@ public final class VmStateSignaler {
      * <p>Also resets the inactivity timeout.
      */
     public void signalActive() {
-        notifyIdle(false);
-
-        // Reset the inactivity timeout
         mHandler.removeCallbacks(mVmStateIdleSetter);
+
+        if (mIsIdle == null || mIsIdle) {
+            mIsIdle = false;
+            notifyIdle(false);
+        }
+
         mHandler.postDelayed(mVmStateIdleSetter, INACTIVITY_TIMEOUT_MS);
     }
 
