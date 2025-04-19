@@ -76,6 +76,7 @@ public final class IsolatedStorageServiceManager {
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
+    private final VmStateSignaler mVmStateSignaler;
 
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
@@ -91,6 +92,7 @@ public final class IsolatedStorageServiceManager {
             @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
         mContext = Objects.requireNonNull(context);
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
+        mVmStateSignaler = new VmStateSignaler();
     }
 
     /** Gets whether isolated storage should be used. */
@@ -320,7 +322,8 @@ public final class IsolatedStorageServiceManager {
                                     mVmIsolatedStorageService.getOrCreateIcingConnection(
                                             userHandle.getIdentifier()),
                                     config.toIcingSearchEngineOptions(
-                                            /* baseDir= */ "appsearch", /* isVMEnabled= */ true));
+                                            /* baseDir= */ "appsearch", /* isVMEnabled= */ true),
+                                    mVmStateSignaler);
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);
