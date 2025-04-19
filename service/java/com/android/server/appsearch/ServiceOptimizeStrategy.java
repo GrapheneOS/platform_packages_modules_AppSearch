@@ -44,6 +44,11 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
 
     @Override
     public boolean shouldOptimize(@NonNull GetOptimizeInfoResultProto optimizeInfo) {
+        boolean hasWaitedForMinimumInterval =
+                optimizeInfo.getNoPreviousOptimizeInfo()
+                        || optimizeInfo.getTimeSinceLastOptimizeMs()
+                                >= mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs();
+
         if (Flags.enableNewOptimizeStrategyForActiveResultStates()) {
             boolean forceOptimize =
                     optimizeInfo.getTimeSinceLastOptimizeMs()
@@ -58,9 +63,7 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
                 return true;
             }
 
-            if (optionalOptimize
-                    && optimizeInfo.getTimeSinceLastOptimizeMs()
-                            < mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()) {
+            if (optionalOptimize && !hasWaitedForMinimumInterval) {
                 // TODO(b/271890504): Produce a log message for statsd when we skip a potential
                 //  compaction because the time since the last compaction has not reached
                 //  the minimum threshold.
@@ -86,9 +89,7 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
                                 >= mAppSearchConfig.getCachedBytesOptimizeThreshold()
                         || optimizeInfo.getTimeSinceLastOptimizeMs()
                                 >= mAppSearchConfig.getCachedTimeOptimizeThresholdMs();
-        if (wantsOptimize
-                && optimizeInfo.getTimeSinceLastOptimizeMs()
-                        < mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()) {
+        if (wantsOptimize && !hasWaitedForMinimumInterval) {
             // TODO(b/271890504): Produce a log message for statsd when we skip a potential
             //  compaction because the time since the last compaction has not reached
             //  the minimum threshold.
