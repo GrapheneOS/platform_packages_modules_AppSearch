@@ -1,0 +1,102 @@
+buffers: {
+    size_kb: 262144
+    fill_policy: RING_BUFFER
+}
+data_sources: {
+  config {
+    name: "linux.system_info"
+    target_buffer: 0
+  }
+}
+data_sources: {
+    config {
+        name: "linux.process_stats"
+        process_stats_config {
+            scan_all_processes_on_start: true
+            proc_stats_poll_ms: 250
+        }
+    }
+}
+data_sources: {
+    config {
+        name: "android.surfaceflinger.frametimeline"
+    }
+}
+data_sources: {
+    config {
+        name: "linux.sys_stats"
+        sys_stats_config {
+            meminfo_period_ms: 200
+            vmstat_period_ms: 200
+            stat_period_ms: 1000
+            stat_counters: STAT_CPU_TIMES
+            stat_counters: STAT_FORK_COUNT
+        }
+    }
+}
+data_sources: {
+    config {
+        name: "linux.ftrace"
+        ftrace_config {
+            symbolize_ksyms:true
+            ftrace_events: "sched/sched_wakeup"
+            ftrace_events: "sched/sched_wakeup_new"
+            ftrace_events: "sched/sched_waking"
+            ftrace_events: "sched/sched_switch"
+            ftrace_events: "power/suspend_resume"
+            ftrace_events: "power/cpu_frequency"
+            ftrace_events: "power/cpu_idle"
+            ftrace_events: "task/task_newtask"
+            ftrace_events: "task/task_rename"
+            ftrace_events: "lowmemorykiller/lowmemory_kill"
+            ftrace_events: "oom/oom_score_adj_update"
+            ftrace_events: "workqueue/*"
+            ftrace_events: "ftrace/print"
+            ftrace_events: "fastrpc/*"
+            ftrace_events: "kmem/rss_stat"
+            ftrace_events: "ion/ion_stat"
+            ftrace_events: "dmabuf_heap/dma_heap_stat"
+            ftrace_events: "kmem/ion_heap_grow"
+            ftrace_events: "kmem/ion_heap_shrink"
+            ftrace_events: "trusty/trusty_share_memory"
+            ftrace_events: "trusty/trusty_share_memory_done"
+            ftrace_events: "trusty/trusty_reclaim_memory"
+            ftrace_events: "trusty/trusty_reclaim_memory_done"
+            ftrace_events: "trusty/trusty_smc"
+            ftrace_events: "trusty/trusty_smc_done"
+            atrace_categories: "view"
+            atrace_categories: "webview"
+            atrace_categories: "wm"
+            atrace_categories: "am"
+            atrace_categories: "video"
+            atrace_categories: "camera"
+            atrace_categories: "sched"
+            atrace_categories: "hal"
+            atrace_categories: "ss"
+            atrace_categories: "aidl"
+            atrace_categories: "binder_driver"
+            atrace_categories: "input"
+            atrace_categories: "gfx"
+            atrace_categories: "disk"
+            atrace_categories: "bionic"
+            atrace_categories: "power"
+            atrace_categories: "memreclaim"
+            atrace_categories: "memory"
+            atrace_categories: "sync"
+            atrace_categories: "thermal"
+            atrace_apps: "lmkd"
+            atrace_apps: "*"
+            compact_sched: {
+              enabled: true
+            }
+        }
+    }
+}
+
+write_into_file: true
+file_write_period_ms: 604800000
+flush_period_ms: 30000
+incremental_state_config {
+    clear_period_ms: 5000
+}
+
