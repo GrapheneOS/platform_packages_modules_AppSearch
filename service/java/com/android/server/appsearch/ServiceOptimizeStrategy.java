@@ -52,7 +52,9 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
         if (Flags.enableNewOptimizeStrategyForActiveResultStates()) {
             boolean forceOptimize =
                     optimizeInfo.getTimeSinceLastOptimizeMs()
-                            >= mAppSearchConfig.getCachedTimeOptimizeThresholdMs();
+                            >= Math.max(
+                                    mAppSearchConfig.getCachedTimeOptimizeThresholdMs(),
+                                    mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs());
             boolean optionalOptimize =
                     optimizeInfo.getNumActiveResultStates() == 0
                             && (optimizeInfo.getOptimizableDocs()
