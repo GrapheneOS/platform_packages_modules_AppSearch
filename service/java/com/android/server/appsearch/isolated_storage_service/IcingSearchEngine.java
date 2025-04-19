@@ -75,19 +75,24 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
     private final IIcingSearchEngine mEngine;
     private final IcingSearchEngineOptions mOptions;
+    private final VmStateSignaler mVmStateSignaler;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
-            @NonNull IIcingSearchEngine engine, @NonNull IcingSearchEngineOptions options) {
+            @NonNull IIcingSearchEngine engine,
+            @NonNull IcingSearchEngineOptions options,
+            @NonNull VmStateSignaler vmStateSignaler) {
         Log.d(TAG, "constructing");
         mEngine = Objects.requireNonNull(engine);
         mOptions = Objects.requireNonNull(options);
+        mVmStateSignaler = Objects.requireNonNull(vmStateSignaler);
     }
 
     @Override
     public void close() {
         Log.d(TAG, "closing");
         try {
+            mVmStateSignaler.signalActive();
             mEngine.close();
         } catch (RemoteException e) {
             Log.e(TAG, "failed to call close", e);
@@ -99,6 +104,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public InitializeResultProto initialize() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.initialize(mOptions.toByteArray());
         } catch (RemoteException e) {
             return InitializeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -115,6 +121,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public SetSchemaResultProto setSchema(@NonNull SchemaProto schema) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData =
                     mEngine.setSchema(
                             schema.toByteArray(), /* ignoreErrorsAndDeleteDocuments= */ false);
@@ -134,6 +141,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull SchemaProto schema, boolean ignoreErrorsAndDeleteDocuments) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.setSchema(schema.toByteArray(), ignoreErrorsAndDeleteDocuments);
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -161,6 +169,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetSchemaResultProto getSchema() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getSchema();
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -177,6 +186,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetSchemaResultProto getSchemaForDatabase(@NonNull String database) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getSchemaForDatabase(database);
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -193,6 +203,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetSchemaTypeResultProto getSchemaType(@NonNull String schemaType) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getSchemaType(schemaType);
         } catch (RemoteException e) {
             return GetSchemaTypeResultProto.newBuilder()
@@ -211,6 +222,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public PutResultProto put(@NonNull DocumentProto document) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.put(document.toByteArray());
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -227,6 +239,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BatchPutResultProto batchPut(@NonNull PutDocumentRequest putDocumentRequest) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.batchPut(putDocumentRequest.toByteArray());
         } catch (RemoteException e) {
             return BatchPutResultProto.newBuilder()
@@ -253,6 +266,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull GetResultSpecProto getResultSpec) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.get(namespace, uri, getResultSpec.toByteArray());
         } catch (RemoteException e) {
             return GetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -297,6 +311,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 // requestBuilder is reused for all the batchGet so we need to clear ids here.
                 requestBuilder.clearIds();
 
+                mVmStateSignaler.signalActive();
                 byte[] resultData = mEngine.batchGet(getResultSpec.toByteArray());
                 BatchGetResultProto response = getResponseProtoFromRawData(
                         resultData,
@@ -371,6 +386,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public ReportUsageResultProto reportUsage(@NonNull UsageReport usageReport) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.reportUsage(usageReport.toByteArray());
         } catch (RemoteException e) {
             return ReportUsageResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -387,6 +403,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetAllNamespacesResultProto getAllNamespaces() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getAllNamespaces();
         } catch (RemoteException e) {
             return GetAllNamespacesResultProto.newBuilder()
@@ -408,6 +425,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull ResultSpecProto resultSpec) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData =
                     mEngine.search(
                             searchSpec.toByteArray(),
@@ -428,6 +446,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public SearchResultProto getNextPage(long nextPageToken) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getNextPage(nextPageToken);
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -442,6 +461,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public void invalidateNextPageToken(long nextPageToken) {
         try {
+            mVmStateSignaler.signalActive();
             mEngine.invalidateNextPageToken(nextPageToken);
         } catch (RemoteException e) {
             Log.e(TAG, "failed to call invalidateNextPageToken", e);
@@ -453,6 +473,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto openWriteBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.openWriteBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -469,6 +490,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto removeBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.removeBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -485,6 +507,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto openReadBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.openReadBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -501,6 +524,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto commitBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.commitBlob(blobHandle.toByteArray());
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -517,6 +541,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteResultProto delete(@NonNull String namespace, @NonNull String uri) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.deleteDoc(namespace, uri);
         } catch (RemoteException e) {
             return DeleteResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -533,6 +558,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public SuggestionResponse searchSuggestions(@NonNull SuggestionSpecProto suggestionSpec) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.searchSuggestions(suggestionSpec.toByteArray());
         } catch (RemoteException e) {
             return SuggestionResponse.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -549,6 +575,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteByNamespaceResultProto deleteByNamespace(@NonNull String namespace) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.deleteByNamespace(namespace);
         } catch (RemoteException e) {
             return DeleteByNamespaceResultProto.newBuilder()
@@ -567,6 +594,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteBySchemaTypeResultProto deleteBySchemaType(@NonNull String schemaType) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.deleteBySchemaType(schemaType);
         } catch (RemoteException e) {
             return DeleteBySchemaTypeResultProto.newBuilder()
@@ -585,6 +613,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteByQueryResultProto deleteByQuery(@NonNull SearchSpecProto searchSpec) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData =
                     mEngine.deleteByQuery(
                             searchSpec.toByteArray(), /* returnDeletedDocumentInfo= */ false);
@@ -606,6 +635,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull SearchSpecProto searchSpec, boolean returnDeletedDocumentInfo) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.deleteByQuery(searchSpec.toByteArray(), returnDeletedDocumentInfo);
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
@@ -624,6 +654,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public PersistToDiskResultProto persistToDisk(@NonNull PersistType.Code persistTypeCode) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.persistToDisk(persistTypeCode.getNumber());
         } catch (RemoteException e) {
             return PersistToDiskResultProto.newBuilder()
@@ -642,6 +673,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public OptimizeResultProto optimize() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.optimize();
         } catch (RemoteException e) {
             return OptimizeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -658,6 +690,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetOptimizeInfoResultProto getOptimizeInfo() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getOptimizeInfo();
         } catch (RemoteException e) {
             return GetOptimizeInfoResultProto.newBuilder()
@@ -676,6 +709,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public StorageInfoResultProto getStorageInfo() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getStorageInfo();
         } catch (RemoteException e) {
             return StorageInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -692,6 +726,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DebugInfoResultProto getDebugInfo(@NonNull DebugInfoVerbosity.Code verbosity) {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.getDebugInfo(verbosity.getNumber());
         } catch (RemoteException e) {
             return DebugInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -708,6 +743,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public ResetResultProto reset() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.reset();
         } catch (RemoteException e) {
             return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -724,6 +760,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public ResetResultProto clearAndDestroy() {
         byte[] resultData;
         try {
+            mVmStateSignaler.signalActive();
             resultData = mEngine.clearAndDestroy();
         } catch (RemoteException e) {
             return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
