@@ -63,6 +63,7 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_API_CA
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD;
@@ -117,11 +118,13 @@ public class ServiceAppSearchConfigTest {
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
 
-        // TODO (b/385020106): figure out how to make the default 0 timeSinceLastOptimize work
-        //  with a higher threshold and return 4 hours when
-        //  Flags.enable_four_hour_min_optimize_threshold is true
-        assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
-                .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+        if (Flags.enableFourHourMinTimeOptimizeThreshold()) {
+            assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                    .isEqualTo(DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+        } else {
+            assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                    .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+        }
     }
 
     @Test

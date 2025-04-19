@@ -123,9 +123,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_PERSIST_DELAY = "persist_delay";
     public static final String KEY_MAX_OPEN_BLOB_COUNT = "max_open_blob_count";
     public static final String KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS = "orphan_blob_time_to_live_ms";
-    public static final String ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
+    public static final String KEY_ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
     public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     public static final String KEY_ISOLATED_STORAGE_ENABLED = "isolated_storage_enabled";
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
@@ -138,53 +137,56 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
 
     // Array contains all the corresponding keys for the cached values.
     private static final String[] KEYS_TO_ALL_CACHED_VALUES = {
-        KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
-        KEY_SAMPLING_INTERVAL_DEFAULT,
-        KEY_SAMPLING_INTERVAL_FOR_BATCH_CALL_STATS,
-        KEY_SAMPLING_INTERVAL_FOR_PUT_DOCUMENT_STATS,
-        KEY_SAMPLING_INTERVAL_FOR_INITIALIZE_STATS,
-        KEY_SAMPLING_INTERVAL_FOR_SEARCH_STATS,
-        KEY_SAMPLING_INTERVAL_FOR_GLOBAL_SEARCH_STATS,
-        KEY_SAMPLING_INTERVAL_FOR_OPTIMIZE_STATS,
-        KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
-        KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT,
-        KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD,
-        KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT,
-        KEY_BYTES_OPTIMIZE_THRESHOLD,
-        KEY_TIME_OPTIMIZE_THRESHOLD_MILLIS,
-        KEY_DOC_COUNT_OPTIMIZE_THRESHOLD,
-        KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
-        KEY_API_CALL_STATS_LIMIT,
-        KEY_DENYLIST,
-        KEY_RATE_LIMIT_ENABLED,
-        KEY_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY,
-        KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE,
-        KEY_RATE_LIMIT_API_COSTS,
-        KEY_ICING_MAX_TOKEN_LENGTH,
-        KEY_ICING_INDEX_MERGE_SIZE,
-        KEY_ICING_DOCUMENT_STORE_NAMESPACE_ID_FINGERPRINT,
-        KEY_ICING_OPTIMIZE_REBUILD_INDEX_THRESHOLD,
-        KEY_ICING_COMPRESSION_LEVEL,
-        KEY_ICING_USE_READ_ONLY_SEARCH,
-        KEY_ICING_USE_PRE_MAPPING_WITH_FILE_BACKED_VECTOR,
-        KEY_ICING_USE_PERSISTENT_HASHMAP,
-        KEY_ICING_MAX_PAGE_BYTES_LIMIT,
-        KEY_ICING_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD,
-        KEY_ICING_LITE_INDEX_SORT_AT_INDEXING,
-        KEY_ICING_LITE_INDEX_SORT_SIZE,
-        KEY_SHOULD_RETRIEVE_PARENT_INFO,
-        KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX,
-        KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
-        KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
-        KEY_FULLY_PERSIST_JOB_INTERVAL,
-        KEY_PERSIST_DELAY,
-        KEY_MAX_OPEN_BLOB_COUNT,
-        KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS,
-        KEY_LIGHTWEIGHT_PERSIST_TYPE,
-        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
-        KEY_ISOLATED_STORAGE_ENABLED,
-        KEY_COMPRESSION_THRESHOLD_BYTES,
-        KEY_COMPRESSION_MEM_LEVEL
+            KEY_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS,
+            KEY_SAMPLING_INTERVAL_DEFAULT,
+            KEY_SAMPLING_INTERVAL_FOR_BATCH_CALL_STATS,
+            KEY_SAMPLING_INTERVAL_FOR_PUT_DOCUMENT_STATS,
+            KEY_SAMPLING_INTERVAL_FOR_INITIALIZE_STATS,
+            KEY_SAMPLING_INTERVAL_FOR_SEARCH_STATS,
+            KEY_SAMPLING_INTERVAL_FOR_GLOBAL_SEARCH_STATS,
+            KEY_SAMPLING_INTERVAL_FOR_OPTIMIZE_STATS,
+            KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
+            KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT,
+            KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT,
+            KEY_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD,
+            KEY_LIMIT_CONFIG_MAX_SUGGESTION_COUNT,
+            KEY_BYTES_OPTIMIZE_THRESHOLD,
+            KEY_TIME_OPTIMIZE_THRESHOLD_MILLIS,
+            KEY_DOC_COUNT_OPTIMIZE_THRESHOLD,
+            KEY_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS,
+            KEY_API_CALL_STATS_LIMIT,
+            KEY_DENYLIST,
+            KEY_RATE_LIMIT_ENABLED,
+            KEY_RATE_LIMIT_TASK_QUEUE_TOTAL_CAPACITY,
+            KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE,
+            KEY_RATE_LIMIT_API_COSTS,
+            KEY_ICING_MAX_TOKEN_LENGTH,
+            KEY_ICING_INDEX_MERGE_SIZE,
+            KEY_ICING_DOCUMENT_STORE_NAMESPACE_ID_FINGERPRINT,
+            KEY_ICING_OPTIMIZE_REBUILD_INDEX_THRESHOLD,
+            KEY_ICING_COMPRESSION_LEVEL,
+            KEY_ICING_USE_READ_ONLY_SEARCH,
+            KEY_ICING_USE_PRE_MAPPING_WITH_FILE_BACKED_VECTOR,
+            KEY_ICING_USE_PERSISTENT_HASHMAP,
+            KEY_ICING_MAX_PAGE_BYTES_LIMIT,
+            KEY_ICING_INTEGER_INDEX_BUCKET_SPLIT_THRESHOLD,
+            KEY_ICING_LITE_INDEX_SORT_AT_INDEXING,
+            KEY_ICING_LITE_INDEX_SORT_SIZE,
+            KEY_SHOULD_RETRIEVE_PARENT_INFO,
+            KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX,
+            KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS,
+            KEY_APP_FUNCTION_CALL_TIMEOUT_MILLIS,
+            KEY_FULLY_PERSIST_JOB_INTERVAL,
+            KEY_PERSIST_DELAY,
+            KEY_MAX_OPEN_BLOB_COUNT,
+            KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS,
+            KEY_LIGHTWEIGHT_PERSIST_TYPE,
+            KEY_ISOLATED_STORAGE_MEMORY_BYTES,
+            KEY_LIGHTWEIGHT_PERSIST_TYPE,
+            KEY_ISOLATED_STORAGE_ENABLED,
+            KEY_COMPRESSION_THRESHOLD_BYTES,
+            KEY_USE_FIXED_EXECUTOR_SERVICE,
+            KEY_COMPRESSION_MEM_LEVEL
     };
 
     // Lock needed for all the operations in this class.
@@ -695,12 +697,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         synchronized (mLock) {
             throwIfClosedLocked();
             return mBundleLocked.getLong(
-                    ISOLATED_STORAGE_MEMORY_BYTES,
+                    KEY_ISOLATED_STORAGE_MEMORY_BYTES,
                     IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES);
         }
     }
 
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     @Override
     public boolean getIsolatedStorageEnabled() {
         synchronized (mLock) {
@@ -1040,7 +1041,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                     mBundleLocked.putInt(key, properties.getInt(key, DEFAULT_MAX_OPEN_BLOB_COUNT));
                 }
                 break;
-            case ISOLATED_STORAGE_MEMORY_BYTES:
+            case KEY_ISOLATED_STORAGE_MEMORY_BYTES:
                 synchronized (mLock) {
                     mBundleLocked.putLong(
                             key,
@@ -1048,8 +1049,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                                     key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
                 }
                 break;
-                // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before
-                // launch
             case KEY_ISOLATED_STORAGE_ENABLED:
                 synchronized (mLock) {
                     mBundleLocked.putBoolean(

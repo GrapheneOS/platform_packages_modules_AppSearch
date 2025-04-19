@@ -27,6 +27,7 @@ import android.app.appsearch.util.ExceptionUtil;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 
@@ -51,11 +52,15 @@ public final class UserStorageInfo {
     public static final String STORAGE_INFO_FILE = "appsearch_storage";
     private static final String TAG = "AppSearchUserStorage";
     private final ReadWriteLock mReadWriteLock = new ReentrantReadWriteLock();
+
+    @GuardedBy("mReadWriteLock")
     private final File mStorageInfoFile;
 
     // Saves storage usage byte size for each package under the user, keyed by package name.
+    @GuardedBy("mReadWriteLock")
     private Map<String, Long> mPackageStorageSizeMap;
     // Saves storage usage byte size for all packages under the user.
+    @GuardedBy("mReadWriteLock")
     private long mTotalStorageSizeBytes;
 
     public UserStorageInfo(@NonNull File fileParentPath) {
@@ -69,14 +74,60 @@ public final class UserStorageInfo {
      */
     public void updateStorageInfoFile(@NonNull AppSearchImpl appSearchImpl) {
         Objects.requireNonNull(appSearchImpl);
+        StorageInfoProto storageInfo = null;
         mReadWriteLock.writeLock().lock();
-        try (FileOutputStream out = new FileOutputStream(mStorageInfoFile)) {
-            appSearchImpl.getRawStorageInfoProto().writeTo(out);
-        } catch (IOException | AppSearchException | RuntimeException e) {
-            Log.w(TAG, "Failed to dump storage info into file", e);
+        try {
+            storageInfo = appSearchImpl.getRawStorageInfoProto();
+            updateStorageInfoCache(storageInfo);
+            updateFile(storageInfo);
+        } catch (AppSearchException e) {
+            Log.w(TAG, "Failed to get native storage info", e);
             ExceptionUtil.handleException(e);
         } finally {
             mReadWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Updates storage info file with the latest storage info.
+     */
+    public void updateStorageInfoCache(@NonNull StorageInfoProto storageInfo) {
+        Objects.requireNonNull(storageInfo);
+        mReadWriteLock.writeLock().lock();
+        try {
+            mTotalStorageSizeBytes = storageInfo.getTotalStorageSize();
+            mPackageStorageSizeMap = calculatePackageStorageInfoMap(storageInfo);
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Clears the in-memory storage info cache.
+     * Resets the total storage size and clears the package storage size map.
+     */
+    public void dropStorageInfoCache() {
+        mReadWriteLock.writeLock().lock();
+        try {
+            mTotalStorageSizeBytes = 0;
+            mPackageStorageSizeMap = Collections.emptyMap();
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Checks if the storage info cache is empty.
+     *
+     * @return {@code true} if the cache is empty, otherwise {@code false}.
+     */
+    public boolean isCacheEmpty() {
+        mReadWriteLock.readLock().lock();
+        try {
+            return mTotalStorageSizeBytes == 0
+                    && mPackageStorageSizeMap.isEmpty();
+        } finally {
+            mReadWriteLock.readLock().unlock();
         }
     }
 
@@ -87,7 +138,12 @@ public final class UserStorageInfo {
      */
     public long getSizeBytesForPackage(@NonNull String packageName) {
         Objects.requireNonNull(packageName);
-        return mPackageStorageSizeMap.getOrDefault(packageName, 0L);
+        mReadWriteLock.readLock().lock();
+        try {
+            return mPackageStorageSizeMap.getOrDefault(packageName, 0L);
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
     }
 
     /**
@@ -96,28 +152,45 @@ public final class UserStorageInfo {
      * <p>Please note the storage info cached in file may be stale.
      */
     public long getTotalSizeBytes() {
-        return mTotalStorageSizeBytes;
+        mReadWriteLock.readLock().lock();
+        try {
+            return mTotalStorageSizeBytes;
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
     }
 
     @RequiresNonNull("mStorageInfoFile")
     @VisibleForTesting
     void readStorageInfoFromFile(@UnderInitialization UserStorageInfo this) {
-        if (mStorageInfoFile.exists()) {
-            mReadWriteLock.readLock().lock();
-            try (InputStream in = new FileInputStream(mStorageInfoFile)) {
-                StorageInfoProto storageInfo = StorageInfoProto.parseFrom(in);
-                mTotalStorageSizeBytes = storageInfo.getTotalStorageSize();
-                mPackageStorageSizeMap = calculatePackageStorageInfoMap(storageInfo);
-                return;
-            } catch (IOException | RuntimeException e) {
-                Log.w(TAG, "Failed to read storage info from file", e);
-                ExceptionUtil.handleException(e);
-            } finally {
-                mReadWriteLock.readLock().unlock();
-            }
+        if (!mStorageInfoFile.exists()) {
+            dropStorageInfoCache();
+            return;
         }
-        mTotalStorageSizeBytes = 0;
-        mPackageStorageSizeMap = Collections.emptyMap();
+
+        StorageInfoProto storageInfo = null;
+        mReadWriteLock.readLock().lock();
+        try (InputStream in = new FileInputStream(mStorageInfoFile)) {
+            storageInfo = StorageInfoProto.parseFrom(in);
+        } catch (IOException | RuntimeException e) {
+            Log.w(TAG, "Failed to read storage info from file", e);
+            ExceptionUtil.handleException(e);
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+        updateStorageInfoCache(storageInfo);
+    }
+
+    private void updateFile(@NonNull StorageInfoProto storageInfo) {
+        mReadWriteLock.writeLock().lock();
+        try (FileOutputStream out = new FileOutputStream(mStorageInfoFile)) {
+            storageInfo.writeTo(out);
+        } catch (IOException | RuntimeException e) {
+            Log.w(TAG, "Failed to dump storage info into file", e);
+            ExceptionUtil.handleException(e);
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
     }
 
     /** Calculates storage usage byte size for packages from a {@link StorageInfoProto}. */

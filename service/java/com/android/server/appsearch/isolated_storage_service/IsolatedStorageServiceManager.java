@@ -65,8 +65,7 @@ public final class IsolatedStorageServiceManager {
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 512_000_000;
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
-    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = false;
+    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = true;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
@@ -77,6 +76,7 @@ public final class IsolatedStorageServiceManager {
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
+    private final VmStateSignaler mVmStateSignaler;
 
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
@@ -92,6 +92,7 @@ public final class IsolatedStorageServiceManager {
             @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
         mContext = Objects.requireNonNull(context);
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
+        mVmStateSignaler = new VmStateSignaler();
     }
 
     /** Gets whether isolated storage should be used. */
@@ -99,7 +100,6 @@ public final class IsolatedStorageServiceManager {
             @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(appSearchConfig);
-        // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
         return appSearchConfig.getIsolatedStorageEnabled()
                 && isolatedStorageFlagsSet()
                 && deviceSupportsVmsAndNewApis(context);
@@ -322,7 +322,8 @@ public final class IsolatedStorageServiceManager {
                                     mVmIsolatedStorageService.getOrCreateIcingConnection(
                                             userHandle.getIdentifier()),
                                     config.toIcingSearchEngineOptions(
-                                            /* baseDir= */ "appsearch", /* isVMEnabled= */ true));
+                                            /* baseDir= */ "appsearch", /* isVMEnabled= */ true),
+                                    mVmStateSignaler);
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);

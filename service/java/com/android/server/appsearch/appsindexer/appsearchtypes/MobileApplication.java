@@ -47,6 +47,9 @@ public class MobileApplication extends GenericDocument {
     public static final String APP_PROPERTY_UPDATED_TIMESTAMP = "updatedTimestamp";
     public static final String APP_PROPERTY_CLASS_NAME = "className";
 
+    public static final String APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED =
+            "isAppFunctionServiceEnabled";
+
     /** Returns a per-app schema name. */
     @VisibleForTesting
     public static String getSchemaNameForPackage(@NonNull String pkg) {
@@ -118,11 +121,15 @@ public class MobileApplication extends GenericDocument {
                         new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_CLASS_NAME)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                 .build())
+                .addProperty(
+                        new AppSearchSchema.BooleanPropertyConfig.Builder(
+                                        APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED)
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .build())
                 .build();
     }
 
     /** Constructs a {@link MobileApplication}. */
-    @VisibleForTesting
     public MobileApplication(@NonNull GenericDocument document) {
         super(document);
     }
@@ -201,6 +208,16 @@ public class MobileApplication extends GenericDocument {
         return getPropertyString(APP_PROPERTY_CLASS_NAME);
     }
 
+    /**
+     * Returns whether AppFunctionService was effectively enabled when the app was last indexed.
+     *
+     * <p>For a service to be enabled it needs to be defined in the Manifest and not marked {@code
+     * android:enabled="false"}
+     */
+    public boolean isAppFunctionServiceEnabled() {
+        return getPropertyBoolean(APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED);
+    }
+
     public static final class Builder extends GenericDocument.Builder<Builder> {
         public Builder(@NonNull String packageName, @NonNull byte[] sha256Certificate) {
             // Changing the schema type dynamically so that we can use separate schemas
@@ -247,10 +264,22 @@ public class MobileApplication extends GenericDocument {
             return this;
         }
 
+        /**
+         * Sets whether the AppFunctionService is effectively enabled in the app.
+         *
+         * <p>For a service to be enabled it needs to be defined in the Manifest and not marked
+         * {@code android:enabled="false"}
+         */
+        @NonNull
+        public Builder setIsAppFunctionServiceEnabled(boolean isAppFunctionServiceEnabled) {
+            setPropertyBoolean(
+                    APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED, isAppFunctionServiceEnabled);
+            return this;
+        }
+
         @NonNull
         public MobileApplication build() {
             return new MobileApplication(super.build());
         }
     }
 }
-

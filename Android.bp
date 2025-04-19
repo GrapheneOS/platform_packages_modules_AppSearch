@@ -45,7 +45,10 @@ apex {
     key: "com.android.appsearch.key",
     certificate: ":com.android.appsearch.certificate",
     defaults: ["t-launched-apex-module"],
-    jni_libs: ["libicing"],
+    jni_libs: [
+        "libappsearchservice",
+        "libicing",
+    ],
     prebuilts: ["current_sdkinfo"],
     apps: ["com.android.appsearch.apk"],
 }

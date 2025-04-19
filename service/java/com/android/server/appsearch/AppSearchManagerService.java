@@ -144,6 +144,7 @@ import com.android.server.usage.StorageStatsManagerLocal.StorageStatsAugmenter;
 import com.google.android.icing.proto.DebugInfoProto;
 import com.google.android.icing.proto.DebugInfoVerbosity;
 import com.google.android.icing.proto.PersistType;
+import com.google.android.icing.proto.StorageInfoProto;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -153,8 +154,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -588,6 +589,23 @@ public class AppSearchManagerService extends SystemService {
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
+
+                        SetSchemaStats setSchemaStats =
+                                setSchemaStatsBuilder
+                                    .setStatusCode(statusCode)
+                                    .setSchemaMigrationCallType(request
+                                        .getSchemaMigrationCallType())
+                                    .setTotalLatencyMillis(totalLatencyMillis)
+                                    .setLaunchVMEnabled(instance.isVMEnabled())
+                                    .build();
+                        if (setSchemaStats.getNewTypeCount() > 0
+                                || setSchemaStats.getDeletedTypeCount() > 0
+                                || setSchemaStats.getCompatibleTypeChangeCount() > 0
+                                || setSchemaStats.getIndexIncompatibleTypeChangeCount() > 0
+                                || setSchemaStats.getBackwardsIncompatibleTypeChangeCount() > 0) {
+                            // Drop the cache only if there has been a change in this setSchema call
+                            dropStorageInfoCacheForUser(targetUser);
+                        }
                     }
                 }
             });
@@ -961,6 +979,7 @@ public class AppSearchManagerService extends SystemService {
                 } finally {
                     // TODO(b/261959320) add outstanding latency fields in AppSearch stats
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
@@ -1298,6 +1317,7 @@ public class AppSearchManagerService extends SystemService {
                             AppSearchResultParcelV2.fromFailedResult(failedResult));
                 } finally {
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
@@ -1396,6 +1416,7 @@ public class AppSearchManagerService extends SystemService {
                             AppSearchResultParcelV2.fromFailedResult(failedResult));
                 } finally {
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
@@ -1495,6 +1516,7 @@ public class AppSearchManagerService extends SystemService {
                             AppSearchResultParcelV2.fromFailedResult(failedResult));
                 } finally {
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
@@ -2249,6 +2271,7 @@ public class AppSearchManagerService extends SystemService {
                             failedResult));
                 } finally {
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         long latencyEndTimeMillis =
                                 SystemClock.elapsedRealtime();
                         int estimatedBinderLatencyMillis =
@@ -2444,6 +2467,7 @@ public class AppSearchManagerService extends SystemService {
                             failedResult));
                 } finally {
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
@@ -2546,6 +2570,7 @@ public class AppSearchManagerService extends SystemService {
                 } finally {
                     // TODO(b/261959320) add outstanding latency fields in AppSearch stats
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
@@ -2633,6 +2658,7 @@ public class AppSearchManagerService extends SystemService {
                 } finally {
                     // TODO(b/261959320) add outstanding latency fields in AppSearch stats
                     if (instance != null) {
+                        dropStorageInfoCacheForUser(targetUser);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
@@ -3271,21 +3297,30 @@ public class AppSearchManagerService extends SystemService {
                 }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
-                if (instance == null) {
-                    // augment storage info from file
-                    Context userContext = mAppSearchEnvironment
-                            .createContextAsUser(mContext, userHandle);
+                if (instance == null || Flags.enableStorageInfoCache()) {
+                    Context userContext =
+                            mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
                     UserStorageInfo userStorageInfo =
-                            mAppSearchUserInstanceManager.getOrCreateUserStorageInfoInstance(
+                            mAppSearchUserInstanceManager
+                                .getOrCreateUserStorageInfoInstance(
                                     userContext, userHandle);
-                    stats.dataSize +=
-                            userStorageInfo.getSizeBytesForPackage(packageName);
+
+                    if (instance != null) {
+                        // If the instance is not null, then it's possible that the cache
+                        // has been invalidated after creation.
+                        if (userStorageInfo.isCacheEmpty()) {
+                            StorageInfoProto storageInfo =
+                                    instance.getAppSearchImpl().getRawStorageInfoProto();
+                            userStorageInfo.updateStorageInfoCache(storageInfo);
+                        }
+                    }
+                    stats.dataSize += userStorageInfo.getSizeBytesForPackage(packageName);
                 } else {
                     stats.dataSize +=
                             instance.getAppSearchImpl()
-                                    .getStorageInfoForPackages(
-                                            new ArraySet<>(Collections.singleton(packageName)))
-                                    .getSizeBytes();
+                                .getStorageInfoForPackages(
+                                    new ArraySet<>(Collections.singleton(packageName)))
+                                .getSizeBytes();
                 }
             } catch (AppSearchException | RuntimeException e) {
                 Log.e(
@@ -3316,23 +3351,33 @@ public class AppSearchManagerService extends SystemService {
                 }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
-                if (instance == null) {
-                    // augment storage info from file
-                    Context userContext = mAppSearchEnvironment
-                            .createContextAsUser(mContext, userHandle);
+                if (instance == null || Flags.enableStorageInfoCache()) {
+                    Context userContext =
+                            mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
                     UserStorageInfo userStorageInfo =
-                            mAppSearchUserInstanceManager.getOrCreateUserStorageInfoInstance(
+                            mAppSearchUserInstanceManager
+                                .getOrCreateUserStorageInfoInstance(
                                     userContext, userHandle);
+
+                    if (instance != null) {
+                        // If the instance is not null, then it's possible that the cache
+                        // has been invalidated after creation.
+                        if (userStorageInfo.isCacheEmpty()) {
+                            StorageInfoProto storageInfo =
+                                    instance.getAppSearchImpl().getRawStorageInfoProto();
+                            userStorageInfo.updateStorageInfoCache(storageInfo);
+                        }
+                    }
                     for (int i = 0; i < packagesForUid.length; i++) {
                         stats.dataSize += userStorageInfo.getSizeBytesForPackage(
-                                packagesForUid[i]);
+                            packagesForUid[i]);
                     }
                 } else {
                     Set<String> packageNames = new ArraySet<>(packagesForUid);
                     stats.dataSize +=
                             instance.getAppSearchImpl()
-                                    .getStorageInfoForPackages(packageNames)
-                                    .getSizeBytes();
+                                .getStorageInfoForPackages(packageNames)
+                                .getSizeBytes();
                 }
             } catch (AppSearchException | RuntimeException e) {
                 Log.e(TAG, "Unable to augment storage stats for uid " + uid, e);
@@ -3356,17 +3401,28 @@ public class AppSearchManagerService extends SystemService {
                 }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
-                if (instance == null) {
-                    // augment storage info from file
-                    Context userContext = mAppSearchEnvironment
-                            .createContextAsUser(mContext, userHandle);
+                if (instance == null || Flags.enableStorageInfoCache()) {
+                    Context userContext =
+                            mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
                     UserStorageInfo userStorageInfo =
-                            mAppSearchUserInstanceManager.getOrCreateUserStorageInfoInstance(
+                            mAppSearchUserInstanceManager
+                                .getOrCreateUserStorageInfoInstance(
                                     userContext, userHandle);
+
+                    if (instance != null) {
+                        // If the instance is not null, then it's possible that the cache
+                        // has been invalidated after creation.
+                        if (userStorageInfo.isCacheEmpty()) {
+                            StorageInfoProto storageInfo =
+                                    instance.getAppSearchImpl().getRawStorageInfoProto();
+                            userStorageInfo.updateStorageInfoCache(storageInfo);
+                        }
+                    }
                     stats.dataSize += userStorageInfo.getTotalSizeBytes();
                 } else {
-                    List<PackageInfo> packagesForUser = mPackageManager.getInstalledPackagesAsUser(
-                            /* flags= */ 0, userHandle.getIdentifier());
+                    List<PackageInfo> packagesForUser =
+                            mPackageManager.getInstalledPackagesAsUser(
+                                /* flags= */ 0, userHandle.getIdentifier());
                     if (packagesForUser != null) {
                         Set<String> packageNames = new ArraySet<>();
                         for (int i = 0; i < packagesForUser.size(); i++) {
@@ -3375,8 +3431,8 @@ public class AppSearchManagerService extends SystemService {
                         }
                         stats.dataSize +=
                                 instance.getAppSearchImpl()
-                                        .getStorageInfoForPackages(packageNames)
-                                        .getSizeBytes();
+                                    .getStorageInfoForPackages(packageNames)
+                                    .getSizeBytes();
                     }
                 }
             } catch (AppSearchException | RuntimeException e) {
@@ -3423,7 +3479,10 @@ public class AppSearchManagerService extends SystemService {
                                 (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis))
                                 .build();
                         if (oStats.getOriginalDocumentCount() > 0) {
-                            // see if optimize has been run by checking originalDocumentCount
+                            if (oStats.getDeletedDocumentCount()
+                                    + oStats.getExpiredDocumentCount() > 0) {
+                                dropStorageInfoCacheForUser(targetUser);
+                            }
                             instance.getLogger().logStats(oStats);
                         }
                     }
@@ -3453,6 +3512,10 @@ public class AppSearchManagerService extends SystemService {
                                 .build();
                         if (oStats.getOriginalDocumentCount() > 0) {
                             // see if optimize has been run by checking originalDocumentCount
+                            if (oStats.getDeletedDocumentCount()
+                                    + oStats.getExpiredDocumentCount() > 0) {
+                                dropStorageInfoCacheForUser(targetUser);
+                            }
                             instance.getLogger().logStats(oStats);
                         }
                     }
@@ -3637,5 +3700,26 @@ public class AppSearchManagerService extends SystemService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Drops the cached storage information for a specific user.
+     * This method retrieves the {@link UserStorageInfo} instance associated with the specified user
+     * and clears the cached storage data to ensure that subsequent calls reflect any changes or
+     * updates in storage usage.
+     */
+    private void dropStorageInfoCacheForUser(@NonNull UserHandle targetUser) {
+        if (!Flags.enableStorageInfoCache()) {
+            return;
+        }
+
+        Context targetContext =
+                mAppSearchEnvironment.createContextAsUser(mContext, targetUser);
+        UserStorageInfo userStorageInfo =
+                mAppSearchUserInstanceManager
+                    .getOrUserStorageInfoInstanceOrNull(targetContext, targetUser);
+        if (userStorageInfo != null) {
+            userStorageInfo.dropStorageInfoCache();
+        }
     }
 }

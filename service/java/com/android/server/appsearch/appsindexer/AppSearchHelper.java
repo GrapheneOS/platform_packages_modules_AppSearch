@@ -476,7 +476,9 @@ public class AppSearchHelper implements Closeable {
      */
     @WorkerThread
     public AppSearchBatchResult<String, Void> indexAppOpenEvents(
-            @NonNull List<AppOpenEvent> appOpenEvents) throws AppSearchException {
+            @NonNull List<AppOpenEvent> appOpenEvents,
+            @NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder)
+            throws AppSearchException {
         Objects.requireNonNull(appOpenEvents);
 
         PutDocumentsRequest request =
@@ -487,6 +489,7 @@ public class AppSearchHelper implements Closeable {
         if (!result.isSuccess()) {
             Map<String, AppSearchResult<Void>> failures = result.getFailures();
             for (AppSearchResult<Void> failure : failures.values()) {
+                appOpenEventStatsBuilder.addUpdateStatusCode(failure.getResultCode());
                 // If it's out of space, stop indexing
                 if (failure.getResultCode() == AppSearchResult.RESULT_OUT_OF_SPACE) {
                     throw new AppSearchException(
@@ -495,6 +498,8 @@ public class AppSearchHelper implements Closeable {
                     Log.e(TAG, "Ran into error while indexing apps: " + failure);
                 }
             }
+        } else {
+            appOpenEventStatsBuilder.addUpdateStatusCode(AppSearchResult.RESULT_OK);
         }
         return result;
     }
@@ -646,11 +651,45 @@ public class AppSearchHelper implements Closeable {
     }
 
     /**
+     * Searches AppSearch and returns a Map with the package ids to their last updated times and
+     * whether app function service was enabled. This helps us determine which app documents need to
+     * be re-indexed.
+     *
+     * @return a mapping of document id Strings to MobileApplication document with updatedTimestamp
+     *     and isAppFunctionServiceEnabled properties.
+     */
+    @NonNull
+    @WorkerThread
+    public Map<String, MobileApplication>
+            getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch()
+                    throws AppSearchException {
+        SearchSpec allAppsSpec =
+                new SearchSpec.Builder()
+                        .addFilterNamespaces(MobileApplication.APPS_NAMESPACE)
+                        .addProjection(
+                                SearchSpec.SCHEMA_TYPE_WILDCARD,
+                                List.of(
+                                        MobileApplication.APP_PROPERTY_UPDATED_TIMESTAMP,
+                                        MobileApplication
+                                                .APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED))
+                        .addFilterPackageNames(mContext.getPackageName())
+                        .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE)
+                        .build();
+        try (SyncSearchResults results =
+                mSyncGlobalSearchSession.search(/* query= */ "", allAppsSpec)) {
+            return collectUpdatedTimestampAndAppFunctionServiceEnabledFromAllPages(results);
+        } catch (IOException e) {
+            throw new AppSearchException(RESULT_IO_ERROR, "Failed to close search results", e);
+        }
+    }
+
+    /**
      * Searches AppSearch and returns a Map with the package ids and their last updated times. This
      * helps us determine which app documents need to be re-indexed.
      *
      * @return a mapping of document id Strings to updated timestamps.
      */
+    // TODO: b/409611864 - Remove once the flag is rolled out.
     @NonNull
     @WorkerThread
     public Map<String, Long> getAppsFromAppSearch() throws AppSearchException {
@@ -719,10 +758,48 @@ public class AppSearchHelper implements Closeable {
     }
 
     /**
+     * Iterates through result pages to get the last updated times and AppFunctionService's enabled
+     * state in the app.
+     *
+     * @return a mapping of package name to MobileApplication documents with updatedTimestamps and
+     *     isAppFunctionServiceEnabled properties.
+     */
+    @NonNull
+    @WorkerThread
+    private Map<String, MobileApplication>
+            collectUpdatedTimestampAndAppFunctionServiceEnabledFromAllPages(
+                    @NonNull SyncSearchResults results) {
+        Objects.requireNonNull(results);
+        Map<String, MobileApplication> appUpdatedMap = new ArrayMap<>();
+
+        try {
+            List<SearchResult> resultList = results.getNextPage();
+
+            while (!resultList.isEmpty()) {
+                for (int i = 0; i < resultList.size(); i++) {
+                    SearchResult result = resultList.get(i);
+                    appUpdatedMap.put(
+                            result.getGenericDocument().getId(),
+                            new MobileApplication(result.getGenericDocument()));
+                }
+
+                resultList = results.getNextPage();
+            }
+        } catch (AppSearchException e) {
+            Log.e(TAG, "Error while searching for all app documents", e);
+        }
+        // Return what we have so far. Even if this doesn't fetch all documents, that is fine as we
+        // can continue with indexing. The documents that aren't fetched will be detected as new
+        // apps and re-indexed.
+        return appUpdatedMap;
+    }
+
+    /**
      * Iterates through result pages to get the last updated times
      *
      * @return a mapping of document id Strings updated timestamps.
      */
+    // TODO: b/409611864 - Remove once the flag is rolled out.
     @NonNull
     @WorkerThread
     private Map<String, Long> collectUpdatedTimestampFromAllPages(

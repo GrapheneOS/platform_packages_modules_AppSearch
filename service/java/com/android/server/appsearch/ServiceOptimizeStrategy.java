@@ -19,6 +19,7 @@ import android.annotation.NonNull;
 import android.app.appsearch.util.LogUtil;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.OptimizeStrategy;
 
@@ -43,6 +44,46 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
 
     @Override
     public boolean shouldOptimize(@NonNull GetOptimizeInfoResultProto optimizeInfo) {
+        boolean hasWaitedForMinimumInterval =
+                optimizeInfo.getNoPreviousOptimizeInfo()
+                        || optimizeInfo.getTimeSinceLastOptimizeMs()
+                                >= mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs();
+
+        if (Flags.enableNewOptimizeStrategyForActiveResultStates()) {
+            boolean forceOptimize =
+                    optimizeInfo.getTimeSinceLastOptimizeMs()
+                            >= Math.max(
+                                    mAppSearchConfig.getCachedTimeOptimizeThresholdMs(),
+                                    mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs());
+            boolean optionalOptimize =
+                    optimizeInfo.getNumActiveResultStates() == 0
+                            && (optimizeInfo.getOptimizableDocs()
+                                            >= mAppSearchConfig.getCachedDocCountOptimizeThreshold()
+                                    || optimizeInfo.getEstimatedOptimizableBytes()
+                                            >= mAppSearchConfig.getCachedBytesOptimizeThreshold());
+            if (forceOptimize) {
+                return true;
+            }
+
+            if (optionalOptimize && !hasWaitedForMinimumInterval) {
+                // TODO(b/271890504): Produce a log message for statsd when we skip a potential
+                //  compaction because the time since the last compaction has not reached
+                //  the minimum threshold.
+                if (LogUtil.INFO) {
+                    Log.i(
+                            TAG,
+                            "Skipping optimization because time since last optimize ["
+                                    + optimizeInfo.getTimeSinceLastOptimizeMs()
+                                    + " ms] is lesser than the threshold for minimum time between"
+                                    + " optimizations ["
+                                    + mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()
+                                    + " ms]");
+                }
+                return false;
+            }
+            return optionalOptimize;
+        }
+
         boolean wantsOptimize =
                 optimizeInfo.getOptimizableDocs()
                                 >= mAppSearchConfig.getCachedDocCountOptimizeThreshold()
@@ -50,9 +91,7 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
                                 >= mAppSearchConfig.getCachedBytesOptimizeThreshold()
                         || optimizeInfo.getTimeSinceLastOptimizeMs()
                                 >= mAppSearchConfig.getCachedTimeOptimizeThresholdMs();
-        if (wantsOptimize
-                && optimizeInfo.getTimeSinceLastOptimizeMs()
-                        < mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()) {
+        if (wantsOptimize && !hasWaitedForMinimumInterval) {
             // TODO(b/271890504): Produce a log message for statsd when we skip a potential
             //  compaction because the time since the last compaction has not reached
             //  the minimum threshold.

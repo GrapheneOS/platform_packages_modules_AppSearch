@@ -224,7 +224,6 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /** Returns whether or not AppSearch should use Isolated Storage */
-    // TODO (b/406350586): Remove the DeviceConfig flag isolated_storage_enabled before launch
     default boolean getIsolatedStorageEnabled() {
         return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED;
     }
@@ -234,10 +233,9 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.
      */
     default int defaultMinTimeOptimizeThresholdMillis() {
-        // TODO (b/385020106): figure out how to make the default 0 timeSinceLastOptimize work
-        //  with a higher threshold and return 4 hours when
-        //  Flags.enable_four_hour_min_optimize_threshold is true
-        return DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
+        return Flags.enableFourHourMinTimeOptimizeThreshold()
+                ? DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS
+                : DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
     }
 
     /**

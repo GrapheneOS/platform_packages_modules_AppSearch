@@ -254,6 +254,23 @@ public final class AppSearchUserInstanceManager {
     }
 
     /**
+     * Gets an {@link UserStorageInfo} for the given user.
+     *
+     * @param userContext Context for the user.
+     * @param userHandle The multi-user handle of the device user
+     * @return An initialized {@link UserStorageInfo} for this user, or {@code null} if not found.
+     */
+    @Nullable
+    public UserStorageInfo getOrUserStorageInfoInstanceOrNull(
+            @NonNull Context userContext, @NonNull UserHandle userHandle) {
+        Objects.requireNonNull(userContext);
+        Objects.requireNonNull(userHandle);
+        synchronized (mStorageInfoLocked) {
+            return mStorageInfoLocked.get(userHandle);
+        }
+    }
+
+    /**
      * Returns the list of all {@link UserHandle}s.
      *
      * <p>It can return an empty list if there is no {@link AppSearchUserInstance} created yet.

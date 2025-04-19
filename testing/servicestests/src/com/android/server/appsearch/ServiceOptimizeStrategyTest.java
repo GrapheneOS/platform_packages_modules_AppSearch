@@ -25,7 +25,6 @@ import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
 import com.android.server.appsearch.icing.proto.StatusProto;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -95,6 +94,23 @@ public class ServiceOptimizeStrategyTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldOptimize_timeThresholdWithActiveResultStates() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedTimeOptimizeThresholdMs())
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold() - 1)
+                        .setOptimizableDocs(
+                                mAppSearchConfig.getCachedDocCountOptimizeThreshold() - 1)
+                        .setNumActiveResultStates(1)
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
     public void testShouldOptimize_docCountThreshold() {
         GetOptimizeInfoResultProto optimizeInfo =
                 GetOptimizeInfoResultProto.newBuilder()
@@ -122,10 +138,6 @@ public class ServiceOptimizeStrategyTest {
         assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
     }
 
-    // TODO (b/385020106): figure out how to make the default 0 timeSinceLastOptimize work
-    //  with a higher threshold and return 4 hours when
-    //  Flags.enable_four_hour_min_optimize_threshold is true and reenable
-    @Ignore
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD)
     public void testShouldNotOptimize_underFourHourMinTimeThreshold() {
@@ -135,6 +147,71 @@ public class ServiceOptimizeStrategyTest {
                         .setEstimatedOptimizableBytes(
                                 mAppSearchConfig.getCachedBytesOptimizeThreshold())
                         .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .setNoPreviousOptimizeInfo(false)
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD)
+    public void testShouldOptimize_firstOptimize() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(0)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .setNoPreviousOptimizeInfo(true)
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldOptimize_noActiveResultStates() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setNumActiveResultStates(0)
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldOptimize_noActiveResultStates_firstTimeOptimize() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setNumActiveResultStates(0)
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .setNoPreviousOptimizeInfo(true)
+                        .build();
+        assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
+    public void testShouldNotOptimize_hasActiveResultStates() {
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs())
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setNumActiveResultStates(1)
                         .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
                         .build();
         assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();

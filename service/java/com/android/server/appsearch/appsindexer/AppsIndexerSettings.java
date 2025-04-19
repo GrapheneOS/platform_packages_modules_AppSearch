@@ -23,6 +23,11 @@ import android.annotation.NonNull;
 import com.android.server.appsearch.indexer.IndexerSettings;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
 
 /**
  * Apps indexer settings backed by a PersistableBundle.
@@ -40,8 +45,21 @@ public class AppsIndexerSettings extends IndexerSettings {
 
     static final String PREVIOUS_APP_INDEXER_VERSION_CODE = "previous_app_indexer_version_code";
 
+    private static final String LOG_LINES_KEY = "log_lines";
+    private static final int MAX_LOG_LINES = 15;
+    private static final int MAX_LOG_LENGTH = 10_000;
+
+    private final Deque<String> mLogLines;
+
     public AppsIndexerSettings(@NonNull File baseDir) {
         super(baseDir);
+        mLogLines = new ArrayDeque<>(MAX_LOG_LINES);
+        String[] storedLogLines = mBundle.getStringArray(LOG_LINES_KEY);
+        if (storedLogLines != null) {
+            for (String line : storedLogLines) {
+                mLogLines.offerLast(line);
+            }
+        }
     }
 
     @Override
@@ -71,11 +89,39 @@ public class AppsIndexerSettings extends IndexerSettings {
         mBundle.putInt(PREVIOUS_APP_INDEXER_VERSION_CODE, versionCode);
     }
 
+    /** Appends a log message to the settings log. */
+    public void appendLog(@NonNull String log) {
+        if (log.length() > MAX_LOG_LENGTH) {
+            log = log.substring(0, MAX_LOG_LENGTH);
+        }
+        // There are no locks protecting access to this field since it is only accessed through a
+        // single-threaded executor. Even if there is a race condition, it is acceptable as this is
+        // for debugging purposes.
+        mLogLines.offerLast(log);
+        if (mLogLines.size() > MAX_LOG_LINES) {
+            mLogLines.pollFirst();
+        }
+    }
+
+    /** Returns the current log messages. */
+    @NonNull
+    public Collection<String> getLogLines() {
+        return Collections.unmodifiableCollection(mLogLines);
+    }
+
     /** Resets all settings to default values except {@link #getPreviousIndexerVersionCode()}. */
     @Override
     public void reset() {
         super.reset();
         setLastAppUpdateTimestampMillis(0);
         setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
+        mLogLines.clear();
+        mBundle.remove(LOG_LINES_KEY);
+    }
+
+    @Override
+    public void persist() throws IOException {
+        mBundle.putStringArray(LOG_LINES_KEY, mLogLines.toArray(new String[0]));
+        super.persist();
     }
 }

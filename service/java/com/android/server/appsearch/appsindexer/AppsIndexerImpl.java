@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
@@ -27,6 +28,7 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.SystemClock;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -88,6 +90,7 @@ public final class AppsIndexerImpl implements Closeable {
             @NonNull AppsUpdateStats appsUpdateStats,
             boolean isFullUpdateRequired)
             throws AppSearchException {
+        // TODO(b/357551503): Split this method up into helper methods
         // TODO(b/357551503): Add metrics for app function indexing
         Objects.requireNonNull(settings);
         Objects.requireNonNull(appsUpdateStats);
@@ -95,7 +98,8 @@ public final class AppsIndexerImpl implements Closeable {
 
         // Search AppSearch for MobileApplication objects to get a "current" list of indexed apps.
         long beforeGetTimestamp = SystemClock.elapsedRealtime();
-        Map<String, Long> appUpdatedTimestamps = mAppSearchHelper.getAppsFromAppSearch();
+        Map<String, MobileApplication> previouslyIndexedAppDetails =
+                mAppSearchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
 
         appsUpdateStats.mAppSearchGetLatencyMillis =
                 SystemClock.elapsedRealtime() - beforeGetTimestamp;
@@ -135,6 +139,8 @@ public final class AppsIndexerImpl implements Closeable {
         // First loop, determine the status of apps
         for (Map.Entry<PackageInfo, ResolveInfos> packageEntry : packagesToIndex.entrySet()) {
             PackageInfo packageInfo = packageEntry.getKey();
+            ResolveInfo appFunctionServiceResolveInfo =
+                    packageEntry.getValue().getAppFunctionServiceInfo();
             packagesToIndexIdSet.add(packageInfo.packageName);
 
             // Update the most recent timestamp as we iterate
@@ -142,14 +148,28 @@ public final class AppsIndexerImpl implements Closeable {
                 mostRecentAppUpdatedTimestampMillis = packageInfo.lastUpdateTime;
             }
 
-            Long storedAppUpdateTime = appUpdatedTimestamps.get(packageInfo.packageName);
+            long storedAppUpdateTime = -1;
 
-            if (storedAppUpdateTime == null) {
+            boolean storedIsAppFunctionServiceEnabled = false;
+
+            MobileApplication appDetails = previouslyIndexedAppDetails.get(packageInfo.packageName);
+            if (appDetails != null) {
+                storedAppUpdateTime = appDetails.getUpdatedTimestamp();
+                storedIsAppFunctionServiceEnabled = appDetails.isAppFunctionServiceEnabled();
+            }
+
+            if (storedAppUpdateTime == -1) {
                 // New app.
                 addedOrRemovedFlag = true;
                 appsUpdateStats.mNumberOfAppsAdded++;
                 packagesToBeAddedOrUpdated.put(packageInfo, packageEntry.getValue());
-            } else if (packageInfo.lastUpdateTime != storedAppUpdateTime || isFullUpdateRequired) {
+            } else if (isPackageUpdatedOrChanged(
+                            packageManager,
+                            packageInfo,
+                            storedAppUpdateTime,
+                            appFunctionServiceResolveInfo,
+                            storedIsAppFunctionServiceEnabled)
+                    || isFullUpdateRequired) {
                 // Package last update timestamp discrepancy between AppSearch and PackageManager
                 // or app indexer code was updated. Add this to the list of updated
                 // apps so we can check what functions are indexed in AppSearch
@@ -163,7 +183,7 @@ public final class AppsIndexerImpl implements Closeable {
         }
 
         // Now check for removed apps
-        for (String appPackageId : appUpdatedTimestamps.keySet()) {
+        for (String appPackageId : previouslyIndexedAppDetails.keySet()) {
             if (!packagesToIndexIdSet.contains(appPackageId)) {
                 // App was removed, remove all it's functions. This is simple because removing the
                 // schema will remove all the functions. Do not add the app to the list of schemas
@@ -198,6 +218,16 @@ public final class AppsIndexerImpl implements Closeable {
         Map<String, Map<String, AppFunctionDocument>> appFunctionsFromAppSearch =
                 mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(updatedPackageIds);
 
+        // For logging to dumpsys
+        // These two are distinct from functionDocumentsToAddOrUpdate as we want to log added and
+        // updated function ids separately
+        Set<String> addedFunctions = new ArraySet<>();
+        Set<String> updatedFunctions = new ArraySet<>();
+        // This is different from functionIdsToRemove as we don't need to explicitly remove
+        // functions if all functions were removed from an app, instead we just remove the entire
+        // function schema for that app to delete the functions in AppSearch
+        Set<String> allDeletedFunctions = new ArraySet<>();
+
         for (Map.Entry<String, Map<String, ? extends AppFunctionDocument>> packageEntry :
                 currentAppFunctionsForAddedUpdatedPackages.entrySet()) {
             String packageName = packageEntry.getKey();
@@ -212,20 +242,27 @@ public final class AppsIndexerImpl implements Closeable {
                 // Functions added to an app that didn't have them
                 functionDocumentsToAddOrUpdate.addAll(currentAppFunctionsPerApp.values());
                 addedOrRemovedFlag = true;
+                addedFunctions.addAll(currentAppFunctionsPerApp.keySet());
             }
 
             if (appSearchAppFunctionsPerApp != null) {
                 if (currentAppFunctionsPerApp.isEmpty()) {
                     // All functions removed from an app that had them
                     addedOrRemovedFlag = true;
+                    allDeletedFunctions.addAll(appSearchAppFunctionsPerApp.keySet());
                 } else {
                     // App updated that had packages, we should check
                     comparePackageFunctionDocuments(
                             currentAppFunctionsPerApp,
                             appSearchAppFunctionsPerApp,
                             functionDocumentsToAddOrUpdate,
-                            functionIdsToRemove);
+                            functionIdsToRemove,
+                            allDeletedFunctions,
+                            addedFunctions,
+                            updatedFunctions);
                 }
+            } else if (!currentAppFunctionsPerApp.isEmpty()) {
+                addedFunctions.addAll(currentAppFunctionsPerApp.keySet());
             }
         }
 
@@ -308,8 +345,92 @@ public final class AppsIndexerImpl implements Closeable {
             settings.reset();
             appsUpdateStats.mUpdateStatusCodes.clear();
             appsUpdateStats.mUpdateStatusCodes.add(e.getResultCode());
+            settings.appendLog(String.format("Error updating apps indexer: %s", e));
             throw e;
+        } finally {
+            Set<String> removedApps = new ArraySet<>(previouslyIndexedAppDetails.keySet());
+            removedApps.removeAll(packagesToIndexIdSet);
+
+            List<String> addedAppPackageNames = new ArrayList<>();
+            List<String> updatedAppPackageNames = new ArrayList<>();
+            for (Map.Entry<PackageInfo, ResolveInfos> entry :
+                    packagesToBeAddedOrUpdated.entrySet()) {
+                if (!previouslyIndexedAppDetails.containsKey(entry.getKey().packageName)) {
+                    addedAppPackageNames.add(entry.getKey().packageName);
+                } else if (entry.getKey().lastUpdateTime
+                        != previouslyIndexedAppDetails
+                                .get(entry.getKey().packageName)
+                                .getUpdatedTimestamp()) {
+                    updatedAppPackageNames.add(entry.getKey().packageName);
+                }
+            }
+
+            final int functionLogLimit = 50;
+            settings.appendLog(
+                    String.format(
+                            "Apps Indexer Update [%d]: Cause - Incremental %s,\n"
+                                    + "APPS\n"
+                                    + "\tAdded - [%s],\n"
+                                    + "\tUpdated - [%s],\n"
+                                    + "\tDeleted - [%s]\n"
+                                    + "FUNCTIONS\n"
+                                    + "\tAdded - [%s],\n"
+                                    + "\tUpdated - [%s],\n"
+                                    + "\tDeleted - [%s]",
+                            currentTimeMillis,
+                            isFullUpdateRequired ? " (Full)" : "",
+                            addedAppPackageNames,
+                            updatedAppPackageNames,
+                            removedApps,
+                            new ArrayList<>(addedFunctions)
+                                    .subList(0, Math.min(functionLogLimit, addedFunctions.size())),
+                            new ArrayList<>(updatedFunctions)
+                                    .subList(
+                                            0, Math.min(functionLogLimit, updatedFunctions.size())),
+                            new ArrayList<>(allDeletedFunctions)
+                                    .subList(
+                                            0,
+                                            Math.min(
+                                                    functionLogLimit,
+                                                    allDeletedFunctions.size()))));
         }
+    }
+
+    /**
+     * Returns true if the package update time is not equal to stored app update time or if
+     * AppFunctionService enabled state is not the same as the stored one.
+     *
+     * @param packageManager PackageManager instance.
+     * @param packageInfo Current information of the package with last update time.
+     * @param storedAppUpdateTime The update time stored for the package in appsearch.
+     * @param appFunctionServiceResolveInfo Current resolve info for the AppFunctionService in the
+     *     package.
+     * @param storedIsAppFunctionServiceEnabled Stored enabled state for the AppFunctionService in
+     *     apppsearch.
+     */
+    private static boolean isPackageUpdatedOrChanged(
+            PackageManager packageManager,
+            @NonNull PackageInfo packageInfo,
+            long storedAppUpdateTime,
+            @Nullable ResolveInfo appFunctionServiceResolveInfo,
+            boolean storedIsAppFunctionServiceEnabled) {
+        if (packageInfo.lastUpdateTime != storedAppUpdateTime) {
+            return true;
+        }
+
+        if (!Flags.enableIndexerRunOnAppFunctionComponentChange()) {
+            return false;
+        }
+
+        if (appFunctionServiceResolveInfo == null) {
+            // appFunctionServiceResolveInfo being null means the service is disabled/does not
+            // exist, hence the package status is determined by the stored state.
+            return storedIsAppFunctionServiceEnabled;
+        }
+
+        boolean isAppFunctionServiceEnabled =
+                AppsUtil.isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo);
+        return isAppFunctionServiceEnabled != storedIsAppFunctionServiceEnabled;
     }
 
     /**
@@ -371,12 +492,21 @@ public final class AppsIndexerImpl implements Closeable {
      *     sent to a put call to AppSearch
      * @param functionDocumentIdsToRemove the set of ids that will be sent to a remove call in
      *     AppSearch
+     * @param allDeletedFunctions the set of ids of all functions that will be removed from
+     *     AppSearch, either by a delete call and by a setSchema call. For logging purposes.
+     * @param addFunctions the set of ids of functions that will be added to AppSearch, that are not
+     *     updated functions. For logging purposes.
+     * @param updateFunctions the set of ids of functions that will be updated in AppSearch, that
+     *     are not added functions. For logging purposes.
      */
     private void comparePackageFunctionDocuments(
             @NonNull Map<String, ? extends AppFunctionDocument> currentAppFunctionDocumentsPerApp,
             @NonNull Map<String, AppFunctionDocument> appSearchAppFunctionDocumentsPerApp,
             @NonNull List<AppFunctionDocument> functionDocumentsToAddOrUpdate,
-            @NonNull Set<String> functionDocumentIdsToRemove) {
+            @NonNull Set<String> functionDocumentIdsToRemove,
+            @NonNull Set<String> allDeletedFunctions,
+            @NonNull Set<String> addFunctions,
+            @NonNull Set<String> updateFunctions) {
         Objects.requireNonNull(currentAppFunctionDocumentsPerApp);
         Objects.requireNonNull(appSearchAppFunctionDocumentsPerApp);
         Objects.requireNonNull(functionDocumentsToAddOrUpdate);
@@ -394,14 +524,21 @@ public final class AppsIndexerImpl implements Closeable {
             if (appSearchFunctionDocument == null
                     || !areFunctionDocumentsEqual(
                             appSearchFunctionDocument, currentFunctionDocument)) {
+                if (appSearchFunctionDocument == null) {
+                    addFunctions.add(functionId);
+                } else {
+                    updateFunctions.add(functionId);
+                }
                 functionDocumentsToAddOrUpdate.add(currentFunctionDocument);
             }
         }
 
         for (Map.Entry<String, AppFunctionDocument> appSearchFunctionEntry :
                 appSearchAppFunctionDocumentsPerApp.entrySet()) {
-            if (!currentAppFunctionDocumentsPerApp.containsKey(appSearchFunctionEntry.getKey())) {
-                functionDocumentIdsToRemove.add(appSearchFunctionEntry.getValue().getId());
+            String functionId = appSearchFunctionEntry.getKey();
+            if (!currentAppFunctionDocumentsPerApp.containsKey(functionId)) {
+                functionDocumentIdsToRemove.add(functionId);
+                allDeletedFunctions.add(functionId);
             }
         }
     }
