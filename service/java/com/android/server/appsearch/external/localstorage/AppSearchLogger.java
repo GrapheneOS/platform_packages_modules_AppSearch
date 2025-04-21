@@ -18,7 +18,6 @@ package com.android.server.appsearch.external.localstorage;
 
 import android.app.appsearch.stats.SchemaMigrationStats;
 
-import com.android.server.appsearch.appsindexer.AppOpenEventStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
@@ -80,11 +79,6 @@ public interface AppSearchLogger {
 
     /** Logs {@link SchemaMigrationStats} */
     default void logStats(@NonNull SchemaMigrationStats stats) {
-        // no-op
-    }
-
-    /** Logs {@link SchemaMigrationStats} */
-    default void logStats(@NonNull AppOpenEventStats stats) {
         // no-op
     }
 

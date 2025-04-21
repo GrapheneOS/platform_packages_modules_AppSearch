@@ -87,6 +87,7 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
     private BroadcastReceiver mCapturedReceiver;
     // Saving to class so we can unregister the callback
     private final PackageManager mPackageManager = Mockito.mock(PackageManager.class);
+    private GlobalSearchSessionShim mShim;
 
     @Before
     @Override
