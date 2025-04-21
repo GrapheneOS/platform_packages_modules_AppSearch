@@ -29,6 +29,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.CancellationSignal;
 import android.os.UserHandle;
@@ -220,9 +221,14 @@ public final class AppsIndexerManagerService extends SystemService {
                     Intent appFunctionServiceIntent =
                             new Intent("android.app.appfunctions.AppFunctionService")
                                     .setPackage(changedPackage);
+                    // Include disabled components in the query because if this broadcast is
+                    // disabling AppFunctionService, the component may already be disabled and would
+                    // otherwise be skipped
                     List<ResolveInfo> services =
                             mContext.getPackageManager()
-                                    .queryIntentServices(appFunctionServiceIntent, /* flags= */ 0);
+                                    .queryIntentServices(
+                                            appFunctionServiceIntent,
+                                            /* flags= */ PackageManager.MATCH_DISABLED_COMPONENTS);
 
                     for (int j = 0; j < services.size(); j++) {
                         if (changedComponent.equals(services.get(j).serviceInfo.name)) {

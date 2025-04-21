@@ -229,6 +229,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
     @Test
     public void testStart_onShutdown_cancelsUpdateJob() throws Exception {
+        long currentTimeMillis = System.currentTimeMillis();
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
 

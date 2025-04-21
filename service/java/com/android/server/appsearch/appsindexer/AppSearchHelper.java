@@ -476,9 +476,7 @@ public class AppSearchHelper implements Closeable {
      */
     @WorkerThread
     public AppSearchBatchResult<String, Void> indexAppOpenEvents(
-            @NonNull List<AppOpenEvent> appOpenEvents,
-            @NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder)
-            throws AppSearchException {
+            @NonNull List<AppOpenEvent> appOpenEvents) throws AppSearchException {
         Objects.requireNonNull(appOpenEvents);
 
         PutDocumentsRequest request =
@@ -489,7 +487,6 @@ public class AppSearchHelper implements Closeable {
         if (!result.isSuccess()) {
             Map<String, AppSearchResult<Void>> failures = result.getFailures();
             for (AppSearchResult<Void> failure : failures.values()) {
-                appOpenEventStatsBuilder.addUpdateStatusCode(failure.getResultCode());
                 // If it's out of space, stop indexing
                 if (failure.getResultCode() == AppSearchResult.RESULT_OUT_OF_SPACE) {
                     throw new AppSearchException(
@@ -498,8 +495,6 @@ public class AppSearchHelper implements Closeable {
                     Log.e(TAG, "Ran into error while indexing apps: " + failure);
                 }
             }
-        } else {
-            appOpenEventStatsBuilder.addUpdateStatusCode(AppSearchResult.RESULT_OK);
         }
         return result;
     }
