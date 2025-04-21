@@ -25,7 +25,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
-import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
@@ -60,7 +59,6 @@ public class AppOpenEventIndexerImplTest {
     @After
     public void tearDown() throws Exception {
         mAppSearchHelper.close();
-        temporaryFolder.delete();
     }
 
     @Test
@@ -87,9 +85,7 @@ public class AppOpenEventIndexerImplTest {
                 };
 
         AppOpenEventIndexerImpl appOpenEventIndexerImpl = new AppOpenEventIndexerImpl(context);
-        assertThrows(
-                Exception.class,
-                () -> appOpenEventIndexerImpl.doUpdate(settings, new AppOpenEventStats.Builder()));
+        assertThrows(Exception.class, () -> appOpenEventIndexerImpl.doUpdate(settings));
         // Indexing did not succeed, so we should not be able to get any app open events
         assertThrows(
                 AppSearchException.class,
@@ -133,68 +129,15 @@ public class AppOpenEventIndexerImplTest {
                 };
 
         AppOpenEventIndexerImpl appOpenEventIndexerImpl = new AppOpenEventIndexerImpl(context);
-        AppOpenEventStats.Builder appOpenEventStatsBuilder = new AppOpenEventStats.Builder();
-        appOpenEventIndexerImpl.doUpdate(settings, appOpenEventStatsBuilder);
-        AppOpenEventStats appOpenEventStats = appOpenEventStatsBuilder.build();
+        appOpenEventIndexerImpl.doUpdate(settings);
 
         assertThat(
                         mAppSearchHelper
                                 .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
                                 .getId())
                 .isEqualTo("com.example.package" + (currentTimeMillis + 1L));
-        assertThat(appOpenEventStats.getNumberOfAppOpenEventsAdded()).isEqualTo(1);
-        assertThat(appOpenEventStats.getUpdateStatusCodes())
-                .containsExactly(AppSearchResult.RESULT_OK);
 
         // Settings updated on successful indexing
         assertThat(settings.getLastUpdateTimestampMillis()).isGreaterThan(currentTimeMillis);
-    }
-
-    @Test
-    public void testAppOpenEventIndexerImpl_updateApps_statsAreCorrect() throws Exception {
-        long currentTimeMillis = System.currentTimeMillis();
-        AppOpenEventIndexerSettings settings =
-                new AppOpenEventIndexerSettings(temporaryFolder.newFolder("tmp"));
-        settings.setLastUpdateTimestampMillis(currentTimeMillis);
-
-        UsageStatsManager usm = Mockito.mock(UsageStatsManager.class);
-
-        UsageEvents.Event[] oldEvents =
-                new UsageEvents.Event[] {
-                    createIndividualUsageEvent(
-                            UsageEvents.Event.MOVE_TO_FOREGROUND,
-                            currentTimeMillis,
-                            "com.example.package"),
-                    createIndividualUsageEvent(
-                            UsageEvents.Event.MOVE_TO_FOREGROUND,
-                            currentTimeMillis + 1L,
-                            "com.example.package"),
-                };
-        UsageEvents mockUsageEvents = TestUtils.createUsageEvents(oldEvents);
-
-        when(usm.queryEvents(anyLong(), anyLong())).thenReturn(mockUsageEvents);
-
-        Context context =
-                new ContextWrapper(mContext) {
-                    @Override
-                    public Object getSystemService(String name) {
-                        if (name.equals(Context.USAGE_STATS_SERVICE)) {
-                            return usm;
-                        }
-                        return super.getSystemService(name);
-                    }
-                };
-
-        AppOpenEventIndexerImpl appOpenEventIndexerImpl = new AppOpenEventIndexerImpl(context);
-        AppOpenEventStats.Builder appOpenEventStatsBuilder = new AppOpenEventStats.Builder();
-        appOpenEventIndexerImpl.doUpdate(settings, appOpenEventStatsBuilder);
-
-        AppOpenEventStats appOpenEventStats = appOpenEventStatsBuilder.build();
-
-        assertThat(appOpenEventStats.getNumberOfAppOpenEventsAdded()).isEqualTo(2);
-        assertThat(appOpenEventStats.getUpdateStatusCodes()).hasSize(1);
-        assertThat(appOpenEventStats.getUpdateStatusCodes()).contains(AppSearchResult.RESULT_OK);
-        assertThat(appOpenEventStats.getUsageStatsManagerReadLatencyMillis()).isGreaterThan(0L);
-        assertThat(settings.getLastUpdateTimestampMillis()).isAtLeast(currentTimeMillis);
     }
 }

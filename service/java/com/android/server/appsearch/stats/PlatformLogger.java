@@ -32,7 +32,6 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
-import com.android.server.appsearch.appsindexer.AppOpenEventStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.ClickStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
@@ -164,16 +163,6 @@ public class PlatformLogger implements InternalAppSearchLogger {
         synchronized (mLock) {
             if (shouldLogForTypeLocked(CallStats.CALL_TYPE_INITIALIZE)) {
                 logStatsImplLocked(stats);
-            }
-        }
-    }
-
-    @Override
-    public void logStats(@NonNull AppOpenEventStats appOpenEventStats) {
-        Objects.requireNonNull(appOpenEventStats);
-        synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_APP_OPEN_EVENT_INDEXER)) {
-                logStatsImplLocked(appOpenEventStats);
             }
         }
     }
@@ -561,28 +550,6 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @GuardedBy("mLock")
-    private void logStatsImplLocked(@NonNull AppOpenEventStats appOpenEventStats) {
-        mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
-        int[] updateStatusArr = new int[appOpenEventStats.getUpdateStatusCodes().size()];
-        int updateIdx = 0;
-        for (int updateStatus : appOpenEventStats.getUpdateStatusCodes()) {
-            updateStatusArr[updateIdx] = updateStatus;
-            ++updateIdx;
-        }
-
-        AppSearchStatsLog.write(
-                AppSearchStatsLog.APP_SEARCH_APP_OPEN_EVENT_INDEXER_STATS_REPORTED,
-                updateStatusArr,
-                appOpenEventStats.getNumberOfAppOpenEventsAdded(),
-                appOpenEventStats.getTotalLatencyMillis(),
-                appOpenEventStats.getUsageStatsManagerReadLatencyMillis(),
-                appOpenEventStats.getAppSearchSetSchemaLatencyMillis(),
-                appOpenEventStats.getAppSearchPutLatencyMillis(),
-                appOpenEventStats.getUpdateStartTimestampMillis(),
-                appOpenEventStats.getLastAppUpdateTimestampMillis());
-    }
-
-    @GuardedBy("mLock")
     private void logStatsImplLocked(@NonNull List<SearchSessionStats> searchSessionsStats) {
         for (int i = 0; i < searchSessionsStats.size(); ++i) {
             SearchSessionStats searchSessionStats = searchSessionsStats.get(i);
@@ -832,8 +799,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
             case CallStats.CALL_TYPE_OPEN_WRITE_BLOB:
             case CallStats.CALL_TYPE_COMMIT_BLOB:
             case CallStats.CALL_TYPE_OPEN_READ_BLOB:
-            case CallStats.CALL_TYPE_APP_OPEN_EVENT_INDEXER:
-            // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
+                // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
             default:
                 return mConfig.getCachedSamplingIntervalDefault();
         }
