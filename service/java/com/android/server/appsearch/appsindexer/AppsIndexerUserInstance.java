@@ -39,6 +39,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
@@ -171,10 +174,10 @@ public final class AppsIndexerUserInstance {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
         pw.println(
                 "last_update_timestamp_millis: "
-                        + formatTimestamp(mSettings.getLastUpdateTimestampMillis(), dateFormat));
+                        + formatTimestamp(mSettings.getLastUpdateTimestampMillis()));
         pw.println(
                 "last_app_update_timestamp_millis: "
-                        + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis(), dateFormat));
+                        + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis()));
         try (AppSearchHelper appSearchHelper = new AppSearchHelper(mContext)) {
             Map<String, Long> appLastUpdatedTimeMillisMap = appSearchHelper.getAppsFromAppSearch();
             pw.println("Indexed Apps:");
@@ -184,7 +187,7 @@ public final class AppsIndexerUserInstance {
                         "    packageName: "
                                 + appLastUpdatedEntry.getKey()
                                 + " lastUpdatedTimestamp: "
-                                + formatTimestamp(appLastUpdatedEntry.getValue(), dateFormat));
+                                + formatTimestamp(appLastUpdatedEntry.getValue()));
             }
         } catch (AppSearchException e) {
             pw.println("Error in dumping indexed applications");
@@ -200,8 +203,11 @@ public final class AppsIndexerUserInstance {
         }
     }
 
-    private static String formatTimestamp(long timestampInMillis, SimpleDateFormat formatter) {
-        return formatter.format(Instant.ofEpochMilli(timestampInMillis));
+    private static String formatTimestamp(long timestampInMillis) {
+        LocalDate date =
+                LocalDate.ofInstant(
+                        Instant.ofEpochMilli(timestampInMillis), ZoneId.systemDefault());
+        return date.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
     /**
