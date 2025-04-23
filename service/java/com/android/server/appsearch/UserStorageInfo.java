@@ -74,12 +74,11 @@ public final class UserStorageInfo {
      */
     public void updateStorageInfoFile(@NonNull AppSearchImpl appSearchImpl) {
         Objects.requireNonNull(appSearchImpl);
-        StorageInfoProto storageInfo = null;
         mReadWriteLock.writeLock().lock();
         try {
-            storageInfo = appSearchImpl.getRawStorageInfoProto();
-            updateStorageInfoCache(storageInfo);
-            updateFile(storageInfo);
+            StorageInfoProto storageInfo = appSearchImpl.getRawStorageInfoProto();
+            updateStorageInfoCacheLocked(storageInfo);
+            updateFileLocked(storageInfo);
         } catch (AppSearchException e) {
             Log.w(TAG, "Failed to get native storage info", e);
             ExceptionUtil.handleException(e);
@@ -95,11 +94,16 @@ public final class UserStorageInfo {
         Objects.requireNonNull(storageInfo);
         mReadWriteLock.writeLock().lock();
         try {
-            mTotalStorageSizeBytes = storageInfo.getTotalStorageSize();
-            mPackageStorageSizeMap = calculatePackageStorageInfoMap(storageInfo);
+            updateStorageInfoCacheLocked(storageInfo);
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
+    }
+
+    @GuardedBy("mReadWriteLock")
+    private void updateStorageInfoCacheLocked(@NonNull StorageInfoProto storageInfo) {
+        mTotalStorageSizeBytes = storageInfo.getTotalStorageSize();
+        mPackageStorageSizeMap = calculatePackageStorageInfoMap(storageInfo);
     }
 
     /**
@@ -109,11 +113,16 @@ public final class UserStorageInfo {
     public void dropStorageInfoCache() {
         mReadWriteLock.writeLock().lock();
         try {
-            mTotalStorageSizeBytes = 0;
-            mPackageStorageSizeMap = Collections.emptyMap();
+            dropStorageInfoCacheLocked();
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
+    }
+
+    @GuardedBy("mReadWriteLock")
+    private void dropStorageInfoCacheLocked() {
+        mTotalStorageSizeBytes = 0;
+        mPackageStorageSizeMap = Collections.emptyMap();
     }
 
     /**
@@ -168,28 +177,25 @@ public final class UserStorageInfo {
             return;
         }
 
-        StorageInfoProto storageInfo = null;
-        mReadWriteLock.readLock().lock();
+        mReadWriteLock.writeLock().lock();
         try (InputStream in = new FileInputStream(mStorageInfoFile)) {
-            storageInfo = StorageInfoProto.parseFrom(in);
+            StorageInfoProto storageInfo = StorageInfoProto.parseFrom(in);
+            updateStorageInfoCacheLocked(storageInfo);
         } catch (IOException | RuntimeException e) {
             Log.w(TAG, "Failed to read storage info from file", e);
+            dropStorageInfoCacheLocked();
             ExceptionUtil.handleException(e);
         } finally {
-            mReadWriteLock.readLock().unlock();
+            mReadWriteLock.writeLock().unlock();
         }
-        updateStorageInfoCache(storageInfo);
     }
 
-    private void updateFile(@NonNull StorageInfoProto storageInfo) {
-        mReadWriteLock.writeLock().lock();
+    private void updateFileLocked(@NonNull StorageInfoProto storageInfo) {
         try (FileOutputStream out = new FileOutputStream(mStorageInfoFile)) {
             storageInfo.writeTo(out);
         } catch (IOException | RuntimeException e) {
             Log.w(TAG, "Failed to dump storage info into file", e);
             ExceptionUtil.handleException(e);
-        } finally {
-            mReadWriteLock.writeLock().unlock();
         }
     }
 
