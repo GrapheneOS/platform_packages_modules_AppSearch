@@ -40,6 +40,17 @@ java_defaults {
     use_embedded_native_libs: true,
     apex_available: ["com.android.appsearch"],
     jni_libs: ["libisolated_storage_service"],
+
+    optimize: {
+        // TODO: more aggressive proguarding?
+        // proguard_compatibility: false,
+        // proguard_flags_files: ["proguard.flags"],
+
+        enabled: true,
+        optimize: true,
+        shrink_resources: true,
+        shrink: true,
+    },
 }
 
 android_app {
