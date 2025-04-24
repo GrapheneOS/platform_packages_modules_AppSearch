@@ -45,6 +45,7 @@ import android.app.job.JobScheduler;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
@@ -66,6 +67,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -437,6 +439,115 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     }
 
     @Test
+    public void testFirstRun_withOtaUpdate_updateAlreadyRan_indexesApp() throws Exception {
+        // Pretend we already ran with no fingerprints set.
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        mAppsDir.mkdirs();
+        settings.setLastUpdateTimestampMillis(1000);
+        settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
+        settings.persist();
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for settings file initialization as it uses the same executor service.
+        semaphore.acquire();
+
+        mInstance.updateAsync(/* firstRun= */ true);
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
+            Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
+            assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
+        }
+        // Last joined partition fingerprint is updated in settings.
+        AppsIndexerSettings currSettings = new AppsIndexerSettings(mAppsDir);
+        currSettings.load();
+        assertThat(Arrays.asList(currSettings.getLastPartitionFingerprintsSortedByPartitionName()))
+                .containsExactlyElementsIn(
+                        Build.getFingerprintedPartitions().stream()
+                                .map(partition -> partition.getFingerprint())
+                                .toArray());
+    }
+
+    @Test
+    public void testFirstRun_noOtaUpdate_updateAlreadyRan_doesNotIndex() throws Exception {
+        // Pretend we already ran with the current partition fingerprints.
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        mAppsDir.mkdirs();
+        settings.setLastUpdateTimestampMillis(1000);
+        settings.setLastPartitionFingerprintsSortedByPartitionName(
+                Build.getFingerprintedPartitions());
+        settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
+        settings.persist();
+
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for settings file initialization as it uses the same executor service.
+        semaphore.acquire();
+
+        mInstance.updateAsync(/* firstRun= */ true);
+        // Wait for the task to finish
+        semaphore.acquire();
+
+        // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
+        // fingerprint string didn't change, so nothing should've been indexed
+        try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
+            assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
+        }
+    }
+
+    @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
     public void testFirstRun_withIndexerUpdate_updateAlreadyRan_indexesApp() throws Exception {
         // Pretend we already ran with a old indexer version.
@@ -509,6 +620,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
+        settings.setLastPartitionFingerprintsSortedByPartitionName(
+                Build.getFingerprintedPartitions());
         settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
         settings.persist();
 
