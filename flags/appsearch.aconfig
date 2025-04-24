@@ -552,13 +552,3 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
-
-flag {
-    name: "enable_indexer_run_on_ota_update"
-    namespace: "appsearch"
-    description: "Enables running apps indexer when there's an OTA update and system apps are updated."
-    bug: "411384350"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
