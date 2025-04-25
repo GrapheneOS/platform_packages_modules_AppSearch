@@ -37,15 +37,20 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
+import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
+import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.StatusProto;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -72,7 +77,11 @@ public final class AppSearchUserInstanceManager {
     private final AtomicReference<IsolatedStorageServiceManager>
             mIsolatedStorageServiceManagerLocked = new AtomicReference<>();
 
-    private AppSearchUserInstanceManager() {}
+    @GuardedBy("mPerUserMigrationFutureLocked")
+    private final Map<UserHandle, ScheduledFuture<?>> mPerUserMigrationFutureLocked =
+            new ArrayMap();
+
+    public AppSearchUserInstanceManager() {}
 
     /**
      * Gets an instance of AppSearchUserInstanceManager to be used.
@@ -107,7 +116,8 @@ public final class AppSearchUserInstanceManager {
     public AppSearchUserInstance getOrCreateUserInstance(
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
-            @NonNull ServiceAppSearchConfig config)
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager executorManager)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
@@ -117,7 +127,7 @@ public final class AppSearchUserInstanceManager {
         try {
             AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
             if (instance == null) {
-                instance = createUserInstance(userContext, userHandle, config);
+                instance = createUserInstance(userContext, userHandle, config, executorManager);
                 mInstancesLocked.put(userHandle, instance);
             }
             return instance;
@@ -289,7 +299,8 @@ public final class AppSearchUserInstanceManager {
     private AppSearchUserInstance createUserInstance(
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
-            @NonNull ServiceAppSearchConfig config)
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager mExecutorManager)
             throws AppSearchException {
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
@@ -325,7 +336,8 @@ public final class AppSearchUserInstanceManager {
                             initStatsBuilder,
                             visibilityCheckerImpl,
                             frameworkRevocableFileDescriptorStore,
-                            maybeGetIsolatedIcingSearchEngine(userContext, userHandle, config),
+                            maybeGetIsolatedIcingSearchEngine(
+                                    userContext, userHandle, config, mExecutorManager),
                             new ServiceOptimizeStrategy(config));
 
             // Update storage info file
@@ -358,34 +370,77 @@ public final class AppSearchUserInstanceManager {
     private IcingSearchEngineInterface maybeGetIsolatedIcingSearchEngine(
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
-            @NonNull ServiceAppSearchConfig config)
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager executorManager)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
+        Objects.requireNonNull(executorManager);
 
         if (!IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
             Log.i(TAG, "Isolated storage is not enabled.");
             return null;
         }
 
-        IcingSearchEngineInterface icingInstance;
+        IcingSearchEngineInterface isolatedIcingInterface;
         synchronized (mIsolatedStorageServiceManagerLocked) {
             if (mIsolatedStorageServiceManagerLocked.get() == null) {
                 mIsolatedStorageServiceManagerLocked.set(
                         new IsolatedStorageServiceManager(userContext, config));
             }
-            icingInstance =
+            isolatedIcingInterface =
                     mIsolatedStorageServiceManagerLocked.get().getIcingInstance(userHandle, config);
         }
 
         // Enforce successful isolated storage creation when configured for use
-        if (icingInstance == null) {
+        if (isolatedIcingInterface == null) {
             Log.e(TAG, "Failed to get isolated storage instance!");
             throw new AppSearchException(
                     RESULT_INTERNAL_ERROR, "Failed to get isolated storage instance!");
         }
 
-        return icingInstance;
+        if (!DataMigrationUtil.needDataMigration(userContext, userHandle, config)) {
+            return isolatedIcingInterface;
+        }
+
+        if (!config.enableIsolatedStorageMigration()) {
+            return isolatedIcingInterface;
+        }
+
+        // Schedule migration
+        synchronized (mPerUserMigrationFutureLocked) {
+            ScheduledFuture<?> migrationFuture = mPerUserMigrationFutureLocked.get(userHandle);
+            if (migrationFuture == null) {
+                // TODO(b/407815165): Allow configuring resetDestination, forceOverride & delay
+                migrationFuture =
+                        executorManager.scheduleLambdaForUserNoCallbackAsync(
+                                userHandle,
+                                () -> {
+                                    AppSearchUserInstance instance =
+                                            getUserInstanceOrNull(userHandle);
+                                    if (instance != null) {
+                                        StatusProto status =
+                                                DataMigrationUtil.copyData(
+                                                        // Get the non-isolated icing instance
+                                                        instance.getAppSearchImpl(),
+                                                        isolatedIcingInterface,
+                                                        /* resetDestination= */ false,
+                                                        /* forceOverride= */ true);
+                                        if (LogUtil.INFO) {
+                                            Log.i(TAG, "Data migration status: " + status);
+                                        }
+                                        // TODO(b/407815165): Switch AppSearchImpl to
+                                        //  isolatedIcingInterface and clean up old instance.
+                                    }
+                                },
+                                1,
+                                TimeUnit.MINUTES);
+                mPerUserMigrationFutureLocked.put(userHandle, migrationFuture);
+            }
+        }
+        // If we need a migration, return null so that AppSearch will create the non-isolated
+        // version of Icing in AppSearchImpl.create.
+        return null;
     }
 }
