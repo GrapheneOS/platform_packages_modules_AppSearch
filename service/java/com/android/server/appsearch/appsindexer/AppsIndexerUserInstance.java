@@ -40,7 +40,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -208,10 +208,10 @@ public final class AppsIndexerUserInstance {
     }
 
     private static String formatTimestamp(long timestampInMillis) {
-        LocalDate date =
-                LocalDate.ofInstant(
+        LocalDateTime dateTime =
+                LocalDateTime.ofInstant(
                         Instant.ofEpochMilli(timestampInMillis), ZoneId.systemDefault());
-        return date.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return dateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
     /**
