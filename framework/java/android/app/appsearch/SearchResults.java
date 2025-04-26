@@ -145,23 +145,31 @@ public class SearchResults implements Closeable {
                             wrapCallback(executor, callback));
                 }
             } else {
-                // TODO(b/276349029): Log different join types when they get added.
-                @AppSearchSchema.StringPropertyConfig.JoinableValueType
-                int joinType = JOINABLE_VALUE_TYPE_NONE;
-                JoinSpec joinSpec = mSearchSpec.getJoinSpec();
-                if (joinSpec != null && !joinSpec.getChildPropertyExpression().isEmpty()) {
-                    joinType = JOINABLE_VALUE_TYPE_QUALIFIED_ID;
+                if (mNextPageToken == SearchResultPage.EMPTY_PAGE_TOKEN) {
+                    // Construct an empty page and invoke the callback if the next page token is
+                    // empty token. This will save a binder call.
+                    AppSearchResult<SearchResultPage> searchResultPageResult =
+                            AppSearchResult.newSuccessfulResult(new SearchResultPage());
+                    invokeCallback(searchResultPageResult, callback);
+                } else {
+                    // TODO(b/276349029): Log different join types when they get added.
+                    @AppSearchSchema.StringPropertyConfig.JoinableValueType
+                    int joinType = JOINABLE_VALUE_TYPE_NONE;
+                    JoinSpec joinSpec = mSearchSpec.getJoinSpec();
+                    if (joinSpec != null && !joinSpec.getChildPropertyExpression().isEmpty()) {
+                        joinType = JOINABLE_VALUE_TYPE_QUALIFIED_ID;
+                    }
+                    mService.getNextPage(
+                            new GetNextPageAidlRequest(
+                                    mAttributionSource,
+                                    mDatabaseName,
+                                    mNextPageToken,
+                                    joinType,
+                                    mUserHandle,
+                                    binderCallStartTimeMillis,
+                                    mIsForEnterprise),
+                            wrapCallback(executor, callback));
                 }
-                mService.getNextPage(
-                        new GetNextPageAidlRequest(
-                                mAttributionSource,
-                                mDatabaseName,
-                                mNextPageToken,
-                                joinType,
-                                mUserHandle,
-                                binderCallStartTimeMillis,
-                                mIsForEnterprise),
-                        wrapCallback(executor, callback));
             }
         } catch (RemoteException e) {
             ExceptionUtil.handleRemoteException(e);
@@ -171,17 +179,23 @@ public class SearchResults implements Closeable {
     @Override
     public void close() {
         if (!mIsClosed) {
-            try {
-                mService.invalidateNextPageToken(
-                        new InvalidateNextPageTokenAidlRequest(
-                                mAttributionSource,
-                                mNextPageToken,
-                                mUserHandle,
-                                /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
-                                mIsForEnterprise));
+            if (mNextPageToken == SearchResultPage.EMPTY_PAGE_TOKEN) {
+                // Save a binder call for invalidateNextPageToken if the next page token is empty
+                // token.
                 mIsClosed = true;
-            } catch (RemoteException e) {
-                Log.e(TAG, "Unable to close the SearchResults", e);
+            } else {
+                try {
+                    mService.invalidateNextPageToken(
+                            new InvalidateNextPageTokenAidlRequest(
+                                    mAttributionSource,
+                                    mNextPageToken,
+                                    mUserHandle,
+                                    /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
+                                    mIsForEnterprise));
+                    mIsClosed = true;
+                } catch (RemoteException e) {
+                    Log.e(TAG, "Unable to close the SearchResults", e);
+                }
             }
         }
     }

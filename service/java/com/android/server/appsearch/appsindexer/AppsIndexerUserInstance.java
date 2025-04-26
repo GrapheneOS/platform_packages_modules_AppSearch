@@ -24,6 +24,7 @@ import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
+import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.Slog;
@@ -39,7 +40,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -171,10 +178,10 @@ public final class AppsIndexerUserInstance {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
         pw.println(
                 "last_update_timestamp_millis: "
-                        + formatTimestamp(mSettings.getLastUpdateTimestampMillis(), dateFormat));
+                        + formatTimestamp(mSettings.getLastUpdateTimestampMillis()));
         pw.println(
                 "last_app_update_timestamp_millis: "
-                        + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis(), dateFormat));
+                        + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis()));
         try (AppSearchHelper appSearchHelper = new AppSearchHelper(mContext)) {
             Map<String, Long> appLastUpdatedTimeMillisMap = appSearchHelper.getAppsFromAppSearch();
             pw.println("Indexed Apps:");
@@ -184,7 +191,7 @@ public final class AppsIndexerUserInstance {
                         "    packageName: "
                                 + appLastUpdatedEntry.getKey()
                                 + " lastUpdatedTimestamp: "
-                                + formatTimestamp(appLastUpdatedEntry.getValue(), dateFormat));
+                                + formatTimestamp(appLastUpdatedEntry.getValue()));
             }
         } catch (AppSearchException e) {
             pw.println("Error in dumping indexed applications");
@@ -200,8 +207,11 @@ public final class AppsIndexerUserInstance {
         }
     }
 
-    private static String formatTimestamp(long timestampInMillis, SimpleDateFormat formatter) {
-        return formatter.format(Instant.ofEpochMilli(timestampInMillis));
+    private static String formatTimestamp(long timestampInMillis) {
+        LocalDateTime dateTime =
+                LocalDateTime.ofInstant(
+                        Instant.ofEpochMilli(timestampInMillis), ZoneId.systemDefault());
+        return dateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
     /**
@@ -262,6 +272,15 @@ public final class AppsIndexerUserInstance {
             boolean isAppIndexerUpdated =
                     Flags.enableAllPackageIndexingOnIndexerUpdate()
                             && checkAndUpdateIndexerVersion();
+
+            List<Build.Partition> currentFingerprintedPartitions =
+                    Build.getFingerprintedPartitions();
+            List<Build.Partition> sortedFingerprintedPartitions =
+                    new ArrayList<>(currentFingerprintedPartitions);
+            sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+
+            boolean isOtaUpdate = checkForOtaUpdate(sortedFingerprintedPartitions);
+
             if (firstRun) {
                 if (Flags.enableAppsIndexerCheckPriorAttempt()) {
                     // Special "firstRun" case.
@@ -282,8 +301,11 @@ public final class AppsIndexerUserInstance {
                     mSettings.persist();
                 }
 
-                // Check if there was a previous successful run and AppSearch wasn't updated since.
-                if (mSettings.getLastUpdateTimestampMillis() != 0 && !isAppIndexerUpdated) {
+                // Check if there was a previous successful run and AppSearch or system image wasn't
+                // updated since.
+                if (mSettings.getLastUpdateTimestampMillis() != 0
+                        && !isAppIndexerUpdated
+                        && !isOtaUpdate) {
                     return;
                 }
             }
@@ -291,12 +313,18 @@ public final class AppsIndexerUserInstance {
                 mAppsIndexerImpl.doUpdateIncrementalPut(
                         mSettings,
                         appsUpdateStats,
-                        /* isFullUpdateRequired= */ isAppIndexerUpdated);
+                        /* isFullUpdateRequired= */ isAppIndexerUpdated || isOtaUpdate);
             } else {
                 // TODO(b/367410454): Remove this method and related code paths once
                 //  enable_apps_indexer_incremental_put flag is rolled out.
                 mAppsIndexerImpl.doUpdate(mSettings, appsUpdateStats);
             }
+
+            if (isOtaUpdate) {
+                mSettings.setLastPartitionFingerprintsSortedByPartitionName(
+                        sortedFingerprintedPartitions);
+            }
+
             mSettings.persist();
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
@@ -308,6 +336,37 @@ public final class AppsIndexerUserInstance {
             // This happens if no updates were scheduled during the update.
             mRunningOrScheduledSemaphore.release();
         }
+    }
+
+    /**
+     * Checks if an OTA update has occurred by comparing the current partition fingerprints against
+     * the last known fingerprints stored in settings.
+     *
+     * @param fingerprintedPartitions the current list of fingerprinted partitions, sorted by {@link
+     *     Build.Partition#getName()}
+     * @return true if an OTA update is detected (i.e., at least one fingerprint has changed), false
+     *     otherwise
+     */
+    private boolean checkForOtaUpdate(List<Build.Partition> fingerprintedPartitions) {
+        String[] oldFingerprintedPartitions =
+                mSettings.getLastPartitionFingerprintsSortedByPartitionName();
+
+        if (oldFingerprintedPartitions == null
+                || fingerprintedPartitions.size() != oldFingerprintedPartitions.length) {
+            // Either first time check or the number of partitions has changed => OTA likely
+            // occurred
+            return true;
+        }
+
+        for (int i = 0; i < fingerprintedPartitions.size(); ++i) {
+            if (!Objects.equals(
+                    fingerprintedPartitions.get(i).getFingerprint(),
+                    oldFingerprintedPartitions[i])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

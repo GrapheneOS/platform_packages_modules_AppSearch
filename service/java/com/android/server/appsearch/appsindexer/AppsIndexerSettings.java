@@ -19,6 +19,8 @@ package com.android.server.appsearch.appsindexer;
 import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.os.Build;
 
 import com.android.server.appsearch.indexer.IndexerSettings;
 
@@ -28,6 +30,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.List;
 
 /**
  * Apps indexer settings backed by a PersistableBundle.
@@ -44,6 +47,9 @@ public class AppsIndexerSettings extends IndexerSettings {
     static final String LAST_APP_UPDATE_TIMESTAMP_KEY = "last_app_update_timestamp_millis";
 
     static final String PREVIOUS_APP_INDEXER_VERSION_CODE = "previous_app_indexer_version_code";
+
+    private static final String LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME =
+            "last_partitions_fingerprint_sorted_by_partition_name";
 
     private static final String LOG_LINES_KEY = "log_lines";
     private static final int MAX_LOG_LINES = 15;
@@ -87,6 +93,29 @@ public class AppsIndexerSettings extends IndexerSettings {
     public void setPreviousIndexerVersionCode(
             @AppIndexerVersions.AppIndexerVersion int versionCode) {
         mBundle.putInt(PREVIOUS_APP_INDEXER_VERSION_CODE, versionCode);
+    }
+
+    /**
+     * Returns the stored fingerprint strings for partitions sorted by {@link
+     * Build.Partition#getName()} returned by {@link Build#getFingerprintedPartitions()} from the
+     * last indexer run.
+     */
+    @Nullable
+    public String[] getLastPartitionFingerprintsSortedByPartitionName() {
+        return mBundle.getStringArray(LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME);
+    }
+
+    /**
+     * Stores the fingerprints of all partitions as a string array sorted by {@link
+     * Build.Partition#getName()}.
+     */
+    public void setLastPartitionFingerprintsSortedByPartitionName(
+            @NonNull List<Build.Partition> fingerprintedPartitions) {
+        String[] fingerprints = new String[fingerprintedPartitions.size()];
+        for (int i = 0; i < fingerprintedPartitions.size(); ++i) {
+            fingerprints[i] = fingerprintedPartitions.get(i).getFingerprint();
+        }
+        mBundle.putStringArray(LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME, fingerprints);
     }
 
     /** Appends a log message to the settings log. */
