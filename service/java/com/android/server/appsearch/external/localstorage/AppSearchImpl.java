@@ -3851,4 +3851,35 @@ public final class AppSearchImpl implements Closeable {
                             + blobHandle.getDatabaseName());
         }
     }
+
+    /** Calls getSchema in a thread safe manner. */
+    public SchemaProto rawGetSchema() {
+        mReadWriteLock.readLock().lock();
+        try {
+            return mIcingSearchEngineLocked.getSchema().getSchema();
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /** Calls search in a thread safe manner. */
+    public SearchResultProto rawSearch(
+            SearchSpecProto spec, ScoringSpecProto scoringSpec, ResultSpecProto resultSpec) {
+        mReadWriteLock.readLock().lock();
+        try {
+            return mIcingSearchEngineLocked.search(spec, scoringSpec, resultSpec);
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /** Calls getSchema in a thread safe manner. */
+    public SearchResultProto rawGetNextPage(long nextPageToken) {
+        mReadWriteLock.readLock().lock();
+        try {
+            return mIcingSearchEngineLocked.getNextPage(nextPageToken);
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+    }
 }
