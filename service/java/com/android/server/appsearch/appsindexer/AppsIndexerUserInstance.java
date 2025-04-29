@@ -44,6 +44,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -182,6 +183,10 @@ public final class AppsIndexerUserInstance {
         pw.println(
                 "last_app_update_timestamp_millis: "
                         + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis()));
+        pw.println(
+                "last_partitions_fingerprint_sorted_by_partition_name"
+                        + Arrays.toString(
+                                mSettings.getLastPartitionFingerprintsSortedByPartitionName()));
         try (AppSearchHelper appSearchHelper = new AppSearchHelper(mContext)) {
             Map<String, Long> appLastUpdatedTimeMillisMap = appSearchHelper.getAppsFromAppSearch();
             pw.println("Indexed Apps:");
