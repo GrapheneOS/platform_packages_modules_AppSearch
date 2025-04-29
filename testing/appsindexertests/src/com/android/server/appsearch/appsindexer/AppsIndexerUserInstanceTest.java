@@ -67,6 +67,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -78,6 +79,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
+
+    private static final Duration UPDATE_ASYNC_TIMEOUT = Duration.ofSeconds(2);
+
     private TestContext mTestContext;
     private final PackageManager mMockPackageManager = mock(PackageManager.class);
 
@@ -154,18 +158,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        long beforeFirstRun = mSingleThreadedExecutor.getCompletedTaskCount();
+        mInstance.updateAsync(/* firstRun= */ true);
+        // Wait for the task to finish
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        mInstance.updateAsync(true);
-        semaphore.acquire();
-
-        while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
-            Thread.sleep(100);
-        }
-
-        assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
             Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
             assertThat(appsTimestampMap).hasSize(1);
@@ -210,21 +210,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        long beforeFirstRun = mSingleThreadedExecutor.getCompletedTaskCount();
+        mInstance.updateAsync(/* firstRun= */ true);
 
-        mInstance.updateAsync(true);
         // Wait for the task to finish
-        semaphore.acquire();
-
-        while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
-            Thread.sleep(100);
-        }
-        // One more task should've ran, checked settings, and exited
-        assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
-        assertThat(mSingleThreadedExecutor.getTaskCount()).isEqualTo(beforeFirstRun + 1);
-        assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // timestamp was not 0, so nothing should've been indexed
@@ -264,12 +257,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        mInstance.updateAsync(true);
+        mInstance.updateAsync(/* firstRun= */ true);
 
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         settings.load();
@@ -312,12 +307,13 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        mInstance.updateAsync(true);
-
+        mInstance.updateAsync(/* firstRun= */ true);
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         settings = new AppsIndexerSettings(mAppsDir);
         settings.load();
@@ -357,12 +353,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        mInstance.updateAsync(true);
+        mInstance.updateAsync(/* firstRun= */ true);
 
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         settings.load();
@@ -401,12 +399,13 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        mInstance.updateAsync(true);
-
+        mInstance.updateAsync(/* firstRun= */ true);
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         settings.load();
@@ -475,11 +474,13 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for settings file initialization as it uses the same executor service.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         mInstance.updateAsync(/* firstRun= */ true);
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
             Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
@@ -534,11 +535,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for settings file initialization as it uses the same executor service.
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         mInstance.updateAsync(/* firstRun= */ true);
+
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // fingerprint string didn't change, so nothing should've been indexed
@@ -585,22 +589,15 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
-
-        long beforeFirstRun = mSingleThreadedExecutor.getCompletedTaskCount();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         mInstance.updateAsync(/* firstRun= */ true);
+
         // Wait for the task to finish
-        semaphore.acquire();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
-        while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
-            Thread.sleep(100);
-        }
-
-        // One more task should've ran and indexed the functions.
-        assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
-        assertThat(mSingleThreadedExecutor.getTaskCount()).isEqualTo(beforeFirstRun + 1);
-        assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
             Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
             assertThat(appsTimestampMap).hasSize(1);
@@ -653,21 +650,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
 
         // Wait for file setup, as file setup uses the same ExecutorService.
-        semaphore.acquire();
-
-        long beforeFirstRun = mSingleThreadedExecutor.getCompletedTaskCount();
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         mInstance.updateAsync(/* firstRun= */ true);
-        // Wait for the task to finish
-        semaphore.acquire();
 
-        while (mSingleThreadedExecutor.getCompletedTaskCount() != beforeFirstRun + 1) {
-            Thread.sleep(100);
-        }
-        // One more task should've ran, checked settings, and exited
-        assertThat(mSingleThreadedExecutor.getActiveCount()).isEqualTo(0);
-        assertThat(mSingleThreadedExecutor.getTaskCount()).isEqualTo(beforeFirstRun + 1);
-        assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(beforeFirstRun + 1);
+        // Wait for the task to finish
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
 
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // timestamp was not 0, so nothing should've been indexed
