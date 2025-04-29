@@ -180,6 +180,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
+        settings.setLastPartitionFingerprintsSortedByPartitionName(
+                Build.getFingerprintedPartitions());
         settings.persist();
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
