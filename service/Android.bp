@@ -70,6 +70,10 @@ java_defaults {
         "jspecify",
     ],
     optimize: {
+        enabled: true,
+        optimize: true,
+        shrink: true,
+        shrink_resources: true,
         proguard_flags_files: ["proguard.flags"],
     },
     defaults: [
