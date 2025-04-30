@@ -40,7 +40,7 @@ android_test {
         "android.test.runner.stubs.system",
     ],
     // jni libs are not normally accessible from apps so they must be explicitly included.
-    jni_libs: ["libicing_anywhere"],
+    jni_libs: ["libicing"],
     jarjar_rules: "jarjar-rules.txt",
     test_suites: [
         "general-tests",
