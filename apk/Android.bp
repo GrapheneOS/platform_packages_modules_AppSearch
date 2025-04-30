@@ -39,9 +39,8 @@ java_defaults {
     jni_uses_platform_apis: true,
     use_embedded_native_libs: true,
     apex_available: ["com.android.appsearch"],
+    jni_libs: ["libisolated_storage_service"],
 
-    // - this library is mounted via the APEX
-    // jni_libs: ["libicing_anywhere"],
     optimize: {
         // TODO: more aggressive proguarding?
         // proguard_compatibility: false,
