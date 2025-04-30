@@ -395,8 +395,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         synchronized (mLock) {
             throwIfClosedLocked();
             return mBundleLocked.getInt(
-                    KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
-                    DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES);
+                    KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT,
+                    DEFAULT_MAX_BYTE_LIMIT_FOR_BATCH_PUT);
         }
     }
 
@@ -804,11 +804,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 }
                 break;
             case KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES:
-            case KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT:
                 synchronized (mLock) {
                     mBundleLocked.putInt(
                             key,
                             properties.getInt(key, DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES));
+                }
+                break;
+            case KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(
+                            key, properties.getInt(key, DEFAULT_MAX_BYTE_LIMIT_FOR_BATCH_PUT));
                 }
                 break;
             case KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT:

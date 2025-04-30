@@ -106,6 +106,9 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      */
     int DEFAULT_MAX_OPEN_BLOB_COUNT = 250;
 
+    /** The default number of max byte size limit for a single batch put request. */
+    int DEFAULT_MAX_BYTE_LIMIT_FOR_BATCH_PUT = 128 * 1024; // 128 KiB
+
     /** Returns cached value for minTimeIntervalBetweenSamplesMillis. */
     long getCachedMinTimeIntervalBetweenSamplesMillis();
 
