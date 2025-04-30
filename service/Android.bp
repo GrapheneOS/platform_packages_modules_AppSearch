@@ -97,9 +97,13 @@ java_defaults {
 cc_library {
     name: "libappsearchservice",
     header_libs: ["jni_headers"],
-    shared_libs: ["libbase"],
+    static_libs: ["libcutils"],
+    shared_libs: ["liblog"],
+    cflags: [
+        "-fvisibility=hidden",
+    ],
     srcs: ["com_android_server_appsearch_isolated_storage_service_VmStateSignaler.cpp"],
-    stl: "c++_shared",
+    stl: "none",
     min_sdk_version: "33",
     apex_available: ["com.android.appsearch"],
 }

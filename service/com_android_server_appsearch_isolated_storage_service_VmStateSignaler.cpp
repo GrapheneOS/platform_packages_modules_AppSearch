@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
+#include <cutils/properties.h>
 #include <jni.h>
-#include <android-base/properties.h>
-#include <android-base/logging.h>
+#include <log/log.h>
 
+__attribute__ ((visibility ("default")))
 extern "C" void
 Java_com_android_server_appsearch_isolated_1storage_1service_VmStateSignaler_notifyIdle__Z(
         JNIEnv *env, jclass clazz, jboolean value) {
     (void) env;
     (void) clazz;
 
-    using android::base::SetProperty;
-
-    if (!SetProperty("appsearch_vm.idle", value ? "1" : "0")) {
-        LOG(ERROR) << "Appsearch could not set idle property!";
+    if (0 != property_set("appsearch_vm.idle", value ? "1" : "0")) {
+        ALOGE("AppSearch could not set idle property!");
     }
 }
 

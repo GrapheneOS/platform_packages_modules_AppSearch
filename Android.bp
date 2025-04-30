@@ -47,7 +47,7 @@ apex {
     defaults: ["t-launched-apex-module"],
     jni_libs: [
         "libappsearchservice",
-        "libicing",
+        "libicing_anywhere",
     ],
     prebuilts: ["current_sdkinfo"],
     apps: ["com.android.appsearch.apk"],
