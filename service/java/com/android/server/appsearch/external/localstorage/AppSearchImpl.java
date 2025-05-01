@@ -207,7 +207,7 @@ public final class AppSearchImpl implements Closeable {
 
     @GuardedBy("mReadWriteLock")
     @VisibleForTesting
-    final IcingSearchEngineInterface mIcingSearchEngineLocked;
+    IcingSearchEngineInterface mIcingSearchEngineLocked;
 
     private final boolean mIsVMEnabled;
 
@@ -525,6 +525,21 @@ public final class AppSearchImpl implements Closeable {
     /** Returns whether pVM is enabled in this AppSearchImpl instance. */
     public boolean isVMEnabled() {
         return mIsVMEnabled;
+    }
+
+    /** Atomic method to set a new icing search engine and return the previous engine. */
+    @GuardedBy("mReadWriteLock")
+    public IcingSearchEngineInterface swapIcingSearchEngineLocked(
+            @NonNull IcingSearchEngineInterface icingSearchEngineLocked) {
+        Objects.requireNonNull(icingSearchEngineLocked);
+        mReadWriteLock.writeLock().lock();
+        try {
+            IcingSearchEngineInterface previousIcingSearchEngine = mIcingSearchEngineLocked;
+            mIcingSearchEngineLocked = icingSearchEngineLocked;
+            return previousIcingSearchEngine;
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
     }
 
     /**

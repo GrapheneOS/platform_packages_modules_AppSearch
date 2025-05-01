@@ -42,6 +42,8 @@ import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServ
 import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.InitializeResultProto;
+import com.google.android.icing.proto.ResetResultProto;
 import com.google.android.icing.proto.StatusProto;
 
 import java.io.File;
@@ -300,7 +302,7 @@ public final class AppSearchUserInstanceManager {
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
-            @NonNull ExecutorManager mExecutorManager)
+            @NonNull ExecutorManager executorManager)
             throws AppSearchException {
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
@@ -337,7 +339,7 @@ public final class AppSearchUserInstanceManager {
                             visibilityCheckerImpl,
                             frameworkRevocableFileDescriptorStore,
                             maybeGetIsolatedIcingSearchEngine(
-                                    userContext, userHandle, config, mExecutorManager),
+                                    userContext, userHandle, config, executorManager),
                             new ServiceOptimizeStrategy(config));
 
             // Update storage info file
@@ -420,6 +422,19 @@ public final class AppSearchUserInstanceManager {
                                     AppSearchUserInstance instance =
                                             getUserInstanceOrNull(userHandle);
                                     if (instance != null) {
+                                        InitializeResultProto initResult =
+                                                isolatedIcingInterface.initialize();
+                                        if (initResult.getStatus().getCode()
+                                                != StatusProto.Code.OK) {
+                                            Log.e(
+                                                    TAG,
+                                                    "Failed to initialize Isolated Storage Icing!"
+                                                            + " Status code: "
+                                                            + initResult
+                                                                    .getStatus()
+                                                                    .getCode()
+                                                                    .getNumber());
+                                        }
                                         StatusProto status =
                                                 DataMigrationUtil.copyData(
                                                         // Get the non-isolated icing instance
@@ -430,8 +445,28 @@ public final class AppSearchUserInstanceManager {
                                         if (LogUtil.INFO) {
                                             Log.i(TAG, "Data migration status: " + status);
                                         }
-                                        // TODO(b/407815165): Switch AppSearchImpl to
-                                        //  isolatedIcingInterface and clean up old instance.
+
+                                        if (status.getCode() != StatusProto.Code.OK) {
+                                            Log.e(
+                                                    TAG,
+                                                    "Data migration failed with status code: "
+                                                            + status.getCode().getNumber());
+                                            return;
+                                        }
+
+                                        // Switch to the isolated instance
+                                        IcingSearchEngineInterface priorIcingSearchEngine =
+                                                instance.getAppSearchImpl()
+                                                        .swapIcingSearchEngineLocked(
+                                                                isolatedIcingInterface);
+
+                                        // Destroy the current instance.
+                                        ResetResultProto resetResult =
+                                                priorIcingSearchEngine.clearAndDestroy();
+                                        priorIcingSearchEngine.close();
+                                        if (LogUtil.INFO) {
+                                            Log.i(TAG, "Clear and destroy result: " + resetResult);
+                                        }
                                     }
                                 },
                                 1,
