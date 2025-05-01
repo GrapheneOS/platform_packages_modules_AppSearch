@@ -426,6 +426,15 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                             docBuilder.setId(packageName + "/" + id);
                             wasDocIdSet = true;
                         }
+                    } else {
+                        // Unrecognized start tag, throw an exception.
+                        throw new IllegalStateException(
+                                "Found a start tag not defined by schema "
+                                        + schemaType
+                                        + ": "
+                                        + parser.getName()
+                                        + ". Check the corresponding schema file specified by "
+                                        + "android.app.appfunctions.schema.");
                     }
                     break;
 

@@ -237,10 +237,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BatchPutResultProto batchPut(@NonNull PutDocumentRequest putDocumentRequest) {
+        byte[] input = putDocumentRequest.toByteArray();
+
         byte[] resultData;
         try {
             mVmStateSignaler.signalActive();
-            resultData = mEngine.batchPut(putDocumentRequest.toByteArray());
+            resultData = mEngine.batchPut(input);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(
+                    TAG,
+                    "Got out of memory in batch put. Request length: "
+                            + input.length
+                            + ", number of documents in request: "
+                            + putDocumentRequest.getDocumentsCount());
+            throw e;
         } catch (RemoteException e) {
             return BatchPutResultProto.newBuilder()
                     // TODO(b/401245113) set status when the change is available.
