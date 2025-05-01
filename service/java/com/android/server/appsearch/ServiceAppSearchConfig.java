@@ -231,6 +231,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED;
     }
 
+    /** Returns whether or not AppSearch should migrate data to isolated storage. */
+    default boolean enableIsolatedStorageMigration() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED;
+    }
+
     /**
      * Default min time interval between consecutive optimize calls in millis if there is no value
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.

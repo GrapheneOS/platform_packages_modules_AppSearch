@@ -342,7 +342,10 @@ public class AppSearchManagerService extends SystemService {
                                     mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
                             AppSearchUserInstance instance =
                                     mAppSearchUserInstanceManager.getOrCreateUserInstance(
-                                            userContext, userHandle, mAppSearchConfig);
+                                            userContext,
+                                            userHandle,
+                                            mAppSearchConfig,
+                                            mExecutorManager);
                             instance.getAppSearchImpl().clearPackageData(packageName);
                             dispatchChangeNotifications(instance);
                             instance.getLogger().removeCacheForPackage(packageName);
@@ -374,7 +377,8 @@ public class AppSearchManagerService extends SystemService {
                                     mAppSearchUserInstanceManager.getOrCreateUserInstance(
                                             userContext,
                                             userHandle,
-                                            mAppSearchConfig);
+                                            mAppSearchConfig,
+                                            mExecutorManager);
                             List<PackageInfo> installedPackageInfos = userContext
                                     .getPackageManager()
                                     .getInstalledPackages(/* flags= */ 0);
@@ -3018,7 +3022,8 @@ public class AppSearchManagerService extends SystemService {
                     instance = mAppSearchUserInstanceManager.getOrCreateUserInstance(
                             targetUserContext,
                             targetUser,
-                            mAppSearchConfig);
+                            mAppSearchConfig,
+                            mExecutorManager);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
                 } catch (AppSearchException | RuntimeException e) {

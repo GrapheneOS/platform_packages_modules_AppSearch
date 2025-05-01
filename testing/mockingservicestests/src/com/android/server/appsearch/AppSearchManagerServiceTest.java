@@ -138,6 +138,7 @@ import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.ClickActionGenericDocument;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchActionGenericDocument;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
+import com.android.server.appsearch.util.ExecutorManager;
 import com.android.server.usage.StorageStatsManagerLocal;
 
 import com.google.common.util.concurrent.SettableFuture;
@@ -189,6 +190,7 @@ public class AppSearchManagerServiceTest {
     private IAppSearchManager.Stub mAppSearchManagerServiceStub;
     private AppSearchUserInstance mUserInstance;
     private InternalAppSearchLogger mLogger;
+    private ExecutorManager mExecutorManager;
 
     private int mCallingPid;
 
@@ -223,8 +225,11 @@ public class AppSearchManagerServiceTest {
         // Note, SimpleTestLogger does not suffice for our tests since CallStats logging in
         // AppSearchManagerService occurs in a separate thread. With a spy, we can verify with a
         // timeout to catch asynchronous calls.
-        mUserInstance = AppSearchUserInstanceManager.getInstance().getOrCreateUserInstance(mContext,
-                mUserHandle, appSearchConfig);
+        mExecutorManager = new ExecutorManager(appSearchConfig);
+        mUserInstance =
+                AppSearchUserInstanceManager.getInstance()
+                        .getOrCreateUserInstance(
+                                mContext, mUserHandle, appSearchConfig, mExecutorManager);
         mLogger = spy(mUserInstance.getLogger());
         mUserInstance.setLoggerForTest(mLogger);
 
@@ -1479,7 +1484,8 @@ public class AppSearchManagerServiceTest {
                 AppSearchException.class,
                 () -> {
                     AppSearchUserInstanceManager.getInstance()
-                            .getOrCreateUserInstance(testContext, testUserHandle, appSearchConfig);
+                            .getOrCreateUserInstance(
+                                    testContext, testUserHandle, appSearchConfig, mExecutorManager);
                 });
     }
 
