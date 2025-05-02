@@ -19,6 +19,7 @@ package com.android.server.appsearch.external.localstorage;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
+import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
@@ -86,20 +87,33 @@ public final class AppSearchLoggerHelper {
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
                 .setNativeLatencyMillis(fromNativeStats.getLatencyMs())
-                .setDocumentStoreRecoveryCause(
+                .setNativeDocumentStoreRecoveryCause(
                         fromNativeStats.getDocumentStoreRecoveryCause().getNumber())
-                .setIndexRestorationCause(fromNativeStats.getIndexRestorationCause().getNumber())
-                .setSchemaStoreRecoveryCause(
+                .setNativeIndexRestorationCause(
+                        fromNativeStats.getIndexRestorationCause().getNumber())
+                .setNativeSchemaStoreRecoveryCause(
                         fromNativeStats.getSchemaStoreRecoveryCause().getNumber())
-                .setDocumentStoreRecoveryLatencyMillis(
+                .setNativeDocumentStoreRecoveryLatencyMillis(
                         fromNativeStats.getDocumentStoreRecoveryLatencyMs())
-                .setIndexRestorationLatencyMillis(fromNativeStats.getIndexRestorationLatencyMs())
-                .setSchemaStoreRecoveryLatencyMillis(
+                .setNativeIndexRestorationLatencyMillis(
+                        fromNativeStats.getIndexRestorationLatencyMs())
+                .setNativeSchemaStoreRecoveryLatencyMillis(
                         fromNativeStats.getSchemaStoreRecoveryLatencyMs())
-                .setDocumentStoreDataStatus(
+                .setNativeDocumentStoreDataStatus(
                         fromNativeStats.getDocumentStoreDataStatus().getNumber())
-                .setDocumentCount(fromNativeStats.getNumDocuments())
-                .setSchemaTypeCount(fromNativeStats.getNumSchemaTypes());
+                .setNativeDocumentCount(fromNativeStats.getNumDocuments())
+                .setNativeSchemaTypeCount(fromNativeStats.getNumSchemaTypes())
+                .setNativeNumPreviousInitFailures(fromNativeStats.getNumPreviousInitFailures())
+                .setNativeIntegerIndexRestorationCause(
+                        fromNativeStats.getIntegerIndexRestorationCause().getNumber())
+                .setNativeQualifiedIdJoinIndexRestorationCause(
+                        fromNativeStats.getQualifiedIdJoinIndexRestorationCause().getNumber())
+                .setNativeEmbeddingIndexRestorationCause(
+                        fromNativeStats.getEmbeddingIndexRestorationCause().getNumber())
+                .setNativeInitializeIcuDataStatusCode(
+                        fromNativeStats.getInitializeIcuDataStatus().getCode().getNumber())
+                .setNativeNumFailedReindexedDocuments(
+                        fromNativeStats.getNumFailedReindexedDocuments());
     }
 
     /**
@@ -109,33 +123,63 @@ public final class AppSearchLoggerHelper {
      * @param toStatsBuilder Stats copied to.
      */
     static void copyNativeStats(
-            @NonNull QueryStatsProto fromNativeStats, SearchStats.@NonNull Builder toStatsBuilder) {
+            @NonNull QueryStatsProto fromNativeStats, QueryStats.@NonNull Builder toStatsBuilder) {
         Objects.requireNonNull(fromNativeStats);
         Objects.requireNonNull(toStatsBuilder);
         toStatsBuilder
-                .setNativeLatencyMillis(fromNativeStats.getLatencyMs())
-                .setTermCount(fromNativeStats.getNumTerms())
-                .setQueryLength(fromNativeStats.getQueryLength())
-                .setFilteredNamespaceCount(fromNativeStats.getNumNamespacesFiltered())
-                .setFilteredSchemaTypeCount(fromNativeStats.getNumSchemaTypesFiltered())
+                .setIsFirstPage(fromNativeStats.getIsFirstPage())
                 .setRequestedPageSize(fromNativeStats.getRequestedPageSize())
                 .setCurrentPageReturnedResultCount(
                         fromNativeStats.getNumResultsReturnedCurrentPage())
-                .setIsFirstPage(fromNativeStats.getIsFirstPage())
-                .setParseQueryLatencyMillis(fromNativeStats.getParseQueryLatencyMs())
-                .setRankingStrategy(fromNativeStats.getRankingStrategy().getNumber())
-                .setScoredDocumentCount(fromNativeStats.getNumDocumentsScored())
-                .setScoringLatencyMillis(fromNativeStats.getScoringLatencyMs())
+                .setNativeLatencyMillis(fromNativeStats.getLatencyMs())
                 .setRankingLatencyMillis(fromNativeStats.getRankingLatencyMs())
-                .setResultWithSnippetsCount(fromNativeStats.getNumResultsWithSnippets())
                 .setDocumentRetrievingLatencyMillis(fromNativeStats.getDocumentRetrievalLatencyMs())
+                .setResultWithSnippetsCount(fromNativeStats.getNumResultsWithSnippets())
                 .setNativeLockAcquisitionLatencyMillis(
                         fromNativeStats.getLockAcquisitionLatencyMs())
                 .setJavaToNativeJniLatencyMillis(fromNativeStats.getJavaToNativeJniLatencyMs())
                 .setNativeToJavaJniLatencyMillis(fromNativeStats.getNativeToJavaJniLatencyMs())
+                .setNativeJoinLatencyMillis(fromNativeStats.getJoinLatencyMs())
                 .setNativeNumJoinedResultsCurrentPage(
                         fromNativeStats.getNumJoinedResultsReturnedCurrentPage())
-                .setNativeJoinLatencyMillis(fromNativeStats.getJoinLatencyMs());
+                .setParentSearchStats(copyNativeStats(fromNativeStats.getParentSearchStats()))
+                .setChildSearchStats(copyNativeStats(fromNativeStats.getChildSearchStats()))
+                .setLiteIndexHitBufferByteSize(fromNativeStats.getLiteIndexHitBufferByteSize())
+                .setLiteIndexHitBufferUnsortedByteSize(
+                        fromNativeStats.getLiteIndexHitBufferUnsortedByteSize())
+                .setPageTokenType(fromNativeStats.getPageTokenType().getNumber())
+                .setNumResultStatsEvicted(fromNativeStats.getNumResultStatesEvicted());
+    }
+
+    /**
+     * Copies native Search stats to {@link SearchStats}.
+     *
+     * @param fromNativeStats Stats copied from.
+     */
+    static @NonNull SearchStats copyNativeStats(
+            QueryStatsProto.@NonNull SearchStats fromNativeStats) {
+        Objects.requireNonNull(fromNativeStats);
+        return new SearchStats.Builder()
+                .setNativeQueryLength(fromNativeStats.getQueryLength())
+                .setNativeTermCount(fromNativeStats.getNumTerms())
+                .setNativeFilteredNamespaceCount(fromNativeStats.getNumNamespacesFiltered())
+                .setNativeFilteredSchemaTypeCount(fromNativeStats.getNumSchemaTypesFiltered())
+                .setNativeRankingStrategy(fromNativeStats.getRankingStrategy().getNumber())
+                .setNativeScoredDocumentCount(fromNativeStats.getNumDocumentsScored())
+                .setNativeParseQueryLatencyMillis(fromNativeStats.getParseQueryLatencyMs())
+                .setNativeScoringLatencyMillis(fromNativeStats.getScoringLatencyMs())
+                .setNativeIsNumericQuery(fromNativeStats.getIsNumericQuery())
+                .setNativeNumFetchedHitsLiteIndex(fromNativeStats.getNumFetchedHitsLiteIndex())
+                .setNativeNumFetchedHitsMainIndex(fromNativeStats.getNumFetchedHitsMainIndex())
+                .setNativeNumFetchedHitsIntegerIndex(
+                        fromNativeStats.getNumFetchedHitsIntegerIndex())
+                .setNativeQueryProcessorLexerExtractTokenLatencyMillis(
+                        fromNativeStats.getQueryProcessorLexerExtractTokenLatencyMs())
+                .setNativeQueryProcessorParserConsumeQueryLatencyMillis(
+                        fromNativeStats.getQueryProcessorParserConsumeQueryLatencyMs())
+                .setNativeQueryProcessorQueryVisitorLatencyMillis(
+                        fromNativeStats.getQueryProcessorQueryVisitorLatencyMs())
+                .build();
     }
 
     /**

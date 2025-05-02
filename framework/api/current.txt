@@ -50,6 +50,7 @@ package android.app.appsearch {
     method public boolean isSuccess();
     method @NonNull public static <ValueType> android.app.appsearch.AppSearchResult<ValueType> newFailedResult(int, @Nullable String);
     method @NonNull public static <ValueType> android.app.appsearch.AppSearchResult<ValueType> newSuccessfulResult(@Nullable ValueType);
+    field @FlaggedApi("com.android.appsearch.flags.enable_result_aborted") public static final int RESULT_ABORTED = 13; // 0xd
     field @FlaggedApi("com.android.appsearch.flags.enable_result_already_exists") public static final int RESULT_ALREADY_EXISTS = 12; // 0xc
     field @FlaggedApi("com.android.appsearch.flags.enable_result_denied_and_result_rate_limited") public static final int RESULT_DENIED = 9; // 0x9
     field public static final int RESULT_INTERNAL_ERROR = 2; // 0x2
