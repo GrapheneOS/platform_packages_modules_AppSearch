@@ -131,18 +131,19 @@ import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
+import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
-import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.ClickActionGenericDocument;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchActionGenericDocument;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
+import com.android.server.appsearch.util.ExecutorManager;
 import com.android.server.usage.StorageStatsManagerLocal;
 
-import com.google.common.util.concurrent.SettableFuture;
-
 import libcore.io.IoBridge;
+
+import com.google.common.util.concurrent.SettableFuture;
 
 import org.junit.After;
 import org.junit.Before;
@@ -189,6 +190,7 @@ public class AppSearchManagerServiceTest {
     private IAppSearchManager.Stub mAppSearchManagerServiceStub;
     private AppSearchUserInstance mUserInstance;
     private InternalAppSearchLogger mLogger;
+    private ExecutorManager mExecutorManager;
 
     private int mCallingPid;
 
@@ -223,8 +225,11 @@ public class AppSearchManagerServiceTest {
         // Note, SimpleTestLogger does not suffice for our tests since CallStats logging in
         // AppSearchManagerService occurs in a separate thread. With a spy, we can verify with a
         // timeout to catch asynchronous calls.
-        mUserInstance = AppSearchUserInstanceManager.getInstance().getOrCreateUserInstance(mContext,
-                mUserHandle, appSearchConfig);
+        mExecutorManager = new ExecutorManager(appSearchConfig);
+        mUserInstance =
+                AppSearchUserInstanceManager.getInstance()
+                        .getOrCreateUserInstance(
+                                mContext, mUserHandle, appSearchConfig, mExecutorManager);
         mLogger = spy(mUserInstance.getLogger());
         mUserInstance.setLoggerForTest(mLogger);
 
@@ -578,15 +583,15 @@ public class AppSearchManagerServiceTest {
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
         verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
                 CallStats.CALL_TYPE_GET_NEXT_PAGE);
-        // getNextPage also logs SearchStats
-        ArgumentCaptor<SearchStats> searchStatsCaptor = ArgumentCaptor.forClass(SearchStats.class);
-        verify(mLogger, timeout(1000).times(1)).logStats(searchStatsCaptor.capture());
-        SearchStats searchStats = searchStatsCaptor.getValue();
-        assertThat(searchStats.getVisibilityScope()).isEqualTo(SearchStats.VISIBILITY_SCOPE_LOCAL);
-        assertThat(searchStats.getPackageName()).isEqualTo(mContext.getPackageName());
-        assertThat(searchStats.getDatabase()).isEqualTo(DATABASE_NAME);
-        assertThat(searchStats.getJoinType()).isEqualTo(
-                AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID);
+        // getNextPage also logs QueryStats
+        ArgumentCaptor<QueryStats> queryStatsCaptor = ArgumentCaptor.forClass(QueryStats.class);
+        verify(mLogger, timeout(1000).times(1)).logStats(queryStatsCaptor.capture());
+        QueryStats queryStats = queryStatsCaptor.getValue();
+        assertThat(queryStats.getVisibilityScope()).isEqualTo(QueryStats.VISIBILITY_SCOPE_LOCAL);
+        assertThat(queryStats.getPackageName()).isEqualTo(mContext.getPackageName());
+        assertThat(queryStats.getDatabase()).isEqualTo(DATABASE_NAME);
+        assertThat(queryStats.getJoinType())
+                .isEqualTo(AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID);
     }
 
     @Test
@@ -599,15 +604,15 @@ public class AppSearchManagerServiceTest {
                 BINDER_CALL_START_TIME, /* isForEnterprise= */ false), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
         verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE);
-        // getNextPage also logs SearchStats
-        ArgumentCaptor<SearchStats> searchStatsCaptor = ArgumentCaptor.forClass(SearchStats.class);
-        verify(mLogger, timeout(1000).times(1)).logStats(searchStatsCaptor.capture());
-        SearchStats searchStats = searchStatsCaptor.getValue();
-        assertThat(searchStats.getVisibilityScope()).isEqualTo(SearchStats.VISIBILITY_SCOPE_GLOBAL);
-        assertThat(searchStats.getPackageName()).isEqualTo(mContext.getPackageName());
-        assertThat(searchStats.getDatabase()).isNull();
-        assertThat(searchStats.getJoinType()).isEqualTo(
-                AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID);
+        // getNextPage also logs QueryStats
+        ArgumentCaptor<QueryStats> queryStatsCaptor = ArgumentCaptor.forClass(QueryStats.class);
+        verify(mLogger, timeout(1000).times(1)).logStats(queryStatsCaptor.capture());
+        QueryStats queryStats = queryStatsCaptor.getValue();
+        assertThat(queryStats.getVisibilityScope()).isEqualTo(QueryStats.VISIBILITY_SCOPE_GLOBAL);
+        assertThat(queryStats.getPackageName()).isEqualTo(mContext.getPackageName());
+        assertThat(queryStats.getDatabase()).isNull();
+        assertThat(queryStats.getJoinType())
+                .isEqualTo(AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID);
     }
 
     @Test
@@ -1479,7 +1484,8 @@ public class AppSearchManagerServiceTest {
                 AppSearchException.class,
                 () -> {
                     AppSearchUserInstanceManager.getInstance()
-                            .getOrCreateUserInstance(testContext, testUserHandle, appSearchConfig);
+                            .getOrCreateUserInstance(
+                                    testContext, testUserHandle, appSearchConfig, mExecutorManager);
                 });
     }
 

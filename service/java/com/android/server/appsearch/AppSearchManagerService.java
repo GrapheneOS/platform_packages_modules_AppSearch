@@ -23,8 +23,8 @@ import static android.app.appsearch.AppSearchResult.RESULT_SECURITY_ERROR;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 import static android.os.Process.INVALID_UID;
 
-import static com.android.server.appsearch.external.localstorage.stats.SearchStats.VISIBILITY_SCOPE_GLOBAL;
-import static com.android.server.appsearch.external.localstorage.stats.SearchStats.VISIBILITY_SCOPE_LOCAL;
+import static com.android.server.appsearch.external.localstorage.stats.QueryStats.VISIBILITY_SCOPE_GLOBAL;
+import static com.android.server.appsearch.external.localstorage.stats.QueryStats.VISIBILITY_SCOPE_LOCAL;
 import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnError;
 import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnResult;
 
@@ -123,7 +123,7 @@ import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
-import com.android.server.appsearch.external.localstorage.stats.SearchStats;
+import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchSessionStatsExtractor;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
@@ -163,6 +163,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The main service implementation which contains AppSearch's platform functionality.
@@ -341,7 +342,10 @@ public class AppSearchManagerService extends SystemService {
                                     mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
                             AppSearchUserInstance instance =
                                     mAppSearchUserInstanceManager.getOrCreateUserInstance(
-                                            userContext, userHandle, mAppSearchConfig);
+                                            userContext,
+                                            userHandle,
+                                            mAppSearchConfig,
+                                            mExecutorManager);
                             instance.getAppSearchImpl().clearPackageData(packageName);
                             dispatchChangeNotifications(instance);
                             instance.getLogger().removeCacheForPackage(packageName);
@@ -373,7 +377,8 @@ public class AppSearchManagerService extends SystemService {
                                     mAppSearchUserInstanceManager.getOrCreateUserInstance(
                                             userContext,
                                             userHandle,
-                                            mAppSearchConfig);
+                                            mAppSearchConfig,
+                                            mExecutorManager);
                             List<PackageInfo> installedPackageInfos = userContext
                                     .getPackageManager()
                                     .getInstalledPackages(/* flags= */ 0);
@@ -1956,13 +1961,13 @@ public class AppSearchManagerService extends SystemService {
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
                 int operationFailureCount = 0;
-                SearchStats.Builder statsBuilder;
+                QueryStats.Builder statsBuilder;
                 if (global) {
-                    statsBuilder = new SearchStats.Builder(VISIBILITY_SCOPE_GLOBAL,
+                    statsBuilder = new QueryStats.Builder(VISIBILITY_SCOPE_GLOBAL,
                             callingPackageName)
                             .setJoinType(request.getJoinType());
                 } else {
-                    statsBuilder = new SearchStats.Builder(VISIBILITY_SCOPE_LOCAL,
+                    statsBuilder = new QueryStats.Builder(VISIBILITY_SCOPE_LOCAL,
                             callingPackageName)
                             .setDatabase(request.getDatabaseName())
                             .setJoinType(request.getJoinType());
@@ -3017,7 +3022,8 @@ public class AppSearchManagerService extends SystemService {
                     instance = mAppSearchUserInstanceManager.getOrCreateUserInstance(
                             targetUserContext,
                             targetUser,
-                            mAppSearchConfig);
+                            mAppSearchConfig,
+                            mExecutorManager);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
                 } catch (AppSearchException | RuntimeException e) {
@@ -3220,11 +3226,11 @@ public class AppSearchManagerService extends SystemService {
                             .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
                             .setResultCountPerPage(25)
                             .build();
-            List<SearchStats> statsList = new ArrayList<>();
+            List<QueryStats> statsList = new ArrayList<>();
             PlatformLogger logger =
                     new PlatformLogger(mContext, mAppSearchConfig) {
                         @Override
-                        public void logStats(@NonNull SearchStats stats) {
+                        public void logStats(@NonNull QueryStats stats) {
                             statsList.add(stats);
                         }
                     };
@@ -3243,8 +3249,8 @@ public class AppSearchManagerService extends SystemService {
                                     logger);
             while (!searchResultPage.getResults().isEmpty()) {
                 printResultPage(pw, searchResultPage);
-                SearchStats.Builder statsBuilder =
-                        new SearchStats.Builder(VISIBILITY_SCOPE_GLOBAL, mContext.getPackageName());
+                QueryStats.Builder statsBuilder =
+                        new QueryStats.Builder(VISIBILITY_SCOPE_GLOBAL, mContext.getPackageName());
                 searchResultPage =
                         instance.getAppSearchImpl()
                                 .getNextPage(
@@ -3272,14 +3278,19 @@ public class AppSearchManagerService extends SystemService {
         }
     }
 
-    private void printStats(PrintWriter pw, List<SearchStats> stats) {
+    private void printStats(PrintWriter pw, List<QueryStats> stats) {
         pw.println("Printing search stats: ");
-        for (SearchStats s : stats) {
+        for (QueryStats s : stats) {
             pw.println(s);
         }
     }
 
     private class AppSearchStorageStatsAugmenter implements StorageStatsAugmenter {
+        private static final int STORAGE_STATS_RETRIEVAL_TIMEOUT_MS = 100;
+        // This lock exists to block incessant calls from StorageStatsManager so that they don't
+        // acquire AppSearch's internal lock and starve other requests.
+        private final ReentrantLock mStorageStatsCacheRefreshLock = new ReentrantLock();
+
         @Override
         public void augmentStatsForPackageForUser(
                 @NonNull PackageStats stats,
@@ -3305,15 +3316,7 @@ public class AppSearchManagerService extends SystemService {
                                 .getOrCreateUserStorageInfoInstance(
                                     userContext, userHandle);
 
-                    if (instance != null) {
-                        // If the instance is not null, then it's possible that the cache
-                        // has been invalidated after creation.
-                        if (userStorageInfo.isCacheEmpty()) {
-                            StorageInfoProto storageInfo =
-                                    instance.getAppSearchImpl().getRawStorageInfoProto();
-                            userStorageInfo.updateStorageInfoCache(storageInfo);
-                        }
-                    }
+                    refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
                     stats.dataSize += userStorageInfo.getSizeBytesForPackage(packageName);
                 } else {
                     stats.dataSize +=
@@ -3322,7 +3325,7 @@ public class AppSearchManagerService extends SystemService {
                                     new ArraySet<>(Collections.singleton(packageName)))
                                 .getSizeBytes();
                 }
-            } catch (AppSearchException | RuntimeException e) {
+            } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(
                         TAG,
                         "Unable to augment storage stats for "
@@ -3359,15 +3362,7 @@ public class AppSearchManagerService extends SystemService {
                                 .getOrCreateUserStorageInfoInstance(
                                     userContext, userHandle);
 
-                    if (instance != null) {
-                        // If the instance is not null, then it's possible that the cache
-                        // has been invalidated after creation.
-                        if (userStorageInfo.isCacheEmpty()) {
-                            StorageInfoProto storageInfo =
-                                    instance.getAppSearchImpl().getRawStorageInfoProto();
-                            userStorageInfo.updateStorageInfoCache(storageInfo);
-                        }
-                    }
+                    refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
                     for (int i = 0; i < packagesForUid.length; i++) {
                         stats.dataSize += userStorageInfo.getSizeBytesForPackage(
                             packagesForUid[i]);
@@ -3379,7 +3374,7 @@ public class AppSearchManagerService extends SystemService {
                                 .getStorageInfoForPackages(packageNames)
                                 .getSizeBytes();
                 }
-            } catch (AppSearchException | RuntimeException e) {
+            } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(TAG, "Unable to augment storage stats for uid " + uid, e);
                 ExceptionUtil.handleException(e);
             }
@@ -3409,20 +3404,12 @@ public class AppSearchManagerService extends SystemService {
                                 .getOrCreateUserStorageInfoInstance(
                                     userContext, userHandle);
 
-                    if (instance != null) {
-                        // If the instance is not null, then it's possible that the cache
-                        // has been invalidated after creation.
-                        if (userStorageInfo.isCacheEmpty()) {
-                            StorageInfoProto storageInfo =
-                                    instance.getAppSearchImpl().getRawStorageInfoProto();
-                            userStorageInfo.updateStorageInfoCache(storageInfo);
-                        }
-                    }
+                    refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
                     stats.dataSize += userStorageInfo.getTotalSizeBytes();
                 } else {
                     List<PackageInfo> packagesForUser =
                             mPackageManager.getInstalledPackagesAsUser(
-                                /* flags= */ 0, userHandle.getIdentifier());
+                                    /* flags= */ 0, userHandle.getIdentifier());
                     if (packagesForUser != null) {
                         Set<String> packageNames = new ArraySet<>();
                         for (int i = 0; i < packagesForUser.size(); i++) {
@@ -3431,13 +3418,48 @@ public class AppSearchManagerService extends SystemService {
                         }
                         stats.dataSize +=
                                 instance.getAppSearchImpl()
-                                    .getStorageInfoForPackages(packageNames)
-                                    .getSizeBytes();
+                                        .getStorageInfoForPackages(packageNames)
+                                        .getSizeBytes();
                     }
                 }
-            } catch (AppSearchException | RuntimeException e) {
+            } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(TAG, "Unable to augment storage stats for " + userHandle, e);
                 ExceptionUtil.handleException(e);
+            }
+        }
+
+        private void refreshCachedStorageInfoIfNecessary(
+                AppSearchUserInstance instance, UserStorageInfo userStorageInfo)
+                throws AppSearchException, InterruptedException {
+            if (instance == null) {
+                return;
+            }
+            // If the instance is not null, then it's possible that the cache
+            // has been invalidated after creation.
+            if (!userStorageInfo.isCacheEmpty()) {
+                return;
+            }
+            boolean lockAcquired = false;
+            try {
+                lockAcquired =
+                        mStorageStatsCacheRefreshLock.tryLock(
+                                STORAGE_STATS_RETRIEVAL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                if (lockAcquired) {
+                    // If we were blocked while acquiring the lock, then it's likely that the
+                    // blocking thread has updated the cache. Therefore, we should check again to
+                    // ensure that we really do need to retrieve storage info from AppSearch.
+                    if (userStorageInfo.isCacheEmpty()) {
+                        StorageInfoProto storageInfo =
+                                instance.getAppSearchImpl().getRawStorageInfoProto();
+                        userStorageInfo.updateStorageInfoCache(storageInfo);
+                    }
+                } else {
+                    Log.w(TAG, "StorageStatsAugmenter timed out waiting on cache refresh.");
+                }
+            } finally {
+                if (lockAcquired) {
+                    mStorageStatsCacheRefreshLock.unlock();
+                }
             }
         }
     }

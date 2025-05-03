@@ -774,7 +774,6 @@ public final class SearchResult extends AbstractSafeParcelable {
             }
 
             /** Constructs a new {@link MatchInfo}. */
-            @SuppressWarnings("FlaggedApi")
             public @NonNull MatchInfo build() {
                 TextMatchInfo textMatch = null;
                 if (mEmbeddingMatch == null) {

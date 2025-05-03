@@ -266,15 +266,22 @@ public class FlagsTest {
     }
 
     @Test
-    public void testFlagValue_enableNewOptimizeStrategyForActiveResultStates() {
-        assertThat(Flags.FLAG_ENABLE_NEW_OPTIMIZE_STRATEGY_FOR_ACTIVE_RESULT_STATES)
-            .isEqualTo(
-                "com.android.appsearch.flags"
-                    + ".enable_new_optimize_strategy_for_active_result_states");
+    public void testFlagValue_enableResultAborted() {
+        assertThat(Flags.FLAG_ENABLE_RESULT_ABORTED)
+                .isEqualTo("com.android.appsearch.flags.enable_result_aborted");
     }
 
-    public void testFlagValue_enableStorageInfoCache() {
-        assertThat(Flags.FLAG_ENABLE_STORAGE_INFO_CACHE)
-                .isEqualTo("com.android.appsearch.flags.enable_storage_info_cache");
+    @Test
+    public void testFlagValue_enableThrowExceptionForNativeNotFoundPageToken() {
+        assertThat(Flags.FLAG_ENABLE_THROW_EXCEPTION_FOR_NATIVE_NOT_FOUND_PAGE_TOKEN)
+                .isEqualTo(
+                        "com.android.appsearch.flags"
+                                + ".enable_throw_exception_for_native_not_found_page_token");
+    }
+
+    @Test
+    public void testFlagValue_enableDatabaseScopedSchemaOperations() {
+        assertThat(Flags.FLAG_ENABLE_DATABASE_SCOPED_SCHEMA_OPERATIONS)
+                .isEqualTo("com.android.appsearch.flags.enable_database_scoped_schema_operations");
     }
 }

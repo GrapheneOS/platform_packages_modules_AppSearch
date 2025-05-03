@@ -37,6 +37,7 @@ import com.android.server.appsearch.external.localstorage.stats.ClickStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
+import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
@@ -168,7 +169,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @Override
-    public void logStats(@NonNull SearchStats stats) {
+    public void logStats(@NonNull QueryStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
             if (shouldLogForTypeLocked(CallStats.CALL_TYPE_SEARCH)) {
@@ -179,7 +180,12 @@ public class PlatformLogger implements InternalAppSearchLogger {
 
     @Override
     public void logStats(@NonNull RemoveStats stats) {
-        // TODO(b/173532925): Log stats
+        Objects.requireNonNull(stats);
+        synchronized (mLock) {
+            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)) {
+                logStatsImplLocked(stats);
+            }
+        }
     }
 
     @Override
@@ -360,6 +366,47 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull RemoveStats stats) {
+        mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
+        ExtraStats extraStats =
+                createExtraStatsLocked(
+                        stats.getPackageName(), CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID);
+        String database = stats.getDatabase();
+        try {
+            int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
+            // ignore close exception
+            AppSearchStatsLog.write(
+                    AppSearchStatsLog.APP_SEARCH_REMOVE_STATS_REPORTED,
+                    extraStats.mSamplingInterval,
+                    extraStats.mSkippedSampleCount,
+                    extraStats.mPackageUid,
+                    hashCodeForDatabase,
+                    stats.getStatusCode(),
+                    stats.getTotalLatencyMillis(),
+                    stats.getNativeLatencyMillis(),
+                    stats.getDeleteType(),
+                    stats.getDeletedDocumentCount(),
+                    stats.getEnabledFeatures(),
+                    stats.getQueryLength(),
+                    stats.getNumTerms(),
+                    stats.getNumNamespacesFiltered(),
+                    stats.getNumSchemaTypesFiltered(),
+                    stats.getParseQueryLatencyMillis(),
+                    stats.getDocumentRemovalLatencyMillis());
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+            // TODO(b/184204720) report hashing error to statsd
+            //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
+            //  so in the dashboard we know there is some error for hashing.
+            //
+            // Something is wrong while calculating the hash code for database
+            // this shouldn't happen since we always use "MD5" and "UTF-8"
+            if (database != null) {
+                Log.e(TAG, "Error calculating hash code for database " + database, e);
+            }
+        }
+    }
+
+    @GuardedBy("mLock")
     private void logStatsImplLocked(@NonNull SchemaMigrationStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
@@ -384,7 +431,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getSaveDocumentLatencyMillis(),
                     stats.getTotalNeedMigratedDocumentCount(),
                     stats.getTotalSuccessMigratedDocumentCount(),
-                    stats.getMigrationFailureCount());
+                    stats.getMigrationFailureCount(),
+                    stats.getEnabledFeatures());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -423,7 +471,9 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getNativeDocumentSizeBytes(),
                     stats.getNativeNumTokensIndexed(),
                     /* nativeExceededMaxNumTokens= */ false /* Deprecated and removed */,
-                    stats.getEnabledFeatures());
+                    stats.getEnabledFeatures(),
+                    stats.getMetadataTermIndexLatencyMillis(),
+                    stats.getEmbeddingIndexLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -438,51 +488,91 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @GuardedBy("mLock")
-    private void logStatsImplLocked(@NonNull SearchStats stats) {
+    private void logStatsImplLocked(@NonNull QueryStats queryStats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(stats.getPackageName(), CallStats.CALL_TYPE_SEARCH);
-        String database = stats.getDatabase();
+                createExtraStatsLocked(queryStats.getPackageName(), CallStats.CALL_TYPE_SEARCH);
+        String database = queryStats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             int hashCodeForSearchSourceLogTag =
-                    StatsUtil.calculateHashCodeMd5(stats.getSearchSourceLogTag());
+                    StatsUtil.calculateHashCodeMd5(queryStats.getSearchSourceLogTag());
+            SearchStats parentStats = queryStats.getParentSearchStats();
+            SearchStats childStats = queryStats.getChildSearchStats();
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_QUERY_STATS_REPORTED,
                     extraStats.mSamplingInterval,
                     extraStats.mSkippedSampleCount,
                     extraStats.mPackageUid,
                     hashCodeForDatabase,
-                    stats.getStatusCode(),
-                    stats.getTotalLatencyMillis(),
-                    stats.getRewriteSearchSpecLatencyMillis(),
-                    stats.getRewriteSearchResultLatencyMillis(),
-                    stats.getVisibilityScope(),
-                    stats.getNativeLatencyMillis(),
-                    stats.getTermCount(),
-                    stats.getQueryLength(),
-                    stats.getFilteredNamespaceCount(),
-                    stats.getFilteredSchemaTypeCount(),
-                    stats.getRequestedPageSize(),
-                    stats.getCurrentPageReturnedResultCount(),
-                    stats.isFirstPage(),
-                    stats.getParseQueryLatencyMillis(),
-                    stats.getRankingStrategy(),
-                    stats.getScoredDocumentCount(),
-                    stats.getScoringLatencyMillis(),
-                    stats.getRankingLatencyMillis(),
-                    stats.getDocumentRetrievingLatencyMillis(),
-                    stats.getResultWithSnippetsCount(),
-                    stats.getJavaLockAcquisitionLatencyMillis(),
-                    stats.getAclCheckLatencyMillis(),
-                    stats.getNativeLockAcquisitionLatencyMillis(),
-                    stats.getJavaToNativeJniLatencyMillis(),
-                    stats.getNativeToJavaJniLatencyMillis(),
-                    stats.getJoinType(),
-                    stats.getNumJoinedResultsCurrentPage(),
-                    stats.getJoinLatencyMillis(),
+                    queryStats.getStatusCode(),
+                    queryStats.getTotalLatencyMillis(),
+                    queryStats.getRewriteSearchSpecLatencyMillis(),
+                    queryStats.getRewriteSearchResultLatencyMillis(),
+                    queryStats.getVisibilityScope(),
+                    queryStats.getNativeLatencyMillis(),
+                    parentStats == null ? 0 : parentStats.getNativeTermCount(),
+                    parentStats == null ? 0 : parentStats.getNativeQueryLength(),
+                    parentStats == null ? 0 : parentStats.getNativeFilteredNamespaceCount(),
+                    parentStats == null ? 0 : parentStats.getNativeFilteredSchemaTypeCount(),
+                    queryStats.getRequestedPageSize(),
+                    queryStats.getCurrentPageReturnedResultCount(),
+                    queryStats.isFirstPage(),
+                    parentStats == null ? 0 : parentStats.getNativeParseQueryLatencyMillis(),
+                    parentStats == null ? 0 : parentStats.getNativeRankingStrategy(),
+                    parentStats == null ? 0 : parentStats.getNativeScoredDocumentCount(),
+                    parentStats == null ? 0 : parentStats.getNativeScoringLatencyMillis(),
+                    queryStats.getRankingLatencyMillis(),
+                    queryStats.getDocumentRetrievingLatencyMillis(),
+                    queryStats.getResultWithSnippetsCount(),
+                    queryStats.getJavaLockAcquisitionLatencyMillis(),
+                    queryStats.getAclCheckLatencyMillis(),
+                    queryStats.getNativeLockAcquisitionLatencyMillis(),
+                    queryStats.getJavaToNativeJniLatencyMillis(),
+                    queryStats.getNativeToJavaJniLatencyMillis(),
+                    queryStats.getJoinType(),
+                    queryStats.getNumJoinedResultsCurrentPage(),
+                    queryStats.getJoinLatencyMillis(),
                     hashCodeForSearchSourceLogTag,
-                    stats.getEnabledFeatures());
+                    queryStats.getEnabledFeatures(),
+                    parentStats == null ? false : parentStats.isNativeNumericQuery(),
+                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsLiteIndex(),
+                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsMainIndex(),
+                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsIntegerIndex(),
+                    parentStats == null
+                            ? 0
+                            : parentStats.getNativeQueryProcessorLexerExtractTokenLatencyMillis(),
+                    parentStats == null
+                            ? 0
+                            : parentStats.getNativeQueryProcessorParserConsumeQueryLatencyMillis(),
+                    parentStats == null
+                            ? 0
+                            : parentStats.getNativeQueryProcessorQueryVisitorLatencyMillis(),
+                    childStats == null ? 0 : childStats.getNativeQueryLength(),
+                    childStats == null ? 0 : childStats.getNativeTermCount(),
+                    childStats == null ? 0 : childStats.getNativeFilteredNamespaceCount(),
+                    childStats == null ? 0 : childStats.getNativeFilteredSchemaTypeCount(),
+                    childStats == null ? 0 : childStats.getNativeRankingStrategy(),
+                    childStats == null ? 0 : childStats.getNativeScoredDocumentCount(),
+                    childStats == null ? 0 : childStats.getNativeParseQueryLatencyMillis(),
+                    childStats == null ? 0 : childStats.getNativeScoringLatencyMillis(),
+                    childStats == null ? false : childStats.isNativeNumericQuery(),
+                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsLiteIndex(),
+                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsMainIndex(),
+                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsIntegerIndex(),
+                    childStats == null
+                            ? 0
+                            : childStats.getNativeQueryProcessorLexerExtractTokenLatencyMillis(),
+                    childStats == null
+                            ? 0
+                            : childStats.getNativeQueryProcessorParserConsumeQueryLatencyMillis(),
+                    childStats == null
+                            ? 0
+                            : childStats.getNativeQueryProcessorQueryVisitorLatencyMillis(),
+                    queryStats.getLiteIndexHitBufferByteSize(),
+                    queryStats.getLiteIndexHitBufferUnsortedByteSize(),
+                    queryStats.getPageTokenType(),
+                    queryStats.getNumResultStatesEvicted());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -512,18 +602,24 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getPrepareSchemaAndNamespacesLatencyMillis(),
                 stats.getPrepareVisibilityStoreLatencyMillis(),
                 stats.getNativeLatencyMillis(),
-                stats.getDocumentStoreRecoveryCause(),
-                stats.getIndexRestorationCause(),
-                stats.getSchemaStoreRecoveryCause(),
-                stats.getDocumentStoreRecoveryLatencyMillis(),
-                stats.getIndexRestorationLatencyMillis(),
-                stats.getSchemaStoreRecoveryLatencyMillis(),
-                stats.getDocumentStoreDataStatus(),
-                stats.getDocumentCount(),
-                stats.getSchemaTypeCount(),
+                stats.getNativeDocumentStoreRecoveryCause(),
+                stats.getNativeIndexRestorationCause(),
+                stats.getNativeSchemaStoreRecoveryCause(),
+                stats.getNativeDocumentStoreRecoveryLatencyMillis(),
+                stats.getNativeIndexRestorationLatencyMillis(),
+                stats.getNativeSchemaStoreRecoveryLatencyMillis(),
+                stats.getNativeDocumentStoreDataStatus(),
+                stats.getNativeDocumentCount(),
+                stats.getNativeSchemaTypeCount(),
                 stats.hasReset(),
                 stats.getResetStatusCode(),
-                stats.getEnabledFeatures());
+                stats.getEnabledFeatures(),
+                stats.getNativeNumPreviousInitFailures(),
+                stats.getNativeIntegerIndexRestorationCause(),
+                stats.getNativeQualifiedIdJoinIndexRestorationCause(),
+                stats.getNativeEmbeddingIndexRestorationCause(),
+                stats.getNativeInitializeIcuDataStatusCode(),
+                stats.getNativeNumFailedReindexedDocuments());
     }
 
     @GuardedBy("mLock")
@@ -546,7 +642,10 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getStorageSizeBeforeBytes(),
                 stats.getStorageSizeAfterBytes(),
                 stats.getTimeSinceLastOptimizeMillis(),
-                stats.getEnabledFeatures());
+                stats.getEnabledFeatures(),
+                stats.getIndexRestorationMode(),
+                stats.getNumOriginalNamespaces(),
+                stats.getNumDeletedNamespaces());
     }
 
     @GuardedBy("mLock")

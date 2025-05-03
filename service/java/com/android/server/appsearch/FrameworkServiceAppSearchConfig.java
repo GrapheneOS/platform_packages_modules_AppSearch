@@ -126,6 +126,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_ISOLATED_STORAGE_MEMORY_BYTES = "isolated_storage_memory_bytes";
     public static final String KEY_LIGHTWEIGHT_PERSIST_TYPE = "lightweight_persist_type";
     public static final String KEY_ISOLATED_STORAGE_ENABLED = "isolated_storage_enabled";
+    public static final String KEY_ISOLATED_STORAGE_MIGRATION_ENABLED =
+            "isolated_storage_migration_enabled";
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
 
@@ -395,8 +397,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         synchronized (mLock) {
             throwIfClosedLocked();
             return mBundleLocked.getInt(
-                    KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES,
-                    DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES);
+                    KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT,
+                    DEFAULT_MAX_BYTE_LIMIT_FOR_BATCH_PUT);
         }
     }
 
@@ -713,6 +715,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
+    public boolean enableIsolatedStorageMigration() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getBoolean(
+                    KEY_ISOLATED_STORAGE_MIGRATION_ENABLED,
+                    IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED);
+        }
+    }
+
+    @Override
     public boolean shouldStoreParentInfoAsSyntheticProperty() {
         // This option is always true in Framework.
         return true;
@@ -804,11 +816,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 }
                 break;
             case KEY_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES:
-            case KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT:
                 synchronized (mLock) {
                     mBundleLocked.putInt(
                             key,
                             properties.getInt(key, DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES));
+                }
+                break;
+            case KEY_LIMIT_CONFIG_MAX_BYTE_LIMIT_BATCH_PUT:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(
+                            key, properties.getInt(key, DEFAULT_MAX_BYTE_LIMIT_FOR_BATCH_PUT));
                 }
                 break;
             case KEY_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT:
@@ -1057,6 +1074,16 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                                     key,
                                     IsolatedStorageServiceManager
                                             .DEFAULT_ISOLATED_STORAGE_ENABLED));
+                }
+                break;
+            case KEY_ISOLATED_STORAGE_MIGRATION_ENABLED:
+                synchronized (mLock) {
+                    mBundleLocked.putBoolean(
+                            key,
+                            properties.getBoolean(
+                                    key,
+                                    IsolatedStorageServiceManager
+                                            .DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED));
                 }
                 break;
             case KEY_LIGHTWEIGHT_PERSIST_TYPE:

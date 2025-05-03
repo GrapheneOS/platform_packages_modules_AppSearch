@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import static android.app.appsearch.AppSearchResult.RESULT_ABORTED;
 import static android.app.appsearch.AppSearchResult.RESULT_INVALID_ARGUMENT;
 import static android.app.appsearch.AppSearchResult.RESULT_NOT_FOUND;
 import static android.app.appsearch.AppSearchResult.RESULT_OUT_OF_SPACE;
@@ -25,6 +26,8 @@ import static android.app.appsearch.testutil.AppSearchTestUtils.generateRandomBy
 
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.addPrefixToDocument;
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.createPrefix;
+import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getIcingSchemaDatabaseName;
+import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getPrefix;
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.removePrefixesFromDocument;
 import static com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore.BLOB_ANDROID_V_OVERLAY_DATABASE_NAME;
 import static com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore.BLOB_VISIBILITY_DATABASE_NAME;
@@ -79,8 +82,8 @@ import com.android.server.appsearch.appsearch.proto.VisibilityConfigProto;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
+import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
-import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
@@ -178,8 +181,12 @@ public class AppSearchImplTest {
      * Ensure that we can rewrite an incoming schema type by adding the database as a prefix. While
      * also keeping any other existing schema types that may already be part of Icing's persisted
      * schema.
+     *
+     * <p>This test is disabled when database-scoped schema operations are enabled, since
+     * rewriteSchema will not be called with existing types from multiple prefixes in that case.
      */
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_DATABASE_SCOPED_SCHEMA_OPERATIONS)
     public void testRewriteSchema_addType() throws Exception {
         SchemaProto.Builder existingSchemaBuilder =
                 SchemaProto.newBuilder()
@@ -343,8 +350,12 @@ public class AppSearchImplTest {
                 .containsExactly("package$existingDatabase/Foo");
         assertThat(rewrittenSchemaResults.mDeletedPrefixedTypes).isEmpty();
 
-        // Same schema since nothing was added.
+        // Same schema since nothing was added, but the database field should be populated if
+        // Flags.enableDatabaseScopedSchemaOperations() is true
         SchemaProto expectedSchema = existingSchemaBuilder.build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedSchema = getSchemaProtoWithDatabase(expectedSchema);
+        }
         assertThat(existingSchemaBuilder.getTypesList())
                 .containsExactlyElementsIn(expectedSchema.getTypesList());
     }
@@ -378,17 +389,21 @@ public class AppSearchImplTest {
         assertThat(rewrittenSchemaResults.mRewrittenPrefixedTypes)
                 .containsKey("package$existingDatabase/Bar");
         assertThat(rewrittenSchemaResults.mRewrittenPrefixedTypes.keySet().size()).isEqualTo(1);
-        assertThat(rewrittenSchemaResults.mDeletedPrefixedTypes)
-                .containsExactly("package$existingDatabase/Foo");
+        if (!Flags.enableDatabaseScopedSchemaOperations()) {
+            assertThat(rewrittenSchemaResults.mDeletedPrefixedTypes)
+                    .containsExactly("package$existingDatabase/Foo");
+        }
 
         // Same schema since nothing was added.
         SchemaProto expectedSchema =
                 SchemaProto.newBuilder()
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
-                                        .setSchemaType("package$existingDatabase/Bar")
-                                        .build())
+                                        .setSchemaType("package$existingDatabase/Bar"))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedSchema = getSchemaProtoWithDatabase(expectedSchema);
+        }
 
         assertThat(existingSchemaBuilder.getTypesList())
                 .containsExactlyElementsIn(expectedSchema.getTypesList());
@@ -644,13 +659,13 @@ public class AppSearchImplTest {
         assertThat(initStats).isNotNull();
         assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_INTERNAL_ERROR);
         assertThat(initStats.hasDeSync()).isFalse();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getSchemaStoreRecoveryCause())
+        assertThat(initStats.getNativeSchemaStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getDocumentStoreDataStatus())
+        assertThat(initStats.getNativeDocumentStoreDataStatus())
                 .isEqualTo(InitializeStats.DOCUMENT_STORE_DATA_STATUS_NO_DATA_LOSS);
         assertThat(initStats.hasReset()).isTrue();
         assertThat(initStats.getResetStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
@@ -2402,6 +2417,150 @@ public class AppSearchImplTest {
     }
 
     @Test
+    @RequiresFlagsEnabled({
+        Flags.FLAG_ENABLE_RESULT_ABORTED,
+        Flags.FLAG_ENABLE_THROW_EXCEPTION_FOR_NATIVE_NOT_FOUND_PAGE_TOKEN
+    })
+    public void testEvictedNextPageToken_flagEnabledShouldThrow() throws Exception {
+        // Insert package1 schema
+        List<AppSearchSchema> schema1 =
+                ImmutableList.of(new AppSearchSchema.Builder("schema1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert two package1 documents
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+        mAppSearchImpl.putDocument(
+                "package1",
+                "database1",
+                document1,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+        mAppSearchImpl.putDocument(
+                "package1",
+                "database1",
+                document2,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+
+        // Query for only 1 result per page
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(TermMatchType.Code.PREFIX_VALUE)
+                        .setResultCountPerPage(1)
+                        .build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.globalQuery(
+                        /* queryExpression= */ "",
+                        searchSpec,
+                        new CallerAccess(/* callingPackageName= */ "package1"),
+                        /* logger= */ null);
+
+        // Document2 will come first because it was inserted last and default return order is
+        // most recent.
+        assertThat(searchResultPage.getResults()).hasSize(1);
+        assertThat(searchResultPage.getResults().get(0).getGenericDocument()).isEqualTo(document2);
+
+        long nextPageToken = searchResultPage.getNextPageToken();
+        assertThat(nextPageToken).isNotEqualTo(0);
+
+        // Call Optimize.
+        mAppSearchImpl.optimize(/* builder= */ null);
+
+        // All page tokens are evicted after optimize, so AppSearchException with code
+        // RESULT_ABORTED will be thrown.
+        AppSearchException e =
+                assertThrows(
+                        AppSearchException.class,
+                        () ->
+                                mAppSearchImpl.getNextPage(
+                                        "package1", nextPageToken, /* statsBuilder= */ null));
+        assertThat(e.getResultCode()).isEqualTo(RESULT_ABORTED);
+        assertThat(e)
+                .hasMessageThat()
+                .contains(
+                        "Page token not found. It is usually caused by pagination cache eviction.");
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_THROW_EXCEPTION_FOR_NATIVE_NOT_FOUND_PAGE_TOKEN)
+    public void testEvictedNextPageToken_flagDisabledShouldReturnEmptyResult() throws Exception {
+        // Insert package1 schema
+        List<AppSearchSchema> schema1 =
+                ImmutableList.of(new AppSearchSchema.Builder("schema1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert two package1 documents
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+        mAppSearchImpl.putDocument(
+                "package1",
+                "database1",
+                document1,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+        mAppSearchImpl.putDocument(
+                "package1",
+                "database1",
+                document2,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null);
+
+        // Query for only 1 result per page
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(TermMatchType.Code.PREFIX_VALUE)
+                        .setResultCountPerPage(1)
+                        .build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.globalQuery(
+                        /* queryExpression= */ "",
+                        searchSpec,
+                        new CallerAccess(/* callingPackageName= */ "package1"),
+                        /* logger= */ null);
+
+        // Document2 will come first because it was inserted last and default return order is
+        // most recent.
+        assertThat(searchResultPage.getResults()).hasSize(1);
+        assertThat(searchResultPage.getResults().get(0).getGenericDocument()).isEqualTo(document2);
+
+        long nextPageToken = searchResultPage.getNextPageToken();
+        assertThat(nextPageToken).isNotEqualTo(0);
+
+        // Call Optimize.
+        mAppSearchImpl.optimize(/* builder= */ null);
+
+        // All page tokens are evicted after optimize. getNextPage should return an empty page if
+        // the flag is disabled.
+        SearchResultPage searchResultPage2 =
+                mAppSearchImpl.getNextPage("package1", nextPageToken, /* statsBuilder= */ null);
+        assertThat(searchResultPage2.getResults()).isEmpty();
+        assertThat(searchResultPage2.getNextPageToken()).isEqualTo(0);
+    }
+
+    @Test
     public void testRemoveEmptyDatabase_noExceptionThrown() throws Exception {
         SearchSpec searchSpec =
                 new SearchSpec.Builder()
@@ -2452,6 +2611,9 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto = getSchemaProtoWithDatabase(expectedProto);
+        }
 
         List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
         expectedTypes.addAll(existingSchemas);
@@ -2546,6 +2708,9 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto = getSchemaProtoWithDatabase(expectedProto);
+        }
 
         // Check both schema Email and Document saved correctly.
         List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
@@ -2592,6 +2757,9 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto = getSchemaProtoWithDatabase(expectedProto);
+        }
 
         expectedTypes = new ArrayList<>();
         expectedTypes.addAll(existingSchemas);
@@ -2657,6 +2825,9 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto = getSchemaProtoWithDatabase(expectedProto);
+        }
 
         // Check Email and Document is saved in database 1 and 2 correctly.
         List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
@@ -2698,6 +2869,9 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto = getSchemaProtoWithDatabase(expectedProto);
+        }
 
         // Check nothing changed in database2.
         expectedTypes = new ArrayList<>();
@@ -3830,6 +4004,10 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto = getSchemaProtoWithDatabase(expectedProto);
+        }
+
         List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
         expectedTypes.addAll(existingSchemas);
         expectedTypes.addAll(expectedProto.getTypesList());
@@ -4723,9 +4901,9 @@ public class AppSearchImplTest {
 
         // Initialization should trigger a recovery
         InitializeStats initStats = initStatsBuilder.build();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
 
         // That document should be visible even from another instance.
@@ -4811,9 +4989,9 @@ public class AppSearchImplTest {
 
         // Initialization should trigger a recovery
         InitializeStats initStats = initStatsBuilder.build();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
 
         // Only the second document should be retrievable from another instance.
@@ -4916,9 +5094,9 @@ public class AppSearchImplTest {
 
         // Initialization should trigger a recovery
         InitializeStats initStats = initStatsBuilder.build();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
 
         // Only the second document should be retrievable from another instance.
@@ -4984,9 +5162,9 @@ public class AppSearchImplTest {
 
         // Initialization should NOT trigger a recovery
         InitializeStats initStats = initStatsBuilder.build();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
 
         // That document should be visible even from another instance.
@@ -5072,9 +5250,9 @@ public class AppSearchImplTest {
 
         // Initialization should NOT trigger a recovery.
         InitializeStats initStats = initStatsBuilder.build();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
 
         // Only the second document should be retrievable from another instance.
@@ -5177,9 +5355,9 @@ public class AppSearchImplTest {
 
         // Initialization should NOT trigger a recovery.
         InitializeStats initStats = initStatsBuilder.build();
-        assertThat(initStats.getDocumentStoreRecoveryCause())
+        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getIndexRestorationCause())
+        assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
 
         // Only the second document should be retrievable from another instance.
@@ -5449,7 +5627,7 @@ public class AppSearchImplTest {
                     }
 
                     @Override
-                    public void logStats(@NonNull SearchStats stats) {
+                    public void logStats(@NonNull QueryStats stats) {
                         assertThat(stats.getEnabledFeatures()).isEqualTo(onlyLaunchVMFeature);
                     }
                 };
@@ -5541,7 +5719,7 @@ public class AppSearchImplTest {
                     }
 
                     @Override
-                    public void logStats(@NonNull SearchStats stats) {
+                    public void logStats(@NonNull QueryStats stats) {
                         assertThat(stats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
                     }
                 };
@@ -10133,15 +10311,38 @@ public class AppSearchImplTest {
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Create expected schemaType proto.
-        SchemaProto expectedProto =
-                SchemaProto.newBuilder()
-                        .addTypes(
-                                SchemaTypeConfigProto.newBuilder()
-                                        .setSchemaType("package$database1/Email")
-                                        .setDescription("")
-                                        .setVersion(0))
-                        .addTypes(additionalConfigProto)
-                        .build();
+        SchemaProto expectedProto;
+        if (Flags.enableDatabaseScopedSchemaOperations()) {
+            expectedProto =
+                    SchemaProto.newBuilder()
+                            .addTypes(
+                                    SchemaTypeConfigProto.newBuilder()
+                                            .setSchemaType("package$database1/Email")
+                                            .setDatabase("package$database1")
+                                            .setDescription("")
+                                            .setVersion(0))
+                            .build();
+        } else {
+            expectedProto =
+                    SchemaProto.newBuilder()
+                            .addTypes(
+                                    SchemaTypeConfigProto.newBuilder()
+                                            .setSchemaType("package$database1/Email")
+                                            .setDescription("")
+                                            .setVersion(0))
+                            // This type shows up twice in the expectedProto when it actually should
+                            // only
+                            // be there once. This is because we call getSchema in the setSchema
+                            // operation, and then build on top of the retrieved schema. When the
+                            // new
+                            // database-scoped schema operation we'll only retrieve the types from
+                            // the
+                            // requested database, and so this shouldn't be built into the existing
+                            // schema
+                            // again.
+                            .addTypes(additionalConfigProto)
+                            .build();
+        }
 
         List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
         expectedTypes.addAll(existingSchemas);
@@ -10268,5 +10469,18 @@ public class AppSearchImplTest {
 
         // Check that previous size (compressed) is smaller than the latter (uncompressed)
         assertThat(compressedSize).isLessThan(uncompressedSize);
+    }
+
+    private SchemaProto getSchemaProtoWithDatabase(SchemaProto schema) throws AppSearchException {
+        SchemaProto.Builder schemaBuilder = SchemaProto.newBuilder();
+        for (int i = 0; i < schema.getTypesList().size(); i++) {
+            SchemaTypeConfigProto type = schema.getTypes(i);
+            SchemaTypeConfigProto.Builder typeBuilder =
+                    SchemaTypeConfigProto.newBuilder(type)
+                            .setDatabase(
+                                    getIcingSchemaDatabaseName(getPrefix(type.getSchemaType())));
+            schemaBuilder.addTypes(typeBuilder);
+        }
+        return schemaBuilder.build();
     }
 }
