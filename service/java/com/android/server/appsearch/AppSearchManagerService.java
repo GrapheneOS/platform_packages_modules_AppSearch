@@ -23,8 +23,8 @@ import static android.app.appsearch.AppSearchResult.RESULT_SECURITY_ERROR;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 import static android.os.Process.INVALID_UID;
 
-import static com.android.server.appsearch.external.localstorage.stats.SearchStats.VISIBILITY_SCOPE_GLOBAL;
-import static com.android.server.appsearch.external.localstorage.stats.SearchStats.VISIBILITY_SCOPE_LOCAL;
+import static com.android.server.appsearch.external.localstorage.stats.QueryStats.VISIBILITY_SCOPE_GLOBAL;
+import static com.android.server.appsearch.external.localstorage.stats.QueryStats.VISIBILITY_SCOPE_LOCAL;
 import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnError;
 import static com.android.server.appsearch.util.ServiceImplHelper.invokeCallbackOnResult;
 
@@ -123,7 +123,7 @@ import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
-import com.android.server.appsearch.external.localstorage.stats.SearchStats;
+import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchSessionStatsExtractor;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
@@ -1961,13 +1961,13 @@ public class AppSearchManagerService extends SystemService {
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
                 int operationFailureCount = 0;
-                SearchStats.Builder statsBuilder;
+                QueryStats.Builder statsBuilder;
                 if (global) {
-                    statsBuilder = new SearchStats.Builder(VISIBILITY_SCOPE_GLOBAL,
+                    statsBuilder = new QueryStats.Builder(VISIBILITY_SCOPE_GLOBAL,
                             callingPackageName)
                             .setJoinType(request.getJoinType());
                 } else {
-                    statsBuilder = new SearchStats.Builder(VISIBILITY_SCOPE_LOCAL,
+                    statsBuilder = new QueryStats.Builder(VISIBILITY_SCOPE_LOCAL,
                             callingPackageName)
                             .setDatabase(request.getDatabaseName())
                             .setJoinType(request.getJoinType());
@@ -3226,11 +3226,11 @@ public class AppSearchManagerService extends SystemService {
                             .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
                             .setResultCountPerPage(25)
                             .build();
-            List<SearchStats> statsList = new ArrayList<>();
+            List<QueryStats> statsList = new ArrayList<>();
             PlatformLogger logger =
                     new PlatformLogger(mContext, mAppSearchConfig) {
                         @Override
-                        public void logStats(@NonNull SearchStats stats) {
+                        public void logStats(@NonNull QueryStats stats) {
                             statsList.add(stats);
                         }
                     };
@@ -3249,8 +3249,8 @@ public class AppSearchManagerService extends SystemService {
                                     logger);
             while (!searchResultPage.getResults().isEmpty()) {
                 printResultPage(pw, searchResultPage);
-                SearchStats.Builder statsBuilder =
-                        new SearchStats.Builder(VISIBILITY_SCOPE_GLOBAL, mContext.getPackageName());
+                QueryStats.Builder statsBuilder =
+                        new QueryStats.Builder(VISIBILITY_SCOPE_GLOBAL, mContext.getPackageName());
                 searchResultPage =
                         instance.getAppSearchImpl()
                                 .getNextPage(
@@ -3278,9 +3278,9 @@ public class AppSearchManagerService extends SystemService {
         }
     }
 
-    private void printStats(PrintWriter pw, List<SearchStats> stats) {
+    private void printStats(PrintWriter pw, List<QueryStats> stats) {
         pw.println("Printing search stats: ");
-        for (SearchStats s : stats) {
+        for (QueryStats s : stats) {
             pw.println(s);
         }
     }
