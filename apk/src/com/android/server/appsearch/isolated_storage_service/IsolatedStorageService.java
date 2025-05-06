@@ -83,7 +83,7 @@ public class IsolatedStorageService extends Service {
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
-    private final CompletableFuture<Void> mPayloadReadyFuture = new CompletableFuture<>();
+    private volatile CompletableFuture<Void> mPayloadReadyFuture;
 
     private volatile VirtualMachine mVm;
     private volatile com.android.isolated_storage_service.IIsolatedStorageService
@@ -111,7 +111,7 @@ public class IsolatedStorageService extends Service {
         }
     }
 
-    private void tryStartVm(ServiceConfig config)
+    private void tryStartVm(ServiceConfig config, boolean forceRestart)
             throws VirtualMachineException, NullPointerException {
         mVm = maybeCreateVm(config);
         if (mVm == null) {
@@ -119,8 +119,14 @@ public class IsolatedStorageService extends Service {
         }
         if (mVm.getStatus() == VirtualMachine.STATUS_RUNNING) {
             Log.w(TAG, "vm is already running");
-            return;
+            if (forceRestart) {
+                Log.i(TAG, "close vm to force a restart");
+                mVm.close();
+            } else {
+                return;
+            }
         }
+        mPayloadReadyFuture = new CompletableFuture<>();
         IsolateStorageServiceLogger logger = new IsolateStorageServiceLogger(config);
         VmCallback vmCallback = new VmCallback(mPayloadReadyFuture, logger);
         mVm.setCallback(mExecutorService, vmCallback);
@@ -295,18 +301,20 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public boolean startVm(ServiceConfig config, long timeoutSeconds) throws RemoteException {
-            if (!mPayloadReadyFuture.isDone()) {
-                try {
-                    tryStartVm(config);
-                    mPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-                } catch (InterruptedException | TimeoutException e) {
-                    Log.w(TAG, "Unable to wait for payload ready", e);
-                    return false;
-                } catch (Exception e) {
-                    Log.e(TAG, "Unable to start VM", e);
-                    throw new RemoteException(e.getMessage());
-                }
+        public boolean startVm(ServiceConfig config, long timeoutSeconds, boolean forceRestart)
+                throws RemoteException {
+            if (mPayloadReadyFuture != null && mPayloadReadyFuture.isDone() && !forceRestart) {
+                return true;
+            }
+            try {
+                tryStartVm(config, forceRestart);
+                mPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+            } catch (InterruptedException | TimeoutException e) {
+                Log.w(TAG, "Unable to wait for payload ready", e);
+                return false;
+            } catch (Exception e) {
+                Log.e(TAG, "Unable to start VM", e);
+                throw new RemoteException(e.getMessage());
             }
             return true;
         }
