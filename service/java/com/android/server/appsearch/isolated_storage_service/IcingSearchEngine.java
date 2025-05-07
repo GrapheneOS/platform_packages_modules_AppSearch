@@ -119,30 +119,28 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public SetSchemaResultProto setSchema(@NonNull SchemaProto schema) {
-        byte[] resultData;
-        try {
-            mVmStateSignaler.signalActive();
-            resultData =
-                    mEngine.setSchema(
-                            schema.toByteArray(), /* ignoreErrorsAndDeleteDocuments= */ false);
-        } catch (RemoteException e) {
-            return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
-        }
-
-        return getResponseProtoFromRawData(
-                resultData,
-                SetSchemaResultProto.getDefaultInstance(),
-                status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
+        return setSchema(schema, /* ignoreErrorsAndDeleteDocuments= */ false);
     }
 
     @NonNull
     @Override
     public SetSchemaResultProto setSchema(
             @NonNull SchemaProto schema, boolean ignoreErrorsAndDeleteDocuments) {
+        byte[] input = schema.toByteArray();
+
         byte[] resultData;
         try {
             mVmStateSignaler.signalActive();
-            resultData = mEngine.setSchema(schema.toByteArray(), ignoreErrorsAndDeleteDocuments);
+            resultData = mEngine.setSchema(input, ignoreErrorsAndDeleteDocuments);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(
+                    TAG,
+                    "Got out of memory in set schema. Request length: "
+                            + input.length
+                            + ", number of schema types in request: "
+                            + schema.getTypesCount());
+            throw e;
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
@@ -220,10 +218,16 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public PutResultProto put(@NonNull DocumentProto document) {
+        byte[] input = document.toByteArray();
+
         byte[] resultData;
         try {
             mVmStateSignaler.signalActive();
-            resultData = mEngine.put(document.toByteArray());
+            resultData = mEngine.put(input);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
+            throw e;
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
