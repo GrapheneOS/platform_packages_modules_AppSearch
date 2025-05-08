@@ -73,9 +73,9 @@ import java.util.function.Function;
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
 
-    private final IIcingSearchEngine mEngine;
     private final IcingSearchEngineOptions mOptions;
     private final VmStateSignaler mVmStateSignaler;
+    private volatile IIcingSearchEngine mEngine;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
@@ -86,6 +86,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         mEngine = Objects.requireNonNull(engine);
         mOptions = Objects.requireNonNull(options);
         mVmStateSignaler = Objects.requireNonNull(vmStateSignaler);
+    }
+
+    /**
+     * Sets the VM engine to use.
+     *
+     * <p>Use this to replace a dead VM engine.
+     */
+    public void setVmEngine(@NonNull IIcingSearchEngine engine) {
+        mEngine = Objects.requireNonNull(engine);
     }
 
     @Override

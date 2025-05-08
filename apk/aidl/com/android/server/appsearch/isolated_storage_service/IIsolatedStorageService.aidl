@@ -31,9 +31,11 @@ interface IIsolatedStorageService {
      *
      * @param config The service configuration.
      * @param timeoutSeconds The timeout in seconds when waiting for the pVm payload to be ready.
+     * @param forceRestart Whether to force the pVM to restart if it's already running.
      * @return true if the pVm payload is ready, false otherwise. If false, please retry.
      */
-    boolean startVm(in ServiceConfig config, long timeoutSeconds);
+    // TODO(b/416035857): remove forceRestart once VM status is fixed.
+    boolean startVm(in ServiceConfig config, in long timeoutSeconds, in boolean forceRestart);
 
     /**
      * Gets the connection to the pVM.

@@ -44,6 +44,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.ResetResultProto;
 import com.google.android.icing.proto.StatusProto;
 
@@ -77,10 +78,15 @@ public final class IsolatedStorageServiceManager {
     private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
     private static final int MAX_VM_START_RETRIES = 3;
+    private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
     private final VmStateSignaler mVmStateSignaler;
+    private final IsolatedStorageServiceDeathRecipient mIsolatedStorageServiceDeathRecipient =
+            new IsolatedStorageServiceDeathRecipient();
+    private final VmIsolatedStorageServiceDeathRecipient mVmIsolatedStorageServiceDeathRecipient =
+            new VmIsolatedStorageServiceDeathRecipient();
 
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
@@ -89,8 +95,7 @@ public final class IsolatedStorageServiceManager {
             mVmIsolatedStorageService;
 
     @GuardedBy("mIcingInstancesLocked")
-    private final Map<UserHandle, IcingSearchEngineInterface> mIcingInstancesLocked =
-            new ArrayMap<>();
+    private final Map<UserHandle, IcingSearchEngine> mIcingInstancesLocked = new ArrayMap<>();
 
     public IsolatedStorageServiceManager(
             @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
@@ -129,6 +134,34 @@ public final class IsolatedStorageServiceManager {
         // Devices that support AVF are not required to support protected VMs.
         return (vmm != null)
                 && ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0);
+    }
+
+    /**
+     * Initializes the isolated storage service if not already.
+     *
+     * <p>This will bind to the isolated storage service, start the VM, and connects to the VM if
+     * not already.
+     */
+    private void initialize() throws AppSearchException {
+        initialize(false);
+    }
+
+    /**
+     * Initializes the isolated storage service if not already.
+     *
+     * @param forceVmRestart Whether to force restarting the VM.
+     *     <p>This will bind to the isolated storage service, start the VM, and connects to the VM
+     *     if not already.
+     */
+    private void initialize(boolean forceVmRestart) throws AppSearchException {
+        synchronized (mIcingInstancesLocked) {
+            if (mIsolatedStorageService == null) {
+                bindIsolatedStorageService();
+            }
+            if (mVmIsolatedStorageService == null) {
+                connectToVmIsolatedStorageService(forceVmRestart);
+            }
+        }
     }
 
     /** Removes the icing instance for the corresponding userHandle */
@@ -195,13 +228,14 @@ public final class IsolatedStorageServiceManager {
 
     /** Connects to the VM isolated storage service if not already. */
     @WorkerThread
-    private void connectToVmIsolatedStorageService() throws AppSearchException {
+    private void connectToVmIsolatedStorageService(boolean forceVmRestart)
+            throws AppSearchException {
         if (mVmIsolatedStorageService != null) {
             Log.i(TAG, "VM already connected");
             return;
         }
         Log.i(TAG, "Connecting to vm");
-        waitForVmPayloadReady();
+        waitForVmPayloadReady(forceVmRestart);
         try {
             IBinder iBinder =
                     VirtualMachine.binderFromPreconnectedClient(
@@ -220,6 +254,7 @@ public final class IsolatedStorageServiceManager {
             mVmIsolatedStorageService =
                     com.android.isolated_storage_service.IIsolatedStorageService.Stub.asInterface(
                             iBinder);
+            iBinder.linkToDeath(mVmIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
         } catch (Exception e) {
             Log.e(TAG, "Unable to connect to vm", e);
             throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm", e);
@@ -257,16 +292,18 @@ public final class IsolatedStorageServiceManager {
         return resolveInfos.get(0).serviceInfo.packageName;
     }
 
-    private void waitForVmPayloadReady() throws AppSearchException {
+    private void waitForVmPayloadReady(boolean forceVmRestart) throws AppSearchException {
         boolean vmStarted = false;
         ServiceConfig serviceConfig = createServiceConfig();
         try {
             for (int i = 0; i < MAX_VM_START_RETRIES; i++) {
-                if (mIsolatedStorageService.startVm(serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS)) {
+                if (mIsolatedStorageService.startVm(
+                        serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS, forceVmRestart)) {
                     vmStarted = true;
                     break;
                 }
                 Log.w(TAG, "Unable to wait for payload ready, retrying");
+                forceVmRestart = false;
             }
         } catch (Exception e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
@@ -308,14 +345,10 @@ public final class IsolatedStorageServiceManager {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
 
-        IcingSearchEngineInterface instance;
+        IcingSearchEngine instance;
         synchronized (mIcingInstancesLocked) {
-            if (mIsolatedStorageService == null) {
-                bindIsolatedStorageService();
-            }
-            if (mVmIsolatedStorageService == null) {
-                connectToVmIsolatedStorageService();
-            }
+            // initialize the isolated storage service if not already
+            initialize();
 
             instance = mIcingInstancesLocked.get(userHandle);
             if (instance == null) {
@@ -342,7 +375,7 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** A connection to the isolated storage service. */
-    private class IsolatedStorageServiceConnection implements ServiceConnection {
+    private final class IsolatedStorageServiceConnection implements ServiceConnection {
         private final CompletableFuture<Void> mFuture;
 
         IsolatedStorageServiceConnection(@NonNull CompletableFuture<Void> future) {
@@ -352,6 +385,15 @@ public final class IsolatedStorageServiceManager {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
             mIsolatedStorageService = IIsolatedStorageService.Stub.asInterface(service);
+            IBinder binder = mIsolatedStorageService.asBinder();
+            try {
+                binder.linkToDeath(mIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
+            } catch (RemoteException e) {
+                Log.e(
+                        TAG,
+                        "failed to register a recipient of died IsolatedStorageService binder",
+                        e);
+            }
             Log.i(TAG, "IsolatedStorageService connected");
             mFuture.complete(null);
         }
@@ -365,6 +407,7 @@ public final class IsolatedStorageServiceManager {
 
         @Override
         public void onBindingDied(ComponentName className) {
+            // TODO(b/416509934): properly handle this when it's correctly triggered
             Log.i(TAG, "IsolatedStorageService binding died");
             mIsolatedStorageService = null;
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
@@ -375,6 +418,72 @@ public final class IsolatedStorageServiceManager {
             Log.i(TAG, "IsolatedStorageService null binding");
             mIsolatedStorageService = null;
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
+        }
+    }
+
+    private final class IsolatedStorageServiceDeathRecipient implements IBinder.DeathRecipient {
+        @Override
+        public void binderDied() {
+            Log.w(TAG, "binderDied: IsolatedStorageService");
+            mIsolatedStorageService = null;
+            mVmIsolatedStorageService = null;
+            replaceVmIcingInstances();
+        }
+    }
+
+    private final class VmIsolatedStorageServiceDeathRecipient implements IBinder.DeathRecipient {
+        @Override
+        public void binderDied() {
+            Log.w(TAG, "binderDied: VmIsolatedStorageService");
+            mVmIsolatedStorageService = null;
+            replaceVmIcingInstances();
+        }
+    }
+
+    private void replaceVmIcingInstances() {
+        synchronized (mIcingInstancesLocked) {
+            try {
+                initialize(true);
+            } catch (AppSearchException e) {
+                Log.e(TAG, "failed to re-initialize", e);
+                return;
+            }
+            for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
+                IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
+                try {
+                    instance.setVmEngine(
+                            mVmIsolatedStorageService.getOrCreateIcingConnection(
+                                    userHandle.getIdentifier()));
+                    initializeIcingWithRetry(instance);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
+                }
+            }
+        }
+    }
+
+    private static void initializeIcingWithRetry(IcingSearchEngine instance) {
+        boolean succeeded = false;
+        for (int i = 0; i < MAX_ICING_INITIALIZATION_RETRIES; i++) {
+            InitializeResultProto initializeResultProto = instance.initialize();
+            if (initializeResultProto.getStatus().getCode() == StatusProto.Code.OK) {
+                Log.i(TAG, "icing instance initialized");
+                succeeded = true;
+                break;
+            } else {
+                Log.e(
+                        TAG,
+                        "failed to initialize icing instance: "
+                                + initializeResultProto.getStatus());
+            }
+        }
+        if (!succeeded) {
+            Log.e(
+                    TAG,
+                    "failed to initialize icing after "
+                            + MAX_ICING_INITIALIZATION_RETRIES
+                            + " retries");
+            // TODO(b/416509382): consider resetting the icing instance
         }
     }
 }
