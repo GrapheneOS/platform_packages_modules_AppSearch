@@ -149,7 +149,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             + input.length
                             + ", number of schema types in request: "
                             + schema.getTypesCount());
-            throw e;
+            return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
@@ -236,7 +236,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         } catch (OutOfMemoryError e) {
             // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
-            throw e;
+            return PutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
@@ -264,11 +264,11 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             + input.length
                             + ", number of documents in request: "
                             + putDocumentRequest.getDocumentsCount());
-            throw e;
+            return BatchPutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return BatchPutResultProto.newBuilder()
                     // TODO(b/401245113) set status when the change is available.
-                    // .setStatus(remoteExceptionStatus(e))
+                    .setStatus(remoteExceptionStatus(e))
                     .build();
         }
 
@@ -278,7 +278,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 status ->
                         BatchPutResultProto.newBuilder()
                                 // TODO(b/401245113) set status when the change is available.
-                                // .setStatus(status)
+                                .setStatus(status)
                                 .build());
     }
 
@@ -825,6 +825,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
+                .build();
+    }
+
+    private static @NonNull StatusProto oomExceptionStatus(@NonNull OutOfMemoryError e) {
+        Log.e(TAG, "Encountered OOM in midst of binder transaction", e);
+        // TODO(b/404210068): Add a different error code to distinguish these failures.
+        return StatusProto.newBuilder()
+                .setCode(StatusProto.Code.UNKNOWN)
+                .setMessage("Ran out of memory when allocating request: " + e.getMessage())
                 .build();
     }
 
