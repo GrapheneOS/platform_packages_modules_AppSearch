@@ -21,6 +21,7 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.android.isolated_storage_service.IIcingSearchEngine;
+import com.android.server.appsearch.util.MemInfoReader;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchGetResultProto;
@@ -142,13 +143,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mVmStateSignaler.signalActive();
             resultData = mEngine.setSchema(input, ignoreErrorsAndDeleteDocuments);
         } catch (OutOfMemoryError e) {
-            // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(
                     TAG,
                     "Got out of memory in set schema. Request length: "
                             + input.length
                             + ", number of schema types in request: "
                             + schema.getTypesCount());
+            logFreeMemoryInfo();
+
             return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -234,8 +236,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mVmStateSignaler.signalActive();
             resultData = mEngine.put(input);
         } catch (OutOfMemoryError e) {
-            // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
+            logFreeMemoryInfo();
+
             return PutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -257,13 +260,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mVmStateSignaler.signalActive();
             resultData = mEngine.batchPut(input);
         } catch (OutOfMemoryError e) {
-            // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(
                     TAG,
                     "Got out of memory in batch put. Request length: "
                             + input.length
                             + ", number of documents in request: "
                             + putDocumentRequest.getDocumentsCount());
+            logFreeMemoryInfo();
+
             return BatchPutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return BatchPutResultProto.newBuilder()
@@ -843,5 +847,37 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to parse proto data: " + e.getMessage())
                 .build();
+    }
+
+    /**
+     * Helper function to get and print the amount of free RAM in KB. {@code -1} will be printed if
+     * failing to get the number.
+     */
+    private static void logFreeMemoryInfo() {
+        long deviceFreeMemoryKb = -1;
+        try {
+            MemInfoReader memInfo = new MemInfoReader();
+            deviceFreeMemoryKb = memInfo.getFreeSizeKb();
+        } catch (Error e) {
+            Log.w(TAG, "Unable to get device free memory size from /proc/meminfo due to error", e);
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to get device free memory size from /proc/meminfo", e);
+        }
+
+        long jvmFreeMemoryKb = -1;
+        try {
+            jvmFreeMemoryKb = Runtime.getRuntime().freeMemory() / 1024;
+        } catch (Error e) {
+            Log.w(TAG, "Unable to get jvm free memory size due to error", e);
+        }
+
+        // TODO: get and print vm free memory.
+        Log.w(
+                TAG,
+                "Android device free memory (from /proc/meminfo): "
+                        + deviceFreeMemoryKb
+                        + " KB, Android JVM free memory (from Runtime): "
+                        + jvmFreeMemoryKb
+                        + " KB.");
     }
 }
