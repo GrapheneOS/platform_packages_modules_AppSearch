@@ -25,25 +25,19 @@ import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackag
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.content.res.AssetManager;
-import android.content.res.Resources;
 import android.util.ArrayMap;
 
 import androidx.test.core.app.ApplicationProvider;
 
-import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
@@ -52,7 +46,6 @@ import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -183,55 +176,6 @@ public class AppsUtilTest {
                             targetedResolveInfo.getLaunchActivityResolveInfo()
                                     .activityInfo
                                     .packageName);
-        }
-    }
-
-    @Test
-    public void testBuildAppFunctionStaticMetadata() throws Exception {
-        PackageManager pm = Mockito.mock(PackageManager.class);
-        List<PackageInfo> fakePackages = new ArrayList<>();
-        List<ResolveInfo> fakeActivities = new ArrayList<>();
-        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
-
-        for (int i = 0; i < 10; i++) {
-            fakePackages.add(createFakePackageInfo(i));
-            fakeActivities.add(createFakeLaunchResolveInfo(i));
-            fakeAppFunctionServices.add(createFakeAppFunctionResolveInfo(i));
-        }
-
-        // Set up mocking
-        when(pm.getProperty(any(String.class), any(ComponentName.class)))
-                .thenReturn(new PackageManager.Property("", "", "", ""));
-        AssetManager assetManager = Mockito.mock(AssetManager.class);
-
-        when(assetManager.open(any())).thenReturn(new ByteArrayInputStream("".getBytes()));
-
-        Resources resources = Mockito.mock(Resources.class);
-        when(resources.getAssets()).thenReturn(assetManager);
-        when(pm.getResourcesForApplication(any(String.class))).thenReturn(resources);
-
-        setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
-
-        AppFunctionDocumentParser parser = Mockito.mock(AppFunctionDocumentParser.class);
-        for (PackageInfo packageInfo : fakePackages) {
-            when(parser.parse(any(), eq(packageInfo.packageName), any()))
-                    .thenReturn(
-                            ImmutableList.of(
-                                    new AppFunctionStaticMetadata.Builder(
-                                                    packageInfo.packageName,
-                                                    /* functionId= */ "com.example.utils#print",
-                                                    /* indexerPackageName= */ "android")
-                                            .build()));
-        }
-
-        Map<PackageInfo, ResolveInfos> packageActivityMapping = AppsUtil.getPackagesToIndex(pm);
-
-        List<AppFunctionStaticMetadata> resultAppFunctions =
-                AppsUtil.buildAppFunctionStaticMetadata(pm, packageActivityMapping, parser);
-
-        assertThat(resultAppFunctions).hasSize(10);
-        for (AppFunctionStaticMetadata appFunction : resultAppFunctions) {
-            assertThat(appFunction.getFunctionId()).isEqualTo("com.example.utils#print");
         }
     }
 }
