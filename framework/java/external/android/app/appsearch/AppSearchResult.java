@@ -60,7 +60,8 @@ public final class AppSearchResult<ValueType> {
                 RESULT_DENIED,
                 RESULT_RATE_LIMITED,
                 RESULT_ALREADY_EXISTS,
-                RESULT_ABORTED
+                RESULT_ABORTED,
+                RESULT_UNAVAILABLE
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ResultCode {}
@@ -135,6 +136,9 @@ public final class AppSearchResult<ValueType> {
      */
     @FlaggedApi(Flags.FLAG_ENABLE_RESULT_ABORTED)
     public static final int RESULT_ABORTED = 13;
+
+    /** @hide */
+    public static final int RESULT_UNAVAILABLE = 14;
 
     @ResultCode private final int mResultCode;
     private final @Nullable ValueType mResultValue;
