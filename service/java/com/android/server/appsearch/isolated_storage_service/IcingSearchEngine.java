@@ -165,10 +165,32 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
      *
      * @param setSchemaRequest the request proto for setting the schema.
      */
+    @NonNull
+    @Override
     public SetSchemaResultProto setSchemaWithRequestProto(SetSchemaRequestProto setSchemaRequest) {
-        // TODO(b/337913932): have vm version support this api.
-        throw new UnsupportedOperationException(
-                "setSchemaWithRequestProto is temporarily unsupported.");
+        byte[] inputRequest = setSchemaRequest.toByteArray();
+
+        byte[] resultData;
+        try {
+            mVmStateSignaler.signalActive();
+            resultData = mEngine.setSchemaWithRequestProto(inputRequest);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(
+                    TAG,
+                    "Got out of memory in set schema. Request length: "
+                            + inputRequest.length
+                            + ", number of schema types in request: "
+                            + setSchemaRequest.getSchema().getTypesCount());
+            return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
+        } catch (RemoteException e) {
+            return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                SetSchemaResultProto.getDefaultInstance(),
+                status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
     }
 
     @NonNull
