@@ -66,33 +66,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
         mMaxAppFunctions = config.getMaxAppFunctionsPerPackage();
     }
 
-    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
-    //  rolled out
-    @NonNull
-    @Override
-    public List<AppFunctionStaticMetadata> parse(
-            @NonNull PackageManager packageManager,
-            @NonNull String packageName,
-            @NonNull String assetFilePath) {
-        Objects.requireNonNull(packageManager);
-        Objects.requireNonNull(packageName);
-        Objects.requireNonNull(assetFilePath);
-        try {
-            return parseAppFunctions(
-                    initializeParser(packageManager, packageName, assetFilePath), packageName);
-        } catch (Exception ex) {
-            // The code parses an XML file from another app's assets, using a broad try-catch to
-            // handle potential errors since the XML structure might be unpredictable.
-            Log.e(
-                    TAG,
-                    String.format(
-                            "Failed to parse XML from package '%s', asset file '%s'",
-                            packageName, assetFilePath),
-                    ex);
-        }
-        return Collections.emptyList();
-    }
-
     @NonNull
     @Override
     public Map<String, AppFunctionStaticMetadata> parseIntoMap(
@@ -137,37 +110,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                 packageManager.getResourcesForApplication(packageName).getAssets();
         parser.setInput(new InputStreamReader(assetManager.open(assetFilePath)));
         return parser;
-    }
-
-    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
-    //  rolled out
-    /**
-     * Parses a sequence of `appfunction` elements from the XML into a list of {@link
-     * AppFunctionStaticMetadata}.
-     *
-     * @param parser the XmlPullParser positioned at the start of the xml file
-     */
-    @NonNull
-    private List<AppFunctionStaticMetadata> parseAppFunctions(
-            @NonNull XmlPullParser parser, @NonNull String packageName)
-            throws XmlPullParserException, IOException {
-        List<AppFunctionStaticMetadata> appFunctions = new ArrayList<>();
-
-        int eventType = parser.getEventType();
-
-        while (eventType != XmlPullParser.END_DOCUMENT) {
-            String tagName = parser.getName();
-            if (eventType == XmlPullParser.START_TAG && XML_TAG_APPFUNCTION.equals(tagName)) {
-                AppFunctionStaticMetadata appFunction = parseAppFunction(parser, packageName);
-                appFunctions.add(appFunction);
-                if (appFunctions.size() >= mMaxAppFunctions) {
-                    Log.d(TAG, "Exceeding the max number of app functions: " + packageName);
-                    return appFunctions;
-                }
-            }
-            eventType = parser.next();
-        }
-        return appFunctions;
     }
 
     /**

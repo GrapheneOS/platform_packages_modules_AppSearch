@@ -73,9 +73,9 @@ import java.util.function.Function;
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
 
-    private final IIcingSearchEngine mEngine;
     private final IcingSearchEngineOptions mOptions;
     private final VmStateSignaler mVmStateSignaler;
+    private volatile IIcingSearchEngine mEngine;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
@@ -86,6 +86,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         mEngine = Objects.requireNonNull(engine);
         mOptions = Objects.requireNonNull(options);
         mVmStateSignaler = Objects.requireNonNull(vmStateSignaler);
+    }
+
+    /**
+     * Sets the VM engine to use.
+     *
+     * <p>Use this to replace a dead VM engine.
+     */
+    public void setVmEngine(@NonNull IIcingSearchEngine engine) {
+        mEngine = Objects.requireNonNull(engine);
     }
 
     @Override
@@ -119,30 +128,28 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public SetSchemaResultProto setSchema(@NonNull SchemaProto schema) {
-        byte[] resultData;
-        try {
-            mVmStateSignaler.signalActive();
-            resultData =
-                    mEngine.setSchema(
-                            schema.toByteArray(), /* ignoreErrorsAndDeleteDocuments= */ false);
-        } catch (RemoteException e) {
-            return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
-        }
-
-        return getResponseProtoFromRawData(
-                resultData,
-                SetSchemaResultProto.getDefaultInstance(),
-                status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
+        return setSchema(schema, /* ignoreErrorsAndDeleteDocuments= */ false);
     }
 
     @NonNull
     @Override
     public SetSchemaResultProto setSchema(
             @NonNull SchemaProto schema, boolean ignoreErrorsAndDeleteDocuments) {
+        byte[] input = schema.toByteArray();
+
         byte[] resultData;
         try {
             mVmStateSignaler.signalActive();
-            resultData = mEngine.setSchema(schema.toByteArray(), ignoreErrorsAndDeleteDocuments);
+            resultData = mEngine.setSchema(input, ignoreErrorsAndDeleteDocuments);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(
+                    TAG,
+                    "Got out of memory in set schema. Request length: "
+                            + input.length
+                            + ", number of schema types in request: "
+                            + schema.getTypesCount());
+            return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
@@ -158,10 +165,32 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
      *
      * @param setSchemaRequest the request proto for setting the schema.
      */
+    @NonNull
+    @Override
     public SetSchemaResultProto setSchemaWithRequestProto(SetSchemaRequestProto setSchemaRequest) {
-        // TODO(b/337913932): have vm version support this api.
-        throw new UnsupportedOperationException(
-                "setSchemaWithRequestProto is temporarily unsupported.");
+        byte[] inputRequest = setSchemaRequest.toByteArray();
+
+        byte[] resultData;
+        try {
+            mVmStateSignaler.signalActive();
+            resultData = mEngine.setSchemaWithRequestProto(inputRequest);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(
+                    TAG,
+                    "Got out of memory in set schema. Request length: "
+                            + inputRequest.length
+                            + ", number of schema types in request: "
+                            + setSchemaRequest.getSchema().getTypesCount());
+            return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
+        } catch (RemoteException e) {
+            return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                SetSchemaResultProto.getDefaultInstance(),
+                status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
     }
 
     @NonNull
@@ -220,10 +249,16 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public PutResultProto put(@NonNull DocumentProto document) {
+        byte[] input = document.toByteArray();
+
         byte[] resultData;
         try {
             mVmStateSignaler.signalActive();
-            resultData = mEngine.put(document.toByteArray());
+            resultData = mEngine.put(input);
+        } catch (OutOfMemoryError e) {
+            // TODO: if we are still seeing issue, print VM MemAvailable as well
+            Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
+            return PutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         }
@@ -251,11 +286,11 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             + input.length
                             + ", number of documents in request: "
                             + putDocumentRequest.getDocumentsCount());
-            throw e;
+            return BatchPutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return BatchPutResultProto.newBuilder()
                     // TODO(b/401245113) set status when the change is available.
-                    // .setStatus(remoteExceptionStatus(e))
+                    .setStatus(remoteExceptionStatus(e))
                     .build();
         }
 
@@ -265,7 +300,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 status ->
                         BatchPutResultProto.newBuilder()
                                 // TODO(b/401245113) set status when the change is available.
-                                // .setStatus(status)
+                                .setStatus(status)
                                 .build());
     }
 
@@ -812,6 +847,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
+                .build();
+    }
+
+    private static @NonNull StatusProto oomExceptionStatus(@NonNull OutOfMemoryError e) {
+        Log.e(TAG, "Encountered OOM in midst of binder transaction", e);
+        // TODO(b/404210068): Add a different error code to distinguish these failures.
+        return StatusProto.newBuilder()
+                .setCode(StatusProto.Code.UNKNOWN)
+                .setMessage("Ran out of memory when allocating request: " + e.getMessage())
                 .build();
     }
 

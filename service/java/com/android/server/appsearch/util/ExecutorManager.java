@@ -30,6 +30,7 @@ import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 
@@ -39,6 +40,8 @@ import com.android.server.appsearch.FrameworkServiceAppSearchConfig;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -175,11 +178,17 @@ public class ExecutorManager {
         // hangs. If we are interrupted or the timeout elapses, just move on to closing the
         // user instance, meaning pending tasks may crash when AppSearchImpl closes under
         // them.
+        long awaitStartTimeMs = SystemClock.elapsedRealtime();
+        long awaitDurationMs = 30 * 1000;
         if (executor != null) {
-            executor.awaitTermination(30, TimeUnit.SECONDS);
+            executor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
         }
+        long awaitTimeElapsedMs = SystemClock.elapsedRealtime() - awaitStartTimeMs;
         if (scheduleExecutor != null) {
-            scheduleExecutor.awaitTermination(30, TimeUnit.SECONDS);
+            awaitDurationMs -= awaitTimeElapsedMs;
+            if (awaitDurationMs > 0) {
+                scheduleExecutor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
+            }
         }
     }
 
