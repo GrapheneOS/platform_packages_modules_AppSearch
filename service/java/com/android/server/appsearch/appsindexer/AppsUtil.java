@@ -40,7 +40,6 @@ import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.appsearch.flags.Flags;
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
@@ -224,73 +223,6 @@ public final class AppsUtil {
             }
         }
         return mobileApplications;
-    }
-
-    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
-    //  rolled out
-    /**
-     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
-     * build AppSearch {@link AppFunctionStaticMetadata} documents. Info from both are required to
-     * build app documents.
-     *
-     * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
-     *     ResolveInfo} for the packages launch activity.
-     * @param indexerPackageName the name of the package performing the indexing. This should be the
-     *     same as the package running the apps indexer so that qualified ids are correctly created.
-     * @param config the app indexer config used to enforce various limits during parsing.
-     */
-    public static List<AppFunctionStaticMetadata> buildAppFunctionStaticMetadata(
-            @NonNull PackageManager packageManager,
-            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-            @NonNull String indexerPackageName,
-            AppsIndexerConfig config) {
-        AppFunctionDocumentParser parser =
-                new AppFunctionDocumentParserImpl(indexerPackageName, config);
-        return buildAppFunctionStaticMetadata(packageManager, packageInfos, parser);
-    }
-
-    // TODO(b/367410454): Remove this method once enable_apps_indexer_incremental_put flag is
-    //  rolled out
-    /**
-     * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
-     * provide a custom parser. This is for testing purposes.
-     */
-    @VisibleForTesting
-    static List<AppFunctionStaticMetadata> buildAppFunctionStaticMetadata(
-            @NonNull PackageManager packageManager,
-            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-            @NonNull AppFunctionDocumentParser parser) {
-        Objects.requireNonNull(packageManager);
-        Objects.requireNonNull(packageInfos);
-        Objects.requireNonNull(parser);
-
-        List<AppFunctionStaticMetadata> appFunctions = new ArrayList<>();
-        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
-            PackageInfo packageInfo = entry.getKey();
-            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
-            if (resolveInfo == null) {
-                continue;
-            }
-
-            String assetFilePath;
-            try {
-                PackageManager.Property property =
-                        packageManager.getProperty(
-                                "android.app.appfunctions",
-                                new ComponentName(
-                                        resolveInfo.serviceInfo.packageName,
-                                        resolveInfo.serviceInfo.name));
-                assetFilePath = property.getString();
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.w(TAG, "buildAppFunctionMetadataFromPackageInfo: Failed to get property", e);
-                continue;
-            }
-            if (assetFilePath != null) {
-                appFunctions.addAll(
-                        parser.parse(packageManager, packageInfo.packageName, assetFilePath));
-            }
-        }
-        return appFunctions;
     }
 
     /**

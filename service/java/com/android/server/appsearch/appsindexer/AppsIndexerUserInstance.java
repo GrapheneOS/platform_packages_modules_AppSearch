@@ -31,6 +31,7 @@ import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
@@ -188,15 +189,17 @@ public final class AppsIndexerUserInstance {
                         + Arrays.toString(
                                 mSettings.getLastPartitionFingerprintsSortedByPartitionName()));
         try (AppSearchHelper appSearchHelper = new AppSearchHelper(mContext)) {
-            Map<String, Long> appLastUpdatedTimeMillisMap = appSearchHelper.getAppsFromAppSearch();
+            Map<String, MobileApplication> appsMap =
+                    appSearchHelper
+                            .getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
             pw.println("Indexed Apps:");
-            for (Map.Entry<String, Long> appLastUpdatedEntry :
-                    appLastUpdatedTimeMillisMap.entrySet()) {
+            for (Map.Entry<String, MobileApplication> appLastUpdatedEntry : appsMap.entrySet()) {
                 pw.println(
                         "    packageName: "
                                 + appLastUpdatedEntry.getKey()
                                 + " lastUpdatedTimestamp: "
-                                + formatTimestamp(appLastUpdatedEntry.getValue()));
+                                + formatTimestamp(
+                                        appLastUpdatedEntry.getValue().getUpdatedTimestamp()));
             }
         } catch (AppSearchException e) {
             pw.println("Error in dumping indexed applications");
@@ -314,17 +317,11 @@ public final class AppsIndexerUserInstance {
                     return;
                 }
             }
-            if (Flags.enableAppsIndexerIncrementalPut()) {
-                mAppsIndexerImpl.doUpdateIncrementalPut(
-                        mSettings,
-                        appsUpdateStats,
-                        /* isFullUpdateRequired= */ isAppIndexerUpdated || isOtaUpdate);
-            } else {
-                // TODO(b/367410454): Remove this method and related code paths once
-                //  enable_apps_indexer_incremental_put flag is rolled out.
-                mAppsIndexerImpl.doUpdate(mSettings, appsUpdateStats);
-            }
 
+            mAppsIndexerImpl.doUpdateIncrementalPut(
+                    mSettings,
+                    appsUpdateStats,
+                    /* isFullUpdateRequired= */ isAppIndexerUpdated || isOtaUpdate);
             if (isOtaUpdate) {
                 mSettings.setLastPartitionFingerprintsSortedByPartitionName(
                         sortedFingerprintedPartitions);

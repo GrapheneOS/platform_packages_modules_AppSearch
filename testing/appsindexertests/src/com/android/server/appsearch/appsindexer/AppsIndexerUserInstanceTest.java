@@ -54,6 +54,7 @@ import android.platform.test.annotations.RequiresFlagsEnabled;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
+import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.common.collect.ImmutableList;
@@ -167,7 +168,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .isTrue();
 
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
-            Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
+            Map<String, MobileApplication> appsTimestampMap =
+                    searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
             assertThat(appsTimestampMap).hasSize(1);
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
         }
@@ -224,7 +226,9 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // timestamp was not 0, so nothing should've been indexed
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
-            assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
+            Map<String, MobileApplication> apps =
+                    searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
+            assertThat(apps).isEmpty();
         }
     }
 
@@ -485,7 +489,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .isTrue();
 
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
-            Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
+            Map<String, MobileApplication> appsTimestampMap =
+                    searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
         }
         // Last joined partition fingerprint is updated in settings.
@@ -549,7 +554,9 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // fingerprint string didn't change, so nothing should've been indexed
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
-            assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
+            Map<String, MobileApplication> apps =
+                    searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
+            assertThat(apps).isEmpty();
         }
     }
 
@@ -601,7 +608,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .isTrue();
 
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
-            Map<String, Long> appsTimestampMap = searchHelper.getAppsFromAppSearch();
+            Map<String, MobileApplication> appsTimestampMap =
+                    searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
             assertThat(appsTimestampMap).hasSize(1);
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
         }
@@ -664,7 +672,9 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Even though a task ran and we got 1 app ready, we requested a "firstRun" but the
         // timestamp was not 0, so nothing should've been indexed
         try (AppSearchHelper searchHelper = new AppSearchHelper(mTestContext)) {
-            assertThat(searchHelper.getAppsFromAppSearch()).isEmpty();
+            Map<String, MobileApplication> apps =
+                    searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
+            assertThat(apps).isEmpty();
         }
     }
 
@@ -860,7 +870,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         latch.await(10, TimeUnit.SECONDS);
 
         AppSearchHelper searchHelper = new AppSearchHelper(mTestContext);
-        Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
+        Map<String, MobileApplication> appIds =
+                searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
         assertThat(appIds.size()).isEqualTo(docCount);
     }
 
@@ -899,7 +910,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         AppSearchHelper searchHelper = new AppSearchHelper(mTestContext);
-        Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
+        Map<String, MobileApplication> appIds =
+                searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
         assertThat(appIds.size()).isEqualTo(10);
 
         setupMockPackageManager(
@@ -911,7 +923,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         searchHelper = new AppSearchHelper(mTestContext);
-        appIds = searchHelper.getAppsFromAppSearch();
+        appIds = searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
         assertThat(appIds.size()).isEqualTo(6);
         assertThat(appIds.keySet())
                 .containsNoneOf(
@@ -1191,7 +1203,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         afterSemaphore.acquire();
 
         AppSearchHelper searchHelper = new AppSearchHelper(mTestContext);
-        Map<String, Long> appIds = searchHelper.getAppsFromAppSearch();
+        Map<String, MobileApplication> appIds =
+                searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
         assertThat(appIds.size()).isEqualTo(250);
 
         PersistableBundle settingsBundle = AppsIndexerSettings.readBundle(mSettingsFile);
