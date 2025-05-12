@@ -22,7 +22,6 @@ import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
-import android.app.appsearch.GenericDocument;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
@@ -109,10 +108,6 @@ public final class AppsIndexerImpl implements Closeable {
                 AppsUtil.getPackagesToIndex(packageManager);
         appsUpdateStats.mPackageManagerLatencyMillis =
                 SystemClock.elapsedRealtime() - beforePackageManagerTimestamp;
-
-        List<AppFunctionDocument> functionDocumentsToAddOrUpdate = new ArrayList<>();
-        // To remove, we only need the id
-        Set<String> functionIdsToRemove = new ArraySet<>();
 
         long mostRecentAppUpdatedTimestampMillis = settings.getLastAppUpdateTimestampMillis();
 
@@ -217,53 +212,13 @@ public final class AppsIndexerImpl implements Closeable {
         Map<String, Map<String, AppFunctionDocument>> appFunctionsFromAppSearch =
                 mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(updatedPackageIds);
 
-        // For logging to dumpsys
-        // These two are distinct from functionDocumentsToAddOrUpdate as we want to log added and
-        // updated function ids separately
-        Set<String> addedFunctions = new ArraySet<>();
-        Set<String> updatedFunctions = new ArraySet<>();
-        // This is different from functionIdsToRemove as we don't need to explicitly remove
-        // functions if all functions were removed from an app, instead we just remove the entire
-        // function schema for that app to delete the functions in AppSearch
-        Set<String> allDeletedFunctions = new ArraySet<>();
-
-        for (Map.Entry<String, Map<String, ? extends AppFunctionDocument>> packageEntry :
-                currentAppFunctionsForAddedUpdatedPackages.entrySet()) {
-            String packageName = packageEntry.getKey();
-            Map<String, ? extends AppFunctionDocument> currentAppFunctionsPerApp =
-                    packageEntry.getValue();
-
-            // This might be null, in the case of functions newly added to a package
-            Map<String, AppFunctionDocument> appSearchAppFunctionsPerApp =
-                    appFunctionsFromAppSearch.get(packageName);
-
-            if (appSearchAppFunctionsPerApp == null && !currentAppFunctionsPerApp.isEmpty()) {
-                // Functions added to an app that didn't have them
-                functionDocumentsToAddOrUpdate.addAll(currentAppFunctionsPerApp.values());
-                addedOrRemovedFlag = true;
-                addedFunctions.addAll(currentAppFunctionsPerApp.keySet());
-            }
-
-            if (appSearchAppFunctionsPerApp != null) {
-                if (currentAppFunctionsPerApp.isEmpty()) {
-                    // All functions removed from an app that had them
-                    addedOrRemovedFlag = true;
-                    allDeletedFunctions.addAll(appSearchAppFunctionsPerApp.keySet());
-                } else {
-                    // App updated that had packages, we should check
-                    comparePackageFunctionDocuments(
-                            currentAppFunctionsPerApp,
-                            appSearchAppFunctionsPerApp,
-                            functionDocumentsToAddOrUpdate,
-                            functionIdsToRemove,
-                            allDeletedFunctions,
-                            addedFunctions,
-                            updatedFunctions);
-                }
-            } else if (!currentAppFunctionsPerApp.isEmpty()) {
-                addedFunctions.addAll(currentAppFunctionsPerApp.keySet());
-            }
-        }
+        AppFunctionDiffCalculator.AppFunctionDiff appFunctionDiff =
+                AppFunctionDiffCalculator.calculate(
+                        appFunctionsFromAppSearch, currentAppFunctionsForAddedUpdatedPackages);
+        addedOrRemovedFlag |= appFunctionDiff.modifySchema;
+        List<AppFunctionDocument> functionDocumentsToAddOrUpdate =
+                new ArrayList<>(appFunctionDiff.addedAppFunctions.values());
+        functionDocumentsToAddOrUpdate.addAll(appFunctionDiff.updatedAppFunctions.values());
 
         try {
             // TODO(b/382254638): Skip set schema calls if no packages have an updated schema.
@@ -327,9 +282,10 @@ public final class AppsIndexerImpl implements Closeable {
                         SystemClock.elapsedRealtime() - beforePutTimestamp;
             }
 
-            if (!functionIdsToRemove.isEmpty()) {
+            if (!appFunctionDiff.functionIdsToRemove.isEmpty()) {
                 AppSearchBatchResult<String, Void> result =
-                        mAppSearchHelper.removeAppFunctionsById(functionIdsToRemove);
+                        mAppSearchHelper.removeAppFunctionsById(
+                                appFunctionDiff.functionIdsToRemove);
                 if (result.isSuccess()) {
                     appsUpdateStats.mUpdateStatusCodes.add(AppSearchResult.RESULT_OK);
                 }
@@ -381,17 +337,31 @@ public final class AppsIndexerImpl implements Closeable {
                             addedAppPackageNames,
                             updatedAppPackageNames,
                             removedApps,
-                            new ArrayList<>(addedFunctions)
-                                    .subList(0, Math.min(functionLogLimit, addedFunctions.size())),
-                            new ArrayList<>(updatedFunctions)
-                                    .subList(
-                                            0, Math.min(functionLogLimit, updatedFunctions.size())),
-                            new ArrayList<>(allDeletedFunctions)
+                            new ArrayList<>(appFunctionDiff.addedAppFunctions.keySet())
                                     .subList(
                                             0,
                                             Math.min(
                                                     functionLogLimit,
-                                                    allDeletedFunctions.size()))));
+                                                    appFunctionDiff
+                                                            .addedAppFunctions
+                                                            .keySet()
+                                                            .size())),
+                            new ArrayList<>(appFunctionDiff.updatedAppFunctions.keySet())
+                                    .subList(
+                                            0,
+                                            Math.min(
+                                                    functionLogLimit,
+                                                    appFunctionDiff
+                                                            .updatedAppFunctions
+                                                            .keySet()
+                                                            .size())),
+                            new ArrayList<>(appFunctionDiff.allDeletedFunctionIds)
+                                    .subList(
+                                            0,
+                                            Math.min(
+                                                    functionLogLimit,
+                                                    appFunctionDiff.allDeletedFunctionIds
+                                                            .size()))));
         }
     }
 
@@ -477,113 +447,6 @@ public final class AppsIndexerImpl implements Closeable {
             }
         }
         return new Pair<>(packageIdentifiers, packageIdentifiersWithAppFunctions);
-    }
-
-    /**
-     * Compares the app function documents in PackageManager vs those in AppSearch, and updates
-     * functionDocumentsToAddOrUpdate and functionDocumentIdsToRemove accordingly.
-     *
-     * @param currentAppFunctionDocumentsPerApp the mapping of function ids to documents
-     *     corresponding to what is in the apps metadata.
-     * @param appSearchAppFunctionDocumentsPerApp the mapping of function ids to documents
-     *     corresponding to what is in AppSearch
-     * @param functionDocumentsToAddOrUpdate the List of {@link AppFunctionDocument} that will be
-     *     sent to a put call to AppSearch
-     * @param functionDocumentIdsToRemove the set of ids that will be sent to a remove call in
-     *     AppSearch
-     * @param allDeletedFunctions the set of ids of all functions that will be removed from
-     *     AppSearch, either by a delete call and by a setSchema call. For logging purposes.
-     * @param addFunctions the set of ids of functions that will be added to AppSearch, that are not
-     *     updated functions. For logging purposes.
-     * @param updateFunctions the set of ids of functions that will be updated in AppSearch, that
-     *     are not added functions. For logging purposes.
-     */
-    private void comparePackageFunctionDocuments(
-            @NonNull Map<String, ? extends AppFunctionDocument> currentAppFunctionDocumentsPerApp,
-            @NonNull Map<String, AppFunctionDocument> appSearchAppFunctionDocumentsPerApp,
-            @NonNull List<AppFunctionDocument> functionDocumentsToAddOrUpdate,
-            @NonNull Set<String> functionDocumentIdsToRemove,
-            @NonNull Set<String> allDeletedFunctions,
-            @NonNull Set<String> addFunctions,
-            @NonNull Set<String> updateFunctions) {
-        Objects.requireNonNull(currentAppFunctionDocumentsPerApp);
-        Objects.requireNonNull(appSearchAppFunctionDocumentsPerApp);
-        Objects.requireNonNull(functionDocumentsToAddOrUpdate);
-        Objects.requireNonNull(functionDocumentIdsToRemove);
-
-        for (Map.Entry<String, ? extends AppFunctionDocument> currentFunctionEntry :
-                currentAppFunctionDocumentsPerApp.entrySet()) {
-            String functionId = currentFunctionEntry.getKey();
-            AppFunctionDocument currentFunctionDocument = currentFunctionEntry.getValue();
-            AppFunctionDocument appSearchFunctionDocument =
-                    appSearchAppFunctionDocumentsPerApp.get(functionId);
-            // appSearchFunctionDocument == null means it's a new document, document inequality
-            // means
-            // updated document. Both mean we need to call put with this document.
-            if (appSearchFunctionDocument == null
-                    || !areFunctionDocumentsEqual(
-                            appSearchFunctionDocument, currentFunctionDocument)) {
-                if (appSearchFunctionDocument == null) {
-                    addFunctions.add(functionId);
-                } else {
-                    updateFunctions.add(functionId);
-                }
-                functionDocumentsToAddOrUpdate.add(currentFunctionDocument);
-            }
-        }
-
-        for (Map.Entry<String, AppFunctionDocument> appSearchFunctionEntry :
-                appSearchAppFunctionDocumentsPerApp.entrySet()) {
-            String functionId = appSearchFunctionEntry.getKey();
-            if (!currentAppFunctionDocumentsPerApp.containsKey(functionId)) {
-                functionDocumentIdsToRemove.add(functionId);
-                allDeletedFunctions.add(functionId);
-            }
-        }
-    }
-
-    /**
-     * Checks if two AppFunction documents are equal. It isn't enough to call equals. We also need
-     * to ignore creation timestamp and parent types. These are set in AppSearch, but aren't set for
-     * the "about to be indexed" docs
-     *
-     * @return true if the documents are equal, false otherwise.
-     */
-    private boolean areFunctionDocumentsEqual(
-            @NonNull GenericDocument document1, @NonNull GenericDocument document2) {
-        Objects.requireNonNull(document1);
-        Objects.requireNonNull(document2);
-
-        document1 = clearTimestampsAndParentTypesInDocument(document1);
-        document2 = clearTimestampsAndParentTypesInDocument(document2);
-
-        return document1.equals(document2);
-    }
-
-    private GenericDocument clearTimestampsAndParentTypesInDocument(
-            @NonNull GenericDocument document) {
-        GenericDocument.Builder<?> builder =
-                new GenericDocument.Builder<>(document)
-                        .setCreationTimestampMillis(0)
-                        // GenericDocument#PARENT_TYPES_SYNTHETIC_PROPERTY is hidden
-                        .clearProperty("$$__AppSearch__parentTypes");
-
-        for (String propertyName : document.getPropertyNames()) {
-            Object property = document.getProperty(propertyName);
-            if (property instanceof GenericDocument[] nestedDocuments) {
-                GenericDocument[] clearedNestedDocuments =
-                        new GenericDocument[nestedDocuments.length];
-
-                for (int i = 0; i < nestedDocuments.length; i++) {
-                    clearedNestedDocuments[i] =
-                            clearTimestampsAndParentTypesInDocument(nestedDocuments[i]);
-                }
-
-                builder.setPropertyDocument(propertyName, clearedNestedDocuments);
-            }
-        }
-
-        return builder.build();
     }
 
     /** Shuts down the {@link AppsIndexerImpl} and its {@link AppSearchHelper}. */
