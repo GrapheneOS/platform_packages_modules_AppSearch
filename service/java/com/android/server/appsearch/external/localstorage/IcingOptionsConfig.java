@@ -321,7 +321,10 @@ public interface IcingOptionsConfig {
                         (Flags.enableCompressionMemLevelOne() || isVMEnabled)
                                 ? 1
                                 : getCompressionMemLevel())
-                .setEnableSchemaDatabase(Flags.enableDatabaseScopedSchemaOperations())
+                .setEnableSchemaDatabase(
+                        Flags.enableDatabaseScopedSchemaOperations() || isVMEnabled)
+                .setEnableSmallerDecompressionBufferSize(
+                        Flags.enableSmallerDecompressionBufferSize() || isVMEnabled)
                 .build();
     }
 }
