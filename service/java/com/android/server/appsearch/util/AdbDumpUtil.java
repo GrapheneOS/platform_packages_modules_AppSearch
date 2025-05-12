@@ -107,12 +107,18 @@ public final class AdbDumpUtil {
         for (int i = 0; i < schemaBuilder.getTypesCount(); ++i) {
             SchemaTypeConfigProto.Builder typeBuilder = schemaBuilder.getTypes(i).toBuilder();
             typeBuilder.setSchemaType(generateFingerprintMd5(typeBuilder.getSchemaType()));
+            if (!typeBuilder.getDatabase().isEmpty()) {
+                typeBuilder.setDatabase(generateFingerprintMd5(typeBuilder.getDatabase()));
+            }
             for (int j = 0; j < typeBuilder.getPropertiesCount(); ++j) {
                 PropertyConfigProto property = typeBuilder.getProperties(j);
                 if (property.getDataType() == PropertyConfigProto.DataType.Code.DOCUMENT) {
                     PropertyConfigProto.Builder propertyBuilder = property.toBuilder();
                     propertyBuilder.setSchemaType(
                             generateFingerprintMd5(propertyBuilder.getSchemaType()));
+                    if (!typeBuilder.getDatabase().isEmpty()) {
+                        typeBuilder.setDatabase(generateFingerprintMd5(typeBuilder.getDatabase()));
+                    }
                     typeBuilder.setProperties(j, propertyBuilder);
                 }
             }

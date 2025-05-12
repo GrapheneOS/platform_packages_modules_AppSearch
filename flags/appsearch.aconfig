@@ -524,6 +524,13 @@ flag {
 }
 
 flag {
+    name: "enable_smaller_decompression_buffer_size"
+    namespace: "appsearch"
+    description: "Enables gzip decompression buffer size memory optimization."
+    bug: "405420968"
+}
+
+flag {
     name: "enable_new_optimize_strategy_for_active_result_states"
     namespace: "appsearch"
     description: "Enables new optimize strategy for active result states."
