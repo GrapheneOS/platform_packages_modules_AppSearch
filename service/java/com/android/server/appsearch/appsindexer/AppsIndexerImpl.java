@@ -89,7 +89,6 @@ public final class AppsIndexerImpl implements Closeable {
             boolean isFullUpdateRequired)
             throws AppSearchException {
         // TODO(b/357551503): Split this method up into helper methods
-        // TODO(b/357551503): Add metrics for app function indexing
         Objects.requireNonNull(settings);
         Objects.requireNonNull(appsUpdateStats);
         long currentTimeMillis = System.currentTimeMillis();
@@ -294,6 +293,10 @@ public final class AppsIndexerImpl implements Closeable {
             settings.setLastAppUpdateTimestampMillis(mostRecentAppUpdatedTimestampMillis);
             settings.setLastUpdateTimestampMillis(currentTimeMillis);
 
+            appsUpdateStats.mNumberOfFunctionsAdded = appFunctionDiff.addedAppFunctions.size();
+            appsUpdateStats.mNumberOfFunctionsUpdated = appFunctionDiff.updatedAppFunctions.size();
+            appsUpdateStats.mApproximateNumberOfFunctionsRemoved =
+                    appFunctionDiff.allDeletedFunctionIds.size();
             appsUpdateStats.mLastAppUpdateTimestampMillis = mostRecentAppUpdatedTimestampMillis;
         } catch (AppSearchException e) {
             // Reset the last update time stamp and app update timestamp so we can try again later.
