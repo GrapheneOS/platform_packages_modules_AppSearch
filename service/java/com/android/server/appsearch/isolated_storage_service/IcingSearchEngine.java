@@ -77,25 +77,37 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private final IcingSearchEngineOptions mOptions;
     private final VmStateSignaler mVmStateSignaler;
     private volatile IIcingSearchEngine mEngine;
+    // The isolated storage service implemented by the VM to access icing.
+    private volatile com.android.isolated_storage_service.IIsolatedStorageService
+            mVmIsolatedStorageService;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
             @NonNull IIcingSearchEngine engine,
             @NonNull IcingSearchEngineOptions options,
-            @NonNull VmStateSignaler vmStateSignaler) {
+            @NonNull VmStateSignaler vmStateSignaler,
+            @NonNull
+                    com.android.isolated_storage_service.IIsolatedStorageService
+                            vmIsolatedStorageService) {
         Log.d(TAG, "constructing");
         mEngine = Objects.requireNonNull(engine);
+        mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
         mOptions = Objects.requireNonNull(options);
         mVmStateSignaler = Objects.requireNonNull(vmStateSignaler);
     }
 
     /**
-     * Sets the VM engine to use.
+     * Sets the VM instances, including engine and isolated storage service.
      *
-     * <p>Use this to replace a dead VM engine.
+     * <p>Use this to replace dead VM instances.
      */
-    public void setVmEngine(@NonNull IIcingSearchEngine engine) {
+    public void setVmInstances(
+            @NonNull IIcingSearchEngine engine,
+            @NonNull
+                    com.android.isolated_storage_service.IIsolatedStorageService
+                            vmIsolatedStorageService) {
         mEngine = Objects.requireNonNull(engine);
+        mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
     }
 
     @Override
@@ -853,7 +865,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
      * Helper function to get and print the amount of free RAM in KB. {@code -1} will be printed if
      * failing to get the number.
      */
-    private static void logFreeMemoryInfo() {
+    private void logFreeMemoryInfo() {
         long deviceFreeMemoryKb = -1;
         try {
             MemInfoReader memInfo = new MemInfoReader();
@@ -871,13 +883,25 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             Log.w(TAG, "Unable to get jvm free memory size due to error", e);
         }
 
-        // TODO: get and print vm free memory.
+        long vmIsolatedStorageFreeMemoryKb = -1;
+        try {
+            vmIsolatedStorageFreeMemoryKb = mVmIsolatedStorageService.getAvailableMemory();
+        } catch (RemoteException e) {
+            Log.w(TAG, "Unable to get vm isolated storage free memory size", e);
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Unable to get vm isolated storage free memory size due to OOM error", e);
+        } catch (Error e) {
+            Log.w(TAG, "Unable to get vm isolated storage free memory size due to error", e);
+        }
+
         Log.w(
                 TAG,
                 "Android device free memory (from /proc/meminfo): "
                         + deviceFreeMemoryKb
                         + " KB, Android JVM free memory (from Runtime): "
                         + jvmFreeMemoryKb
+                        + " KB, VM isolated storage free memory: "
+                        + vmIsolatedStorageFreeMemoryKb
                         + " KB.");
     }
 }
