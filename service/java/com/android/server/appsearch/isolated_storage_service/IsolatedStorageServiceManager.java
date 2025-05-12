@@ -16,6 +16,7 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
+import static android.app.appsearch.AppSearchResult.RESULT_UNAVAILABLE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -217,12 +218,12 @@ public final class IsolatedStorageServiceManager {
         } catch (Exception e) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
             throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+                    RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
         }
         if (mIsolatedStorageService == null) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
             throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
+                    RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
         }
     }
 
@@ -257,11 +258,11 @@ public final class IsolatedStorageServiceManager {
             iBinder.linkToDeath(mVmIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
         } catch (Exception e) {
             Log.e(TAG, "Unable to connect to vm", e);
-            throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm", e);
+            throw new AppSearchException(RESULT_UNAVAILABLE, "Unable to connect to vm", e);
         }
         if (mVmIsolatedStorageService == null) {
             Log.e(TAG, "Failed to connect to vm");
-            throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm");
+            throw new AppSearchException(RESULT_UNAVAILABLE, "Unable to connect to vm");
         }
         Log.i(TAG, "Successfully connected to vm");
     }
@@ -307,12 +308,11 @@ public final class IsolatedStorageServiceManager {
             }
         } catch (Exception e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
-            throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Failed to start VM and load payload");
+            throw new AppSearchException(RESULT_UNAVAILABLE, "Failed to start VM and load payload");
         }
         if (!vmStarted) {
             throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Unable to wait for payload ready after retries");
+                    RESULT_UNAVAILABLE, "Unable to wait for payload ready after retries");
         }
     }
 

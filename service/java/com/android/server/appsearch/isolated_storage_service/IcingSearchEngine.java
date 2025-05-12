@@ -845,7 +845,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static @NonNull StatusProto remoteExceptionStatus(@NonNull Exception e) {
         Log.e(TAG, "Failed to call isolated storage service via binder", e);
         return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
+                .setCode(StatusProto.Code.UNAVAILABLE)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
                 .build();
     }
