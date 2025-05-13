@@ -335,12 +335,17 @@ public final class AppSearchImpl implements Closeable {
         mVisibilityCheckerLocked = visibilityChecker;
         mRevocableFileDescriptorStore = revocableFileDescriptorStore;
 
+        // By default, we don't perform any retries.
+        int maxInitRetries = 0;
         mReadWriteLock.writeLock().lock();
         try {
             // We synchronize here because we don't want to call IcingSearchEngine.initialize() more
             // than once. It's unnecessary and can be a costly operation.
             if (icingSearchEngine == null) {
                 mIsVMEnabled = false;
+                if (Flags.enableInitializationRetriesBeforeReset()) {
+                    maxInitRetries = 2;
+                }
                 IcingSearchEngineOptions options =
                         mConfig.toIcingSearchEngineOptions(
                                 icingDir.getAbsolutePath(), mIsVMEnabled);
@@ -355,6 +360,7 @@ public final class AppSearchImpl implements Closeable {
                 mIcingSearchEngineLocked = icingSearchEngine;
                 mIsVMEnabled = true;
                 mIsIcingSchemaDatabaseEnabled = true;
+                maxInitRetries = 2;
             }
 
             // The core initialization procedure. If any part of this fails, we bail into
@@ -362,6 +368,14 @@ public final class AppSearchImpl implements Closeable {
             try {
                 LogUtil.piiTrace(TAG, "icingSearchEngine.initialize, request");
                 InitializeResultProto initializeResultProto = mIcingSearchEngineLocked.initialize();
+                while (maxInitRetries > 0 && !isSuccess(initializeResultProto.getStatus())) {
+                    Log.e(TAG, String.format(
+                            "INIT: Initialize failed with status (%d:%s). %d retries left!",
+                            initializeResultProto.getStatus().getCode().getNumber(),
+                            initializeResultProto.getStatus().getMessage(), maxInitRetries));
+                    --maxInitRetries;
+                    initializeResultProto = mIcingSearchEngineLocked.initialize();
+                }
                 LogUtil.piiTrace(
                         TAG,
                         "icingSearchEngine.initialize, response",
@@ -391,9 +405,42 @@ public final class AppSearchImpl implements Closeable {
 
                 // Read all protos we need to construct AppSearchImpl's cache maps
                 long prepareSchemaAndNamespacesLatencyStartMillis = SystemClock.elapsedRealtime();
-                SchemaProto schemaProto = getSchemaProtoLocked();
+                LogUtil.piiTrace(TAG, "getSchema, request");
+                GetSchemaResultProto schemaResultProto = mIcingSearchEngineLocked.getSchema();
+                // GetSchema may return NOT_FOUND if we've initialized an empty instance.
+                while (maxInitRetries > 0
+                        && !isCodeOneOf(schemaResultProto.getStatus(),
+                                        StatusProto.Code.OK, StatusProto.Code.NOT_FOUND)) {
+                    Log.e(TAG, String.format(
+                            "INIT: GetSchema failed with status (%d:%s). %d retries left!",
+                            schemaResultProto.getStatus().getCode().getNumber(),
+                            schemaResultProto.getStatus().getMessage(), maxInitRetries));
+                    --maxInitRetries;
+                    schemaResultProto = mIcingSearchEngineLocked.getSchema();
+                }
+                LogUtil.piiTrace(TAG, "getSchema, response", schemaResultProto.getStatus(), schemaResultProto);
+                checkCodeOneOf(schemaResultProto.getStatus(),
+                        StatusProto.Code.OK, StatusProto.Code.NOT_FOUND);
+                SchemaProto schemaProto = schemaResultProto.getSchema();
 
-                StorageInfoProto storageInfoProto = getRawStorageInfoProto();
+                LogUtil.piiTrace(TAG, "getStorageInfo, request");
+                StorageInfoResultProto storageInfoResult =
+                        mIcingSearchEngineLocked.getStorageInfo();
+                while (maxInitRetries > 0 && !isSuccess(storageInfoResult.getStatus())) {
+                    Log.e(TAG, String.format(
+                            "INIT: GetStorageInfo failed with status (%d:%s). %d retries left!",
+                            storageInfoResult.getStatus().getCode().getNumber(),
+                            storageInfoResult.getStatus().getMessage(), maxInitRetries));
+                    --maxInitRetries;
+                    storageInfoResult = mIcingSearchEngineLocked.getStorageInfo();
+                }
+                LogUtil.piiTrace(
+                        TAG,
+                        "getStorageInfo, response",
+                        storageInfoResult.getStatus(),
+                        storageInfoResult);
+                checkSuccess(storageInfoResult.getStatus());
+                StorageInfoProto storageInfoProto = storageInfoResult.getStorageInfo();
 
                 // Log the time it took to read the data that goes into the cache maps
                 if (initStatsBuilder != null) {
@@ -4099,23 +4146,36 @@ public final class AppSearchImpl implements Closeable {
      */
     private static void checkCodeOneOf(StatusProto statusProto, StatusProto.Code... codes)
             throws AppSearchException {
+        if (!isCodeOneOf(statusProto, codes)) {
+            throw new AppSearchException(
+                    ResultCodeToProtoConverter.toResultCode(statusProto.getCode()),
+                    statusProto.getMessage());
+        }
+    }
+
+    /**
+     * Returns true if the status is OK or WARNING_DATA_LOSS, false otherwise.
+     */
+    private static boolean isSuccess(StatusProto statusProto) {
+        return isCodeOneOf(statusProto, StatusProto.Code.OK);
+    }
+
+    /**
+     * Returns true if the status is one of codes or WARNING_DATA_LOSS, false otherwise.
+     */
+    private static boolean isCodeOneOf(StatusProto statusProto, StatusProto.Code... codes) {
         for (int i = 0; i < codes.length; i++) {
             if (codes[i] == statusProto.getCode()) {
-                // Everything's good
-                return;
+                return true;
             }
         }
-
         if (statusProto.getCode() == StatusProto.Code.WARNING_DATA_LOSS) {
             // TODO: May want to propagate WARNING_DATA_LOSS up to AppSearchSession so they can
             //  choose to log the error or potentially pass it on to clients.
             Log.w(TAG, "Encountered WARNING_DATA_LOSS: " + statusProto.getMessage());
-            return;
+            return true;
         }
-
-        throw new AppSearchException(
-                ResultCodeToProtoConverter.toResultCode(statusProto.getCode()),
-                statusProto.getMessage());
+        return false;
     }
 
     /**

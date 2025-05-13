@@ -609,3 +609,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_initialization_retries_before_reset"
+    namespace: "appsearch"
+    description: "Enable retrying the critical section of initialization before resetting as a last resort."
+    bug: "415387509"
+}
