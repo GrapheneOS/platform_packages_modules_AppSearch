@@ -601,6 +601,16 @@ flag {
 }
 
 flag {
+    name: "enable_user_instance_futures"
+    namespace: "appsearch"
+    description: "Enables using futures to create user instances."
+    bug: "415031127"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "enable_database_scoped_schema_operations"
     namespace: "appsearch"
     description: "Enable database-scoped set and get schema operations for AppSearch internal impl."

@@ -34,6 +34,7 @@ import android.util.Log;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
@@ -53,6 +54,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -68,10 +71,21 @@ public final class AppSearchUserInstanceManager {
 
     private static volatile AppSearchUserInstanceManager sAppSearchUserInstanceManager;
 
+    private final ExecutorService mAppSearchUserInstanceExecutorService =
+            Flags.enableUserInstanceFutures()
+                    ? ExecutorManager.createDefaultExecutorService()
+                    : null;
+
     private final ReentrantLock mInstanceMapLock = new ReentrantLock();
+
+    private final ReentrantLock mFutureInstanceMapLock = new ReentrantLock();
 
     @GuardedBy("mInstanceMapLock")
     private final Map<UserHandle, AppSearchUserInstance> mInstancesLocked = new ArrayMap<>();
+
+    @GuardedBy("mFutureInstanceMapLock")
+    private final Map<UserHandle, Future<AppSearchUserInstance>> mFutureInstancesLocked =
+            new ArrayMap<>();
 
     @GuardedBy("mStorageInfoLocked")
     private final Map<UserHandle, UserStorageInfo> mStorageInfoLocked = new ArrayMap<>();
@@ -123,23 +137,20 @@ public final class AppSearchUserInstanceManager {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
-
-        mInstanceMapLock.lock();
-        try {
-            AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
-            if (instance == null) {
-                instance =
-                        createUserInstance(
-                                userContext,
-                                userHandle,
-                                config,
-                                executorManager,
-                                isolatedStorageServiceManager);
-                mInstancesLocked.put(userHandle, instance);
-            }
-            return instance;
-        } finally {
-            mInstanceMapLock.unlock();
+        if (Flags.enableUserInstanceFutures()) {
+            return getOrCreateUserInstanceFuture(
+                    userContext,
+                    userHandle,
+                    config,
+                    executorManager,
+                    isolatedStorageServiceManager);
+        } else {
+            return internalGetOrCreateUserInstance(
+                    userContext,
+                    userHandle,
+                    config,
+                    executorManager,
+                    isolatedStorageServiceManager);
         }
     }
 
@@ -152,16 +163,12 @@ public final class AppSearchUserInstanceManager {
      */
     public void closeAndRemoveUserInstance(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
-        AppSearchUserInstance instance;
-        mInstanceMapLock.lock();
-        try {
-            instance = mInstancesLocked.remove(userHandle);
-        } finally {
-            mInstanceMapLock.unlock();
+        if (Flags.enableUserInstanceFutures()) {
+            closeAndRemoveUserInstanceFuture(userHandle);
+        } else {
+            internalCloseAndRemoveUserInstance(userHandle);
         }
-        if (instance != null) {
-            instance.getAppSearchImpl().close();
-        }
+
         synchronized (mStorageInfoLocked) {
             mStorageInfoLocked.remove(userHandle);
         }
@@ -200,27 +207,19 @@ public final class AppSearchUserInstanceManager {
      * @return An initialized {@link AppSearchUserInstance} for this user
      * @throws IllegalStateException if {@link AppSearchUserInstance} haven't created for the given
      *     user.
+     * @throws CancellationException if {@link AppSearchUserInstance} creation was cancelled.
+     * @throws InterruptedException if the thread creating {@link AppSearchUserInstance} was
+     *     interrupted
+     * @throws ExecutionException if {@link AppSearchUserInstance} creation encountered an exception
      */
     @NonNull
     public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle)
             throws CancellationException, InterruptedException, ExecutionException {
         Objects.requireNonNull(userHandle);
-        mInstanceMapLock.lock();
-        try {
-            AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
-            if (instance == null) {
-                // Impossible scenario, user cannot call an uninitialized SearchSession,
-                // getInstance should always find the instance for the given user and never
-                // try to create an instance for this user again.
-                throw new IllegalStateException(
-                        "AppSearchUserInstance is not created for "
-                         + userHandle
-                         + ". Instance may still be starting, have crashed, have never been "
-                         + "created, or may have been removed.");
-            }
-            return instance;
-        } finally {
-            mInstanceMapLock.unlock();
+        if (Flags.enableUserInstanceFutures()) {
+            return getUserInstanceFuture(userHandle);
+        } else {
+            return internalGetUserInstance(userHandle);
         }
     }
 
@@ -236,15 +235,12 @@ public final class AppSearchUserInstanceManager {
     @Nullable
     public AppSearchUserInstance getUserInstanceOrNull(@NonNull UserHandle userHandle) {
         Objects.requireNonNull(userHandle);
-        AppSearchUserInstance instance = null;
-        // mInstanceMapLock being held is unlikely unless we're creating a UserInstance. If we're
-        // in the midst of UserInstance creation, we should avoid blocking and simply return null.
-        if (mInstanceMapLock.tryLock()) {
-            try {
-                instance = mInstancesLocked.get(userHandle);
-            } finally {
-                mInstanceMapLock.unlock();
-            }
+        AppSearchUserInstance instance;
+        if (Flags.enableUserInstanceFutures()) {
+            instance = getUserInstanceFutureOrNull(userHandle);
+
+        } else {
+            instance = internalGetUserInstanceOrNull(userHandle);
         }
         return instance;
     }
@@ -298,11 +294,10 @@ public final class AppSearchUserInstanceManager {
      */
     @NonNull
     public List<UserHandle> getAllUserHandles() {
-        mInstanceMapLock.lock();
-        try {
-            return new ArrayList<>(mInstancesLocked.keySet());
-        } finally {
-            mInstanceMapLock.unlock();
+        if (Flags.enableUserInstanceFutures()) {
+            return getAllFutureUserHandles();
+        } else {
+            return internalGetAllUserHandles();
         }
     }
 
@@ -377,6 +372,230 @@ public final class AppSearchUserInstanceManager {
                             (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis))
                     .setStatusCode(statusCode);
             logger.logStats(initStatsBuilder.build());
+        }
+    }
+
+    private Future<AppSearchUserInstance> createUserInstanceFuture(
+            @NonNull Context userContext,
+            @NonNull UserHandle userHandle,
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager executorManager,
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager) {
+        return mAppSearchUserInstanceExecutorService.submit(
+                () ->
+                        createUserInstance(
+                                userContext,
+                                userHandle,
+                                config,
+                                executorManager,
+                                isolatedStorageServiceManager));
+    }
+
+    private AppSearchUserInstance getOrCreateUserInstanceFuture(
+            @NonNull Context userContext,
+            @NonNull UserHandle userHandle,
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager executorManager,
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
+            throws AppSearchException {
+        Future<AppSearchUserInstance> instanceFuture;
+        mFutureInstanceMapLock.lock();
+        try {
+            instanceFuture = mFutureInstancesLocked.get(userHandle);
+            if (instanceFuture == null) {
+                instanceFuture =
+                        createUserInstanceFuture(
+                                userContext,
+                                userHandle,
+                                config,
+                                executorManager,
+                                isolatedStorageServiceManager);
+                mFutureInstancesLocked.put(userHandle, instanceFuture);
+            }
+        } finally {
+            mFutureInstanceMapLock.unlock();
+        }
+        try {
+            return instanceFuture.get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_ABORTED,
+                    "User Instance creation for: " + userHandle + " failed to complete.");
+        }
+    }
+
+    private AppSearchUserInstance internalGetOrCreateUserInstance(
+            @NonNull Context userContext,
+            @NonNull UserHandle userHandle,
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager executorManager,
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
+            throws AppSearchException {
+        Objects.requireNonNull(userContext);
+        Objects.requireNonNull(userHandle);
+        Objects.requireNonNull(config);
+
+        mInstanceMapLock.lock();
+        try {
+            AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
+            if (instance == null) {
+                instance =
+                        createUserInstance(
+                                userContext,
+                                userHandle,
+                                config,
+                                executorManager,
+                                isolatedStorageServiceManager);
+                mInstancesLocked.put(userHandle, instance);
+            }
+            return instance;
+        } finally {
+            mInstanceMapLock.unlock();
+        }
+    }
+
+    private void closeAndRemoveUserInstanceFuture(UserHandle userHandle) {
+        Future<AppSearchUserInstance> instanceFuture;
+        mFutureInstanceMapLock.lock();
+        try {
+            instanceFuture = mFutureInstancesLocked.remove(userHandle);
+        } finally {
+            mFutureInstanceMapLock.unlock();
+        }
+        if (instanceFuture != null) {
+            if (instanceFuture.isDone()) {
+                try {
+                    instanceFuture.get().getAppSearchImpl().close();
+                } catch (InterruptedException | ExecutionException | CancellationException e) {
+                    Log.w(
+                            TAG,
+                            "No AppSearchImpl to close for "
+                                    + userHandle
+                                    + ". User instance failed to be created.",
+                            e);
+                }
+            }
+        }
+    }
+
+    private void internalCloseAndRemoveUserInstance(UserHandle userHandle) {
+        AppSearchUserInstance instance;
+        mInstanceMapLock.lock();
+        try {
+            instance = mInstancesLocked.remove(userHandle);
+        } finally {
+            mInstanceMapLock.unlock();
+        }
+        if (instance != null) {
+            instance.getAppSearchImpl().close();
+        }
+    }
+
+    private AppSearchUserInstance getUserInstanceFuture(UserHandle userHandle)
+            throws ExecutionException, InterruptedException, CancellationException {
+        Future<AppSearchUserInstance> instanceFuture;
+        mFutureInstanceMapLock.lock();
+        try {
+            instanceFuture = mFutureInstancesLocked.get(userHandle);
+            if (instanceFuture == null) {
+                throw new IllegalStateException(
+                        "AppSearchUserInstanceFuture has never been created for: " + userHandle);
+            }
+        } finally {
+            mFutureInstanceMapLock.unlock();
+        }
+        try {
+            return instanceFuture.get();
+        } catch (ExecutionException e) {
+            throw new ExecutionException(
+                    "An exception occurred during AppSearchUserInstance creation for userHandle: "
+                            + userHandle,
+                    e.getCause());
+        } catch (InterruptedException e) {
+            throw new InterruptedException(
+                    "An interrupt occurred during AppSearchUserInstance creation for userHandle: "
+                            + userHandle
+                            + " with cause: "
+                            + e.getMessage());
+        } catch (CancellationException e) {
+            throw new CancellationException(
+                    "AppSearchUserInstance creation for: "
+                            + userHandle
+                            + " was cancelled with cause: "
+                            + e.getMessage());
+        }
+    }
+
+    private AppSearchUserInstance internalGetUserInstance(UserHandle userHandle) {
+        mInstanceMapLock.lock();
+        try {
+            AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
+            if (instance == null) {
+                // Impossible scenario, user cannot call an uninitialized SearchSession,
+                // getInstance should always find the instance for the given user and never try to
+                // create an instance for this user again.
+                throw new IllegalStateException(
+                        "AppSearchUserInstance is not created for "
+                                + userHandle
+                                + ". Instance may still be starting, have crashed, have never been "
+                                + "created, or may have been removed.");
+            }
+            return instance;
+        } finally {
+            mInstanceMapLock.unlock();
+        }
+    }
+
+    private AppSearchUserInstance getUserInstanceFutureOrNull(UserHandle userHandle) {
+        Future<AppSearchUserInstance> instanceFuture = null;
+        if (mFutureInstanceMapLock.tryLock()) {
+            try {
+                instanceFuture = mFutureInstancesLocked.get(userHandle);
+            } finally {
+                mFutureInstanceMapLock.unlock();
+            }
+        }
+        if (instanceFuture != null && instanceFuture.isDone()) {
+            try {
+                return instanceFuture.get();
+            } catch (ExecutionException | InterruptedException | CancellationException e) {
+                Log.w(
+                        TAG,
+                        "User instance creation encountered an issue or was cancelled."
+                                + " Returning null.");
+            }
+        }
+        return null;
+    }
+
+    private AppSearchUserInstance internalGetUserInstanceOrNull(UserHandle userHandle) {
+        // mInstanceMapLock being held is unlikely unless we're creating a UserInstance. If we're
+        // in the midst of UserInstance creation, we should avoid blocking and simply return null.
+        if (mInstanceMapLock.tryLock()) {
+            try {
+                return mInstancesLocked.get(userHandle);
+            } finally {
+                mInstanceMapLock.unlock();
+            }
+        }
+        return null;
+    }
+
+    private List<UserHandle> getAllFutureUserHandles() {
+        mFutureInstanceMapLock.lock();
+        try {
+            return new ArrayList<>(mFutureInstancesLocked.keySet());
+        } finally {
+            mFutureInstanceMapLock.unlock();
+        }
+    }
+
+    private List<UserHandle> internalGetAllUserHandles() {
+        mInstanceMapLock.lock();
+        try {
+            return new ArrayList<>(mInstancesLocked.keySet());
+        } finally {
+            mInstanceMapLock.unlock();
         }
     }
 
@@ -486,5 +705,23 @@ public final class AppSearchUserInstanceManager {
         // If we need a migration, return null so that AppSearch will create the non-isolated
         // version of Icing in AppSearchImpl.create.
         return null;
+    }
+
+    @VisibleForTesting
+    void lockInstanceMap() {
+        if (Flags.enableUserInstanceFutures()) {
+            mFutureInstanceMapLock.lock();
+        } else {
+            mInstanceMapLock.lock();
+        }
+    }
+
+    @VisibleForTesting
+    void unlockInstanceMap() {
+        if (Flags.enableUserInstanceFutures()) {
+            mFutureInstanceMapLock.unlock();
+        } else {
+            mInstanceMapLock.unlock();
+        }
     }
 }

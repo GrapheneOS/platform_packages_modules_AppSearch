@@ -52,12 +52,13 @@ java_defaults {
     static_libs: [
         "com.android.appsearch.isolated_storage_service.aidl-java",
         "com.android.isolated_storage_service.aidl-java",
+
+        // Entries below this line are outside of the appsearch package tree and must be kept in
+        // sync with jarjar.txt
         "icing-java-proto-lite",
         "libicing-java",
         "statslog-appsearch-lib",
 
-        // Entries below this line are outside of the appsearch package tree and must be kept in
-        // sync with jarjar.txt
         "appsearch_flags_java_lib",
         "modules-utils-preconditions",
     ],
