@@ -360,7 +360,8 @@ public final class IsolatedStorageServiceManager {
                                             userHandle.getIdentifier()),
                                     config.toIcingSearchEngineOptions(
                                             /* baseDir= */ "appsearch", /* isVMEnabled= */ true),
-                                    mVmStateSignaler);
+                                    mVmStateSignaler,
+                                    mVmIsolatedStorageService);
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);
@@ -451,9 +452,10 @@ public final class IsolatedStorageServiceManager {
             for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
                 IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
                 try {
-                    instance.setVmEngine(
+                    instance.setVmInstances(
                             mVmIsolatedStorageService.getOrCreateIcingConnection(
-                                    userHandle.getIdentifier()));
+                                    userHandle.getIdentifier()),
+                            mVmIsolatedStorageService);
                     initializeIcingWithRetry(instance);
                 } catch (RemoteException e) {
                     Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
