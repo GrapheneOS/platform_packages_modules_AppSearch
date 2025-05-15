@@ -38,6 +38,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
+
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchResult;
@@ -95,15 +98,20 @@ import com.android.server.appsearch.icing.proto.DocumentProto;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
 import com.android.server.appsearch.icing.proto.GetSchemaResultProto;
 import com.android.server.appsearch.icing.proto.IcingSearchEngineOptions;
+import com.android.server.appsearch.icing.proto.InitializeResultProto;
 import com.android.server.appsearch.icing.proto.PersistType;
+import com.android.server.appsearch.icing.proto.PersistToDiskResultProto;
 import com.android.server.appsearch.icing.proto.PropertyConfigProto;
 import com.android.server.appsearch.icing.proto.PropertyProto;
 import com.android.server.appsearch.icing.proto.PutResultProto;
+import com.android.server.appsearch.icing.proto.ResetResultProto;
 import com.android.server.appsearch.icing.proto.SchemaProto;
 import com.android.server.appsearch.icing.proto.SchemaTypeConfigProto;
 import com.android.server.appsearch.icing.proto.SetSchemaRequestProto;
+import com.android.server.appsearch.icing.proto.SetSchemaResultProto;
 import com.android.server.appsearch.icing.proto.StatusProto;
 import com.android.server.appsearch.icing.proto.StorageInfoProto;
+import com.android.server.appsearch.icing.proto.StorageInfoResultProto;
 import com.android.server.appsearch.icing.proto.StringIndexingConfig;
 import com.android.server.appsearch.icing.proto.TermMatchType;
 import com.android.server.appsearch.protobuf.ByteString;
@@ -123,6 +131,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
+
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -158,8 +169,12 @@ public class AppSearchImplTest {
             new AppSearchConfigImpl(
                     new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
 
+    @Mock
+    private IcingSearchEngine mockIcingSearchEngine;
+
     @Before
     public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
         mAppSearchDir = mTemporaryFolder.newFolder();
         mAppSearchImpl =
                 AppSearchImpl.create(
@@ -722,6 +737,400 @@ public class AppSearchImplTest {
     }
 
     @Test
+    public void testResetNativeInitFails_retryWithoutReset() throws Exception {
+        // Setup Icing mock to fail the first init call, but then succeed
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        InitializeResultProto failedInit =
+                InitializeResultProto.newBuilder().setStatus(internalError).build();
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
+
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
+        assertThat(initStats.hasReset()).isFalse();
+    }
+
+    @Test
+    public void testResetNativeGetSchemaFails_retryWithoutReset() throws Exception {
+        // Setup Icing mock to fail the first getSchema call, but then succeed
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        GetSchemaResultProto failedGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(internalError).build();
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(failedGetSchema, successGetSchema);
+
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
+        assertThat(initStats.hasReset()).isFalse();
+    }
+
+
+    @Test
+    public void testResetNativeGetStorageInfoFails_retryWithoutReset() throws Exception {
+        // Setup Icing mock to fail the first getStorageInfo call, but then succeed
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        StorageInfoResultProto failedGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(internalError).build();
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
+                failedGetStorageInfo, successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
+        assertThat(initStats.hasReset()).isFalse();
+    }
+
+    @Test
+    public void testResetNativeInitExhaustsRetries_resets() throws Exception {
+        // Setup Icing mock to fail the first three init calls, but then succeed (if ever called
+        // after)
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        InitializeResultProto failedInit =
+                InitializeResultProto.newBuilder().setStatus(internalError).build();
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(
+                failedInit, failedInit, failedInit, okInit);
+
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_INTERNAL_ERROR);
+        assertThat(initStats.hasReset()).isTrue();
+    }
+
+    @Test
+    public void testResetNativeGetSchemaExhaustsRetries_resets() throws Exception {
+        // Setup Icing mock to fail the three getSchema call, but then succeed (if ever called).
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        GetSchemaResultProto failedGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(internalError).build();
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(
+                failedGetSchema, failedGetSchema, failedGetSchema, successGetSchema);
+
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_INTERNAL_ERROR);
+        assertThat(initStats.hasReset()).isTrue();
+    }
+
+    @Test
+    public void testResetNativeGetStorageInfoExhaustsRetries_resets() throws Exception {
+        // Setup Icing mock to fail the first three getStorageInfo calls, but then succeed (if ever
+        // called again)
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        StorageInfoResultProto failedGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(internalError).build();
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
+                failedGetStorageInfo, failedGetStorageInfo, failedGetStorageInfo,
+                successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_INTERNAL_ERROR);
+        assertThat(initStats.hasReset()).isTrue();
+    }
+
+    @Test
+    public void testResetNativeCallsExhaustsRetries_resets() throws Exception {
+        // Setup Icing mock to fail the first call for all native apis. This will exceed the max
+        // retry limit and trigger a reset.
+        StatusProto internalError =
+                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        InitializeResultProto failedInit =
+                InitializeResultProto.newBuilder().setStatus(internalError).build();
+        StatusProto okStatus =
+                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
+
+        GetSchemaResultProto failedGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(internalError).build();
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(
+                failedGetSchema, successGetSchema);
+
+        StorageInfoResultProto failedGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(internalError).build();
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
+                failedGetStorageInfo, successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_INTERNAL_ERROR);
+        assertThat(initStats.hasReset()).isTrue();
+    }
+
+    @Test
     public void testResetWithSchemaDatabaseMigration() throws Exception {
         IcingSearchEngineOptions.Builder optionsBuilder =
                 IcingSearchEngineOptions.newBuilder(
@@ -744,37 +1153,10 @@ public class AppSearchImplTest {
                         ALWAYS_OPTIMIZE);
 
         SchemaProto existingSchema = mAppSearchImpl.getSchemaProtoLocked();
-        // Insert some schemas in 2 databases. We need to use the SchemaProto and call Icing's
+        // Insert some schemas in 2 databases. We need to use the full SchemaProto and call Icing's
         // set schema API directly as AppSearch will use database-scoped schema operation since
         // we initialized with a custom icing instance (which AppSearch understands as having VM
         // enabled). This will fail as the Icing instance has not enabled schema database.
-        SchemaProto fullSchema =
-                SchemaProto.newBuilder(existingSchema)
-                        .addTypes(
-                                SchemaTypeConfigProto.newBuilder()
-                                        .setSchemaType("package$database1/Type1")
-                                        .setDescription("")
-                                        .setVersion(0))
-                        .addTypes(
-                                SchemaTypeConfigProto.newBuilder()
-                                        .setSchemaType("package$database1/Type2")
-                                        .setDescription("")
-                                        .setVersion(0))
-                        .addTypes(
-                                SchemaTypeConfigProto.newBuilder()
-                                        .setSchemaType("package$database2/Type3")
-                                        .setDescription("")
-                                        .setVersion(0))
-                        .build();
-        SetSchemaRequestProto requestProto =
-                SetSchemaRequestProto.newBuilder()
-                        .setSchema(fullSchema)
-                        .setIgnoreErrorsAndDeleteDocuments(false)
-                        .build();
-        assertThat(icingSearchEngine.setSchemaWithRequestProto(requestProto).getStatus().getCode())
-                .isEqualTo(StatusProto.Code.OK);
-
-        // Create expected schemaType proto. These protos should not contain the database field.
         SchemaProto expectedProto =
                 SchemaProto.newBuilder()
                         .addTypes(
@@ -793,11 +1175,23 @@ public class AppSearchImplTest {
                                         .setDescription("")
                                         .setVersion(0))
                         .build();
-        List<SchemaTypeConfigProto> expectedTypes = new ArrayList<>();
-        expectedTypes.addAll(existingSchema.getTypesList());
-        expectedTypes.addAll(expectedProto.getTypesList());
+        SchemaProto fullSchema =
+                SchemaProto.newBuilder(existingSchema)
+                        .addAllTypes(expectedProto.getTypesList())
+                        .build();
+        SetSchemaRequestProto requestProto =
+                SetSchemaRequestProto.newBuilder()
+                        .setSchema(fullSchema)
+                        .setIgnoreErrorsAndDeleteDocuments(false)
+                        .build();
+        assertThat(icingSearchEngine.setSchemaWithRequestProto(requestProto).getStatus().getCode())
+                .isEqualTo(StatusProto.Code.OK);
+
+        // We need to get the full schema here since Icing doesn't have schema database enabled,
+        // which also disables the getSchemaForPrefix API. The schema should be exactly the same
+        // as what we've just set, without the database fields being populated.
         assertThat(mAppSearchImpl.getSchemaProtoLocked().getTypesList())
-                .containsExactlyElementsIn(expectedTypes);
+                .containsExactlyElementsIn(fullSchema.getTypesList());
 
         // Reinitialize Icing and AppSearch, this time with schema database enabled.
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
@@ -820,12 +1214,42 @@ public class AppSearchImplTest {
         assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
 
-        // GetSchema. The old schema should have the database field populated after the migration
-        expectedTypes = new ArrayList<>();
-        expectedTypes.addAll(getSchemaProtoWithDatabase(existingSchema).getTypesList());
-        expectedTypes.addAll(getSchemaProtoWithDatabase(expectedProto).getTypesList());
-        assertThat(mAppSearchImpl.getSchemaProtoLocked().getTypesList())
-                .containsExactlyElementsIn(expectedTypes);
+        // GetSchema for db1 and db2. The old schema should have the database field populated
+        // after the migration
+        SchemaProto expectedDb1Proto =
+                SchemaProto.newBuilder()
+                        .addTypes(
+                                SchemaTypeConfigProto.newBuilder()
+                                        .setSchemaType("package$database1/Type1")
+                                        .setDatabase("package$database1/")
+                                        .setDescription("")
+                                        .setVersion(0))
+                        .addTypes(
+                                SchemaTypeConfigProto.newBuilder()
+                                        .setSchemaType("package$database1/Type2")
+                                        .setDatabase("package$database1/")
+                                        .setDescription("")
+                                        .setVersion(0))
+                        .build();
+        SchemaProto expectedDb2Proto =
+                SchemaProto.newBuilder()
+                        .addTypes(
+                                SchemaTypeConfigProto.newBuilder()
+                                        .setSchemaType("package$database2/Type3")
+                                        .setDatabase("package$database2/")
+                                        .setDescription("")
+                                        .setVersion(0))
+                        .build();
+        assertThat(
+                        mAppSearchImpl
+                                .getSchemaProtoForPrefixLocked("package$database1/")
+                                .getTypesList())
+                .containsExactlyElementsIn(expectedDb1Proto.getTypesList());
+        assertThat(
+                        mAppSearchImpl
+                                .getSchemaProtoForPrefixLocked("package$database2/")
+                                .getTypesList())
+                .containsExactlyElementsIn(expectedDb2Proto.getTypesList());
 
         // SetSchema for database 1 again. We can use the AppSearch API this time since we've
         // enabled database-scoped schema operation for Icing too. Check that the old db1 schema
@@ -843,8 +1267,8 @@ public class AppSearchImplTest {
                         /* setSchemaStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
-        // Create expected schemaType proto. These protos should contain the database field.
-        expectedProto =
+        // expectedDb1Proto has changed. The proto should contain the database field.
+        expectedDb1Proto =
                 SchemaProto.newBuilder()
                         .addTypes(
                                 SchemaTypeConfigProto.newBuilder()
@@ -852,18 +1276,17 @@ public class AppSearchImplTest {
                                         .setDatabase("package$database1/")
                                         .setDescription("")
                                         .setVersion(0))
-                        .addTypes(
-                                SchemaTypeConfigProto.newBuilder()
-                                        .setSchemaType("package$database2/Type3")
-                                        .setDatabase("package$database2/")
-                                        .setDescription("")
-                                        .setVersion(0))
                         .build();
-        expectedTypes = new ArrayList<>();
-        expectedTypes.addAll(getSchemaProtoWithDatabase(existingSchema).getTypesList());
-        expectedTypes.addAll(expectedProto.getTypesList());
-        assertThat(mAppSearchImpl.getSchemaProtoLocked().getTypesList())
-                .containsExactlyElementsIn(expectedTypes);
+        assertThat(
+                        mAppSearchImpl
+                                .getSchemaProtoForPrefixLocked("package$database1/")
+                                .getTypesList())
+                .containsExactlyElementsIn(expectedDb1Proto.getTypesList());
+        assertThat(
+                        mAppSearchImpl
+                                .getSchemaProtoForPrefixLocked("package$database2/")
+                                .getTypesList())
+                .containsExactlyElementsIn(expectedDb2Proto.getTypesList());
     }
 
     @Test

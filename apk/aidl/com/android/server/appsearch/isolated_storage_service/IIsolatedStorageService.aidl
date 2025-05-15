@@ -41,4 +41,9 @@ interface IIsolatedStorageService {
      * Gets the connection to the pVM.
      */
     ParcelFileDescriptor getVmConnection();
+
+    /**
+     * Gets the status of the pVM.
+     */
+    int getVmStatus();
 }
