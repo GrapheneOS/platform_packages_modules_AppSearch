@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /** Manages the isolated storage service and provides related services. */
@@ -87,6 +88,7 @@ public final class IsolatedStorageServiceManager {
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
+    private final Executor mExecutor;
     private final VmStateSignaler mVmStateSignaler;
     private final IsolatedStorageServiceDeathRecipient mIsolatedStorageServiceDeathRecipient =
             new IsolatedStorageServiceDeathRecipient();
@@ -105,9 +107,12 @@ public final class IsolatedStorageServiceManager {
     private final Map<UserHandle, IcingSearchEngine> mIcingInstancesLocked = new ArrayMap<>();
 
     public IsolatedStorageServiceManager(
-            @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
+            @NonNull Context context,
+            @NonNull ServiceAppSearchConfig appSearchConfig,
+            @NonNull Executor executor) {
         mContext = Objects.requireNonNull(context);
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
+        mExecutor = Objects.requireNonNull(executor);
         mVmStateSignaler = new VmStateSignaler();
         mHandler = new Handler(Looper.getMainLooper());
         mVmStatusChecker =
@@ -457,7 +462,7 @@ public final class IsolatedStorageServiceManager {
             Log.w(TAG, "binderDied: IsolatedStorageService");
             mIsolatedStorageService = null;
             mVmIsolatedStorageService = null;
-            replaceVmIcingInstances();
+            mExecutor.execute(() -> replaceVmIcingInstances());
         }
     }
 
@@ -466,7 +471,7 @@ public final class IsolatedStorageServiceManager {
         public void binderDied() {
             Log.w(TAG, "binderDied: VmIsolatedStorageService");
             mVmIsolatedStorageService = null;
-            replaceVmIcingInstances();
+            mExecutor.execute(() -> replaceVmIcingInstances());
         }
     }
 

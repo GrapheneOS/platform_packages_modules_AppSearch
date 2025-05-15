@@ -1473,7 +1473,7 @@ public class AppSearchManagerServiceTest {
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
         IsolatedStorageServiceManager isolatedStorageServiceManager =
-                new IsolatedStorageServiceManager(context, appSearchConfig);
+                new IsolatedStorageServiceManager(context, appSearchConfig, DIRECT_EXECUTOR);
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_ENABLED,

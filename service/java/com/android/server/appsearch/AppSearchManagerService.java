@@ -224,7 +224,7 @@ public class AppSearchManagerService extends SystemService {
         if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, mAppSearchConfig)) {
             Log.i(TAG, "Isolated storage is enabled.");
             mIsolatedStorageServiceManager =
-                    new IsolatedStorageServiceManager(mContext, mAppSearchConfig);
+                    new IsolatedStorageServiceManager(mContext, mAppSearchConfig, SHARED_EXECUTOR);
         } else {
             Log.i(TAG, "Isolated storage is not enabled.");
         }
