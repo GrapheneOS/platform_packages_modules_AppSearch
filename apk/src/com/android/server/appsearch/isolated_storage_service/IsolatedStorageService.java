@@ -326,5 +326,13 @@ public class IsolatedStorageService extends Service {
                     throw new RemoteException(e.getMessage());
                 }
         }
+
+        @Override
+        public int getVmStatus() throws RemoteException {
+            if (mVm == null) {
+                throw new RemoteException("pVM is not available");
+            }
+            return mVm.getStatus();
+        }
     }
 }
