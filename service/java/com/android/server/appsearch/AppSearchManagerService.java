@@ -128,6 +128,7 @@ import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchSessionStatsExtractor;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.appsearch.observer.AppSearchObserverProxy;
 import com.android.server.appsearch.stats.PlatformLogger;
 import com.android.server.appsearch.stats.StatsCollector;
@@ -154,8 +155,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Collections;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -196,6 +197,7 @@ public class AppSearchManagerService extends SystemService {
     private PackageManager mPackageManager;
     private RoleManager mRoleManager;
     private ServiceImplHelper mServiceImplHelper;
+    private IsolatedStorageServiceManager mIsolatedStorageServiceManager;
     private AppSearchUserInstanceManager mAppSearchUserInstanceManager;
 
     // Keep a reference for the lifecycle instance, so we can access other services like
@@ -219,6 +221,13 @@ public class AppSearchManagerService extends SystemService {
         mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR);
         mExecutorManager = new ExecutorManager(mAppSearchConfig);
         mSearchSessionStatsExtractor = new SearchSessionStatsExtractor();
+        if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, mAppSearchConfig)) {
+            Log.i(TAG, "Isolated storage is enabled.");
+            mIsolatedStorageServiceManager =
+                    new IsolatedStorageServiceManager(mContext, mAppSearchConfig);
+        } else {
+            Log.i(TAG, "Isolated storage is not enabled.");
+        }
     }
 
     @Override
@@ -232,6 +241,24 @@ public class AppSearchManagerService extends SystemService {
         LocalManagerRegistry.getManager(StorageStatsManagerLocal.class)
                 .registerStorageStatsAugmenter(new AppSearchStorageStatsAugmenter(), TAG);
         LocalManagerRegistry.addManager(LocalService.class, new LocalService());
+        initializeIsolatedStorageIfNeeded();
+    }
+
+    private void initializeIsolatedStorageIfNeeded() {
+        if (mIsolatedStorageServiceManager == null) {
+            Log.i(TAG, "Isolated storage is not enabled, no need to initialize it");
+            return;
+        }
+        mExecutorManager.executeLambdaForUserNoCallbackAsync(
+                UserHandle.SYSTEM,
+                () -> {
+                    Log.i(TAG, "Initializing isolated storage service");
+                    try {
+                        mIsolatedStorageServiceManager.initialize();
+                    } catch (AppSearchException e) {
+                        Log.e(TAG, "Unable to prepare IsolatedStorageServiceManager", e);
+                    }
+                });
     }
 
     @Override
@@ -345,7 +372,8 @@ public class AppSearchManagerService extends SystemService {
                                             userContext,
                                             userHandle,
                                             mAppSearchConfig,
-                                            mExecutorManager);
+                                            mExecutorManager,
+                                            mIsolatedStorageServiceManager);
                             instance.getAppSearchImpl().clearPackageData(packageName);
                             dispatchChangeNotifications(instance);
                             instance.getLogger().removeCacheForPackage(packageName);
@@ -378,7 +406,8 @@ public class AppSearchManagerService extends SystemService {
                                             userContext,
                                             userHandle,
                                             mAppSearchConfig,
-                                            mExecutorManager);
+                                            mExecutorManager,
+                                            mIsolatedStorageServiceManager);
                             List<PackageInfo> installedPackageInfos = userContext
                                     .getPackageManager()
                                     .getInstalledPackages(/* flags= */ 0);
@@ -464,7 +493,8 @@ public class AppSearchManagerService extends SystemService {
         onUserStopping(userHandle);
         Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
         try {
-            mAppSearchUserInstanceManager.removeUserData(userHandle, userContext, mAppSearchConfig);
+            mAppSearchUserInstanceManager.removeUserData(
+                    userHandle, userContext, mAppSearchConfig, mIsolatedStorageServiceManager);
         } catch (RuntimeException e) {
             Log.e(TAG, "Unable to remove user data: " + userHandle, e);
         }
@@ -3023,7 +3053,8 @@ public class AppSearchManagerService extends SystemService {
                             targetUserContext,
                             targetUser,
                             mAppSearchConfig,
-                            mExecutorManager);
+                            mExecutorManager,
+                            mIsolatedStorageServiceManager);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
                 } catch (AppSearchException | RuntimeException e) {

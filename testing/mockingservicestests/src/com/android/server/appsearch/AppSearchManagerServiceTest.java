@@ -229,7 +229,7 @@ public class AppSearchManagerServiceTest {
         mUserInstance =
                 AppSearchUserInstanceManager.getInstance()
                         .getOrCreateUserInstance(
-                                mContext, mUserHandle, appSearchConfig, mExecutorManager);
+                                mContext, mUserHandle, appSearchConfig, mExecutorManager, null);
         mLogger = spy(mUserInstance.getLogger());
         mUserInstance.setLoggerForTest(mLogger);
 
@@ -1472,6 +1472,8 @@ public class AppSearchManagerServiceTest {
         UserHandle testUserHandle = new UserHandle(1);
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        IsolatedStorageServiceManager isolatedStorageServiceManager =
+                new IsolatedStorageServiceManager(context, appSearchConfig);
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_ENABLED,
@@ -1485,7 +1487,11 @@ public class AppSearchManagerServiceTest {
                 () -> {
                     AppSearchUserInstanceManager.getInstance()
                             .getOrCreateUserInstance(
-                                    testContext, testUserHandle, appSearchConfig, mExecutorManager);
+                                    testContext,
+                                    testUserHandle,
+                                    appSearchConfig,
+                                    mExecutorManager,
+                                    isolatedStorageServiceManager);
                 });
     }
 
