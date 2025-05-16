@@ -46,4 +46,9 @@ interface IIsolatedStorageService {
      * Gets the status of the pVM.
      */
     int getVmStatus();
+
+    /**
+     * Cleans up old pVMs in the CE directory.
+     */
+    oneway void cleanUpOldVms();
 }
