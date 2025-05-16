@@ -391,6 +391,10 @@ public class AppSearchManagerService extends SystemService {
         UserHandle userHandle = user.getUserHandle();
         mServiceImplHelper.setUserIsLocked(userHandle, false);
 
+        if (mIsolatedStorageServiceManager != null) {
+            SHARED_EXECUTOR.execute(() -> mIsolatedStorageServiceManager.onUserUnlocking());
+        }
+
         // Only schedule task if AppSearch exists for this user.
         if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
