@@ -197,7 +197,7 @@ public class AppSearchManagerService extends SystemService {
     private PackageManager mPackageManager;
     private RoleManager mRoleManager;
     private ServiceImplHelper mServiceImplHelper;
-    private IsolatedStorageServiceManager mIsolatedStorageServiceManager;
+    private volatile IsolatedStorageServiceManager mIsolatedStorageServiceManager;
     private AppSearchUserInstanceManager mAppSearchUserInstanceManager;
 
     // Keep a reference for the lifecycle instance, so we can access other services like
@@ -221,13 +221,6 @@ public class AppSearchManagerService extends SystemService {
         mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR);
         mExecutorManager = new ExecutorManager(mAppSearchConfig);
         mSearchSessionStatsExtractor = new SearchSessionStatsExtractor();
-        if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, mAppSearchConfig)) {
-            Log.i(TAG, "Isolated storage is enabled.");
-            mIsolatedStorageServiceManager =
-                    new IsolatedStorageServiceManager(mContext, mAppSearchConfig, SHARED_EXECUTOR);
-        } else {
-            Log.i(TAG, "Isolated storage is not enabled.");
-        }
     }
 
     @Override
@@ -241,18 +234,24 @@ public class AppSearchManagerService extends SystemService {
         LocalManagerRegistry.getManager(StorageStatsManagerLocal.class)
                 .registerStorageStatsAugmenter(new AppSearchStorageStatsAugmenter(), TAG);
         LocalManagerRegistry.addManager(LocalService.class, new LocalService());
-        initializeIsolatedStorageIfNeeded();
     }
 
     private void initializeIsolatedStorageIfNeeded() {
-        if (mIsolatedStorageServiceManager == null) {
-            Log.i(TAG, "Isolated storage is not enabled, no need to initialize it");
+        if (mIsolatedStorageServiceManager != null) {
+            Log.i(TAG, "mIsolatedStorageServiceManager already created");
             return;
         }
-        mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                UserHandle.SYSTEM,
+        if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, mAppSearchConfig)) {
+            Log.i(TAG, "Isolated storage is enabled.");
+            mIsolatedStorageServiceManager =
+                    new IsolatedStorageServiceManager(mContext, mAppSearchConfig, SHARED_EXECUTOR);
+        } else {
+            Log.i(TAG, "Isolated storage is not enabled.");
+            return;
+        }
+        Log.i(TAG, "Initializing isolated storage service");
+        SHARED_EXECUTOR.execute(
                 () -> {
-                    Log.i(TAG, "Initializing isolated storage service");
                     try {
                         mIsolatedStorageServiceManager.initialize();
                     } catch (AppSearchException e) {
@@ -390,6 +389,9 @@ public class AppSearchManagerService extends SystemService {
         Objects.requireNonNull(user);
         UserHandle userHandle = user.getUserHandle();
         mServiceImplHelper.setUserIsLocked(userHandle, false);
+        // TODO(b/406258175): move this earlier to onStart or initialization once we don't need to
+        // read device config
+        initializeIsolatedStorageIfNeeded();
 
         // Only schedule task if AppSearch exists for this user.
         if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
