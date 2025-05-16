@@ -154,6 +154,11 @@ public class AppSearchImplTest {
      */
     private static final OptimizeStrategy ALWAYS_OPTIMIZE = optimizeInfo -> true;
 
+    private static final StatusProto OK =
+            StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+    private static final StatusProto ERROR =
+            StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
@@ -739,35 +744,12 @@ public class AppSearchImplTest {
     @Test
     public void testResetNativeInitFails_retryWithoutReset() throws Exception {
         // Setup Icing mock to fail the first init call, but then succeed
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        setUpSuccessfulMocksForCreation();
         InitializeResultProto failedInit =
-                InitializeResultProto.newBuilder().setStatus(internalError).build();
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+                InitializeResultProto.newBuilder().setStatus(ERROR).build();
         InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+                InitializeResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
-
-        GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
-
-        StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -793,35 +775,12 @@ public class AppSearchImplTest {
     @Test
     public void testResetNativeGetSchemaFails_retryWithoutReset() throws Exception {
         // Setup Icing mock to fail the first getSchema call, but then succeed
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
-
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        setUpSuccessfulMocksForCreation();
         GetSchemaResultProto failedGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(internalError).build();
+                GetSchemaResultProto.newBuilder().setStatus(ERROR).build();
         GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+                GetSchemaResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.getSchema()).thenReturn(failedGetSchema, successGetSchema);
-
-        StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -848,36 +807,13 @@ public class AppSearchImplTest {
     @Test
     public void testResetNativeGetStorageInfoFails_retryWithoutReset() throws Exception {
         // Setup Icing mock to fail the first getStorageInfo call, but then succeed
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
-
-        GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
-
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        setUpSuccessfulMocksForCreation();
         StorageInfoResultProto failedGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(internalError).build();
+                StorageInfoResultProto.newBuilder().setStatus(ERROR).build();
         StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+                StorageInfoResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
                 failedGetStorageInfo, successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -904,37 +840,13 @@ public class AppSearchImplTest {
     public void testResetNativeInitExhaustsRetries_resets() throws Exception {
         // Setup Icing mock to fail the first three init calls, but then succeed (if ever called
         // after)
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        setUpSuccessfulMocksForCreation();
         InitializeResultProto failedInit =
-                InitializeResultProto.newBuilder().setStatus(internalError).build();
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+                InitializeResultProto.newBuilder().setStatus(ERROR).build();
         InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+                InitializeResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.initialize()).thenReturn(
                 failedInit, failedInit, failedInit, okInit);
-
-        GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
-
-        StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -960,36 +872,13 @@ public class AppSearchImplTest {
     @Test
     public void testResetNativeGetSchemaExhaustsRetries_resets() throws Exception {
         // Setup Icing mock to fail the three getSchema call, but then succeed (if ever called).
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
-
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        setUpSuccessfulMocksForCreation();
         GetSchemaResultProto failedGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(internalError).build();
+                GetSchemaResultProto.newBuilder().setStatus(ERROR).build();
         GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+                GetSchemaResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.getSchema()).thenReturn(
                 failedGetSchema, failedGetSchema, failedGetSchema, successGetSchema);
-
-        StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -1016,37 +905,15 @@ public class AppSearchImplTest {
     public void testResetNativeGetStorageInfoExhaustsRetries_resets() throws Exception {
         // Setup Icing mock to fail the first three getStorageInfo calls, but then succeed (if ever
         // called again)
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+        setUpSuccessfulMocksForCreation();
 
-        GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
-
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
         StorageInfoResultProto failedGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(internalError).build();
+                StorageInfoResultProto.newBuilder().setStatus(ERROR).build();
         StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+                StorageInfoResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
                 failedGetStorageInfo, failedGetStorageInfo, failedGetStorageInfo,
                 successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -1073,41 +940,26 @@ public class AppSearchImplTest {
     public void testResetNativeCallsExhaustsRetries_resets() throws Exception {
         // Setup Icing mock to fail the first call for all native apis. This will exceed the max
         // retry limit and trigger a reset.
-        StatusProto internalError =
-                StatusProto.newBuilder().setCode(StatusProto.Code.INTERNAL).build();
+        setUpSuccessfulMocksForCreation();
         InitializeResultProto failedInit =
-                InitializeResultProto.newBuilder().setStatus(internalError).build();
-        StatusProto okStatus =
-                StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+                InitializeResultProto.newBuilder().setStatus(ERROR).build();
         InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(okStatus).build();
+                InitializeResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
 
         GetSchemaResultProto failedGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(internalError).build();
+                GetSchemaResultProto.newBuilder().setStatus(ERROR).build();
         GetSchemaResultProto successGetSchema =
-                GetSchemaResultProto.newBuilder().setStatus(okStatus).build();
+                GetSchemaResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.getSchema()).thenReturn(
                 failedGetSchema, successGetSchema);
 
         StorageInfoResultProto failedGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(internalError).build();
+                StorageInfoResultProto.newBuilder().setStatus(ERROR).build();
         StorageInfoResultProto successGetStorageInfo =
-                StorageInfoResultProto.newBuilder().setStatus(okStatus).build();
+                StorageInfoResultProto.newBuilder().setStatus(OK).build();
         when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
                 failedGetStorageInfo, successGetStorageInfo);
-
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
-
-        SetSchemaResultProto successSetSchema =
-                SetSchemaResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
-
-        PersistToDiskResultProto successPersist =
-                PersistToDiskResultProto.newBuilder().setStatus(okStatus).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -11148,5 +11000,34 @@ public class AppSearchImplTest {
             schemaBuilder.addTypes(typeBuilder);
         }
         return schemaBuilder.build();
+    }
+
+    // Mocks all methods that are called during AppSearchImpl#create to return successful statuses.
+    private void setUpSuccessfulMocksForCreation() {
+        // Setup Icing mock to fail the first init call, but then succeed
+        InitializeResultProto okInit =
+                InitializeResultProto.newBuilder().setStatus(OK).build();
+        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(OK).build();
+        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+        when(mockIcingSearchEngine.getSchemaForDatabase(any())).thenReturn(successGetSchema);
+
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(OK).build();
+        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+
+        ResetResultProto successReset =
+                ResetResultProto.newBuilder().setStatus(OK).build();
+        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        SetSchemaResultProto successSetSchema =
+                SetSchemaResultProto.newBuilder().setStatus(OK).build();
+        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(OK).build();
+        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
     }
 }
