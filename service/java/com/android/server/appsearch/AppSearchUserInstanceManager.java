@@ -320,17 +320,19 @@ public final class AppSearchUserInstanceManager {
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
         IcingSearchEngineInterface icingInstance = null;
-        if (LogUtil.INFO) {
-            if (isolatedStorageServiceManager != null) {
+        if (isolatedStorageServiceManager != null) {
+            if (LogUtil.INFO) {
                 Log.i(TAG, "Creating new AppSearch instance in isolated storage.");
-                icingInstance =
-                        maybeGetIsolatedIcingSearchEngine(
-                                userContext,
-                                userHandle,
-                                config,
-                                executorManager,
-                                isolatedStorageServiceManager);
-            } else {
+            }
+            icingInstance =
+                    maybeGetIsolatedIcingSearchEngine(
+                            userContext,
+                            userHandle,
+                            config,
+                            executorManager,
+                            isolatedStorageServiceManager);
+        } else {
+            if (LogUtil.INFO) {
                 Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
             }
         }
