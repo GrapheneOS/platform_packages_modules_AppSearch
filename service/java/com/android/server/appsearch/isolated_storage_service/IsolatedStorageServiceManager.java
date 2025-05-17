@@ -16,12 +16,14 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
+import static android.app.appsearch.AppSearchResult.RESULT_UNAVAILABLE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.ExceptionUtil;
+import android.app.appsearch.util.LogUtil;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -29,7 +31,9 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.SystemProperties;
@@ -52,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /** Manages the isolated storage service and provides related services. */
@@ -79,14 +84,18 @@ public final class IsolatedStorageServiceManager {
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
     private static final int MAX_VM_START_RETRIES = 3;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
+    private static final long VM_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
+    private final Executor mExecutor;
     private final VmStateSignaler mVmStateSignaler;
     private final IsolatedStorageServiceDeathRecipient mIsolatedStorageServiceDeathRecipient =
             new IsolatedStorageServiceDeathRecipient();
     private final VmIsolatedStorageServiceDeathRecipient mVmIsolatedStorageServiceDeathRecipient =
             new VmIsolatedStorageServiceDeathRecipient();
+    private final Handler mHandler;
+    private final Runnable mVmStatusChecker;
 
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
@@ -98,10 +107,32 @@ public final class IsolatedStorageServiceManager {
     private final Map<UserHandle, IcingSearchEngine> mIcingInstancesLocked = new ArrayMap<>();
 
     public IsolatedStorageServiceManager(
-            @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
+            @NonNull Context context,
+            @NonNull ServiceAppSearchConfig appSearchConfig,
+            @NonNull Executor executor) {
         mContext = Objects.requireNonNull(context);
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
+        mExecutor = Objects.requireNonNull(executor);
         mVmStateSignaler = new VmStateSignaler();
+        mHandler = new Handler(Looper.getMainLooper());
+        mVmStatusChecker =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (mIsolatedStorageService == null) {
+                                Log.i(TAG, "Isolated storage service not connected");
+                            } else {
+                                int status = mIsolatedStorageService.getVmStatus();
+                                Log.i(TAG, "Isolated storage service VM status: " + status);
+                            }
+                        } catch (Exception | OutOfMemoryError e) {
+                            Log.e(TAG, "Unable to get VM status", e);
+                        } finally {
+                            mHandler.postDelayed(this, VM_STATUS_CHECK_INTERVAL_MS);
+                        }
+                    }
+                };
     }
 
     /** Gets whether isolated storage should be used. */
@@ -142,7 +173,7 @@ public final class IsolatedStorageServiceManager {
      * <p>This will bind to the isolated storage service, start the VM, and connects to the VM if
      * not already.
      */
-    private void initialize() throws AppSearchException {
+    public void initialize() throws AppSearchException {
         initialize(false);
     }
 
@@ -160,6 +191,10 @@ public final class IsolatedStorageServiceManager {
             }
             if (mVmIsolatedStorageService == null) {
                 connectToVmIsolatedStorageService(forceVmRestart);
+            }
+            if (LogUtil.INFO && !mHandler.hasCallbacks(mVmStatusChecker)) {
+                Log.d(TAG, "Scheduling VM status check");
+                mHandler.post(mVmStatusChecker);
             }
         }
     }
@@ -217,12 +252,12 @@ public final class IsolatedStorageServiceManager {
         } catch (Exception e) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
             throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+                    RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
         }
         if (mIsolatedStorageService == null) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
             throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
+                    RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
         }
     }
 
@@ -257,11 +292,11 @@ public final class IsolatedStorageServiceManager {
             iBinder.linkToDeath(mVmIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
         } catch (Exception e) {
             Log.e(TAG, "Unable to connect to vm", e);
-            throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm", e);
+            throw new AppSearchException(RESULT_UNAVAILABLE, "Unable to connect to vm", e);
         }
         if (mVmIsolatedStorageService == null) {
             Log.e(TAG, "Failed to connect to vm");
-            throw new AppSearchException(RESULT_INTERNAL_ERROR, "Unable to connect to vm");
+            throw new AppSearchException(RESULT_UNAVAILABLE, "Unable to connect to vm");
         }
         Log.i(TAG, "Successfully connected to vm");
     }
@@ -307,12 +342,11 @@ public final class IsolatedStorageServiceManager {
             }
         } catch (Exception e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
-            throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Failed to start VM and load payload");
+            throw new AppSearchException(RESULT_UNAVAILABLE, "Failed to start VM and load payload");
         }
         if (!vmStarted) {
             throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Unable to wait for payload ready after retries");
+                    RESULT_UNAVAILABLE, "Unable to wait for payload ready after retries");
         }
     }
 
@@ -360,7 +394,8 @@ public final class IsolatedStorageServiceManager {
                                             userHandle.getIdentifier()),
                                     config.toIcingSearchEngineOptions(
                                             /* baseDir= */ "appsearch", /* isVMEnabled= */ true),
-                                    mVmStateSignaler);
+                                    mVmStateSignaler,
+                                    mVmIsolatedStorageService);
                 } catch (RemoteException e) {
                     Log.e(TAG, "Unable to get icing instance for " + userHandle, e);
                     ExceptionUtil.handleRemoteException(e);
@@ -427,7 +462,7 @@ public final class IsolatedStorageServiceManager {
             Log.w(TAG, "binderDied: IsolatedStorageService");
             mIsolatedStorageService = null;
             mVmIsolatedStorageService = null;
-            replaceVmIcingInstances();
+            mExecutor.execute(() -> replaceVmIcingInstances());
         }
     }
 
@@ -436,7 +471,7 @@ public final class IsolatedStorageServiceManager {
         public void binderDied() {
             Log.w(TAG, "binderDied: VmIsolatedStorageService");
             mVmIsolatedStorageService = null;
-            replaceVmIcingInstances();
+            mExecutor.execute(() -> replaceVmIcingInstances());
         }
     }
 
@@ -451,9 +486,10 @@ public final class IsolatedStorageServiceManager {
             for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
                 IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
                 try {
-                    instance.setVmEngine(
+                    instance.setVmInstances(
                             mVmIsolatedStorageService.getOrCreateIcingConnection(
-                                    userHandle.getIdentifier()));
+                                    userHandle.getIdentifier()),
+                            mVmIsolatedStorageService);
                     initializeIcingWithRetry(instance);
                 } catch (RemoteException e) {
                     Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);

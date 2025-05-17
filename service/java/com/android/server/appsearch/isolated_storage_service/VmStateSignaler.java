@@ -20,7 +20,7 @@ import android.os.Looper;
 
 /** Signals VM state changes. */
 public final class VmStateSignaler {
-    private static final long INACTIVITY_TIMEOUT_MS = 5 * 1000; // 5 seconds
+    private static final long INACTIVITY_TIMEOUT_MS = 20 * 1000; // 20 seconds
     private final Handler mHandler;
     private final Runnable mVmStateIdleSetter;
 

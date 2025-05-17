@@ -53,7 +53,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -74,10 +73,6 @@ public final class AppSearchUserInstanceManager {
 
     @GuardedBy("mStorageInfoLocked")
     private final Map<UserHandle, UserStorageInfo> mStorageInfoLocked = new ArrayMap<>();
-
-    @GuardedBy("mIsolatedStorageServiceManagerLocked")
-    private final AtomicReference<IsolatedStorageServiceManager>
-            mIsolatedStorageServiceManagerLocked = new AtomicReference<>();
 
     @GuardedBy("mPerUserMigrationFutureLocked")
     private final Map<UserHandle, ScheduledFuture<?>> mPerUserMigrationFutureLocked =
@@ -112,6 +107,7 @@ public final class AppSearchUserInstanceManager {
      * @param userContext Context of the user calling AppSearch
      * @param userHandle The multi-user handle of the device user calling AppSearch
      * @param config Flag manager for AppSearch
+     * @param isolatedStorageServiceManager Manager for isolated storage
      * @return An initialized {@link AppSearchUserInstance} for this user
      */
     @NonNull
@@ -119,7 +115,8 @@ public final class AppSearchUserInstanceManager {
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
-            @NonNull ExecutorManager executorManager)
+            @NonNull ExecutorManager executorManager,
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
@@ -129,7 +126,13 @@ public final class AppSearchUserInstanceManager {
         try {
             AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
             if (instance == null) {
-                instance = createUserInstance(userContext, userHandle, config, executorManager);
+                instance =
+                        createUserInstance(
+                                userContext,
+                                userHandle,
+                                config,
+                                executorManager,
+                                isolatedStorageServiceManager);
                 mInstancesLocked.put(userHandle, instance);
             }
             return instance;
@@ -168,20 +171,20 @@ public final class AppSearchUserInstanceManager {
      *
      * @param userHandle The multi-user user handle of the user that needs to be removed.
      * @param userContext Context for the user instance being removed.
+     * @param isolatedStorageServiceManager Manager for isolated storage.
      */
     public void removeUserData(
             @NonNull UserHandle userHandle,
             @NonNull Context userContext,
-            @NonNull ServiceAppSearchConfig config) {
+            @NonNull ServiceAppSearchConfig config,
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager) {
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(config);
 
         // Remove the icing user instance in IsolatedStorageService
-        if (IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
-            synchronized (mIsolatedStorageServiceManagerLocked) {
-                mIsolatedStorageServiceManagerLocked.get().removeUserInstance(userHandle);
-            }
+        if (isolatedStorageServiceManager != null) {
+            isolatedStorageServiceManager.removeUserInstance(userHandle);
         }
     }
 
@@ -302,7 +305,8 @@ public final class AppSearchUserInstanceManager {
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
-            @NonNull ExecutorManager executorManager)
+            @NonNull ExecutorManager executorManager,
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
             throws AppSearchException {
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
@@ -315,10 +319,20 @@ public final class AppSearchUserInstanceManager {
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
-        if (LogUtil.INFO) {
-            if (IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
+        IcingSearchEngineInterface icingInstance = null;
+        if (isolatedStorageServiceManager != null) {
+            if (LogUtil.INFO) {
                 Log.i(TAG, "Creating new AppSearch instance in isolated storage.");
-            } else {
+            }
+            icingInstance =
+                    maybeGetIsolatedIcingSearchEngine(
+                            userContext,
+                            userHandle,
+                            config,
+                            executorManager,
+                            isolatedStorageServiceManager);
+        } else {
+            if (LogUtil.INFO) {
                 Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
             }
         }
@@ -338,8 +352,7 @@ public final class AppSearchUserInstanceManager {
                             initStatsBuilder,
                             visibilityCheckerImpl,
                             frameworkRevocableFileDescriptorStore,
-                            maybeGetIsolatedIcingSearchEngine(
-                                    userContext, userHandle, config, executorManager),
+                            icingInstance,
                             new ServiceOptimizeStrategy(config));
 
             // Update storage info file
@@ -373,27 +386,17 @@ public final class AppSearchUserInstanceManager {
             @NonNull Context userContext,
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
-            @NonNull ExecutorManager executorManager)
+            @NonNull ExecutorManager executorManager,
+            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
         Objects.requireNonNull(executorManager);
+        Objects.requireNonNull(isolatedStorageServiceManager);
 
-        if (!IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
-            Log.i(TAG, "Isolated storage is not enabled.");
-            return null;
-        }
-
-        IcingSearchEngineInterface isolatedIcingInterface;
-        synchronized (mIsolatedStorageServiceManagerLocked) {
-            if (mIsolatedStorageServiceManagerLocked.get() == null) {
-                mIsolatedStorageServiceManagerLocked.set(
-                        new IsolatedStorageServiceManager(userContext, config));
-            }
-            isolatedIcingInterface =
-                    mIsolatedStorageServiceManagerLocked.get().getIcingInstance(userHandle, config);
-        }
+        IcingSearchEngineInterface isolatedIcingInterface =
+                isolatedStorageServiceManager.getIcingInstance(userHandle, config);
 
         // Enforce successful isolated storage creation when configured for use
         if (isolatedIcingInterface == null) {

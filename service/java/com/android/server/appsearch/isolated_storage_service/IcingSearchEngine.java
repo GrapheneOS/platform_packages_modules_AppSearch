@@ -21,6 +21,7 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.android.isolated_storage_service.IIcingSearchEngine;
+import com.android.server.appsearch.util.MemInfoReader;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchGetResultProto;
@@ -76,25 +77,37 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private final IcingSearchEngineOptions mOptions;
     private final VmStateSignaler mVmStateSignaler;
     private volatile IIcingSearchEngine mEngine;
+    // The isolated storage service implemented by the VM to access icing.
+    private volatile com.android.isolated_storage_service.IIsolatedStorageService
+            mVmIsolatedStorageService;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
             @NonNull IIcingSearchEngine engine,
             @NonNull IcingSearchEngineOptions options,
-            @NonNull VmStateSignaler vmStateSignaler) {
+            @NonNull VmStateSignaler vmStateSignaler,
+            @NonNull
+                    com.android.isolated_storage_service.IIsolatedStorageService
+                            vmIsolatedStorageService) {
         Log.d(TAG, "constructing");
         mEngine = Objects.requireNonNull(engine);
+        mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
         mOptions = Objects.requireNonNull(options);
         mVmStateSignaler = Objects.requireNonNull(vmStateSignaler);
     }
 
     /**
-     * Sets the VM engine to use.
+     * Sets the VM instances, including engine and isolated storage service.
      *
-     * <p>Use this to replace a dead VM engine.
+     * <p>Use this to replace dead VM instances.
      */
-    public void setVmEngine(@NonNull IIcingSearchEngine engine) {
+    public void setVmInstances(
+            @NonNull IIcingSearchEngine engine,
+            @NonNull
+                    com.android.isolated_storage_service.IIsolatedStorageService
+                            vmIsolatedStorageService) {
         mEngine = Objects.requireNonNull(engine);
+        mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
     }
 
     @Override
@@ -142,13 +155,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mVmStateSignaler.signalActive();
             resultData = mEngine.setSchema(input, ignoreErrorsAndDeleteDocuments);
         } catch (OutOfMemoryError e) {
-            // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(
                     TAG,
                     "Got out of memory in set schema. Request length: "
                             + input.length
                             + ", number of schema types in request: "
                             + schema.getTypesCount());
+            logFreeMemoryInfo();
+
             return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -256,8 +270,9 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mVmStateSignaler.signalActive();
             resultData = mEngine.put(input);
         } catch (OutOfMemoryError e) {
-            // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
+            logFreeMemoryInfo();
+
             return PutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
@@ -279,13 +294,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mVmStateSignaler.signalActive();
             resultData = mEngine.batchPut(input);
         } catch (OutOfMemoryError e) {
-            // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(
                     TAG,
                     "Got out of memory in batch put. Request length: "
                             + input.length
                             + ", number of documents in request: "
                             + putDocumentRequest.getDocumentsCount());
+            logFreeMemoryInfo();
+
             return BatchPutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return BatchPutResultProto.newBuilder()
@@ -845,7 +861,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static @NonNull StatusProto remoteExceptionStatus(@NonNull Exception e) {
         Log.e(TAG, "Failed to call isolated storage service via binder", e);
         return StatusProto.newBuilder()
-                .setCode(StatusProto.Code.INTERNAL)
+                .setCode(StatusProto.Code.UNAVAILABLE)
                 .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
                 .build();
     }
@@ -865,5 +881,49 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to parse proto data: " + e.getMessage())
                 .build();
+    }
+
+    /**
+     * Helper function to get and print the amount of free RAM in KB. {@code -1} will be printed if
+     * failing to get the number.
+     */
+    private void logFreeMemoryInfo() {
+        long deviceFreeMemoryKb = -1;
+        try {
+            MemInfoReader memInfo = new MemInfoReader();
+            deviceFreeMemoryKb = memInfo.getFreeSizeKb();
+        } catch (Error e) {
+            Log.w(TAG, "Unable to get device free memory size from /proc/meminfo due to error", e);
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to get device free memory size from /proc/meminfo", e);
+        }
+
+        long jvmFreeMemoryKb = -1;
+        try {
+            jvmFreeMemoryKb = Runtime.getRuntime().freeMemory() / 1024;
+        } catch (Error e) {
+            Log.w(TAG, "Unable to get jvm free memory size due to error", e);
+        }
+
+        long vmIsolatedStorageFreeMemoryKb = -1;
+        try {
+            vmIsolatedStorageFreeMemoryKb = mVmIsolatedStorageService.getAvailableMemory();
+        } catch (RemoteException e) {
+            Log.w(TAG, "Unable to get vm isolated storage free memory size", e);
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Unable to get vm isolated storage free memory size due to OOM error", e);
+        } catch (Error e) {
+            Log.w(TAG, "Unable to get vm isolated storage free memory size due to error", e);
+        }
+
+        Log.w(
+                TAG,
+                "Android device free memory (from /proc/meminfo): "
+                        + deviceFreeMemoryKb
+                        + " KB, Android JVM free memory (from Runtime): "
+                        + jvmFreeMemoryKb
+                        + " KB, VM isolated storage free memory: "
+                        + vmIsolatedStorageFreeMemoryKb
+                        + " KB.");
     }
 }
