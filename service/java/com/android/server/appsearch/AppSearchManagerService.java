@@ -218,7 +218,7 @@ public class AppSearchManagerService extends SystemService {
         mContext = Objects.requireNonNull(context);
         mLifecycle = Objects.requireNonNull(lifecycle);
         mAppSearchEnvironment = AppSearchEnvironmentFactory.getEnvironmentInstance();
-        mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR);
+        mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR, mContext);
         mExecutorManager = new ExecutorManager(mAppSearchConfig);
         mSearchSessionStatsExtractor = new SearchSessionStatsExtractor();
     }

@@ -17,8 +17,8 @@
 package com.android.server.appsearch;
 
 import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
-import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.isolatedStorageFlagsSet;
 
+import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.DeviceConfig;
@@ -224,7 +224,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 updateCachedValues(properties);
             };
 
-    private FrameworkServiceAppSearchConfig() {}
+    private final Context mContext;
+
+    private FrameworkServiceAppSearchConfig(@NonNull Context context) {
+        mContext = context;
+    }
 
     /**
      * Creates an instance of {@link FrameworkServiceAppSearchConfig}.
@@ -234,9 +238,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     @NonNull
-    public static FrameworkServiceAppSearchConfig create(@NonNull Executor executor) {
+    public static FrameworkServiceAppSearchConfig create(
+            @NonNull Executor executor, @NonNull Context context) {
         Objects.requireNonNull(executor);
-        FrameworkServiceAppSearchConfig configManager = new FrameworkServiceAppSearchConfig();
+        FrameworkServiceAppSearchConfig configManager =
+                new FrameworkServiceAppSearchConfig(context);
         configManager.initialize(executor);
         return configManager;
     }
@@ -248,12 +254,13 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
      * existing instance will be returned.
      */
     @NonNull
-    public static FrameworkServiceAppSearchConfig getInstance(@NonNull Executor executor) {
+    public static FrameworkServiceAppSearchConfig getInstance(
+            @NonNull Executor executor, @NonNull Context context) {
         Objects.requireNonNull(executor);
         if (sConfig == null) {
             synchronized (FrameworkServiceAppSearchConfig.class) {
                 if (sConfig == null) {
-                    sConfig = create(executor);
+                    sConfig = create(executor, context);
                 }
             }
         }
@@ -585,7 +592,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             // TODO: b/389105038 - remove the temporary workaround for binder transaction
             //  limit.
             int defaultMaxPageBytesLimit = IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT;
-            if (isolatedStorageFlagsSet()) {
+            if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, this)) {
                 // It's very likely we are using pVM backed isolated storage now.
                 defaultMaxPageBytesLimit = DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
             }

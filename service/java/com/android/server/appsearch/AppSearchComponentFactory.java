@@ -31,14 +31,16 @@ public final class AppSearchComponentFactory {
     private static volatile ServiceAppSearchConfig sConfigInstance;
 
     /** Gets an instance of ServiceAppSearchConfig for the given executor. */
-    public static ServiceAppSearchConfig getConfigInstance(@NonNull Executor executor) {
+    public static ServiceAppSearchConfig getConfigInstance(
+            @NonNull Executor executor, @NonNull Context context) {
         ServiceAppSearchConfig localRef = sConfigInstance;
         if (localRef == null) {
             synchronized (AppSearchComponentFactory.class) {
                 localRef = sConfigInstance;
                 if (localRef == null) {
                     sConfigInstance =
-                            localRef = FrameworkServiceAppSearchConfig.getInstance(executor);
+                            localRef =
+                                    FrameworkServiceAppSearchConfig.getInstance(executor, context);
                 }
             }
         }

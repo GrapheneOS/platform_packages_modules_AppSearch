@@ -20,6 +20,7 @@ import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.content.Context;
 import android.os.SystemClock;
 import android.provider.DeviceConfig;
 
@@ -58,7 +59,8 @@ public class MockingPlatformLoggerTest {
 
     @Before
     public void setUp() throws Exception {
-        mAppSearchConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+        Context context = ApplicationProvider.getApplicationContext();
+        mAppSearchConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
     }
 
     @Test

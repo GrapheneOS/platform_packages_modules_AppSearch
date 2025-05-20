@@ -146,7 +146,7 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Gets whether isolated storage flags are all set. */
-    public static boolean isolatedStorageFlagsSet() {
+    private static boolean isolatedStorageFlagsSet() {
         return Flags.enableIsolatedStorage()
                 && SystemProperties.getBoolean(
                         SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE, /* def= */ false);
