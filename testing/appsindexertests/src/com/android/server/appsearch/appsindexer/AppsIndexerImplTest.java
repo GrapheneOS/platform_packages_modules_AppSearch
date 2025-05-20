@@ -311,12 +311,9 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0); // No apps unchanged
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0); // No apps updated
 
-            // Currently we are logging added and updated and unchanged all as updated
-            // TODO(b/376688078): Fix app function stats logging
-            // assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(15); // One app updated
-            // assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(0);
-            // assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(0);
-            // assertThat(stats1.mApproximateNumberOfFunctionsUnchanged).isEqualTo(0);
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(0);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(15);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(0);
 
             List<String> indexedFunctionIds = new ArrayList<>();
             Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
@@ -384,12 +381,9 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(5);
 
-            // Currently we are logging added and updated and unchanged all as updated
-            // TODO(b/376688078): Fix app function stats logging
-            // assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(15);
-            // assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(5);
-            // assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(0);
-            // assertThat(stats1.mApproximateNumberOfFunctionsUnchanged).isEqualTo(0);
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(5);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(5);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(5);
 
             List<String> indexedFunctionIds = new ArrayList<>();
             Map<String, Map<String, AppFunctionDocument>> indexedFunctions =
@@ -505,6 +499,10 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(0);
 
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(0);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(1);
+
             // Verify the state of the indexed apps after the first update
             assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages).keySet())
                     .containsExactlyElementsIn(packages);
@@ -551,6 +549,10 @@ public class AppsIndexerImplTest {
             assertThat(stats1.mNumberOfAppsRemoved).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUnchanged).isEqualTo(0);
             assertThat(stats1.mNumberOfAppsUpdated).isEqualTo(1);
+
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(0);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(1);
 
             assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages).keySet())
                     .containsExactlyElementsIn(packages);
@@ -604,6 +606,10 @@ public class AppsIndexerImplTest {
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp1")),
                     stats1,
                     /* isFullUpdateRequired= */ false);
+
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(0);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(1);
         }
 
         // Simulate an update
@@ -622,6 +628,9 @@ public class AppsIndexerImplTest {
                     new AppsIndexerSettings(temporaryFolder.newFolder("temp2")),
                     stats1,
                     /* isFullUpdateRequired= */ false);
+            assertThat(stats1.mNumberOfFunctionsUpdated).isEqualTo(0);
+            assertThat(stats1.mApproximateNumberOfFunctionsRemoved).isEqualTo(1);
+            assertThat(stats1.mNumberOfFunctionsAdded).isEqualTo(0);
         }
 
         assertThat(mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(packages).keySet())
