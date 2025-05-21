@@ -19,7 +19,10 @@ import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.content.Context;
 import android.provider.DeviceConfig;
+
+import androidx.test.core.app.ApplicationProvider;
 
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
@@ -38,6 +41,7 @@ public class MockingServiceOptimizeStrategyTest {
 
     @Test
     public void testShouldNotOptimize_overOtherThresholds_underMinTimeThreshold() {
+        Context context = ApplicationProvider.getApplicationContext();
         // Create ServiceAppSearchConfig with min_time_optimize_threshold <
         // time_optimize_threshold
         DeviceConfig.setProperty(
@@ -61,7 +65,7 @@ public class MockingServiceOptimizeStrategyTest {
                 Integer.toString(0),
                 false);
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         ServiceOptimizeStrategy mServiceOptimizeStrategy =
                 new ServiceOptimizeStrategy(appSearchConfig);
         // Create optimizeInfo with all values above respective thresholds.

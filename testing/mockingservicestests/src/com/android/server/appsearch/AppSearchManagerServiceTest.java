@@ -218,7 +218,7 @@ public class AppSearchManagerServiceTest {
         // TestableDeviceConfig, the propertyChangedListeners are removed. Therefore we have to set
         // a fresh config with listeners in setUp in order to set new properties.
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         AppSearchComponentFactory.setConfigInstanceForTest(appSearchConfig);
 
         // Create the user instance and add a spy to its logger to verify logging
@@ -1464,24 +1464,23 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testIsolatedStorageNotAvailable() throws Exception {
-        assumeTrue(IsolatedStorageServiceManager.isolatedStorageFlagsSet());
-        // Ensure that AppSearch fails if the isolated storage service fails
-        final boolean useIsolatedStorage = true;
         Context context = ApplicationProvider.getApplicationContext();
-        // Create a new user, one was already created during setUp()
-        UserHandle testUserHandle = new UserHandle(1);
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
-        IsolatedStorageServiceManager isolatedStorageServiceManager =
-                new IsolatedStorageServiceManager(context, appSearchConfig, DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_ENABLED,
                 Boolean.toString(true),
                 false);
-        assertThat(appSearchConfig.getIsolatedStorageEnabled()).isEqualTo(true);
+        assumeTrue(IsolatedStorageServiceManager.useIsolatedStorage(context, appSearchConfig));
+        // Create a new user, one was already created during setUp()
+        UserHandle testUserHandle = new UserHandle(1);
+        IsolatedStorageServiceManager isolatedStorageServiceManager =
+                new IsolatedStorageServiceManager(context, appSearchConfig, DIRECT_EXECUTOR);
+        // Ensure that AppSearch fails if the isolated storage service fails
         TestContext testContext =
-                new TestContext(context, mRoleManager, mDevicePolicyManager, useIsolatedStorage);
+                new TestContext(context, mRoleManager, mDevicePolicyManager,
+                        /*useIsolatedStorage=*/true);
         assertThrows(
                 AppSearchException.class,
                 () -> {
