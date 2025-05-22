@@ -39,6 +39,7 @@ import android.content.pm.PackageManager;
 import android.os.UserHandle;
 import android.permission.PermissionManager;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
@@ -89,14 +90,30 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         InternalVisibilityConfig internalVisibilityConfig =
                 visibilityStore.getVisibility(prefixedSchema);
 
-        // If caller requires enterprise access, the given schema is only visible if caller has all
-        // required permissions.
+        // If caller requires enterprise access, the given schema is only visible if there exists a
+        // required permissions set containing ENTERPRISE_ACCESS that the caller passes; the passing
+        // set may be part of a SchemaVisibilityConfig
         if (frameworkCallerAccess.isForEnterprise()) {
-            return internalVisibilityConfig != null
-                    && isSchemaVisibleToPermission(
-                            internalVisibilityConfig.getVisibilityConfig(),
-                            frameworkCallerAccess.getCallingAttributionSource(),
-                            /* checkEnterpriseAccess= */ true);
+            if (internalVisibilityConfig == null) {
+                return false;
+            }
+            if (isSchemaVisibleToPermission(
+                    internalVisibilityConfig.getVisibilityConfig(),
+                    frameworkCallerAccess.getCallingAttributionSource(),
+                    /* checkEnterpriseAccess= */ true)) {
+                return true;
+            }
+            if (Flags.enableEnterpriseVisibleToConfig()) {
+                Set<SchemaVisibilityConfig> visibleToConfigs =
+                        internalVisibilityConfig.getVisibleToConfigs();
+                for (SchemaVisibilityConfig visibleToConfig : visibleToConfigs) {
+                    if (checkMatchAllVisibilityConfig(frameworkCallerAccess,
+                            visibleToConfig, /* checkEnterpriseAccess= */ true)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         if (internalVisibilityConfig == null) {
@@ -124,7 +141,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         Set<SchemaVisibilityConfig> visibleToConfigs =
                 internalVisibilityConfig.getVisibleToConfigs();
         for (SchemaVisibilityConfig visibleToConfig : visibleToConfigs) {
-            if (checkMatchAllVisibilityConfig(frameworkCallerAccess, visibleToConfig)) {
+            if (checkMatchAllVisibilityConfig(frameworkCallerAccess,
+                    visibleToConfig, /* checkEnterpriseAccess= */ false)) {
                 return true;
             }
         }
@@ -156,11 +174,13 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
     /** Check whether the caller math ALL of the visibility requirements. */
     private boolean checkMatchAllVisibilityConfig(
             @NonNull FrameworkCallerAccess frameworkCallerAccess,
-            @NonNull SchemaVisibilityConfig visibilityConfig) {
+            @NonNull SchemaVisibilityConfig visibilityConfig,
+            boolean checkEnterpriseAccess) {
 
         // We will skip following checks if user never specific them. But the caller should has
         // passed at least one check to get the access.
         boolean hasPassedCheck = false;
+        boolean hasPassedRequiredPermissionsCheck = false;
 
         // Check whether the caller is in the allow list and has access to the given schema.
         if (!visibilityConfig.getAllowedPackages().isEmpty()) {
@@ -173,15 +193,15 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         }
 
         // Check whether caller has all required permissions for the given schema.
-        // We could directly return the boolean results since it is the last checking.
         if (!visibilityConfig.getRequiredPermissions().isEmpty()) {
             if (!isSchemaVisibleToPermission(
                     visibilityConfig,
                     frameworkCallerAccess.getCallingAttributionSource(),
-                    /* checkEnterpriseAccess= */ false)) {
+                    checkEnterpriseAccess)) {
                 return false; // Return early for the 'ALL' case.
             }
             hasPassedCheck = true;
+            hasPassedRequiredPermissionsCheck = true;
         }
 
         // Check whether the calling package has visibility to the package providing the schema.
@@ -192,7 +212,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             hasPassedCheck = true;
         }
 
-        return hasPassedCheck;
+        // If enterprise call, must also pass a required permissions check
+        return hasPassedCheck && (!checkEnterpriseAccess || hasPassedRequiredPermissionsCheck);
     }
 
     private boolean isSchemaPubliclyVisibleFromPackage(

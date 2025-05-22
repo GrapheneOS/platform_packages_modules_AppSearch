@@ -616,3 +616,13 @@ flag {
     description: "Enable retrying the critical section of initialization before resetting as a last resort."
     bug: "415387509"
 }
+
+flag {
+    name: "enable_enterprise_visible_to_config"
+    namespace: "appsearch"
+    description: "Enable checking VisibleToConfig for schema visibility when querying with enterprise global search session."
+    bug: "417289133"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
