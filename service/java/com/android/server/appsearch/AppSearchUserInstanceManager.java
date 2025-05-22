@@ -355,8 +355,9 @@ public final class AppSearchUserInstanceManager {
                     new FrameworkRevocableFileDescriptorStore(userContext, config);
         }
         @AppSearchResult.ResultCode int statusCode = RESULT_OK;
+        AppSearchImpl appSearchImpl = null;
         try {
-            AppSearchImpl appSearchImpl =
+            appSearchImpl =
                     AppSearchImpl.create(
                             icingDir,
                             config,
@@ -375,6 +376,20 @@ public final class AppSearchUserInstanceManager {
         } catch (AppSearchException e) {
             AppSearchResult<Void> failedResult = throwableToFailedResult(e);
             statusCode = failedResult.getResultCode();
+            if (Flags.enableCloseAppsearchOnCreationFailure() && appSearchImpl != null) {
+                // If we've created the instance, but encountered some issue.
+                // Close this instance so that we clean up it's resources.
+                Log.e(TAG, "Failed to create AppSearch instance: ", e);
+                appSearchImpl.close();
+            }
+            throw e;
+        } catch (Exception e) {
+            if (Flags.enableCloseAppsearchOnCreationFailure() && appSearchImpl != null) {
+                // If we've created the instance, but encountered some issue.
+                // Close this instance so that we clean up it's resources.
+                Log.e(TAG, "Failed to create AppSearch instance: ", e);
+                appSearchImpl.close();
+            }
             throw e;
         } finally {
             initStatsBuilder
