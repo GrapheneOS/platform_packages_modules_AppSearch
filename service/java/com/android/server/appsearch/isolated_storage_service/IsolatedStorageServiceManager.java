@@ -88,6 +88,8 @@ public final class IsolatedStorageServiceManager {
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
     private static final long VM_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 
+    private static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
+
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
     private final Executor mExecutor;
@@ -274,7 +276,7 @@ public final class IsolatedStorageServiceManager {
                 intent,
                 new IsolatedStorageServiceConnection(future),
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
-                UserHandle.SYSTEM);
+                ISOLATED_STORAGE_USER);
         try {
             future.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -396,6 +398,18 @@ public final class IsolatedStorageServiceManager {
             throw new IllegalStateException("PFD VM connection is an invalid FD: " + pfd.getFd());
         }
         return pfd;
+    }
+
+    /**
+     * Return true iff data from this user can be stored in isolatedStorage.
+     *
+     * <p>To ensure that data is encrypted with the appropriate credential encryption (CE) keys, we
+     * restrict Isolated Storage usage to only users running with the same ID as the Isolated
+     * Storage Service user. Other users should store their data in conventionally protected
+     * storage, which has equivalent security properties.
+     */
+    public static boolean isUserAllowed(@NonNull UserHandle id) {
+        return ISOLATED_STORAGE_USER.equals(id);
     }
 
     private ServiceConfig createServiceConfig() {

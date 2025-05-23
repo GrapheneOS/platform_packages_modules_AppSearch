@@ -21,7 +21,6 @@ import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
 
-import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 
 import com.google.android.icing.IcingSearchEngineInterface;
@@ -52,17 +51,8 @@ public class DataMigrationUtil {
     /** Checks if data migration is needed from AppSearch to Isolated Storage. */
     // TODO(b/407815165) Right now just check if the icing/version on host exists
     //  We can persist a file to save the migration status, so dir deletion could happen later.
-    //
-    // TODO(b/407815165) Right now we are checking for USE_ISOLATED_STORAGE flag, later this can be
-    // replaced by checking DATA_MIGRATION_TO_ISOLATED_STORAGE_ENABLED flag as well.
     public static boolean needDataMigration(
-            @NonNull Context userContext,
-            @NonNull UserHandle userHandle,
-            @NonNull ServiceAppSearchConfig config) {
-        if (!IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
-            return false;
-        }
-
+            @NonNull Context userContext, @NonNull UserHandle userHandle) {
         File appSearchDir =
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
