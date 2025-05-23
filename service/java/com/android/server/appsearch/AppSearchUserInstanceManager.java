@@ -207,10 +207,13 @@ public final class AppSearchUserInstanceManager {
             AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
             if (instance == null) {
                 // Impossible scenario, user cannot call an uninitialized SearchSession,
-                // getInstance should always find the instance for the given user and never try to
-                // create an instance for this user again.
+                // getInstance should always find the instance for the given user and never
+                // try to create an instance for this user again.
                 throw new IllegalStateException(
-                        "AppSearchUserInstance has never been created for: " + userHandle);
+                        "AppSearchUserInstance is not created for "
+                         + userHandle
+                         + ". Instance may still be starting, have crashed, have never been "
+                         + "created, or may have been removed.");
             }
             return instance;
         } finally {
