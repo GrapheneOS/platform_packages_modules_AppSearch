@@ -74,7 +74,7 @@ public final class IsolatedStorageServiceManager {
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 512_000_000;
-    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = true;
+    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
