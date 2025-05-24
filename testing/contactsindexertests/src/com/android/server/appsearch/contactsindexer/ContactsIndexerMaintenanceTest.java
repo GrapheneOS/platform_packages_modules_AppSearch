@@ -452,9 +452,9 @@ public class ContactsIndexerMaintenanceTest {
                                             mContextWrapper,
                                             ContactsIndexerMaintenanceService.class))
                             .setExtras(jobExtras)
-                            // Run as soon as possible
-                            .setMinimumLatency(1)
-                            .setOverrideDeadline(1)
+                            // Run with slight delay to avoid rescheduling the job too quickly
+                            .setMinimumLatency(200)
+                            .setOverrideDeadline(200)
                             .build();
             jobScheduler.schedule(noTypeJob);
             // -1 defaultValue because the default defaultValue is 0, which is the same as

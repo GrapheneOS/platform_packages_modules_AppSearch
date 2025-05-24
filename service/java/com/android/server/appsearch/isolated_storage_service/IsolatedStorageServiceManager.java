@@ -146,7 +146,7 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Gets whether isolated storage flags are all set. */
-    public static boolean isolatedStorageFlagsSet() {
+    private static boolean isolatedStorageFlagsSet() {
         return Flags.enableIsolatedStorage()
                 && SystemProperties.getBoolean(
                         SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE, /* def= */ false);
@@ -197,6 +197,12 @@ public final class IsolatedStorageServiceManager {
                 mHandler.post(mVmStatusChecker);
             }
         }
+    }
+
+    /** Called when the user unlocks the device. */
+    public void onUserUnlocking() {
+        Log.i(TAG, "onUserUnlocking");
+        mVmStateSignaler.scheduleEnablement();
     }
 
     /** Removes the icing instance for the corresponding userHandle */

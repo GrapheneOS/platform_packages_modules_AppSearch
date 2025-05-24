@@ -17,8 +17,8 @@
 package com.android.server.appsearch;
 
 import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
-import static com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager.isolatedStorageFlagsSet;
 
+import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.DeviceConfig;
@@ -183,9 +183,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             KEY_MAX_OPEN_BLOB_COUNT,
             KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS,
             KEY_LIGHTWEIGHT_PERSIST_TYPE,
-            KEY_ISOLATED_STORAGE_MEMORY_BYTES,
             KEY_LIGHTWEIGHT_PERSIST_TYPE,
-            KEY_ISOLATED_STORAGE_ENABLED,
             KEY_COMPRESSION_THRESHOLD_BYTES,
             KEY_USE_FIXED_EXECUTOR_SERVICE,
             KEY_COMPRESSION_MEM_LEVEL
@@ -224,7 +222,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 updateCachedValues(properties);
             };
 
-    private FrameworkServiceAppSearchConfig() {}
+    private final Context mContext;
+
+    private FrameworkServiceAppSearchConfig(@NonNull Context context) {
+        mContext = context;
+    }
 
     /**
      * Creates an instance of {@link FrameworkServiceAppSearchConfig}.
@@ -234,9 +236,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     @NonNull
-    public static FrameworkServiceAppSearchConfig create(@NonNull Executor executor) {
+    public static FrameworkServiceAppSearchConfig create(
+            @NonNull Executor executor, @NonNull Context context) {
         Objects.requireNonNull(executor);
-        FrameworkServiceAppSearchConfig configManager = new FrameworkServiceAppSearchConfig();
+        FrameworkServiceAppSearchConfig configManager =
+                new FrameworkServiceAppSearchConfig(context);
         configManager.initialize(executor);
         return configManager;
     }
@@ -248,12 +252,13 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
      * existing instance will be returned.
      */
     @NonNull
-    public static FrameworkServiceAppSearchConfig getInstance(@NonNull Executor executor) {
+    public static FrameworkServiceAppSearchConfig getInstance(
+            @NonNull Executor executor, @NonNull Context context) {
         Objects.requireNonNull(executor);
         if (sConfig == null) {
             synchronized (FrameworkServiceAppSearchConfig.class) {
                 if (sConfig == null) {
-                    sConfig = create(executor);
+                    sConfig = create(executor, context);
                 }
             }
         }
@@ -585,7 +590,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             // TODO: b/389105038 - remove the temporary workaround for binder transaction
             //  limit.
             int defaultMaxPageBytesLimit = IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT;
-            if (isolatedStorageFlagsSet()) {
+            if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, this)) {
                 // It's very likely we are using pVM backed isolated storage now.
                 defaultMaxPageBytesLimit = DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
             }
@@ -696,32 +701,26 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
 
     @Override
     public long getIsolatedStorageMemoryBytes() {
-        synchronized (mLock) {
-            throwIfClosedLocked();
-            return mBundleLocked.getLong(
-                    KEY_ISOLATED_STORAGE_MEMORY_BYTES,
-                    IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES);
-        }
+        return DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_MEMORY_BYTES,
+                IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES);
     }
 
     @Override
     public boolean getIsolatedStorageEnabled() {
-        synchronized (mLock) {
-            throwIfClosedLocked();
-            return mBundleLocked.getBoolean(
-                    KEY_ISOLATED_STORAGE_ENABLED,
-                    IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED);
-        }
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLED,
+                IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED);
     }
 
     @Override
     public boolean enableIsolatedStorageMigration() {
-        synchronized (mLock) {
-            throwIfClosedLocked();
-            return mBundleLocked.getBoolean(
-                    KEY_ISOLATED_STORAGE_MIGRATION_ENABLED,
-                    IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED);
-        }
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_MIGRATION_ENABLED,
+                IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED);
     }
 
     @Override
@@ -1056,34 +1055,6 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             case KEY_MAX_OPEN_BLOB_COUNT:
                 synchronized (mLock) {
                     mBundleLocked.putInt(key, properties.getInt(key, DEFAULT_MAX_OPEN_BLOB_COUNT));
-                }
-                break;
-            case KEY_ISOLATED_STORAGE_MEMORY_BYTES:
-                synchronized (mLock) {
-                    mBundleLocked.putLong(
-                            key,
-                            properties.getLong(
-                                    key, IsolatedStorageServiceManager.DEFAULT_MEMORY_BYTES));
-                }
-                break;
-            case KEY_ISOLATED_STORAGE_ENABLED:
-                synchronized (mLock) {
-                    mBundleLocked.putBoolean(
-                            key,
-                            properties.getBoolean(
-                                    key,
-                                    IsolatedStorageServiceManager
-                                            .DEFAULT_ISOLATED_STORAGE_ENABLED));
-                }
-                break;
-            case KEY_ISOLATED_STORAGE_MIGRATION_ENABLED:
-                synchronized (mLock) {
-                    mBundleLocked.putBoolean(
-                            key,
-                            properties.getBoolean(
-                                    key,
-                                    IsolatedStorageServiceManager
-                                            .DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED));
                 }
                 break;
             case KEY_LIGHTWEIGHT_PERSIST_TYPE:

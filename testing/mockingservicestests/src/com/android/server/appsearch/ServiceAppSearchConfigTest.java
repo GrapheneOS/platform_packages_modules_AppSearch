@@ -89,10 +89,13 @@ import static com.android.server.appsearch.external.localstorage.IcingOptionsCon
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.content.Context;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.DeviceConfig;
+
+import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
@@ -112,11 +115,12 @@ public class ServiceAppSearchConfigTest {
     public final RuleChain mRuleChain =
         AppSearchTestUtils.createCommonTestRules()
             .around(new TestableDeviceConfig.TestableDeviceConfigRule());
+    private final Context context = ApplicationProvider.getApplicationContext();
 
     @Test
     public void testDefaultValues_cachedMinTimeOptimizeThreshold() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         if (Flags.enableFourHourMinTimeOptimizeThreshold()) {
             assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
@@ -130,7 +134,7 @@ public class ServiceAppSearchConfigTest {
     @Test
     public void testDefaultValues_compressionMemLevel() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         if (Flags.enableCompressionMemLevelOne()) {
             assertThat(appSearchConfig.getCompressionMemLevel()).isEqualTo(1);
@@ -143,7 +147,7 @@ public class ServiceAppSearchConfigTest {
     @Test
     public void testDefaultValues_allCachedValue() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedMinTimeIntervalBetweenSamplesMillis()).isEqualTo(
                 DEFAULT_MIN_TIME_INTERVAL_BETWEEN_SAMPLES_MILLIS);
@@ -245,7 +249,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedMinTimeIntervalBetweenSamplesMillis()).isEqualTo(
                 minTimeIntervalBetweenSamplesMillis);
@@ -259,7 +263,7 @@ public class ServiceAppSearchConfigTest {
                 Long.toString(minTimeIntervalBetweenSamplesMillis),
                 false);
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         minTimeIntervalBetweenSamplesMillis = -2;
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
@@ -311,7 +315,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedSamplingIntervalDefault()).isEqualTo(
                 samplingIntervalDefault);
@@ -367,7 +371,7 @@ public class ServiceAppSearchConfigTest {
                 Integer.toString(samplingIntervalOptimizeStats),
                 false);
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // Overrides
         samplingIntervalDefault = -4;
@@ -436,7 +440,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedSamplingIntervalForPutDocumentStats()).isEqualTo(
                 samplingIntervalPutDocumentStats);
@@ -460,7 +464,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedSamplingIntervalForPutDocumentStats()).isEqualTo(
                 samplingIntervalPutDocumentStats);
@@ -483,7 +487,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // Sampling values changed.
         samplingIntervalPutDocumentStats = -3;
@@ -518,7 +522,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // Default sampling interval changed.
         samplingIntervalDefault = -3;
@@ -549,7 +553,7 @@ public class ServiceAppSearchConfigTest {
                 /* makeDefault= */ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getMaxDocumentSizeBytes()).isEqualTo(2001);
         assertThat(appSearchConfig.getPerPackageDocumentCountLimit()).isEqualTo(2002);
         assertThat(appSearchConfig.getDocumentCountLimitStartThreshold()).isEqualTo(2003);
@@ -583,7 +587,7 @@ public class ServiceAppSearchConfigTest {
                 /*makeDefault=*/ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getMaxSuggestionCount()).isEqualTo(2003);
 
         // Override
@@ -615,7 +619,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedBytesOptimizeThreshold()).isEqualTo(147147);
         assertThat(appSearchConfig.getCachedTimeOptimizeThresholdMs()).isEqualTo(258258);
@@ -643,7 +647,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // Override
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
@@ -676,7 +680,7 @@ public class ServiceAppSearchConfigTest {
                 KEY_API_CALL_STATS_LIMIT, Long.toString(dumpsysStatsLimit), false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getCachedApiCallStatsLimit()).isEqualTo(dumpsysStatsLimit);
     }
@@ -687,7 +691,7 @@ public class ServiceAppSearchConfigTest {
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_API_CALL_STATS_LIMIT, Long.toString(dumpsysStatsLimit), false);
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         long newDumpsysStatsLimit = 20;
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
@@ -702,7 +706,7 @@ public class ServiceAppSearchConfigTest {
                 KEY_DENYLIST, "pkg=foo&db=bar&apis=localSetSchema,localGetSchema", false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getCachedDenylist().checkDeniedPackageDatabase("foo", "bar",
                 CallStats.CALL_TYPE_SET_SCHEMA)).isTrue();
         assertThat(appSearchConfig.getCachedDenylist().checkDeniedPackageDatabase("foo", "bar",
@@ -714,7 +718,7 @@ public class ServiceAppSearchConfigTest {
     @Test
     public void testCustomizedValueOverride_denylist() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // By default, denylist should be empty
         for (Integer apiType : CallStats.getAllApiCallTypes()) {
@@ -772,7 +776,7 @@ public class ServiceAppSearchConfigTest {
                 KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1004), false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(15);
         assertThat(appSearchConfig.getIndexMergeSize()).isEqualTo(1000);
         assertThat(appSearchConfig.getDocumentStoreNamespaceIdFingerprint()).isEqualTo(true);
@@ -820,7 +824,7 @@ public class ServiceAppSearchConfigTest {
                 KEY_COMPRESSION_MEM_LEVEL, Integer.toString(3), false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // Override
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
@@ -871,7 +875,7 @@ public class ServiceAppSearchConfigTest {
     @Test
     public void testCustomizedValueOverride_rateLimitConfig() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getCachedRateLimitEnabled()).isEqualTo(
                 DEFAULT_RATE_LIMIT_ENABLED);
         AppSearchRateLimitConfig rateLimitConfig = appSearchConfig.getCachedRateLimitConfig();
@@ -932,7 +936,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         assertThat(appSearchConfig.getUseNewQualifiedIdJoinIndex()).isEqualTo(true);
     }
@@ -946,7 +950,7 @@ public class ServiceAppSearchConfigTest {
                 false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         // Override
         DeviceConfig.setProperty(
@@ -966,7 +970,7 @@ public class ServiceAppSearchConfigTest {
                 /*makeDefault=*/ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getCachedFullyPersistJobIntervalMillis()).isEqualTo(2003);
 
         // Override
@@ -987,7 +991,7 @@ public class ServiceAppSearchConfigTest {
                 /* makeDefault= */ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getCachedPersistDelayMillis()).isEqualTo(2003);
 
         // Override
@@ -1014,7 +1018,7 @@ public class ServiceAppSearchConfigTest {
                 /* makeDefault= */ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getMaxOpenBlobCount()).isEqualTo(2003);
         assertThat(appSearchConfig.getOrphanBlobTimeToLiveMs()).isEqualTo(2004);
 
@@ -1038,7 +1042,7 @@ public class ServiceAppSearchConfigTest {
     @RequiresFlagsDisabled(Flags.FLAG_ENABLE_RECOVERY_PROOF_PERSISTENCE)
     public void testGetLightweightPersistType_defaultValue_returnsLite() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getLightweightPersistType())
                 .isEqualTo(PersistType.Code.LITE);
     }
@@ -1047,7 +1051,7 @@ public class ServiceAppSearchConfigTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_RECOVERY_PROOF_PERSISTENCE)
     public void testGetLightweightPersistType_defaultValue_returnsRecoveryProof() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getLightweightPersistType())
                 .isEqualTo(PersistType.Code.RECOVERY_PROOF);
     }
@@ -1061,7 +1065,7 @@ public class ServiceAppSearchConfigTest {
                 /* makeDefault= */ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getLightweightPersistType())
                 .isEqualTo(PersistType.Code.FULL);
     }
@@ -1076,7 +1080,7 @@ public class ServiceAppSearchConfigTest {
                 /* makeDefault= */ false);
 
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getLightweightPersistType())
                 .isEqualTo(PersistType.Code.FULL);
 
@@ -1094,7 +1098,7 @@ public class ServiceAppSearchConfigTest {
     @Test
     public void testNotUsable_afterClose() {
         ServiceAppSearchConfig appSearchConfig =
-                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR);
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
 
         appSearchConfig.close();
 

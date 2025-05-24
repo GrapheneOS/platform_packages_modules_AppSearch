@@ -17,13 +17,22 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
-/** Signals VM state changes. */
-public final class VmStateSignaler {
+/**
+ * Signals VM state changes.
+ *
+ * <p>The signaler tries to set the VM to idle if there is no activity for a certain amount of time.
+ * The signaler needs to be enabled explicitly.
+ */
+final class VmStateSignaler {
+    private static final String TAG = "VmStateSignaler";
     private static final long INACTIVITY_TIMEOUT_MS = 20 * 1000; // 20 seconds
+    private static final long ENABLEMENT_DELAY_MS = 60 * 1000; // 60 seconds
     private final Handler mHandler;
     private final Runnable mVmStateIdleSetter;
 
+    private volatile boolean mEnabled = false;
     private volatile Boolean mIsIdle = null;
 
     public VmStateSignaler() {
@@ -38,19 +47,37 @@ public final class VmStateSignaler {
                 };
     }
 
-    /**
-     * Signals that the VM is active.
-     *
-     * <p>Also resets the inactivity timeout.
-     */
-    public void signalActive() {
+    /** Schedules the signaler to be enabled. */
+    public void scheduleEnablement() {
+        if (mEnabled) {
+            Log.i(TAG, "already enabled");
+            return;
+        }
+        mHandler.postDelayed(() -> mEnabled = true, ENABLEMENT_DELAY_MS);
+    }
+
+    /** Signals that a VM activity starts. */
+    public void signalActivityStarts() {
+        if (!mEnabled) {
+            return;
+        }
         mHandler.removeCallbacks(mVmStateIdleSetter);
 
         if (mIsIdle == null || mIsIdle) {
             mIsIdle = false;
             notifyIdle(false);
         }
+    }
 
+    /**
+     * Signals that the a VM activity ends.
+     *
+     * <p>Resets the inactivity timeout.
+     */
+    public void signalActivityEnds() {
+        if (!mEnabled) {
+            return;
+        }
         mHandler.postDelayed(mVmStateIdleSetter, INACTIVITY_TIMEOUT_MS);
     }
 
