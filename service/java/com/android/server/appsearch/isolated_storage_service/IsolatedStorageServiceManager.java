@@ -199,6 +199,12 @@ public final class IsolatedStorageServiceManager {
         }
     }
 
+    /** Called when the user unlocks the device. */
+    public void onUserUnlocking() {
+        Log.i(TAG, "onUserUnlocking");
+        mVmStateSignaler.scheduleEnablement();
+    }
+
     /** Removes the icing instance for the corresponding userHandle */
     public void removeUserInstance(UserHandle userHandle) {
         synchronized (mIcingInstancesLocked) {
