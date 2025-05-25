@@ -428,7 +428,11 @@ public final class AppSearchImpl implements Closeable {
                     --maxInitRetries;
                     schemaResultProto = mIcingSearchEngineLocked.getSchema();
                 }
-                LogUtil.piiTrace(TAG, "getSchema, response", schemaResultProto.getStatus(), schemaResultProto);
+                LogUtil.piiTrace(
+                        TAG,
+                        "getSchema, response",
+                        schemaResultProto.getStatus(),
+                        schemaResultProto);
                 checkCodeOneOf(schemaResultProto.getStatus(),
                         StatusProto.Code.OK, StatusProto.Code.NOT_FOUND);
                 SchemaProto schemaProto = schemaResultProto.getSchema();
@@ -518,7 +522,7 @@ public final class AppSearchImpl implements Closeable {
 
             } catch (AppSearchException e) {
                 // Some error. Reset and see if it fixes it.
-                Log.e(TAG, "Error initializing, resetting IcingSearchEngine.", e);
+                Log.e(TAG, "Error initializing, attempting to reset IcingSearchEngine.", e);
                 if (initStatsBuilder != null) {
                     initStatsBuilder.setStatusCode(e.getResultCode());
                 }
@@ -3841,6 +3845,10 @@ public final class AppSearchImpl implements Closeable {
             initStatsBuilder
                     .setHasReset(true)
                     .setResetStatusCode(statusProtoToResultCode(resetResultProto.getStatus()));
+            Log.i(
+                    TAG,
+                    "IcingSearchEngine Reset returned with status: "
+                            + resetResultProto.getStatus());
         }
 
         checkSuccess(resetResultProto.getStatus());
