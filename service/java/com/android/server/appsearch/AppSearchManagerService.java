@@ -3296,6 +3296,9 @@ public class AppSearchManagerService extends SystemService {
             }
             printStats(pw, statsList);
         } catch (Exception e) {
+            pw.println("Encountered exception: " + e);
+
+            // smoreland@ says - can't find this in logcat output when hit ???
             Log.e(TAG, "Encountered exception ", e);
         }
     }
