@@ -15,44 +15,68 @@
  */
 package com.android.server.appsearch;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.flags.Flags;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
+import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.util.Log;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.isolated_storage_service.IIcingSearchEngine;
+import com.android.isolated_storage_service.IIsolatedStorageService;
 import com.android.modules.utils.testing.TestableDeviceConfig;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
+import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
 import com.android.server.appsearch.util.ExecutorManager;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class AppSearchUserInstanceManagerTest {
-    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
-
     @Rule
-    public final TestableDeviceConfig.TestableDeviceConfigRule mDeviceConfigRule =
-            new TestableDeviceConfig.TestableDeviceConfigRule();
+    public final RuleChain mRuleChain =
+            AppSearchTestUtils.createCommonTestRules()
+                    .around(new TestableDeviceConfig.TestableDeviceConfigRule());
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
@@ -67,7 +91,6 @@ public class AppSearchUserInstanceManagerTest {
         mContext = ApplicationProvider.getApplicationContext();
         mUserHandle = mContext.getUser();
 
-
         // Set a test environment that provides a temporary folder for AppSearch
         File mAppSearchDir = mTemporaryFolder.newFolder();
         AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
@@ -80,8 +103,16 @@ public class AppSearchUserInstanceManagerTest {
                 });
 
         mServiceConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, mContext);
-
         mExecutorManager = new ExecutorManager(mServiceConfig);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+        for (UserHandle userHandle : manager.getAllUserHandles()) {
+            manager.cancelUserCreation(userHandle);
+            manager.closeAndRemoveUserInstance(userHandle, /* removeUserData= */ true);
+        }
     }
 
     @Test
@@ -219,5 +250,140 @@ public class AppSearchUserInstanceManagerTest {
             manager.unlockInstanceMap();
             assertThat(newInstance).isNull();
         }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
+    public void cancelUserCreation_beforeISSConnection_cancelsCreation() {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+        ContextWrapper blockingContext =
+                new ContextWrapper(mContext) {
+                    final PackageManager mPackageManager = spy(mContext.getPackageManager());
+
+                    @Override
+                    public PackageManager getPackageManager() {
+                        Log.i("MockContext", "Trying to get package manager");
+                        return mPackageManager;
+                    }
+
+                    // Simulate cancellation before connection to ISS by cancelling right when we
+                    // try to connect.
+                    @Override
+                    public boolean bindServiceAsUser(
+                            Intent service, ServiceConnection conn, int flags, UserHandle user) {
+                        manager.cancelUserCreation(mUserHandle);
+                        return true;
+                    }
+                };
+
+        // Mock package name return
+        ResolveInfo dummyResolveInfo = new ResolveInfo();
+        dummyResolveInfo.serviceInfo = new ServiceInfo();
+        dummyResolveInfo.serviceInfo.packageName = "dummy_package";
+        doReturn(List.of(dummyResolveInfo))
+                .when(blockingContext.getPackageManager())
+                .queryIntentServices(any(), any());
+
+        assertThrows(
+                CancellationException.class,
+                () ->
+                        manager.getOrCreateUserInstance(
+                                blockingContext,
+                                mUserHandle,
+                                mServiceConfig,
+                                mExecutorManager,
+                                new IsolatedStorageServiceManager(
+                                        blockingContext,
+                                        mServiceConfig,
+                                        mExecutorManager.getOrCreateUserScheduledExecutor(
+                                                mUserHandle))));
+        assertThat(manager.getAllUserHandles()).containsExactly(mUserHandle);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
+    public void cancelUserCreation_duringVMConnection_cancelsCreation() throws RemoteException {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+        com.android.server.appsearch.isolated_storage_service.IIsolatedStorageService
+                isolatedStorageService =
+                        Mockito.mock(
+                                com.android.server.appsearch.isolated_storage_service
+                                        .IIsolatedStorageService.class);
+
+        // Simulate cancellation during VM connection by cancelling when we try starting VM.
+        when(isolatedStorageService.startVm(any(ServiceConfig.class), anyLong(), anyBoolean()))
+                .thenAnswer(
+                        invocation -> {
+                            manager.cancelUserCreation(mUserHandle);
+                            return false;
+                        });
+
+        IsolatedStorageServiceManager issManager =
+                new IsolatedStorageServiceManager(
+                        mContext,
+                        mServiceConfig,
+                        mExecutorManager.getOrCreateUserScheduledExecutor(mUserHandle));
+        issManager.setIsolatedStorageServiceForTest(isolatedStorageService);
+
+        assertThrows(
+                CancellationException.class,
+                () ->
+                        manager.getOrCreateUserInstance(
+                                mContext,
+                                mUserHandle,
+                                mServiceConfig,
+                                mExecutorManager,
+                                issManager));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
+    public void cancelUserCreation_afterVMConnection_cancelsCreation()
+            throws AppSearchException, RemoteException {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+
+        IsolatedStorageServiceManager isolatedStorageServiceManager =
+                new IsolatedStorageServiceManager(
+                        mContext,
+                        mServiceConfig,
+                        mExecutorManager.getOrCreateUserScheduledExecutor(mUserHandle));
+
+        IsolatedStorageServiceManager spyIsolatedStorageServiceManager =
+                spy(isolatedStorageServiceManager);
+
+        com.android.server.appsearch.isolated_storage_service.IIsolatedStorageService
+                isolatedStorageService =
+                        Mockito.mock(
+                                com.android.server.appsearch.isolated_storage_service
+                                        .IIsolatedStorageService.class);
+
+        IIsolatedStorageService vmIsolatedStorageService =
+                Mockito.mock(IIsolatedStorageService.class);
+        IIcingSearchEngine icingSearchEngine = Mockito.mock(IIcingSearchEngine.class);
+        when(vmIsolatedStorageService.getOrCreateIcingConnection(anyInt()))
+                .thenReturn(icingSearchEngine);
+
+        doAnswer(
+                        invocation -> {
+                            spyIsolatedStorageServiceManager.setIsolatedStorageServiceForTest(
+                                    isolatedStorageService);
+                            spyIsolatedStorageServiceManager.setVmIsolatedStorageServiceForTest(
+                                    vmIsolatedStorageService);
+                            manager.cancelUserCreation(mUserHandle);
+                            invocation.callRealMethod();
+                            return null;
+                        })
+                .when(spyIsolatedStorageServiceManager)
+                .initialize();
+
+        assertThrows(
+                CancellationException.class,
+                () ->
+                        manager.getOrCreateUserInstance(
+                                mContext,
+                                mUserHandle,
+                                mServiceConfig,
+                                mExecutorManager,
+                                spyIsolatedStorageServiceManager));
     }
 }
