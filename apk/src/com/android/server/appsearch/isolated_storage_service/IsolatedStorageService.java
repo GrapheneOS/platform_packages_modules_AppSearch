@@ -160,8 +160,6 @@ public class IsolatedStorageService extends Service {
 
     private @Nullable VirtualMachine createVm(
             Context context, VirtualMachineManager vmm, ServiceConfig serviceConfig) {
-        // TODO(b/416335564): clean up isolated_storage_service_vm and isolated_storage_service_vm2
-        // in CE
         final int vmDebugLevel =
                 IS_DEBUG_BUILD
                         ? VirtualMachineConfig.DEBUG_LEVEL_FULL
@@ -192,6 +190,24 @@ public class IsolatedStorageService extends Service {
                 | UnsupportedOperationException e) {
             Log.e(TAG, "Failed to create virtual machine config " + VM_NAME, e);
             return null;
+        }
+    }
+
+    private void deleteOldVms() {
+        VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
+        if (vmm == null) {
+            Log.e(TAG, "Unable to get VirtualMachineManager");
+            return;
+        }
+        deleteVm(vmm, "isolated_storage_service_vm");
+        deleteVm(vmm, "isolated_storage_service2_vm");
+    }
+
+    private void deleteVm(VirtualMachineManager vmm, String name) {
+        try {
+            vmm.delete(name);
+        } catch (VirtualMachineException e) {
+            Log.e(TAG, "Failed to delete VM " + name, e);
         }
     }
 
@@ -333,6 +349,11 @@ public class IsolatedStorageService extends Service {
                 throw new RemoteException("pVM is not available");
             }
             return mVm.getStatus();
+        }
+
+        @Override
+        public void cleanUpOldVms() {
+            deleteOldVms();
         }
     }
 }

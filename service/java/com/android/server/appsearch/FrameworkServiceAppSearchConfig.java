@@ -128,6 +128,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_ISOLATED_STORAGE_ENABLED = "isolated_storage_enabled";
     public static final String KEY_ISOLATED_STORAGE_MIGRATION_ENABLED =
             "isolated_storage_migration_enabled";
+    public static final String KEY_ISOLATED_STORAGE_DELETE_CE_VMS =
+            "isolated_storage_delete_ce_vms";
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
 
@@ -721,6 +723,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_MIGRATION_ENABLED,
                 IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED);
+    }
+
+    @Override
+    public boolean getIsolatedStorageDeleteCeVms() {
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_DELETE_CE_VMS,
+                IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS);
     }
 
     @Override

@@ -236,6 +236,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED;
     }
 
+    /** Returns whether or not we need to clean up old CE VMs */
+    default boolean getIsolatedStorageDeleteCeVms() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS;
+    }
+
     /**
      * Default min time interval between consecutive optimize calls in millis if there is no value
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.
