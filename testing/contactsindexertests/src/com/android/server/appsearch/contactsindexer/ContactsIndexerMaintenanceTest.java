@@ -37,8 +37,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
-import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.app.UiAutomation;
+import android.app.appsearch.testutil.TestContactsIndexerConfig;
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
 import android.app.job.JobScheduler;
@@ -452,9 +452,9 @@ public class ContactsIndexerMaintenanceTest {
                                             mContextWrapper,
                                             ContactsIndexerMaintenanceService.class))
                             .setExtras(jobExtras)
-                            // Run with slight delay to avoid rescheduling the job too quickly
-                            .setMinimumLatency(200)
-                            .setOverrideDeadline(200)
+                            // Run as soon as possible
+                            .setMinimumLatency(1)
+                            .setOverrideDeadline(1)
                             .build();
             jobScheduler.schedule(noTypeJob);
             // -1 defaultValue because the default defaultValue is 0, which is the same as
@@ -467,16 +467,14 @@ public class ContactsIndexerMaintenanceTest {
                     .isEqualTo(-1);
 
             verify(mockLocalService, timeout(10000L)).doUpdateForUser(any(), any());
+
             // Scheduler should be called after the update is done and we re-schedule the job
-            verify(spyScheduler, timeout(10000L)).schedule(any(JobInfo.class));
+            ArgumentCaptor<JobInfo> jobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
+            verify(spyScheduler, timeout(10000L)).schedule(jobInfoCaptor.capture());
 
             // It should be rescheduled with the proper extra value.
-            assertThat(
-                            jobScheduler
-                                    .getPendingJob(MIN_CONTACTS_INDEXER_JOB_ID + DEFAULT_USER_ID)
-                                    .getExtras()
-                                    .getInt("indexer_type", -1))
-                    .isEqualTo(CONTACTS_INDEXER);
+            assertThat(jobInfoCaptor.getValue().getExtras().getInt("indexer_type", -1)).isEqualTo(
+                    CONTACTS_INDEXER);
         } finally {
             uiAutomation.dropShellPermissionIdentity();
         }
