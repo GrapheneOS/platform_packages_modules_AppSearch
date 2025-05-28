@@ -275,6 +275,7 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testSetSchemaStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.setSchema(
                 new SetSchemaAidlRequest(
@@ -286,7 +287,7 @@ public class AppSearchManagerServiceTest {
                 SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_SET_SCHEMA);
+        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_SET_SCHEMA, callReceivedTimestampMillis);
         // SetSchemaStats is also logged in SetSchema
         ArgumentCaptor<SetSchemaStats> setSchemaStatsCaptor = ArgumentCaptor.forClass(
                 SetSchemaStats.class);
@@ -301,6 +302,7 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testLocalGetSchemaStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.getSchema(
                 new GetSchemaAidlRequest(
@@ -310,11 +312,12 @@ public class AppSearchManagerServiceTest {
                         BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_SCHEMA);
+        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_SCHEMA, callReceivedTimestampMillis);
     }
 
     @Test
     public void testGlobalGetSchemaStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         String otherPackageName = mContext.getPackageName() + "foo";
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.getSchema(
@@ -325,12 +328,13 @@ public class AppSearchManagerServiceTest {
                         /* isForEnterprise= */ false),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_GLOBAL_GET_SCHEMA);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GLOBAL_GET_SCHEMA, callReceivedTimestampMillis);
     }
 
     @Test
     public void testGetNamespacesStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.getNamespaces(
                 new GetNamespacesAidlRequest(
@@ -339,12 +343,13 @@ public class AppSearchManagerServiceTest {
                         mUserHandle, BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_GET_NAMESPACES);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_NAMESPACES, callReceivedTimestampMillis);
     }
 
     @Test
     public void testPutDocumentsStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.putDocuments(
                 new PutDocumentsAidlRequest(
@@ -353,13 +358,14 @@ public class AppSearchManagerServiceTest {
                         new DocumentsParcel(Collections.emptyList(), Collections.emptyList()),
                         mUserHandle, BINDER_CALL_START_TIME), callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_PUT_DOCUMENTS);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_PUT_DOCUMENTS, callReceivedTimestampMillis);
         // putDocuments only logs PutDocumentStats indirectly so we don't verify it
     }
 
     @Test
     public void testPutDocumentsStatsLogging_takenActions() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         // Set SearchAction and ClickAction schemas.
         List<AppSearchSchema> schemas =
                 Arrays.asList(
@@ -471,7 +477,7 @@ public class AppSearchManagerServiceTest {
                 callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
         verifyCallStats(
-                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_PUT_DOCUMENTS);
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_PUT_DOCUMENTS, callReceivedTimestampMillis);
 
         // Verify search sessions.
         ArgumentCaptor<List<SearchSessionStats>> searchSessionsStatsCaptor =
@@ -512,6 +518,7 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testLocalGetDocumentsStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
                 new GetDocumentsAidlRequest(
@@ -524,12 +531,13 @@ public class AppSearchManagerServiceTest {
                 mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
                 callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_GET_DOCUMENTS);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_DOCUMENTS, callReceivedTimestampMillis);
     }
 
     @Test
     public void testGlobalGetDocumentsStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         String otherPackageName = mContext.getPackageName() + "foo";
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.getDocuments(
@@ -543,12 +551,16 @@ public class AppSearchManagerServiceTest {
                        mUserHandle, BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
                 callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID);
+        verifyCallStats(
+                mContext.getPackageName(),
+                DATABASE_NAME,
+                CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID,
+                callReceivedTimestampMillis);
     }
 
     @Test
     public void testSearchStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.search(
                 new SearchAidlRequest(AppSearchAttributionSource.createAttributionSource(mContext,
@@ -556,24 +568,26 @@ public class AppSearchManagerServiceTest {
                         DATABASE_NAME, /* searchExpression= */ "", EMPTY_SEARCH_SPEC, mUserHandle,
                         BINDER_CALL_START_TIME), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_SEARCH);
+        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_SEARCH, callReceivedTimestampMillis);
         // search only logs SearchStats indirectly so we don't verify it
     }
 
     @Test
     public void testGlobalSearchStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.globalSearch(new GlobalSearchAidlRequest(
                 AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
                 /* searchExpression= */ "", EMPTY_SEARCH_SPEC, mUserHandle, BINDER_CALL_START_TIME,
                 /* isForEnterprise= */ false), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_GLOBAL_SEARCH);
+        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_GLOBAL_SEARCH, callReceivedTimestampMillis);
         // globalSearch only logs SearchStats indirectly so we don't verify it
     }
 
     @Test
     public void testLocalGetNextPageStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.getNextPage(new GetNextPageAidlRequest(
                 AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
@@ -581,8 +595,8 @@ public class AppSearchManagerServiceTest {
                 AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID, mUserHandle,
                 BINDER_CALL_START_TIME, /* isForEnterprise= */ false), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_GET_NEXT_PAGE);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_NEXT_PAGE, callReceivedTimestampMillis);
         // getNextPage also logs QueryStats
         ArgumentCaptor<QueryStats> queryStatsCaptor = ArgumentCaptor.forClass(QueryStats.class);
         verify(mLogger, timeout(1000).times(1)).logStats(queryStatsCaptor.capture());
@@ -596,6 +610,7 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testGlobalGetNextPageStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.getNextPage(new GetNextPageAidlRequest(
                 AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
@@ -603,7 +618,7 @@ public class AppSearchManagerServiceTest {
                 AppSearchSchema.StringPropertyConfig.JOINABLE_VALUE_TYPE_QUALIFIED_ID, mUserHandle,
                 BINDER_CALL_START_TIME, /* isForEnterprise= */ false), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE);
+        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE, callReceivedTimestampMillis);
         // getNextPage also logs QueryStats
         ArgumentCaptor<QueryStats> queryStatsCaptor = ArgumentCaptor.forClass(QueryStats.class);
         verify(mLogger, timeout(1000).times(1)).logStats(queryStatsCaptor.capture());
@@ -617,15 +632,17 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testInvalidateNextPageTokenStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         mAppSearchManagerServiceStub.invalidateNextPageToken(new InvalidateNextPageTokenAidlRequest(
                 AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
                 /* nextPageToken= */ 0, mUserHandle, BINDER_CALL_START_TIME,
                 /* isForEnterprise= */ false));
-        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN);
+        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, callReceivedTimestampMillis);
     }
 
     @Test
     public void testWriteSearchResultsToFileStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         File tempFile = mTemporaryFolder.newFile();
         FileDescriptor fd = IoBridge.open(tempFile.getPath(), O_WRONLY);
         TestResultCallback callback = new TestResultCallback();
@@ -636,12 +653,16 @@ public class AppSearchManagerServiceTest {
                         new ParcelFileDescriptor(fd), /* searchExpression= */ "", EMPTY_SEARCH_SPEC,
                         mUserHandle, BINDER_CALL_START_TIME), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE);
+        verifyCallStats(
+                mContext.getPackageName(),
+                DATABASE_NAME,
+                CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE,
+                callReceivedTimestampMillis);
     }
 
     @Test
     public void testPutDocumentsFromFileStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         File tempFile = mTemporaryFolder.newFile();
         FileDescriptor fd = IoBridge.open(tempFile.getPath(), O_RDONLY);
         TestResultCallback callback = new TestResultCallback();
@@ -652,8 +673,10 @@ public class AppSearchManagerServiceTest {
                 new SchemaMigrationStats.Builder(mContext.getPackageName(), DATABASE_NAME).build(),
                 /* totalLatencyStartTimeMillis= */ 0, BINDER_CALL_START_TIME), callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE);
+        verifyCallStats(
+                mContext.getPackageName(),
+                DATABASE_NAME,
+                CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE, callReceivedTimestampMillis);
         // putDocumentsFromFile also logs SchemaMigrationStats
         ArgumentCaptor<SchemaMigrationStats> migrationStatsCaptor = ArgumentCaptor.forClass(
                 SchemaMigrationStats.class);
@@ -666,6 +689,7 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testSearchSuggestionStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         SearchSuggestionSpec searchSuggestionSpec =
             new SearchSuggestionSpec.Builder(/*maximumResultCount=*/1).build();
         TestResultCallback callback = new TestResultCallback();
@@ -677,12 +701,13 @@ public class AppSearchManagerServiceTest {
                         mUserHandle, BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_SEARCH_SUGGESTION);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_SEARCH_SUGGESTION, callReceivedTimestampMillis);
     }
 
     @Test
     public void testLocalReportUsageStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         setUpTestSchema(mContext.getPackageName(), DATABASE_NAME);
         setUpTestDocument(mContext.getPackageName(), DATABASE_NAME, NAMESPACE, ID);
         TestResultCallback callback = new TestResultCallback();
@@ -697,12 +722,13 @@ public class AppSearchManagerServiceTest {
                         /* systemUsage= */ false, mUserHandle, BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_REPORT_USAGE);
+        verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_REPORT_USAGE, callReceivedTimestampMillis);
         removeTestSchema(mContext.getPackageName(), DATABASE_NAME);
     }
 
     @Test
     public void testGlobalReportUsageStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         // Grant system access for global report usage
         mUiAutomation.adoptShellPermissionIdentity(Manifest.permission.READ_GLOBAL_APP_SEARCH_DATA);
         try {
@@ -721,8 +747,10 @@ public class AppSearchManagerServiceTest {
                             /* systemUsage= */ true, mUserHandle, BINDER_CALL_START_TIME),
                     callback);
             assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-            verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                    CallStats.CALL_TYPE_REPORT_SYSTEM_USAGE);
+            verifyCallStats(
+                    mContext.getPackageName(),
+                    DATABASE_NAME,
+                    CallStats.CALL_TYPE_REPORT_SYSTEM_USAGE, callReceivedTimestampMillis);
             removeTestSchema(otherPackageName, DATABASE_NAME);
         } finally {
             mUiAutomation.dropShellPermissionIdentity();
@@ -731,6 +759,7 @@ public class AppSearchManagerServiceTest {
 
     @Test
     public void testRemoveByDocumentIdStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
         mAppSearchManagerServiceStub.removeByDocumentId(
                 new RemoveByDocumentIdAidlRequest(
@@ -744,12 +773,15 @@ public class AppSearchManagerServiceTest {
                         BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get()).isNull(); // null means there wasn't an error
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID);
+        verifyCallStats(
+                mContext.getPackageName(),
+                DATABASE_NAME,
+                CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, callReceivedTimestampMillis);
     }
 
     @Test
     public void testRemoveByQueryStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.removeByQuery(
                 new RemoveByQueryAidlRequest(
@@ -759,12 +791,15 @@ public class AppSearchManagerServiceTest {
                         BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH);
+        verifyCallStats(
+                mContext.getPackageName(),
+                DATABASE_NAME,
+                CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH, callReceivedTimestampMillis);
     }
 
     @Test
     public void testGetStorageInfoStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.getStorageInfo(
                 new GetStorageInfoAidlRequest(
@@ -773,22 +808,24 @@ public class AppSearchManagerServiceTest {
                         mUserHandle, BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), DATABASE_NAME,
-                CallStats.CALL_TYPE_GET_STORAGE_INFO);
+        verifyCallStats(
+                mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_STORAGE_INFO, callReceivedTimestampMillis);
     }
 
     @Test
     public void testPersistToDiskStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         mAppSearchManagerServiceStub.persistToDisk(
                 new PersistToDiskAidlRequest(
                         AppSearchAttributionSource.createAttributionSource(mContext,
                                 mCallingPid), mUserHandle,
                         BINDER_CALL_START_TIME));
-        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_FLUSH);
+        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_FLUSH, callReceivedTimestampMillis);
     }
 
     @Test
     public void testRegisterObserverCallbackStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         AppSearchResultParcel<Void> resultParcel =
                 mAppSearchManagerServiceStub.registerObserverCallback(
                         new RegisterObserverCallbackAidlRequest(
@@ -810,11 +847,12 @@ public class AppSearchManagerServiceTest {
                             }
                         });
         assertThat(resultParcel.getResult().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK);
+        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK, callReceivedTimestampMillis);
     }
 
     @Test
     public void testUnregisterObserverCallbackStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         AppSearchResultParcel<Void> resultParcel =
                 mAppSearchManagerServiceStub.unregisterObserverCallback(
                         new UnregisterObserverCallbackAidlRequest(
@@ -835,12 +873,13 @@ public class AppSearchManagerServiceTest {
                             }
                         });
         assertThat(resultParcel.getResult().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(),
-                CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK);
+        verifyCallStats(
+                mContext.getPackageName(), CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK, callReceivedTimestampMillis);
     }
 
     @Test
     public void testInitializeStatsLogging() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.initialize(
                 new InitializeAidlRequest(
@@ -849,11 +888,11 @@ public class AppSearchManagerServiceTest {
                         BINDER_CALL_START_TIME),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
-        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_INITIALIZE);
+        verifyCallStats(mContext.getPackageName(), CallStats.CALL_TYPE_INITIALIZE, callReceivedTimestampMillis);
         // initialize only logs InitializeStats indirectly so we don't verify it
     }
 
-    private void verifyCallStats(String packageName, String databaseName, int callType) {
+    private void verifyCallStats(String packageName, String databaseName, int callType, long expectedCallReceivedTimestampMillis) {
         ArgumentCaptor<CallStats> captor = ArgumentCaptor.forClass(CallStats.class);
         verify(mLogger, timeout(1000).times(1)).logStats(captor.capture());
         CallStats callStats = captor.getValue();
@@ -862,10 +901,12 @@ public class AppSearchManagerServiceTest {
         assertThat(callStats.getCallType()).isEqualTo(callType);
         assertThat(callStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
         assertThat(callStats.getEstimatedBinderLatencyMillis()).isGreaterThan(0);
+        assertThat(callStats.getCallReceivedTimestampMillis()).isAtLeast(expectedCallReceivedTimestampMillis);
+        assertThat(callStats.getCallReceivedTimestampMillis()).isAtMost(expectedCallReceivedTimestampMillis + 1000);
     }
 
-    private void verifyCallStats(String packageName, int callType) {
-        verifyCallStats(packageName, /* databaseName= */ null, callType);
+    private void verifyCallStats(String packageName, int callType, long expectedCallReceivedTimestampMillis) {
+        verifyCallStats(packageName, /* databaseName= */ null, callType, expectedCallReceivedTimestampMillis);
     }
 
     @Test
