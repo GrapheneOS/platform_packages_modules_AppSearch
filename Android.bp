@@ -51,6 +51,10 @@ apex {
     ],
     prebuilts: ["current_sdkinfo"],
     apps: ["com.android.appsearch.apk"],
+    licenses: [
+        "packages_modules_appsearch_license",
+        "opensourcerequest",
+    ],
 }
 
 apex_key {

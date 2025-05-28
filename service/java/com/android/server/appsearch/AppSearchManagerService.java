@@ -392,7 +392,8 @@ public class AppSearchManagerService extends SystemService {
         mServiceImplHelper.setUserIsLocked(userHandle, false);
 
         if (mIsolatedStorageServiceManager != null) {
-            SHARED_EXECUTOR.execute(() -> mIsolatedStorageServiceManager.onUserUnlocking());
+            SHARED_EXECUTOR.execute(
+                    () -> mIsolatedStorageServiceManager.onUserUnlocking(mAppSearchConfig));
         }
 
         // Only schedule task if AppSearch exists for this user.
@@ -3296,6 +3297,9 @@ public class AppSearchManagerService extends SystemService {
             }
             printStats(pw, statsList);
         } catch (Exception e) {
+            pw.println("Encountered exception: " + e);
+
+            // smoreland@ says - can't find this in logcat output when hit ???
             Log.e(TAG, "Encountered exception ", e);
         }
     }
