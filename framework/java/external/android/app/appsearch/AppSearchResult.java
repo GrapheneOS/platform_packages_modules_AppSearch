@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Information about the success or failure of an AppSearch call.
@@ -275,7 +277,11 @@ public final class AppSearchResult<ValueType> {
 
         String exceptionClass = t.getClass().getSimpleName();
         @AppSearchResult.ResultCode int resultCode;
-        if (t instanceof IllegalStateException || t instanceof NullPointerException) {
+        if (t instanceof CancellationException || t instanceof InterruptedException) {
+            resultCode = AppSearchResult.RESULT_ABORTED;
+        } else if (t instanceof IllegalStateException
+                || t instanceof NullPointerException
+                || t instanceof ExecutionException) {
             resultCode = AppSearchResult.RESULT_INTERNAL_ERROR;
         } else if (t instanceof IllegalArgumentException) {
             resultCode = AppSearchResult.RESULT_INVALID_ARGUMENT;
