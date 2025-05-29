@@ -51,6 +51,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -200,7 +202,8 @@ public final class AppSearchUserInstanceManager {
      *     user.
      */
     @NonNull
-    public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle) {
+    public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle)
+            throws CancellationException, InterruptedException, ExecutionException {
         Objects.requireNonNull(userHandle);
         mInstanceMapLock.lock();
         try {
