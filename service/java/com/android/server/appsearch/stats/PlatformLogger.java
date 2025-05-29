@@ -96,9 +96,16 @@ public class PlatformLogger implements InternalAppSearchLogger {
     @GuardedBy("mLock")
     private final Map<String, Integer> mPackageUidCacheLocked = new ArrayMap<>();
 
-    /** Elapsed time for last stats logged from boot in millis */
+    /** Elapsed time for last stats logged (to statsd) from boot in millis */
     @GuardedBy("mLock")
-    private long mLastPushTimeMillisLocked = 0;
+    private long mLastPushTimeMillisLocked = 0L;
+
+    /**
+     * Timestamp of the last `logStats(@NonNull CallStats stats)` call, used for calculating
+     * 'timeSincePreviousRequestMillis'. Updated even if the log is sampled.
+     */
+    @GuardedBy("mLock")
+    private long mLastCallStatsTimestampMillisLocked = 0L;
 
     /**
      * Record the last n API calls used by dumpsys to print debugging information about the sequence
@@ -107,7 +114,6 @@ public class PlatformLogger implements InternalAppSearchLogger {
      */
     @GuardedBy("mLock")
     private ArrayDeque<ApiCallRecord> mLastNCalls = new ArrayDeque<>();
-
 
     /** Helper class to hold platform specific stats for statsd. */
     static final class ExtraStats {
@@ -135,15 +141,24 @@ public class PlatformLogger implements InternalAppSearchLogger {
     @Override
     public void logStats(@NonNull CallStats stats) {
         Objects.requireNonNull(stats);
+        long currentCallReceivedTimestamp = stats.getCallReceivedTimestampMillis();
+        long calculatedTimeSincePreviousRequestMillis = -1L;
+
         synchronized (mLock) {
+            if (mLastCallStatsTimestampMillisLocked > 0) {
+                calculatedTimeSincePreviousRequestMillis =
+                        Math.max(currentCallReceivedTimestamp - mLastCallStatsTimestampMillisLocked, -1L);
+            }
+
             if (mConfig.getCachedApiCallStatsLimit() > 0) {
                 addStatsToQueueLocked(new ApiCallRecord(stats));
             } else {
                 mLastNCalls.clear();
             }
             if (shouldLogForTypeLocked(stats.getCallType())) {
-                logStatsImplLocked(stats);
+                logStatsImplLocked(stats, calculatedTimeSincePreviousRequestMillis);
             }
+            mLastCallStatsTimestampMillisLocked = currentCallReceivedTimestamp;
         }
     }
 
@@ -271,7 +286,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @GuardedBy("mLock")
-    private void logStatsImplLocked(@NonNull CallStats stats) {
+    private void logStatsImplLocked(
+            @NonNull CallStats stats, long timeSincePreviousRequestMillis) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats = createExtraStatsLocked(stats.getPackageName(), stats.getCallType());
         String database = stats.getDatabase();
@@ -301,7 +317,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getNumOperationsSucceeded(),
                     stats.getNumOperationsFailed(),
                     numReportedCalls,
-                    stats.getEnabledFeatures());
+                    stats.getEnabledFeatures(),
+                    timeSincePreviousRequestMillis);
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -898,7 +915,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
             case CallStats.CALL_TYPE_OPEN_WRITE_BLOB:
             case CallStats.CALL_TYPE_COMMIT_BLOB:
             case CallStats.CALL_TYPE_OPEN_READ_BLOB:
-                // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
+            // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
             default:
                 return mConfig.getCachedSamplingIntervalDefault();
         }
