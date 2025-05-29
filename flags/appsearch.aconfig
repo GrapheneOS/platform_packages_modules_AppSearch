@@ -677,3 +677,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_indexer_force_update"
+    namespace: "appsearch"
+    description: "Enable a forced update for appsearch indexers"
+    bug: "384782792"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
