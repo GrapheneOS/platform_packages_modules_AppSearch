@@ -100,6 +100,9 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     /** The default delay in millisecond to schedule persistToDisk after putDocuments. */
     long DEFAULT_PERSIST_DELAY = MINUTE_IN_MILLIS;
 
+    /** The time for a 5-min delay in millisecond to schedule persistToDisk after putDocuments. */
+    long DEFAULT_FIVE_MINUTE_PERSIST_DELAY = TimeUnit.MINUTES.toMillis(5);
+
     /**
      * The default number of active fds an app is allowed to open for read and write blob from
      * AppSearch.
@@ -269,6 +272,13 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     /** Default mem level used for document compression. */
     default int defaultCompressionMemLevel() {
         return Flags.enableCompressionMemLevelOne() ? 1 : DEFAULT_COMPRESSION_MEM_LEVEL;
+    }
+
+    /** Default persist to disk delay time. */
+    default long defaultPersistDelayMillis() {
+        return Flags.enableFiveMinPersistToDiskDelay()
+                ? DEFAULT_FIVE_MINUTE_PERSIST_DELAY
+                : DEFAULT_PERSIST_DELAY;
     }
 
     /**

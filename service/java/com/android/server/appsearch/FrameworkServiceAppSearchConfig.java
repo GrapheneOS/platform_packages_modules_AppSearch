@@ -654,7 +654,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public long getCachedPersistDelayMillis() {
         synchronized (mLock) {
             throwIfClosedLocked();
-            return mBundleLocked.getLong(KEY_PERSIST_DELAY, DEFAULT_PERSIST_DELAY);
+            return mBundleLocked.getLong(KEY_PERSIST_DELAY, defaultPersistDelayMillis());
         }
     }
 
@@ -1078,7 +1078,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 break;
             case KEY_PERSIST_DELAY:
                 synchronized (mLock) {
-                    mBundleLocked.putLong(key, properties.getLong(key, DEFAULT_PERSIST_DELAY));
+                    mBundleLocked.putLong(
+                            key, properties.getLong(key, defaultPersistDelayMillis()));
                 }
                 break;
             case KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS:
