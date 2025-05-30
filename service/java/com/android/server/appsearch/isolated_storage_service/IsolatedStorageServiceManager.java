@@ -516,29 +516,41 @@ public final class IsolatedStorageServiceManager {
     private void replaceVmIcingInstances() {
         synchronized (mLock) {
             try {
-                // TODO(b/421272017): add logs that will cover how many retries we're attempting and
-                // whether they actually recover eventually.
-                initialize(true, MAX_REINITIALIZATION_RETRIES);
-            } catch (AppSearchException e) {
-                Log.e(
-                        TAG,
-                        "failed to re-initialize after "
-                                + MAX_REINITIALIZATION_RETRIES
-                                + " retries");
-                return;
-            }
-            for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
-                IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
+                notifyVmReconnectingLocked(true);
                 try {
-                    instance.setVmInstances(
-                            mVmIsolatedStorageService.getOrCreateIcingConnection(
-                                    userHandle.getIdentifier()),
-                            mVmIsolatedStorageService);
-                    initializeIcingWithRetryLocked(instance);
-                } catch (RemoteException e) {
-                    Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
+                    // TODO(b/421272017): add logs that will cover how many retries we're attempting
+                    // and whether they actually recover eventually.
+                    initialize(true, MAX_REINITIALIZATION_RETRIES);
+                } catch (AppSearchException e) {
+                    Log.e(
+                            TAG,
+                            "failed to re-initialize after "
+                                    + MAX_REINITIALIZATION_RETRIES
+                                    + " retries");
+                    return;
                 }
+                for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
+                    IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
+                    try {
+                        instance.setVmInstances(
+                                mVmIsolatedStorageService.getOrCreateIcingConnection(
+                                        userHandle.getIdentifier()),
+                                mVmIsolatedStorageService);
+                        initializeIcingWithRetryLocked(instance);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
+                    }
+                }
+            } finally {
+                notifyVmReconnectingLocked(false);
             }
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void notifyVmReconnectingLocked(boolean isReconnecting) {
+        for (IcingSearchEngine instance : mIcingInstancesLocked.values()) {
+            instance.setIsReconnecting(isReconnecting);
         }
     }
 
