@@ -18,6 +18,7 @@ package com.android.server.appsearch;
 
 import android.annotation.NonNull;
 
+import com.android.server.appsearch.appsindexer.AppOpenEventStats;
 import com.android.server.appsearch.external.localstorage.AppSearchLogger;
 import com.android.server.appsearch.util.ApiCallRecord;
 
@@ -35,4 +36,6 @@ public interface InternalAppSearchLogger extends AppSearchLogger {
 
     /** Returns a copy of the recorded {@link ApiCallRecord}. */
     List<ApiCallRecord> getLastCalledApis();
+
+    void logStats(@NonNull AppOpenEventStats appOpenEventStats);
 }

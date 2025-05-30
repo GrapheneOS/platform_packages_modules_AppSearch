@@ -21,6 +21,7 @@ import android.annotation.WorkerThread;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
+import android.os.SystemClock;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 
@@ -53,22 +54,39 @@ public final class AppOpenEventIndexerImpl implements Closeable {
      *     ran
      */
     @WorkerThread
-    public void doUpdate(@NonNull AppOpenEventIndexerSettings settings) throws AppSearchException {
+    public void doUpdate(
+            @NonNull AppOpenEventIndexerSettings settings,
+            @NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder)
+            throws AppSearchException {
         Objects.requireNonNull(settings);
+        Objects.requireNonNull(appOpenEventStatsBuilder);
 
         UsageStatsManager usageStatsManager = mContext.getSystemService(UsageStatsManager.class);
 
         long currentTimeMillis = System.currentTimeMillis();
         long lastAppOpenIndexerUpdateTimeMillis = settings.getLastUpdateTimestampMillis();
+        appOpenEventStatsBuilder.setLastAppUpdateTimestampMillis(
+                lastAppOpenIndexerUpdateTimeMillis);
+
+        long startTimeMillis = SystemClock.elapsedRealtime();
         List<AppOpenEvent> appOpenEvents =
                 AppsUtil.getAppOpenEvents(
                         usageStatsManager, lastAppOpenIndexerUpdateTimeMillis, currentTimeMillis);
+        appOpenEventStatsBuilder.setUsageStatsManagerReadLatencyMillis(
+                SystemClock.elapsedRealtime() - startTimeMillis);
+        appOpenEventStatsBuilder.setNumberOfAppOpenEventsAdded(appOpenEvents.size());
 
         try {
             // This should be a no-op if the schema is already set and unchanged.
+            startTimeMillis = SystemClock.elapsedRealtime();
             mAppSearchHelper.setSchemaForAppOpenEvents();
+            appOpenEventStatsBuilder.setAppSearchSetSchemaLatencyMillis(
+                    SystemClock.elapsedRealtime() - startTimeMillis);
 
-            mAppSearchHelper.indexAppOpenEvents(appOpenEvents);
+            startTimeMillis = SystemClock.elapsedRealtime();
+            mAppSearchHelper.indexAppOpenEvents(appOpenEvents, appOpenEventStatsBuilder);
+            appOpenEventStatsBuilder.setAppSearchPutLatencyMillis(
+                    SystemClock.elapsedRealtime() - startTimeMillis);
             settings.setLastUpdateTimestampMillis(currentTimeMillis);
         } catch (AppSearchException e) {
             // Reset the last update time stamp and app update timestamp so we can try again later.

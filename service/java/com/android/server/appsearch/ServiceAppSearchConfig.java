@@ -206,6 +206,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     /** Returns the cached {@link AppSearchRateLimitConfig}. */
     AppSearchRateLimitConfig getCachedRateLimitConfig();
 
+    /** Returns the sampling rate for App Open Event Indexer stats logging. */
+    default int getAppOpenEventIndexerLoggingSamplingRate() {
+        return DEFAULT_SAMPLING_INTERVAL;
+    }
+
     /**
      * Returns the maximum allowed duration for an app function call in milliseconds.
      *
@@ -252,8 +257,8 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /**
-     * Default {@code PersistType.Code} that should be used to persist common mutations such as
-     * PUTs or DELETEs.
+     * Default {@code PersistType.Code} that should be used to persist common mutations such as PUTs
+     * or DELETEs.
      */
     default PersistType.@NonNull Code defaultLightweightPersistType() {
         return Flags.enableRecoveryProofPersistence()

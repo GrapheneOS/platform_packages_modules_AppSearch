@@ -204,7 +204,8 @@ public class AppSearchHelperTest {
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         appSearchHelper.setSchemaForAppOpenEvents();
         AppOpenEvent fakeAppOpenEvent = createFakeAppOpenEvent(currentTimeMillis);
-        appSearchHelper.indexAppOpenEvents(ImmutableList.of(fakeAppOpenEvent));
+        appSearchHelper.indexAppOpenEvents(
+                ImmutableList.of(fakeAppOpenEvent), new AppOpenEventStats.Builder());
 
         assertThat(appSearchHelper).isNotNull();
         AppOpenEvent appOpenEvent =
@@ -273,7 +274,8 @@ public class AppSearchHelperTest {
         appSearchHelper.setSchemaForAppOpenEvents();
         AppOpenEvent fakeAppOpenEvent = createFakeAppOpenEvent(currentTimeMillis);
         appSearchHelper.indexAppOpenEvents(
-                ImmutableList.of(createFakeAppOpenEvent(currentTimeMillis)));
+                ImmutableList.of(createFakeAppOpenEvent(currentTimeMillis)),
+                new AppOpenEventStats.Builder());
 
         assertThat(appSearchHelper).isNotNull();
         AppOpenEvent appOpenEvent =
@@ -564,11 +566,13 @@ public class AppSearchHelperTest {
         long currentTimeMillis = System.currentTimeMillis();
         AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
         mAppSearchHelper.setSchemaForAppOpenEvents();
-        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1));
+        mAppSearchHelper.indexAppOpenEvents(
+                ImmutableList.of(event1), new AppOpenEventStats.Builder());
 
         AppOpenEvent event2 = createFakeAppOpenEvent(currentTimeMillis + 200L);
         mAppSearchHelper.setSchemaForAppOpenEvents();
-        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event2));
+        mAppSearchHelper.indexAppOpenEvents(
+                ImmutableList.of(event2), new AppOpenEventStats.Builder());
 
         assertThat(
                         mAppSearchHelper
@@ -589,7 +593,8 @@ public class AppSearchHelperTest {
         AppOpenEvent event1 = createFakeAppOpenEvent(currentTimeMillis + 100L);
         mAppSearchHelper.setSchemasForPackages(createMockPackageIdentifiers(1), new ArrayList<>());
 
-        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1));
+        mAppSearchHelper.indexAppOpenEvents(
+                ImmutableList.of(event1), new AppOpenEventStats.Builder());
         assertThat(
                         mAppSearchHelper
                                 .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
@@ -608,7 +613,8 @@ public class AppSearchHelperTest {
                 AppSearchException.class,
                 () -> mAppSearchHelper.getSubsequentAppOpenEventAfterThreshold(currentTimeMillis));
 
-        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1, event2));
+        mAppSearchHelper.indexAppOpenEvents(
+                ImmutableList.of(event1, event2), new AppOpenEventStats.Builder());
         assertThat(
                         mAppSearchHelper
                                 .getSubsequentAppOpenEventAfterThreshold(currentTimeMillis)
@@ -637,7 +643,8 @@ public class AppSearchHelperTest {
                 AppOpenEvent.create(
                         apps.get(0).getPackageName(), currentTimeMillis, mContext.getPackageName());
         mAppSearchHelper.setSchemaForAppOpenEvents();
-        mAppSearchHelper.indexAppOpenEvents(ImmutableList.of(event1));
+        mAppSearchHelper.indexAppOpenEvents(
+                ImmutableList.of(event1), new AppOpenEventStats.Builder());
 
         SearchSpec nestedSearchSpec =
                 new SearchSpec.Builder()

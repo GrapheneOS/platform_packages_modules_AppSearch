@@ -125,7 +125,8 @@ public class AppSearchModuleTest {
                     @NonNull
                     @Override
                     AppOpenEventIndexerManagerService createAppOpenEventIndexerManagerService(
-                            @NonNull Context mContext, @NonNull AppOpenEventIndexerConfig config) {
+                            @NonNull Context mContext,
+                            @NonNull AppOpenEventIndexerConfig config) {
                         return mAppOpenEventIndexerService;
                     }
                 };

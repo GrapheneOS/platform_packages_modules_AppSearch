@@ -611,6 +611,16 @@ flag {
 }
 
 flag {
+    name: "app_open_event_indexer_stats_logging_enabled"
+    namespace: "appsearch"
+    description: "Enables the app open event indexer stats logging to PWW"
+    bug: "357835538"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "enable_initialization_retries_before_reset"
     namespace: "appsearch"
     description: "Enable retrying the critical section of initialization before resetting as a last resort."
