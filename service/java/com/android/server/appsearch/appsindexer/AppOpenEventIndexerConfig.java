@@ -41,6 +41,12 @@ public interface AppOpenEventIndexerConfig {
      */
     long DEFAULT_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS = TimeUnit.HOURS.toMillis(1);
 
+    /** Returns the default sampling rate for App Open Event Indexer stats logging. */
+    boolean DEFAULT_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_ENABLED = true;
+
+    /** Returns the default sampling rate for App Open Event Indexer stats logging. */
+    int DEFAULT_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_SAMPLING_RATE = 10;
+
     /** Returns whether App Open Event Indexer is enabled. */
     boolean isAppOpenEventIndexerEnabled();
 
@@ -52,4 +58,10 @@ public interface AppOpenEventIndexerConfig {
      * milliseconds.
      */
     long getMinTimeBetweenSyncsMillis();
+
+    /** Returns whether App Open Event Indexer stats logging is enabled. */
+    boolean isLoggingEnabled();
+
+    /** Returns the sampling rate for App Open Event Indexer stats logging. */
+    int getLoggingSamplingRate();
 }

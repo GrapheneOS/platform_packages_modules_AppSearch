@@ -33,6 +33,10 @@ public class FrameworkAppOpenEventIndexerConfig implements AppOpenEventIndexerCo
             "app_open_event_update_interval_millis";
     static final String KEY_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS =
             "min_time_between_syncs_millis";
+    static final String KEY_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_ENABLED =
+            "app_open_event_indexer_stats_logging_enabled";
+    static final String KEY_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_SAMPLING_RATE =
+            "app_open_event_indexer_stats_logging_sampling_rate";
 
     @Override
     public boolean isAppOpenEventIndexerEnabled() {
@@ -56,5 +60,21 @@ public class FrameworkAppOpenEventIndexerConfig implements AppOpenEventIndexerCo
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS,
                 DEFAULT_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS);
+    }
+
+    @Override
+    public boolean isLoggingEnabled() {
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_ENABLED,
+                DEFAULT_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_ENABLED);
+    }
+
+    @Override
+    public int getLoggingSamplingRate() {
+        return DeviceConfig.getInt(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_SAMPLING_RATE,
+                DEFAULT_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_SAMPLING_RATE);
     }
 }
