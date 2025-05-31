@@ -31,4 +31,14 @@ public class TestAppOpenEventIndexerConfig implements AppOpenEventIndexerConfig 
     public long getMinTimeBetweenSyncsMillis() {
         return 100L;
     }
+
+    @Override
+    public boolean isLoggingEnabled() {
+        return true;
+    }
+
+    @Override
+    public int getLoggingSamplingRate() {
+        return 10;
+    }
 }

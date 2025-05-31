@@ -39,6 +39,7 @@ import com.google.android.icing.proto.StorageInfoProto;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -125,7 +126,10 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
                 data.add(
                         buildStatsEvent(
                                 userHandle.getIdentifier(), storageInfoProto, enabledFeatures));
-            } catch (AppSearchException | RuntimeException e) {
+            } catch (AppSearchException
+                    | RuntimeException
+                    | InterruptedException
+                    | ExecutionException e) {
                 Log.e(TAG, "Failed to pull the storage info for user " + userHandle.toString(), e);
                 ExceptionUtil.handleException(e);
             }

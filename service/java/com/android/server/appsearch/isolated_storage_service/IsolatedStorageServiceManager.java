@@ -76,6 +76,7 @@ public final class IsolatedStorageServiceManager {
     public static final long DEFAULT_MEMORY_BYTES = 512_000_000;
     public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLED = true;
     public static final boolean DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED = false;
+    public static final boolean DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
@@ -200,9 +201,17 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Called when the user unlocks the device. */
-    public void onUserUnlocking() {
+    public void onUserUnlocking(@NonNull ServiceAppSearchConfig appSearchConfig) {
+        Objects.requireNonNull(appSearchConfig);
         Log.i(TAG, "onUserUnlocking");
         mVmStateSignaler.scheduleEnablement();
+        if (mIsolatedStorageService != null && appSearchConfig.getIsolatedStorageDeleteCeVms()) {
+            try {
+                mIsolatedStorageService.cleanUpOldVms();
+            } catch (RemoteException e) {
+                Log.e(TAG, "Unable to clean up old VMs", e);
+            }
+        }
     }
 
     /** Removes the icing instance for the corresponding userHandle */

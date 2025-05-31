@@ -51,6 +51,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -200,17 +202,21 @@ public final class AppSearchUserInstanceManager {
      *     user.
      */
     @NonNull
-    public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle) {
+    public AppSearchUserInstance getUserInstance(@NonNull UserHandle userHandle)
+            throws CancellationException, InterruptedException, ExecutionException {
         Objects.requireNonNull(userHandle);
         mInstanceMapLock.lock();
         try {
             AppSearchUserInstance instance = mInstancesLocked.get(userHandle);
             if (instance == null) {
                 // Impossible scenario, user cannot call an uninitialized SearchSession,
-                // getInstance should always find the instance for the given user and never try to
-                // create an instance for this user again.
+                // getInstance should always find the instance for the given user and never
+                // try to create an instance for this user again.
                 throw new IllegalStateException(
-                        "AppSearchUserInstance has never been created for: " + userHandle);
+                        "AppSearchUserInstance is not created for "
+                         + userHandle
+                         + ". Instance may still be starting, have crashed, have never been "
+                         + "created, or may have been removed.");
             }
             return instance;
         } finally {

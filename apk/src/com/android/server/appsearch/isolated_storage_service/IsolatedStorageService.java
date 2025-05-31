@@ -39,6 +39,7 @@ import android.system.virtualmachine.VirtualMachineException;
 import android.system.virtualmachine.VirtualMachineManager;
 import android.util.Log;
 
+import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -59,7 +60,6 @@ import java.util.concurrent.TimeoutException;
  * IIsolatedStorageService} interface.
  */
 public class IsolatedStorageService extends Service {
-
     private static final String TAG = "IsolatedStorageService";
 
     private static final String VM_NAME = "isolated_storage_service_vm";
@@ -78,11 +78,23 @@ public class IsolatedStorageService extends Service {
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
-    private volatile CompletableFuture<Void> mPayloadReadyFuture;
 
-    private volatile VirtualMachine mVm;
-    private volatile com.android.isolated_storage_service.IIsolatedStorageService
-            mVmIsolatedStorageService;
+    private final Object mLock = new Object();
+
+    /**
+     * Future object for payload ready state checking and waiting. IsolatedStorageService uses this
+     * object to determine if the payload is ready or not (see {@link #isPayloadReadyLocked}). If
+     * any unexpected error happens and requires to restart the vm, then we should set this member
+     * to null.
+     */
+    @GuardedBy("mLock")
+    private CompletableFuture<Void> mPayloadReadyFuture;
+
+    @GuardedBy("mLock")
+    private VirtualMachine mVm;
+
+    @GuardedBy("mLock")
+    private com.android.isolated_storage_service.IIsolatedStorageService mVmIsolatedStorageService;
 
     @Override
     public void onCreate() {
@@ -97,6 +109,13 @@ public class IsolatedStorageService extends Service {
 
     @Override
     public void onTrimMemory(int level) {
+        synchronized (mLock) {
+            onTrimMemoryLocked();
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void onTrimMemoryLocked() {
         if (mVmIsolatedStorageService != null) {
             try {
                 mVmIsolatedStorageService.trimMemory();
@@ -106,23 +125,40 @@ public class IsolatedStorageService extends Service {
         }
     }
 
-    private void tryStartVm(ServiceConfig config, boolean forceRestart)
+    /** Restarts the vm instance, regardless of whether {@code forceRestart} is true or not. */
+    @GuardedBy("mLock")
+    private void restartVmLocked(ServiceConfig serviceConfig, boolean forceRestart)
             throws VirtualMachineException, NullPointerException {
-        mVm = maybeCreateVm(config);
         if (mVm == null) {
-            throw new NullPointerException("VM instance is null");
-        }
-        if (mVm.getStatus() == VirtualMachine.STATUS_RUNNING) {
-            Log.w(TAG, "vm is already running");
-            if (forceRestart) {
-                Log.i(TAG, "close vm to force a restart");
-                mVm.close();
-            } else {
-                return;
+            mVm = maybeCreateVm(serviceConfig);
+            if (mVm == null) {
+                throw new NullPointerException("VM instance is null");
+            }
+            if (mVm.getStatus() == VirtualMachine.STATUS_RUNNING) {
+                // If other services are allowed to create the vm instance (i.e. other classes
+                // called vmm.getOrCreate() with the same vm name and started the instance), then
+                // a running vm instance will be assigned to mVm. For now:
+                // - It is unlikely to have this situation.
+                // - But let's log this situation anyway and restart the vm, so we can make sure the
+                //   payload is ready before starting to use it.
+                //
+                // TODO: implement a better way to wait for payload ready for a running VM to avoid
+                //   unnecessary restart.
+                Log.w(
+                        TAG,
+                        "Got a running vm instance from VirtualMachineManager. The vm instance may"
+                                + " have been created and started by another service. Restart it"
+                                + " here anyway");
             }
         }
+
+        Log.i(TAG, "close and restart the vm, force restart flag = " + forceRestart);
+        // Close the vm.
+        // Note: close() will be no-op if the status is not VirtualMachine.STATUS_RUNNING.
+        mVm.close();
+
         mPayloadReadyFuture = new CompletableFuture<>();
-        IsolateStorageServiceLogger logger = new IsolateStorageServiceLogger(config);
+        IsolateStorageServiceLogger logger = new IsolateStorageServiceLogger(serviceConfig);
         VmCallback vmCallback = new VmCallback(mPayloadReadyFuture, logger);
         mVm.setCallback(mExecutorService, vmCallback);
         mVm.run();
@@ -134,39 +170,19 @@ public class IsolatedStorageService extends Service {
      * <p>If the VM already exists, return it. If the VM doesn't exist or is deleted, create a new
      * VM and return it. Return {@code null} if failed to get or create the VM.
      */
-    private @Nullable VirtualMachine maybeCreateVm(ServiceConfig config) {
+    private @Nullable VirtualMachine maybeCreateVm(ServiceConfig serviceConfig) {
         Context context = createDeviceProtectedStorageContext();
         VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
             Log.e(TAG, "Unable to get VirtualMachineManager");
             return null;
         }
-        VirtualMachine vm = null;
-        try {
-            vm = vmm.get(VM_NAME);
-        } catch (VirtualMachineException e) {
-            Log.e(TAG, "VirtualMachineManager#get failed", e);
-        }
-        if (vm != null && vm.getStatus() != VirtualMachine.STATUS_DELETED) {
-            return vm;
-        }
-        if (vm == null) {
-            Log.i(TAG, "Virtual machine " + VM_NAME + " does not exist. Creating one");
-        } else {
-            Log.i(TAG, "Virtual machine " + VM_NAME + " is deleted. Creating one");
-        }
-        return createVm(context, vmm, config);
-    }
 
-    private @Nullable VirtualMachine createVm(
-            Context context, VirtualMachineManager vmm, ServiceConfig serviceConfig) {
-        // TODO(b/416335564): clean up isolated_storage_service_vm and isolated_storage_service_vm2
-        // in CE
-        final int vmDebugLevel =
-                IS_DEBUG_BUILD
-                        ? VirtualMachineConfig.DEBUG_LEVEL_FULL
-                        : VirtualMachineConfig.DEBUG_LEVEL_NONE;
         try {
+            final int vmDebugLevel =
+                    IS_DEBUG_BUILD
+                            ? VirtualMachineConfig.DEBUG_LEVEL_FULL
+                            : VirtualMachineConfig.DEBUG_LEVEL_NONE;
             // TODO(b/406258175): enable delayed encrypted store setup to allow icing data to be
             //  protected by CE
             VirtualMachineConfig config =
@@ -182,9 +198,9 @@ public class IsolatedStorageService extends Service {
                             .setShouldUseHugepages(true)
                             .build();
             try {
-                return vmm.create(VM_NAME, config);
+                return vmm.getOrCreate(VM_NAME, config);
             } catch (VirtualMachineException e) {
-                Log.e(TAG, "Failed to create virtual machine " + VM_NAME, e);
+                Log.e(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
                 return null;
             }
         } catch (IllegalArgumentException
@@ -193,6 +209,34 @@ public class IsolatedStorageService extends Service {
             Log.e(TAG, "Failed to create virtual machine config " + VM_NAME, e);
             return null;
         }
+    }
+
+    private void deleteOldVms() {
+        VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
+        if (vmm == null) {
+            Log.e(TAG, "Unable to get VirtualMachineManager");
+            return;
+        }
+        deleteVm(vmm, "isolated_storage_service_vm");
+        deleteVm(vmm, "isolated_storage_service2_vm");
+    }
+
+    private void deleteVm(VirtualMachineManager vmm, String name) {
+        try {
+            vmm.delete(name);
+        } catch (VirtualMachineException e) {
+            Log.e(TAG, "Failed to delete VM " + name, e);
+        }
+    }
+
+    @GuardedBy("mLock")
+    private boolean isVmRunningLocked() {
+        return mVm != null && mVm.getStatus() == VirtualMachine.STATUS_RUNNING;
+    }
+
+    @GuardedBy("mLock")
+    private boolean isPayloadReadyLocked() {
+        return mPayloadReadyFuture != null && mPayloadReadyFuture.isDone();
     }
 
     /** Callbacks for pVM status changes. */
@@ -215,20 +259,40 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void onPayloadReady(VirtualMachine vm) {
-            Log.i(TAG, "Payload ready");
-            try {
-                mVmIsolatedStorageService =
-                        com.android.isolated_storage_service.IIsolatedStorageService.Stub
-                                .asInterface(
-                                        vm.connectToVsockServer(
-                                                com.android.isolated_storage_service
-                                                        .IIsolatedStorageService.PORT));
-            } catch (VirtualMachineException e) {
-                Log.e(TAG, "Failed to connect to " + VM_NAME, e);
+            synchronized (mLock) {
+                if (mFuture != mPayloadReadyFuture) {
+                    Log.w(
+                            TAG,
+                            "Another restart has been kicked off before payload ready. Abandon"
+                                    + " this callback");
+                    return;
+                }
+
+                Log.i(TAG, "Payload ready");
+                try {
+                    mVmIsolatedStorageService =
+                            com.android.isolated_storage_service.IIsolatedStorageService.Stub
+                                    .asInterface(
+                                            vm.connectToVsockServer(
+                                                    com.android.isolated_storage_service
+                                                            .IIsolatedStorageService.PORT));
+                } catch (VirtualMachineException e) {
+                    Log.e(TAG, "Failed to connect to " + VM_NAME, e);
+
+                    // Set the payload ready future object in IsolatedStorageService to null, so
+                    // the service can avoid serving any request with an invalid
+                    // mVmIsolatedStorageService.
+                    mPayloadReadyFuture = null;
+                    VMPayloadStats stats = new VMPayloadStats.Builder(CALLBACK_TYPE_ERROR).build();
+                    mLogger.logStats(stats);
+                    return;
+                }
             }
-            mFuture.complete(null);
+
             VMPayloadStats stats = new VMPayloadStats.Builder(CALLBACK_TYPE_READY).build();
             mLogger.logStats(stats);
+
+            mFuture.complete(null);
         }
 
         @Override
@@ -295,12 +359,35 @@ public class IsolatedStorageService extends Service {
         @Override
         public boolean startVm(ServiceConfig config, long timeoutSeconds, boolean forceRestart)
                 throws RemoteException {
-            if (mPayloadReadyFuture != null && mPayloadReadyFuture.isDone() && !forceRestart) {
-                return true;
+            CompletableFuture<Void> localPayloadReadyFuture = null;
+            synchronized (mLock) {
+                if (isVmRunningLocked() && isPayloadReadyLocked() && !forceRestart) {
+                    return true;
+                }
+
+                try {
+                    restartVmLocked(config, forceRestart);
+                } catch (Exception e) {
+                    Log.e(TAG, "Unable to start VM", e);
+
+                    // Reset payload ready future object.
+                    mPayloadReadyFuture = null;
+                    throw new RemoteException(e.getMessage());
+                }
+                localPayloadReadyFuture = mPayloadReadyFuture;
             }
+
+            if (localPayloadReadyFuture == null) {
+                String msg =
+                        new String(
+                                "Got a null payload ready future object to wait. This should not"
+                                        + " happen");
+                Log.e(TAG, msg);
+                throw new RemoteException(msg);
+            }
+
             try {
-                tryStartVm(config, forceRestart);
-                mPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+                localPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
             } catch (InterruptedException | TimeoutException e) {
                 Log.w(TAG, "Unable to wait for payload ready", e);
                 return false;
@@ -313,10 +400,10 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public ParcelFileDescriptor getVmConnection() throws RemoteException {
-            if (mVm == null
-                    || mVm.getStatus() != VirtualMachine.STATUS_RUNNING
-                    || !mPayloadReadyFuture.isDone()) {
-                    throw new RemoteException("pVM payload is not ready/available");
+            synchronized (mLock) {
+                if (!isVmRunningLocked() || !isPayloadReadyLocked()) {
+                    throw new RemoteException(
+                            "pVM is not running or payload is not ready/available");
                 }
                 try {
                     return mVm.connectVsock(
@@ -325,14 +412,22 @@ public class IsolatedStorageService extends Service {
                     Log.e(TAG, "Unable to connect vsock", e);
                     throw new RemoteException(e.getMessage());
                 }
+            }
         }
 
         @Override
         public int getVmStatus() throws RemoteException {
-            if (mVm == null) {
-                throw new RemoteException("pVM is not available");
+            synchronized (mLock) {
+                if (mVm == null) {
+                    throw new RemoteException("pVM is not available");
+                }
+                return mVm.getStatus();
             }
-            return mVm.getStatus();
+        }
+
+        @Override
+        public void cleanUpOldVms() {
+            deleteOldVms();
         }
     }
 }

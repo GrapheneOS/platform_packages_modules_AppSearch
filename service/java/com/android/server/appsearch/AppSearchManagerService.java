@@ -161,6 +161,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -392,7 +394,8 @@ public class AppSearchManagerService extends SystemService {
         mServiceImplHelper.setUserIsLocked(userHandle, false);
 
         if (mIsolatedStorageServiceManager != null) {
-            SHARED_EXECUTOR.execute(() -> mIsolatedStorageServiceManager.onUserUnlocking());
+            SHARED_EXECUTOR.execute(
+                    () -> mIsolatedStorageServiceManager.onUserUnlocking(mAppSearchConfig));
         }
 
         // Only schedule task if AppSearch exists for this user.
@@ -506,10 +509,14 @@ public class AppSearchManagerService extends SystemService {
 
     class LocalService {
         /** Persist all pending mutation operation to disk for the given user. */
-        public void doFullyPersistForUser(@UserIdInt int userId) throws AppSearchException {
+        public void doFullyPersistForUser(@UserIdInt int userId)
+                throws AppSearchException,
+                        CancellationException,
+                        ExecutionException,
+                        InterruptedException {
             UserHandle targetUser = UserHandle.getUserHandleForUid(userId);
             AppSearchUserInstance instance =
-                mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                    mAppSearchUserInstanceManager.getUserInstance(targetUser);
             instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
         }
     }
@@ -521,6 +528,8 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             checkUnsupportedEmbeddingUse(request.getSchemas());
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
@@ -595,7 +604,10 @@ public class AppSearchManagerService extends SystemService {
                             .setOptimizeLatencyMillis(
                                     (int) (checkForOptimizeLatencyEndTimeMillis
                                             - checkForOptimizeLatencyStartTimeMillis));
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException
+                         | RuntimeException
+                         | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -613,6 +625,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -662,6 +675,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -713,7 +727,10 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromGetSchemaResponse(response)
                     );
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException
+                         | RuntimeException
+                         | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -731,6 +748,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -756,6 +774,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -785,7 +804,10 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromStringList(namespaces)
                     );
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException
+                         | RuntimeException
+                         | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -803,6 +825,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_GET_NAMESPACES)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -829,6 +852,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchBatchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1010,7 +1034,10 @@ public class AppSearchManagerService extends SystemService {
                             instance,
                             /* mutateBatchSize= */
                             request.getDocumentsParcel().getTotalDocumentCount());
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException
+                         | RuntimeException
+                         | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1029,6 +1056,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_PUT_DOCUMENTS)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1068,6 +1096,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchBatchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1254,7 +1283,7 @@ public class AppSearchManagerService extends SystemService {
 
                     invokeCallbackOnResult(callback, AppSearchBatchResultParcel
                             .fromStringToGenericDocumentParcel(resultBuilder.build()));
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1272,6 +1301,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1299,6 +1329,7 @@ public class AppSearchManagerService extends SystemService {
                 OpenBlobForWriteAidlRequest request, @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser =
                     mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1348,7 +1379,7 @@ public class AppSearchManagerService extends SystemService {
                             new OpenBlobForWriteResponse(resultBuilder.build());
                     invokeCallbackOnResult(callback,
                             AppSearchResultParcelV2.fromOpenBlobForWriteResponse(response));
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1368,6 +1399,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getCallingDatabaseName())
                                 .setCallType(CallStats.CALL_TYPE_OPEN_WRITE_BLOB)
                                 .setStatusCode(statusCode)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1399,6 +1431,8 @@ public class AppSearchManagerService extends SystemService {
                 RemoveBlobAidlRequest request, @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser =
                     mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1447,7 +1481,7 @@ public class AppSearchManagerService extends SystemService {
                     RemoveBlobResponse response = new RemoveBlobResponse(resultBuilder.build());
                     invokeCallbackOnResult(callback,
                             AppSearchResultParcelV2.fromRemoveBlobResponseParcel(response));
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1467,6 +1501,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getCallingDatabaseName())
                                 .setCallType(CallStats.CALL_TYPE_REMOVE_BLOB)
                                 .setStatusCode(statusCode)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1498,6 +1533,8 @@ public class AppSearchManagerService extends SystemService {
                 CommitBlobAidlRequest request, @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser =
                     mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1547,7 +1584,7 @@ public class AppSearchManagerService extends SystemService {
                             new CommitBlobResponse(resultBuilder.build());
                     invokeCallbackOnResult(callback,
                             AppSearchResultParcelV2.fromCommitBlobResponseParcel(response));
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1567,6 +1604,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getCallingDatabaseName())
                                 .setCallType(CallStats.CALL_TYPE_COMMIT_BLOB)
                                 .setStatusCode(statusCode)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1599,6 +1637,8 @@ public class AppSearchManagerService extends SystemService {
                 OpenBlobForReadAidlRequest request, @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser =
                     mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1659,7 +1699,7 @@ public class AppSearchManagerService extends SystemService {
                             new OpenBlobForReadResponse(resultBuilder.build());
                     invokeCallbackOnResult(callback,
                             AppSearchResultParcelV2.fromOpenBlobForReadResponse(response));
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1678,6 +1718,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getCallingDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setCallType(callType)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1709,6 +1750,8 @@ public class AppSearchManagerService extends SystemService {
                 SetBlobVisibilityAidlRequest request, @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser =
                     mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -1742,7 +1785,8 @@ public class AppSearchManagerService extends SystemService {
                             visibilityConfigs);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcelV2.fromVoid());
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1761,6 +1805,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getCallingDatabaseName())
                                 .setCallType(CallStats.CALL_TYPE_SET_BLOB_VISIBILITY)
                                 .setStatusCode(statusCode)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1793,6 +1838,8 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             checkUnsupportedEmbeddingUse(request.getSearchSpec());
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
@@ -1826,7 +1873,8 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(
                             callback,
                             AppSearchResultParcel.fromSearchResultPage(searchResultPage));
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1843,6 +1891,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_SEARCH)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1869,6 +1918,8 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             checkUnsupportedEmbeddingUse(request.getSearchSpec());
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
@@ -1921,7 +1972,8 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(
                             callback,
                             AppSearchResultParcel.fromSearchResultPage(searchResultPage));
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1937,6 +1989,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setPackageName(callingPackageName)
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_GLOBAL_SEARCH)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -1963,6 +2016,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -2020,7 +2074,8 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(
                             callback,
                             AppSearchResultParcel.fromSearchResultPage(searchResultPage));
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2037,6 +2092,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2060,6 +2116,7 @@ public class AppSearchManagerService extends SystemService {
         @Override
         public void invalidateNextPageToken(@NonNull InvalidateNextPageTokenAidlRequest request) {
             Objects.requireNonNull(request);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             try {
@@ -2091,7 +2148,8 @@ public class AppSearchManagerService extends SystemService {
                         instance.getAppSearchImpl().invalidateNextPageToken(
                                 callingPackageName, request.getNextPageToken());
                         operationSuccessCount++;
-                    } catch (AppSearchException | RuntimeException e) {
+                    } catch (AppSearchException | RuntimeException | InterruptedException
+                             | ExecutionException e) {
                         ++operationFailureCount;
                         statusCode = throwableToFailedResult(e).getResultCode();
                         Log.e(TAG, "Unable to invalidate the query page token", e);
@@ -2108,6 +2166,7 @@ public class AppSearchManagerService extends SystemService {
                                     .setPackageName(callingPackageName)
                                     .setStatusCode(statusCode)
                                     .setTotalLatencyMillis(totalLatencyMillis)
+                                    .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                     .setCallType(CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN)
                                     // TODO(b/173532925) check the existing binder call latency
                                     //  chart
@@ -2140,6 +2199,8 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             checkUnsupportedEmbeddingUse(request.getSearchSpec());
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
@@ -2188,7 +2249,8 @@ public class AppSearchManagerService extends SystemService {
                         }
                     }
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
-                } catch (AppSearchException | IOException | RuntimeException e) {
+                } catch (AppSearchException | IOException | RuntimeException
+                         | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2205,6 +2267,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2231,6 +2294,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long callStatsTotalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -2302,7 +2366,8 @@ public class AppSearchManagerService extends SystemService {
                             .setMigrationFailureCount(migrationFailures.size());
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromMigrationFailuresList(migrationFailures));
-                } catch (AppSearchException | IOException | RuntimeException e) {
+                } catch (AppSearchException | IOException | RuntimeException
+                         | InterruptedException | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2332,6 +2397,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(callStatsTotalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2367,6 +2433,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -2401,7 +2468,8 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(
                             callback, AppSearchResultParcel
                                     .fromSearchSuggestionResultList(searchSuggestionResults));
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2419,6 +2487,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_SEARCH_SUGGESTION)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2445,6 +2514,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -2498,7 +2568,8 @@ public class AppSearchManagerService extends SystemService {
                             request.isSystemUsage());
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2517,6 +2588,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2543,6 +2615,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchBatchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -2601,7 +2674,8 @@ public class AppSearchManagerService extends SystemService {
 
                     checkForOptimize(targetUser, instance,
                             request.getRemoveByDocumentIdRequest().getIds().size());
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2620,6 +2694,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2647,6 +2722,8 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
+
             checkUnsupportedEmbeddingUse(request.getSearchSpec());
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
@@ -2688,7 +2765,8 @@ public class AppSearchManagerService extends SystemService {
                     dispatchChangeNotifications(instance);
 
                     checkForOptimize(targetUser, instance);
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2708,6 +2786,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2734,6 +2813,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -2761,7 +2841,8 @@ public class AppSearchManagerService extends SystemService {
                     ++operationSuccessCount;
                     invokeCallbackOnResult(
                             callback, AppSearchResultParcel.fromStorageInfo(storageInfo));
-                } catch (AppSearchException | RuntimeException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -2779,6 +2860,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setDatabase(request.getDatabaseName())
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_GET_STORAGE_INFO)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -2802,6 +2884,7 @@ public class AppSearchManagerService extends SystemService {
         @Override
         public void persistToDisk(@NonNull PersistToDiskAidlRequest request) {
             Objects.requireNonNull(request);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             try {
@@ -2824,7 +2907,8 @@ public class AppSearchManagerService extends SystemService {
                         instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
                         instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
                         ++operationSuccessCount;
-                    } catch (AppSearchException | RuntimeException e) {
+                    } catch (AppSearchException | RuntimeException | InterruptedException
+                             | ExecutionException e) {
                         ++operationFailureCount;
                         statusCode = throwableToFailedResult(e).getResultCode();
                         // We will print two error messages if we rethrow, but I would rather keep
@@ -2844,6 +2928,7 @@ public class AppSearchManagerService extends SystemService {
                                     .setPackageName(callingPackageName)
                                     .setStatusCode(statusCode)
                                     .setTotalLatencyMillis(totalLatencyMillis)
+                                    .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                     .setCallType(CallStats.CALL_TYPE_FLUSH)
                                     // TODO(b/173532925) check the existing binder call latency
                                     // chart is good enough for us:
@@ -2875,6 +2960,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchObserverProxy observerProxyStub) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(observerProxyStub);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
             AppSearchUserInstance instance = null;
@@ -2926,7 +3012,10 @@ public class AppSearchManagerService extends SystemService {
                 } finally {
                     Binder.restoreCallingIdentity(callingIdentity);
                 }
-            } catch (RemoteException | RuntimeException e) {
+            } catch (RemoteException
+                     | RuntimeException
+                     | InterruptedException
+                     | ExecutionException e) {
                 ++operationFailureCount;
                 AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                 statusCode = failedResult.getResultCode();
@@ -2942,6 +3031,7 @@ public class AppSearchManagerService extends SystemService {
                             .setPackageName(callingPackageName)
                             .setStatusCode(statusCode)
                             .setTotalLatencyMillis(totalLatencyMillis)
+                            .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                             .setCallType(CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK)
                             // TODO(b/173532925) check the existing binder call latency chart
                             // is good enough for us:
@@ -2961,6 +3051,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchObserverProxy observerProxyStub) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(observerProxyStub);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
             AppSearchUserInstance instance = null;
@@ -2991,7 +3082,7 @@ public class AppSearchManagerService extends SystemService {
                 } finally {
                     Binder.restoreCallingIdentity(callingIdentity);
                 }
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | InterruptedException | ExecutionException e) {
                 ++operationFailureCount;
                 AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                 statusCode = failedResult.getResultCode();
@@ -3009,6 +3100,7 @@ public class AppSearchManagerService extends SystemService {
                             .setPackageName(callingPackageName)
                             .setStatusCode(statusCode)
                             .setTotalLatencyMillis(totalLatencyMillis)
+                            .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                             .setCallType(CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK)
                             // TODO(b/173532925) check the existing binder call latency chart
                             // is good enough for us:
@@ -3028,6 +3120,7 @@ public class AppSearchManagerService extends SystemService {
                 @NonNull IAppSearchResultCallback callback) {
             Objects.requireNonNull(request);
             Objects.requireNonNull(callback);
+            final long callReceivedTimestampMillis = System.currentTimeMillis();
 
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             UserHandle targetUser = mServiceImplHelper.verifyIncomingCallWithCallback(
@@ -3078,6 +3171,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setPackageName(callingPackageName)
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(CallStats.CALL_TYPE_INITIALIZE)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
@@ -3296,6 +3390,9 @@ public class AppSearchManagerService extends SystemService {
             }
             printStats(pw, statsList);
         } catch (Exception e) {
+            pw.println("Encountered exception: " + e);
+
+            // smoreland@ says - can't find this in logcat output when hit ???
             Log.e(TAG, "Encountered exception ", e);
         }
     }
@@ -3638,16 +3735,21 @@ public class AppSearchManagerService extends SystemService {
                 2 * (int) (totalLatencyStartTimeMillis - binderCallStartTimeMillis);
         int totalLatencyMillis =
                 (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
-        mAppSearchUserInstanceManager.getUserInstance(targetUser).getLogger().logStats(
-                new CallStats.Builder()
-                        .setPackageName(callingPackageName)
-                        .setDatabase(callingDatabaseName)
-                        .setStatusCode(statusCode)
-                        .setTotalLatencyMillis(totalLatencyMillis)
-                        .setCallType(apiType)
-                        .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
-                        .setNumOperationsFailed(numOperations)
-                        .build());
+        try {
+            mAppSearchUserInstanceManager.getUserInstance(targetUser).getLogger().logStats(
+                    new CallStats.Builder()
+                            .setPackageName(callingPackageName)
+                            .setDatabase(callingDatabaseName)
+                            .setStatusCode(statusCode)
+                            .setTotalLatencyMillis(totalLatencyMillis)
+                            .setCallType(apiType)
+                            .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
+                            .setNumOperationsFailed(numOperations)
+                            .build());
+        } catch (ExecutionException | InterruptedException | CancellationException e) {
+            Log.e(TAG, "Failed to get logger for user: " + targetUser
+                    + " due to " + e.getMessage());
+        }
     }
 
     private void checkUnsupportedEmbeddingUse(@NonNull List<AppSearchSchema> schemas) {

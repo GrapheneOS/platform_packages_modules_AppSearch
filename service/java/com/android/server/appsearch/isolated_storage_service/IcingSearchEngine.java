@@ -165,7 +165,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             + input.length
                             + ", number of schema types in request: "
                             + schema.getTypesCount());
-            logFreeMemoryInfo();
+            logFreeMemoryInfo(e);
 
             return SetSchemaResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
@@ -285,7 +285,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             resultData = mEngine.put(input);
         } catch (OutOfMemoryError e) {
             Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
-            logFreeMemoryInfo();
+            logFreeMemoryInfo(e);
 
             return PutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
@@ -316,7 +316,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             + input.length
                             + ", number of documents in request: "
                             + putDocumentRequest.getDocumentsCount());
-            logFreeMemoryInfo();
+            logFreeMemoryInfo(e);
 
             return BatchPutResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
@@ -953,7 +953,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
      * Helper function to get and print the amount of free RAM in KB. {@code -1} will be printed if
      * failing to get the number.
      */
-    private void logFreeMemoryInfo() {
+    private void logFreeMemoryInfo(@Nullable OutOfMemoryError oomError) {
         long deviceFreeMemoryKb = -1;
         try {
             MemInfoReader memInfo = new MemInfoReader();
@@ -975,14 +975,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         try {
             vmIsolatedStorageFreeMemoryKb = mVmIsolatedStorageService.getAvailableMemory();
         } catch (RemoteException e) {
-            Log.w(TAG, "Unable to get vm isolated storage free memory size", e);
+            Log.wtf(TAG, "Unable to get vm isolated storage free memory size", e);
         } catch (OutOfMemoryError e) {
-            Log.w(TAG, "Unable to get vm isolated storage free memory size due to OOM error", e);
+            Log.wtf(TAG, "Unable to get vm isolated storage free memory size due to OOM error", e);
         } catch (Error e) {
-            Log.w(TAG, "Unable to get vm isolated storage free memory size due to error", e);
+            Log.wtf(TAG, "Unable to get vm isolated storage free memory size due to error", e);
         }
 
-        Log.w(
+        Log.wtf(
                 TAG,
                 "Android device free memory (from /proc/meminfo): "
                         + deviceFreeMemoryKb
@@ -990,6 +990,6 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                         + jvmFreeMemoryKb
                         + " KB, VM isolated storage free memory: "
                         + vmIsolatedStorageFreeMemoryKb
-                        + " KB.");
+                        + " KB.", oomError);
     }
 }

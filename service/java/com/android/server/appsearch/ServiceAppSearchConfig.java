@@ -206,6 +206,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     /** Returns the cached {@link AppSearchRateLimitConfig}. */
     AppSearchRateLimitConfig getCachedRateLimitConfig();
 
+    /** Returns the sampling rate for App Open Event Indexer stats logging. */
+    default int getAppOpenEventIndexerLoggingSamplingRate() {
+        return DEFAULT_SAMPLING_INTERVAL;
+    }
+
     /**
      * Returns the maximum allowed duration for an app function call in milliseconds.
      *
@@ -236,6 +241,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED;
     }
 
+    /** Returns whether or not we need to clean up old CE VMs */
+    default boolean getIsolatedStorageDeleteCeVms() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS;
+    }
+
     /**
      * Default min time interval between consecutive optimize calls in millis if there is no value
      * set for {@link #getCachedMinTimeOptimizeThresholdMs()} in the flag system.
@@ -247,8 +257,8 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /**
-     * Default {@code PersistType.Code} that should be used to persist common mutations such as
-     * PUTs or DELETEs.
+     * Default {@code PersistType.Code} that should be used to persist common mutations such as PUTs
+     * or DELETEs.
      */
     default PersistType.@NonNull Code defaultLightweightPersistType() {
         return Flags.enableRecoveryProofPersistence()

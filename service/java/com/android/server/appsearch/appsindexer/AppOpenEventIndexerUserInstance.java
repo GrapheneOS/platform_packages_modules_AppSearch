@@ -27,6 +27,8 @@ import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.AppSearchComponentFactory;
+import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import java.io.File;
@@ -62,6 +64,8 @@ public final class AppOpenEventIndexerUserInstance {
     private final Context mContext;
 
     private final AppOpenEventIndexerConfig mAppOpenEventIndexerConfig;
+
+    private final InternalAppSearchLogger mLogger;
 
     /**
      * Single threaded executor to make sure there is only one active sync per {@link
@@ -144,6 +148,11 @@ public final class AppOpenEventIndexerUserInstance {
         mDataDir = Objects.requireNonNull(dataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
+        mLogger =
+                AppSearchComponentFactory.createLoggerInstance(
+                        mContext,
+                        AppSearchComponentFactory.getConfigInstance(mSingleThreadedExecutor, mContext));
+
         mAppOpenEventIndexerImpl = Objects.requireNonNull(appOpenEventIndexerImpl);
         mAppOpenEventIndexerSettings = Objects.requireNonNull(appOpenEventIndexerSettings);
         mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
@@ -173,24 +182,30 @@ public final class AppOpenEventIndexerUserInstance {
 
     /** Schedule an update on single threaded executor. */
     public void updateAsync() {
-        executeOnSingleThreadedExecutor(
-                () -> {
-                    doUpdate();
-                    schedulePeriodicUpdate();
-                });
+        updateAsync(() -> {});
     }
 
     /**
-     * Schedule an update on a single-threaded executor.
+     * Schedule an update on a single-threaded executor. Mainly to be used for testing, where the
+     * callback is used to wait for the update to complete.
      *
      * @param callback A callback to be invoked after the update is complete.
      */
     void updateAsync(@NonNull Runnable callback) {
+        AppOpenEventStats.Builder appOpenEventStatsBuilder = new AppOpenEventStats.Builder();
+        appOpenEventStatsBuilder.setUpdateStartTimestampMillis(System.currentTimeMillis());
+        long startTimeMillis = System.currentTimeMillis();
         executeOnSingleThreadedExecutor(
                 () -> {
                     try {
-                        doUpdate();
+                        doUpdate(appOpenEventStatsBuilder);
                         schedulePeriodicUpdate();
+                        appOpenEventStatsBuilder.setTotalLatencyMillis(
+                                System.currentTimeMillis() - startTimeMillis);
+                        if (Flags.appOpenEventIndexerStatsLoggingEnabled()
+                                && mAppOpenEventIndexerConfig.isLoggingEnabled()) {
+                            mLogger.logStats(appOpenEventStatsBuilder.build());
+                        }
                     } finally {
                         callback.run();
                     }
@@ -258,8 +273,9 @@ public final class AppOpenEventIndexerUserInstance {
      * {@code MIN_TIME_BETWEEN_UPDATES_MILLIS} it will be a no-op.
      */
     @VisibleForTesting
-    void doUpdate() {
+    void doUpdate(@NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder) {
         try {
+            Objects.requireNonNull(appOpenEventStatsBuilder);
             if (Flags.enableAppOpenEventsIndexerCheckPriorAttempt()) {
                 long now = System.currentTimeMillis();
                 long lastRun = mAppOpenEventIndexerSettings.getLastAttemptedUpdateTimestampMillis();
@@ -285,7 +301,8 @@ public final class AppOpenEventIndexerUserInstance {
                 Log.w(TAG, "Skipping update because last update was too recent");
                 return;
             }
-            mAppOpenEventIndexerImpl.doUpdate(mAppOpenEventIndexerSettings);
+            mAppOpenEventIndexerImpl.doUpdate(
+                    mAppOpenEventIndexerSettings, appOpenEventStatsBuilder);
             mAppOpenEventIndexerSettings.persist();
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
