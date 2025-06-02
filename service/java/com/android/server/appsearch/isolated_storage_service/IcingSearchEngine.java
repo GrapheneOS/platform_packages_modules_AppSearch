@@ -17,6 +17,7 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.DeadObjectException;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -80,6 +81,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     // The isolated storage service implemented by the VM to access icing.
     private volatile com.android.isolated_storage_service.IIsolatedStorageService
             mVmIsolatedStorageService;
+    private volatile boolean mIsReconnecting = false;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
@@ -108,6 +110,11 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             vmIsolatedStorageService) {
         mEngine = Objects.requireNonNull(engine);
         mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
+    }
+
+    /** Sets whether the vm engine is reconnecting. */
+    public void setIsReconnecting(boolean isReconnecting) {
+        mIsReconnecting = isReconnecting;
     }
 
     @Override
@@ -924,16 +931,23 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return parser.parseFrom(data);
     }
 
-    private static @NonNull StatusProto remoteExceptionStatus(@NonNull Exception e) {
-        Log.e(TAG, "Failed to call isolated storage service via binder", e);
+    private @NonNull StatusProto remoteExceptionStatus(@NonNull RemoteException e) {
+        String message;
+        if (mIsReconnecting && e instanceof DeadObjectException) {
+            Log.w(TAG, "Reconnecting to isolated storage service", e);
+            message = "reconnecting to isolated storage service, please wait and retry";
+        } else {
+            Log.w(TAG, "Failed to call isolated storage service via binder", e);
+            message = "failed to call isolated storage service via binder: " + e.getMessage();
+        }
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.UNAVAILABLE)
-                .setMessage("failed to call isolated storage service via binder: " + e.getMessage())
+                .setMessage(message)
                 .build();
     }
 
     private static @NonNull StatusProto oomExceptionStatus(@NonNull OutOfMemoryError e) {
-        Log.e(TAG, "Encountered OOM in midst of binder transaction", e);
+        Log.w(TAG, "Encountered OOM in midst of binder transaction", e);
         // TODO(b/404210068): Add a different error code to distinguish these failures.
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.UNKNOWN)
@@ -942,7 +956,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     }
 
     private static @NonNull StatusProto protoParseFailureStatus(@NonNull Exception e) {
-        Log.e(TAG, "Failed to parse proto data", e);
+        Log.w(TAG, "Failed to parse proto data", e);
         return StatusProto.newBuilder()
                 .setCode(StatusProto.Code.INTERNAL)
                 .setMessage("failed to parse proto data: " + e.getMessage())
