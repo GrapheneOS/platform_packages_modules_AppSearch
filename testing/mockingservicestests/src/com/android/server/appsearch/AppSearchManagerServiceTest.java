@@ -1514,8 +1514,9 @@ public class AppSearchManagerServiceTest {
                 Boolean.toString(true),
                 false);
         assumeTrue(IsolatedStorageServiceManager.useIsolatedStorage(context, appSearchConfig));
-        // Create a new user, one was already created during setUp()
-        UserHandle testUserHandle = new UserHandle(1);
+        // The original user0 was created to not use isolated storage, and that result was
+        // cached. Clear the cache so that our new settings take effect.
+        AppSearchUserInstanceManager.getInstance().closeAndRemoveUserInstance(mUserHandle);
         IsolatedStorageServiceManager isolatedStorageServiceManager =
                 new IsolatedStorageServiceManager(context, appSearchConfig, DIRECT_EXECUTOR);
         // Ensure that AppSearch fails if the isolated storage service fails
@@ -1528,7 +1529,7 @@ public class AppSearchManagerServiceTest {
                     AppSearchUserInstanceManager.getInstance()
                             .getOrCreateUserInstance(
                                     testContext,
-                                    testUserHandle,
+                                    mUserHandle,
                                     appSearchConfig,
                                     mExecutorManager,
                                     isolatedStorageServiceManager);
