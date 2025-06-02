@@ -39,7 +39,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -49,7 +48,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -173,11 +171,21 @@ public final class AppsIndexerUserInstance {
 
     /** Dumps the internal state of this {@link AppsIndexerUserInstance}. */
     public void dump(@NonNull PrintWriter pw) {
-        // Those timestamps are not protected by any lock since in AppsIndexerUserInstance
-        // we only have one thread to handle all the updates. It is possible we might run into
-        // race condition if there is an update running while those numbers are being printed.
+        executeOnSingleThreadedExecutor(() -> dumpInternal(pw));
+    }
+
+    /**
+     * Dumps the internal state of this {@link AppsIndexerUserInstance}. This will be ran on the
+     * single threaed executor.
+     */
+    private void dumpInternal(@NonNull PrintWriter pw) {
+        // Those timestamps are not protected by any lock since in
+        // AppsIndexerUserInstance
+        // we only have one thread to handle all the updates. It is possible we might
+        // run into
+        // race condition if there is an update running while those numbers are being
+        // printed.
         // This is acceptable though for debug purpose, so still no lock here.
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
         pw.println(
                 "last_update_timestamp_millis: "
                         + formatTimestamp(mSettings.getLastUpdateTimestampMillis()));
