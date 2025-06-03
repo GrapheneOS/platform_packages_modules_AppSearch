@@ -84,7 +84,8 @@ public class DataMigrationUtil {
             boolean resetDestination,
             boolean forceOverride) {
         // TODO(b/407815165): Either remove this limit or make it configurable in future.
-        int maxBytesPerPage = 500_000; // 500KB
+        int maxBytesPerPage =
+                IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
 
         if (resetDestination) {
             // Clear all current data from icing instance and reinitialize it.
