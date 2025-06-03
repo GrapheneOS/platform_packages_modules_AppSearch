@@ -326,9 +326,14 @@ public final class AppSearchUserInstanceManager {
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
         IcingSearchEngineInterface icingInstance = null;
-        if (isolatedStorageServiceManager != null) {
+        if (isolatedStorageServiceManager != null
+                && IsolatedStorageServiceManager.isUserAllowed(userHandle)) {
             if (LogUtil.INFO) {
-                Log.i(TAG, "Creating new AppSearch instance in isolated storage.");
+                Log.i(
+                        TAG,
+                        "Creating new AppSearch instance for "
+                                + userHandle
+                                + " in isolated storage.");
             }
             icingInstance =
                     maybeGetIsolatedIcingSearchEngine(
@@ -339,7 +344,9 @@ public final class AppSearchUserInstanceManager {
                             isolatedStorageServiceManager);
         } else {
             if (LogUtil.INFO) {
-                Log.i(TAG, "Creating new AppSearch instance at: " + icingDir);
+                Log.i(
+                        TAG,
+                        "Creating new AppSearch instance for " + userHandle + " at: " + icingDir);
             }
         }
         VisibilityChecker visibilityCheckerImpl =
@@ -411,7 +418,7 @@ public final class AppSearchUserInstanceManager {
                     RESULT_INTERNAL_ERROR, "Failed to get isolated storage instance!");
         }
 
-        if (!DataMigrationUtil.needDataMigration(userContext, userHandle, config)) {
+        if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
             return isolatedIcingInterface;
         }
 

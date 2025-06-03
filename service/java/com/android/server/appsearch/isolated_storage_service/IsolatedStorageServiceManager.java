@@ -82,11 +82,13 @@ public final class IsolatedStorageServiceManager {
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
     private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
-    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
+    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 61;
     private static final int MAX_VM_START_RETRIES = 3;
     private static final int MAX_REINITIALIZATION_RETRIES = 9;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
     private static final long VM_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
+
+    private static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
@@ -274,7 +276,7 @@ public final class IsolatedStorageServiceManager {
                 intent,
                 new IsolatedStorageServiceConnection(future),
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
-                UserHandle.SYSTEM);
+                ISOLATED_STORAGE_USER);
         try {
             future.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -363,6 +365,10 @@ public final class IsolatedStorageServiceManager {
         ServiceConfig serviceConfig = createServiceConfig();
         try {
             for (int i = 0; i < numRetries; i++) {
+                // TODO(b/421272017): log latency, improve timeout and retry worst total time.
+                // - For recovering from dead vm, usually it takes more time to restart the vm in a
+                //   single attempt, so we increased PAYLOAD_WAIT_TIMEOUT_SECONDS.
+                // - But for rebooting, the total time is much stricter, so we should tune them.
                 if (mIsolatedStorageService.startVm(
                         serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS, forceVmRestart)) {
                     vmStarted = true;
@@ -392,6 +398,18 @@ public final class IsolatedStorageServiceManager {
             throw new IllegalStateException("PFD VM connection is an invalid FD: " + pfd.getFd());
         }
         return pfd;
+    }
+
+    /**
+     * Return true iff data from this user can be stored in isolatedStorage.
+     *
+     * <p>To ensure that data is encrypted with the appropriate credential encryption (CE) keys, we
+     * restrict Isolated Storage usage to only users running with the same ID as the Isolated
+     * Storage Service user. Other users should store their data in conventionally protected
+     * storage, which has equivalent security properties.
+     */
+    public static boolean isUserAllowed(@NonNull UserHandle id) {
+        return ISOLATED_STORAGE_USER.equals(id);
     }
 
     private ServiceConfig createServiceConfig() {

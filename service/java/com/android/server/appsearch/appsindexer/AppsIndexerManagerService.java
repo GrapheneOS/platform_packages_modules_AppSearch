@@ -145,13 +145,14 @@ public final class AppsIndexerManagerService extends SystemService {
         try {
             Objects.requireNonNull(userHandle);
             Objects.requireNonNull(pw);
+            AppsIndexerUserInstance instance;
             synchronized (mAppsIndexersLocked) {
-                AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);
-                if (instance != null) {
-                    instance.dump(pw);
-                } else {
-                    pw.println("AppsIndexerUserInstance is not created for " + userHandle);
-                }
+                instance = mAppsIndexersLocked.get(userHandle);
+            }
+            if (instance != null) {
+                instance.dump(pw);
+            } else {
+                pw.println("AppsIndexerUserInstance is not created for " + userHandle);
             }
         } catch (RuntimeException e) {
             Slog.wtf(TAG, "AppsIndexerManagerService.dumpAppsIndexerForUser() failed ", e);
