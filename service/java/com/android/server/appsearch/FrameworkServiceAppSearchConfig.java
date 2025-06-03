@@ -591,12 +591,21 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             throwIfClosedLocked();
             // TODO: b/389105038 - remove the temporary workaround for binder transaction
             //  limit.
-            int defaultMaxPageBytesLimit = IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT;
-            if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, this)) {
-                // It's very likely we are using pVM backed isolated storage now.
-                defaultMaxPageBytesLimit = DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
-            }
-            return mBundleLocked.getInt(KEY_ICING_MAX_PAGE_BYTES_LIMIT, defaultMaxPageBytesLimit);
+            return mBundleLocked.getInt(
+                    KEY_ICING_MAX_PAGE_BYTES_LIMIT,
+                    IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+        }
+    }
+
+    @Override
+    public int getMaxPageBytesLimitForVm() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            // TODO: b/389105038 - remove the temporary workaround for binder transaction
+            //  limit.
+            return mBundleLocked.getInt(
+                    KEY_ICING_MAX_PAGE_BYTES_LIMIT,
+                    DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
         }
     }
 
