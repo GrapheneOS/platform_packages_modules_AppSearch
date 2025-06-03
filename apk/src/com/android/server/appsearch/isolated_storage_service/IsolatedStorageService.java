@@ -75,11 +75,24 @@ public class IsolatedStorageService extends Service {
      */
     private static final long DEFAULT_ENCRYPTED_STORAGE_BYTES = 2_000_000_000L; // 2GB
 
+    /**
+     * The threshold to delete vm after encountering consecutive {@link
+     * VirtualMachineCallback#ERROR_PAYLOAD_CHANGED} VM errors when trying to start the vm.
+     */
+    private static final int CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD = 4;
+
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
 
     private final Object mLock = new Object();
+
+    /**
+     * Number of consecutive {@link VirtualMachineCallback#ERROR_PAYLOAD_CHANGED} VM errors when
+     * starting the VM.
+     */
+    @GuardedBy("mLock")
+    private int mNumConsecutivePayloadChangedErrors = 0;
 
     /**
      * Future object for payload ready state checking and waiting. IsolatedStorageService uses this
@@ -211,6 +224,24 @@ public class IsolatedStorageService extends Service {
         }
     }
 
+    @GuardedBy("mLock")
+    private void deleteCurrentVmLocked() {
+        Log.i(TAG, "Deleting current VM...");
+        Context context = createDeviceProtectedStorageContext();
+        VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
+        if (vmm == null) {
+            Log.e(TAG, "Unable to get VirtualMachineManager");
+            return;
+        }
+        if (deleteVm(vmm, VM_NAME)) {
+            Log.i(TAG, "Deleted current VM");
+            mVm = null;
+            mNumConsecutivePayloadChangedErrors = 0;
+        } else {
+            Log.e(TAG, "Failed to delete current VM");
+        }
+    }
+
     private void deleteOldVms() {
         VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
@@ -221,12 +252,14 @@ public class IsolatedStorageService extends Service {
         deleteVm(vmm, "isolated_storage_service2_vm");
     }
 
-    private void deleteVm(VirtualMachineManager vmm, String name) {
+    private boolean deleteVm(VirtualMachineManager vmm, String name) {
         try {
             vmm.delete(name);
         } catch (VirtualMachineException e) {
             Log.e(TAG, "Failed to delete VM " + name, e);
+            return false;
         }
+        return true;
     }
 
     @GuardedBy("mLock")
@@ -260,6 +293,8 @@ public class IsolatedStorageService extends Service {
         @Override
         public void onPayloadReady(VirtualMachine vm) {
             synchronized (mLock) {
+                mNumConsecutivePayloadChangedErrors = 0;
+
                 if (mFuture != mPayloadReadyFuture) {
                     Log.w(
                             TAG,
@@ -306,9 +341,30 @@ public class IsolatedStorageService extends Service {
         @Override
         public void onError(VirtualMachine vm, int errorCode, String errorMessage) {
             Log.e(TAG, "Error " + VM_NAME + " code : " + errorCode + " msg : " + errorMessage);
+
+            synchronized (mLock) {
+                if (errorCode == VirtualMachineCallback.ERROR_PAYLOAD_CHANGED) {
+                    mNumConsecutivePayloadChangedErrors++;
+                    if (mNumConsecutivePayloadChangedErrors
+                            >= CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD) {
+                        deleteCurrentVmLocked();
+                    } else {
+                        Log.i(
+                                TAG,
+                                "Encountered "
+                                        + mNumConsecutivePayloadChangedErrors
+                                        + " payload changed errors. Not deleting current VM.");
+                    }
+                } else {
+                    mNumConsecutivePayloadChangedErrors = 0;
+                }
+            }
+
             VMPayloadStats stats =
                     new VMPayloadStats.Builder(CALLBACK_TYPE_ERROR).setErrorCode(errorCode).build();
             mLogger.logStats(stats);
+
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
         @Override
