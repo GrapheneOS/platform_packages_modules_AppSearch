@@ -446,10 +446,10 @@ public class AppSearchManagerService extends SystemService {
     @Override
     public void onUserStopping(@NonNull TargetUser user) {
         Objects.requireNonNull(user);
-        onUserStopping(user.getUserHandle());
+        onUserStopping(user.getUserHandle(), /* requiresShutdown= */ false);
     }
 
-    private void onUserStopping(@NonNull UserHandle userHandle) {
+    private void onUserStopping(@NonNull UserHandle userHandle, boolean requiresShutdown) {
         Objects.requireNonNull(userHandle);
         if (LogUtil.INFO) {
             Log.i(TAG, "Shutting down AppSearch for user " + userHandle);
@@ -465,9 +465,33 @@ public class AppSearchManagerService extends SystemService {
                 // Cancel the persistToDisk task if it is scheduled but has not yet started.
                 persistToDiskFuture.cancel(/* mayInterruptIfRunning= */ false);
             }
-            mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
 
-            mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+            if (mIsolatedStorageServiceManager == null
+                    || !IsolatedStorageServiceManager.isUserAllowed(userHandle)
+                    || requiresShutdown) {
+                if (LogUtil.INFO) {
+                    Log.i(TAG,
+                            "Shutting down executor and closing AppSearch for user " + userHandle);
+                }
+                mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
+                mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+            } else {
+                if (LogUtil.INFO) {
+                    Log.i(TAG, "Scheduling close for AppSearch for user " + userHandle);
+                }
+                mExecutorManager.executeLambdaForUserNoCallbackAsync(userHandle, () -> {
+                    if (LogUtil.INFO) {
+                        Log.i(TAG, "Closing AppSearch for user " + userHandle);
+                    }
+                    // The user instance is removed in a locked critical section and then its
+                    // AppSearchImpl is closed outside of that section. This is safe currently
+                    // in a single-threaded environment but possibly dangerous in a
+                    // multi-threaded environment in the case that an initialize() task manages
+                    // to create a new AppSearchImpl at the same time
+                    mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+                });
+            }
+
             AppSearchMaintenanceService.cancelFullyPersistJobIfScheduled(
                     mContext, userHandle.getIdentifier());
             if (LogUtil.INFO) {
@@ -497,7 +521,7 @@ public class AppSearchManagerService extends SystemService {
         //
         // When isolated storage is enabled, we must explicitly delete the data in the AppSearch
         // user instance.
-        onUserStopping(userHandle);
+        onUserStopping(userHandle, /* requiresShutdown= */ true);
         Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
         try {
             mAppSearchUserInstanceManager.removeUserData(
