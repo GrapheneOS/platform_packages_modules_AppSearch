@@ -325,6 +325,7 @@ public interface IcingOptionsConfig {
                         Flags.enableDatabaseScopedSchemaOperations() || isVMEnabled)
                 .setEnableSmallerDecompressionBufferSize(
                         Flags.enableSmallerDecompressionBufferSize() || isVMEnabled)
+                .setEnableEigenEmbeddingScoring(Flags.enableEigenEmbeddingScoring() || isVMEnabled)
                 .build();
     }
 }
