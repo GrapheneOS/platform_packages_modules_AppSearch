@@ -47,6 +47,7 @@ import com.android.server.appsearch.stats.IsolateStorageServiceLogger;
 import com.android.server.appsearch.stats.VMPayloadStats;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -269,7 +270,9 @@ public class IsolatedStorageService extends Service {
 
     @GuardedBy("mLock")
     private boolean isPayloadReadyLocked() {
-        return mPayloadReadyFuture != null && mPayloadReadyFuture.isDone();
+        return mPayloadReadyFuture != null
+                && !mPayloadReadyFuture.isCancelled()
+                && mPayloadReadyFuture.isDone();
     }
 
     /** Callbacks for pVM status changes. */
@@ -364,6 +367,8 @@ public class IsolatedStorageService extends Service {
                     new VMPayloadStats.Builder(CALLBACK_TYPE_ERROR).setErrorCode(errorCode).build();
             mLogger.logStats(stats);
 
+            // The future itself is trivial - it's just a signaling mechanism for the waiting thread
+            // (i.e. get()) to unblock before timeout.
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
@@ -375,6 +380,10 @@ public class IsolatedStorageService extends Service {
                             .setStopReason(stopReason)
                             .build();
             mLogger.logStats(stats);
+
+            // The future itself is trivial - it's just a signaling mechanism for the waiting thread
+            // (i.e. get()) to unblock before timeout.
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
     }
 
@@ -444,7 +453,7 @@ public class IsolatedStorageService extends Service {
 
             try {
                 localPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (InterruptedException | TimeoutException e) {
+            } catch (InterruptedException | TimeoutException | CancellationException e) {
                 Log.w(TAG, "Unable to wait for payload ready", e);
                 return false;
             } catch (Exception e) {
