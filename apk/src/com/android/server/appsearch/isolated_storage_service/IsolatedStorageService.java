@@ -225,7 +225,7 @@ public class IsolatedStorageService extends Service {
     }
 
     @GuardedBy("mLock")
-    private void deleteCurrentVmLocked() {
+    private void deleteCurrentVmLocked(@Nullable String vmErrorMessage) {
         Log.i(TAG, "Deleting current VM...");
         Context context = createDeviceProtectedStorageContext();
         VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
@@ -234,7 +234,11 @@ public class IsolatedStorageService extends Service {
             return;
         }
         if (deleteVm(vmm, VM_NAME)) {
-            Log.i(TAG, "Deleted current VM");
+            if (vmErrorMessage != null) {
+                Log.wtf(TAG, vmErrorMessage);
+            } else {
+                Log.i(TAG, "Successfully deleted the VM.");
+            }
             mVm = null;
             mNumConsecutivePayloadChangedErrors = 0;
         } else {
@@ -340,14 +344,18 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void onError(VirtualMachine vm, int errorCode, String errorMessage) {
-            Log.e(TAG, "Error " + VM_NAME + " code : " + errorCode + " msg : " + errorMessage);
 
             synchronized (mLock) {
+                String vmErrorMessage = "Error " + VM_NAME + " code : " + errorCode + " msg : "
+                        + errorMessage;
+                Log.e(TAG, vmErrorMessage);
                 if (errorCode == VirtualMachineCallback.ERROR_PAYLOAD_CHANGED) {
                     mNumConsecutivePayloadChangedErrors++;
                     if (mNumConsecutivePayloadChangedErrors
                             >= CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD) {
-                        deleteCurrentVmLocked();
+                        vmErrorMessage = vmErrorMessage + ". Previous payload changed error count: "
+                                + mNumConsecutivePayloadChangedErrors;
+                        deleteCurrentVmLocked(vmErrorMessage);
                     } else {
                         Log.i(
                                 TAG,
