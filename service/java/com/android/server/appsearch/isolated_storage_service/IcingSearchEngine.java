@@ -36,6 +36,7 @@ import com.google.android.icing.proto.DeleteBySchemaTypeResultProto;
 import com.google.android.icing.proto.DeleteResultProto;
 import com.google.android.icing.proto.DocumentProto;
 import com.google.android.icing.proto.GetAllNamespacesResultProto;
+import com.google.android.icing.proto.GetNextPageRequestProto;
 import com.google.android.icing.proto.GetOptimizeInfoResultProto;
 import com.google.android.icing.proto.GetResultProto;
 import com.google.android.icing.proto.GetResultSpecProto;
@@ -545,6 +546,27 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         try {
             mVmStateSignaler.signalActivityStarts();
             resultData = mEngine.getNextPage(nextPageToken);
+        } catch (RemoteException e) {
+            return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        } finally {
+            mVmStateSignaler.signalActivityEnds();
+        }
+
+        return getResponseProtoFromRawData(
+                resultData,
+                SearchResultProto.getDefaultInstance(),
+                status -> SearchResultProto.newBuilder().setStatus(status).build());
+    }
+
+    @NonNull
+    @Override
+    public SearchResultProto getNextPage(@NonNull GetNextPageRequestProto getNextPageRequest) {
+        byte[] inputRequest = getNextPageRequest.toByteArray();
+
+        byte[] resultData;
+        try {
+            mVmStateSignaler.signalActivityStarts();
+            resultData = mEngine.getNextPageWithRequestProto(inputRequest);
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {

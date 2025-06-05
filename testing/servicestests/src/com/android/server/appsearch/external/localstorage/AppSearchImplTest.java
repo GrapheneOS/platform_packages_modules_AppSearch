@@ -37,7 +37,6 @@ import static com.android.server.appsearch.external.localstorage.visibilitystore
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +64,7 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.observer.DocumentChangeInfo;
 import android.app.appsearch.observer.ObserverSpec;
 import android.app.appsearch.observer.SchemaChangeInfo;
+import android.app.appsearch.testutil.AppSearchEmail;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.TestObserverCallback;
 import android.content.Context;
@@ -99,8 +99,8 @@ import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
 import com.android.server.appsearch.icing.proto.GetSchemaResultProto;
 import com.android.server.appsearch.icing.proto.IcingSearchEngineOptions;
 import com.android.server.appsearch.icing.proto.InitializeResultProto;
-import com.android.server.appsearch.icing.proto.PersistType;
 import com.android.server.appsearch.icing.proto.PersistToDiskResultProto;
+import com.android.server.appsearch.icing.proto.PersistType;
 import com.android.server.appsearch.icing.proto.PropertyConfigProto;
 import com.android.server.appsearch.icing.proto.PropertyProto;
 import com.android.server.appsearch.icing.proto.PutResultProto;
@@ -131,7 +131,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
-
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -174,8 +173,7 @@ public class AppSearchImplTest {
             new AppSearchConfigImpl(
                     new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
 
-    @Mock
-    private IcingSearchEngine mockIcingSearchEngine;
+    @Mock private IcingSearchEngine mMockIcingSearchEngine;
 
     @Before
     public void setUp() throws Exception {
@@ -747,9 +745,8 @@ public class AppSearchImplTest {
         setUpSuccessfulMocksForCreation();
         InitializeResultProto failedInit =
                 InitializeResultProto.newBuilder().setStatus(ERROR).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
+        InitializeResultProto okInit = InitializeResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -762,7 +759,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -780,7 +777,7 @@ public class AppSearchImplTest {
                 GetSchemaResultProto.newBuilder().setStatus(ERROR).build();
         GetSchemaResultProto successGetSchema =
                 GetSchemaResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(failedGetSchema, successGetSchema);
+        when(mMockIcingSearchEngine.getSchema()).thenReturn(failedGetSchema, successGetSchema);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -793,7 +790,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -803,7 +800,6 @@ public class AppSearchImplTest {
         assertThat(initStats.hasReset()).isFalse();
     }
 
-
     @Test
     public void testResetNativeGetStorageInfoFails_retryWithoutReset() throws Exception {
         // Setup Icing mock to fail the first getStorageInfo call, but then succeed
@@ -812,8 +808,8 @@ public class AppSearchImplTest {
                 StorageInfoResultProto.newBuilder().setStatus(ERROR).build();
         StorageInfoResultProto successGetStorageInfo =
                 StorageInfoResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
-                failedGetStorageInfo, successGetStorageInfo);
+        when(mMockIcingSearchEngine.getStorageInfo())
+                .thenReturn(failedGetStorageInfo, successGetStorageInfo);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -826,7 +822,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -843,10 +839,9 @@ public class AppSearchImplTest {
         setUpSuccessfulMocksForCreation();
         InitializeResultProto failedInit =
                 InitializeResultProto.newBuilder().setStatus(ERROR).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(
-                failedInit, failedInit, failedInit, okInit);
+        InitializeResultProto okInit = InitializeResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.initialize())
+                .thenReturn(failedInit, failedInit, failedInit, okInit);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -859,7 +854,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -877,8 +872,8 @@ public class AppSearchImplTest {
                 GetSchemaResultProto.newBuilder().setStatus(ERROR).build();
         GetSchemaResultProto successGetSchema =
                 GetSchemaResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(
-                failedGetSchema, failedGetSchema, failedGetSchema, successGetSchema);
+        when(mMockIcingSearchEngine.getSchema())
+                .thenReturn(failedGetSchema, failedGetSchema, failedGetSchema, successGetSchema);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -891,7 +886,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -911,9 +906,12 @@ public class AppSearchImplTest {
                 StorageInfoResultProto.newBuilder().setStatus(ERROR).build();
         StorageInfoResultProto successGetStorageInfo =
                 StorageInfoResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
-                failedGetStorageInfo, failedGetStorageInfo, failedGetStorageInfo,
-                successGetStorageInfo);
+        when(mMockIcingSearchEngine.getStorageInfo())
+                .thenReturn(
+                        failedGetStorageInfo,
+                        failedGetStorageInfo,
+                        failedGetStorageInfo,
+                        successGetStorageInfo);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -926,7 +924,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -943,23 +941,21 @@ public class AppSearchImplTest {
         setUpSuccessfulMocksForCreation();
         InitializeResultProto failedInit =
                 InitializeResultProto.newBuilder().setStatus(ERROR).build();
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
+        InitializeResultProto okInit = InitializeResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.initialize()).thenReturn(failedInit, okInit);
 
         GetSchemaResultProto failedGetSchema =
                 GetSchemaResultProto.newBuilder().setStatus(ERROR).build();
         GetSchemaResultProto successGetSchema =
                 GetSchemaResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(
-                failedGetSchema, successGetSchema);
+        when(mMockIcingSearchEngine.getSchema()).thenReturn(failedGetSchema, successGetSchema);
 
         StorageInfoResultProto failedGetStorageInfo =
                 StorageInfoResultProto.newBuilder().setStatus(ERROR).build();
         StorageInfoResultProto successGetStorageInfo =
                 StorageInfoResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(
-                failedGetStorageInfo, successGetStorageInfo);
+        when(mMockIcingSearchEngine.getStorageInfo())
+                .thenReturn(failedGetStorageInfo, successGetStorageInfo);
 
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
         // Initializing with a custom icing instance will cause AppSearch to assume
@@ -972,7 +968,7 @@ public class AppSearchImplTest {
                         initStatsBuilder,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
-                        mockIcingSearchEngine,
+                        mMockIcingSearchEngine,
                         ALWAYS_OPTIMIZE);
 
         // Check recovery state
@@ -1149,6 +1145,79 @@ public class AppSearchImplTest {
                 mAppSearchImpl.query(
                         "package", "EmptyDatabase", "", searchSpec, /* logger= */ null);
         assertThat(searchResultPage.getResults()).isEmpty();
+    }
+
+    @Test
+    public void testQueryWithPageSizeLimit() throws Exception {
+        IcingSearchEngineOptions icingOptions =
+                IcingSearchEngineOptions.newBuilder(
+                                mUnlimitedConfig.toIcingSearchEngineOptions(
+                                        mAppSearchDir.getAbsolutePath(), /* isVMEnabled= */ false))
+                        .setEnableStrictPageByteSizeLimit(true)
+                        .build();
+        IcingSearchEngine icingSearchEngine = new IcingSearchEngine(icingOptions);
+        AppSearchConfig appSearchConfig =
+                new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()) {
+                    @Override
+                    // Set a very small page byte size limit -- this means that each search result
+                    // page
+                    // would normally be able to fit one result only.
+                    public int getMaxPageBytesLimit() {
+                        return 1;
+                    }
+                };
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        appSearchConfig,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        icingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Insert schema
+        List<AppSearchSchema> schema = ImmutableList.of(AppSearchEmail.SCHEMA);
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package1",
+                        "database1",
+                        schema,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert 5 documents
+        for (int i = 0; i < 5; i++) {
+            AppSearchEmail email =
+                    new AppSearchEmail.Builder("namespace", "id" + i)
+                            .setFrom("from@example.com")
+                            .setTo("to1@example.com", "to2@example.com")
+                            .setSubject("testPut example")
+                            .setBody("This is the body of the testPut email")
+                            .build();
+            mAppSearchImpl.putDocument(
+                    "package1",
+                    "database1",
+                    email,
+                    /* sendChangeNotifications= */ false,
+                    /* logger= */ null);
+        }
+
+        // Search for the documents, all 5 documents should be returned despite the page size limit
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setTermMatch(TermMatchType.Code.PREFIX_VALUE)
+                        .setResultCountPerPage(5)
+                        .build();
+        SearchResultPage searchResultPage =
+                mAppSearchImpl.query("package1", "database1", "", searchSpec, /* logger= */ null);
+        assertThat(searchResultPage.getResults()).hasSize(5);
+        assertThat(searchResultPage.getNextPageToken())
+                .isEqualTo(SearchResultPage.EMPTY_PAGE_TOKEN);
     }
 
     @Test
@@ -11005,29 +11074,27 @@ public class AppSearchImplTest {
     // Mocks all methods that are called during AppSearchImpl#create to return successful statuses.
     private void setUpSuccessfulMocksForCreation() {
         // Setup Icing mock to fail the first init call, but then succeed
-        InitializeResultProto okInit =
-                InitializeResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.initialize()).thenReturn(okInit);
+        InitializeResultProto okInit = InitializeResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.initialize()).thenReturn(okInit);
 
         GetSchemaResultProto successGetSchema =
                 GetSchemaResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
-        when(mockIcingSearchEngine.getSchemaForDatabase(any())).thenReturn(successGetSchema);
+        when(mMockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+        when(mMockIcingSearchEngine.getSchemaForDatabase(any())).thenReturn(successGetSchema);
 
         StorageInfoResultProto successGetStorageInfo =
                 StorageInfoResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+        when(mMockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
 
-        ResetResultProto successReset =
-                ResetResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.reset()).thenReturn(successReset);
+        ResetResultProto successReset = ResetResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.reset()).thenReturn(successReset);
 
         SetSchemaResultProto successSetSchema =
                 SetSchemaResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
+        when(mMockIcingSearchEngine.setSchemaWithRequestProto(any())).thenReturn(successSetSchema);
 
         PersistToDiskResultProto successPersist =
                 PersistToDiskResultProto.newBuilder().setStatus(OK).build();
-        when(mockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+        when(mMockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
     }
 }

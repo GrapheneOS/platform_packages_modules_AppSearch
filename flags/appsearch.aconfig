@@ -638,6 +638,13 @@ flag {
 }
 
 flag {
+    name: "enable_result_unavailable"
+    namespace: "appsearch"
+    description: "Enables the AppSearchResult#RESULT_UNAVAILABLE."
+    bug: "404210068"
+}
+
+flag {
     name: "enable_enterprise_visible_to_config"
     namespace: "appsearch"
     description: "Enable checking VisibleToConfig for schema visibility when querying with enterprise global search session."
@@ -645,4 +652,11 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "enable_eigen_embedding_scoring"
+    namespace: "appsearch"
+    description: "Enables the Eigen library for embedding scoring."
+    bug: "420960001"
 }

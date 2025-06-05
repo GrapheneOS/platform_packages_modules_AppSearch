@@ -139,7 +139,11 @@ public final class AppSearchResult<ValueType> {
     @FlaggedApi(Flags.FLAG_ENABLE_RESULT_ABORTED)
     public static final int RESULT_ABORTED = 13;
 
-    /** @hide */
+    /**
+     * An error occurred due to AppSearch not having the necessary resources to execute the API
+     * call.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_RESULT_UNAVAILABLE)
     public static final int RESULT_UNAVAILABLE = 14;
 
     @ResultCode private final int mResultCode;

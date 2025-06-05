@@ -62,6 +62,7 @@ package android.app.appsearch {
     field public static final int RESULT_OUT_OF_SPACE = 5; // 0x5
     field @FlaggedApi("com.android.appsearch.flags.enable_result_denied_and_result_rate_limited") public static final int RESULT_RATE_LIMITED = 10; // 0xa
     field public static final int RESULT_SECURITY_ERROR = 8; // 0x8
+    field @FlaggedApi("com.android.appsearch.flags.enable_result_unavailable") public static final int RESULT_UNAVAILABLE = 14; // 0xe
     field public static final int RESULT_UNKNOWN_ERROR = 1; // 0x1
   }
 

@@ -159,7 +159,7 @@ public class VisibilityStore {
                 visibilityDocumentsV1s =
                         VisibilityStoreMigrationHelperFromV0.toVisibilityDocumentV1(
                                 visibilityDocumentsV0s);
-                // fall through
+            // fall through
             case VisibilityToDocumentConverter.SCHEMA_VERSION_DOC_PER_SCHEMA:
                 if (visibilityDocumentsV1s == null) {
                     // We need to read VisibilityDocument in Version 1 from AppSearch instead of
