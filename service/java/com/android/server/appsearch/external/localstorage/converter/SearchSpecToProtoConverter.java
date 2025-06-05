@@ -277,8 +277,12 @@ public final class SearchSpecToProtoConverter {
         }
     }
 
-    /** Extracts {@link SearchSpecProto} information from a {@link SearchSpec}. */
-    public @NonNull SearchSpecProto toSearchSpecProto() {
+    /**
+     * Extracts {@link SearchSpecProto} information from a {@link SearchSpec}.
+     *
+     * @param isVMEnabled Whether or not icing is running in a pVM.
+     */
+    public @NonNull SearchSpecProto toSearchSpecProto(boolean isVMEnabled) {
         // set query to SearchSpecProto and override schema and namespace filter by
         // targetPrefixedFilters which contains all existing and also accessible to the caller
         // filters.
@@ -355,9 +359,9 @@ public final class SearchSpecToProtoConverter {
                     JoinSpecProto.NestedSpecProto.newBuilder()
                             .setResultSpec(
                                     mNestedConverter.toResultSpecProto(
-                                            mNamespaceCache, mSchemaCache))
+                                            mNamespaceCache, mSchemaCache, isVMEnabled))
                             .setScoringSpec(mNestedConverter.toScoringSpecProto())
-                            .setSearchSpec(mNestedConverter.toSearchSpecProto())
+                            .setSearchSpec(mNestedConverter.toSearchSpecProto(isVMEnabled))
                             .build();
 
             // This cannot be null, otherwise mNestedConverter would be null as well.
@@ -424,9 +428,11 @@ public final class SearchSpecToProtoConverter {
      *
      * @param namespaceCache The NamespaceCache instance held in AppSearch.
      * @param schemaCache The SchemaCache instance held in AppSearch.
+     * @param isVMEnabled Whether or not icing is running in a pVM.
      */
     public @NonNull ResultSpecProto toResultSpecProto(
-            @NonNull NamespaceCache namespaceCache, @NonNull SchemaCache schemaCache) {
+            @NonNull NamespaceCache namespaceCache, @NonNull SchemaCache schemaCache,
+            boolean isVMEnabled) {
         ResultSpecProto.Builder resultSpecBuilder =
                 ResultSpecProto.newBuilder()
                         .setNumPerPage(mSearchSpec.getResultCountPerPage())
@@ -437,9 +443,14 @@ public final class SearchSpecToProtoConverter {
                                                 mSearchSpec.getSnippetCountPerProperty())
                                         .setMaxWindowUtf32Length(mSearchSpec.getMaxSnippetSize())
                                         .setGetEmbeddingMatchInfo(
-                                                mSearchSpec.shouldRetrieveEmbeddingMatchInfos()))
-                        .setNumTotalBytesPerPageThreshold(
-                                mIcingOptionsConfig.getMaxPageBytesLimit());
+                                                mSearchSpec.shouldRetrieveEmbeddingMatchInfos()));
+        if (isVMEnabled) {
+            resultSpecBuilder.setNumTotalBytesPerPageThreshold(
+                    mIcingOptionsConfig.getMaxPageBytesLimitForVm());
+        } else {
+            resultSpecBuilder.setNumTotalBytesPerPageThreshold(
+                    mIcingOptionsConfig.getMaxPageBytesLimit());
+        }
         JoinSpec joinSpec = mSearchSpec.getJoinSpec();
         if (joinSpec != null) {
             resultSpecBuilder.setMaxJoinedChildrenPerParentToReturn(

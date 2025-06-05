@@ -19,6 +19,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.android.internal.annotations.GuardedBy;
+
 /**
  * Signals VM state changes.
  *
@@ -31,6 +33,10 @@ final class VmStateSignaler {
     private static final long ENABLEMENT_DELAY_MS = 60 * 1000; // 60 seconds
     private final Handler mHandler;
     private final Runnable mVmStateIdleSetter;
+    private final Object mLock = new Object();
+
+    @GuardedBy("mLock")
+    private int mNumActivities = 0;
 
     private volatile boolean mEnabled = false;
     private volatile Boolean mIsIdle = null;
@@ -58,6 +64,9 @@ final class VmStateSignaler {
 
     /** Signals that a VM activity starts. */
     public void signalActivityStarts() {
+        synchronized (mLock) {
+            mNumActivities++;
+        }
         if (!mEnabled) {
             return;
         }
@@ -75,10 +84,12 @@ final class VmStateSignaler {
      * <p>Resets the inactivity timeout.
      */
     public void signalActivityEnds() {
-        if (!mEnabled) {
-            return;
+        synchronized (mLock) {
+            mNumActivities--;
+            if (mEnabled && mNumActivities == 0) {
+                mHandler.postDelayed(mVmStateIdleSetter, INACTIVITY_TIMEOUT_MS);
+            }
         }
-        mHandler.postDelayed(mVmStateIdleSetter, INACTIVITY_TIMEOUT_MS);
     }
 
     /** Signals that the VM is idle. */

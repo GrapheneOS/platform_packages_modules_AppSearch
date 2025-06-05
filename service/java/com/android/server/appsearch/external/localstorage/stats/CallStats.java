@@ -128,7 +128,8 @@ public class CallStats extends BaseStats {
     public static final int CALL_TYPE_GLOBAL_OPEN_READ_BLOB = 35;
     public static final int CALL_TYPE_REMOVE_BLOB = 36;
     public static final int CALL_TYPE_SET_BLOB_VISIBILITY = 37;
-    // Most call types are for AppSearchManager APIs. This call type is for internal calls, such as from indexers.
+    // Most call types are for AppSearchManager APIs. This call type is for internal calls, such
+    // as from indexers.
     public static final int INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER = 38;
 
     // These strings are for the subset of call types that correspond to an AppSearchManager API
