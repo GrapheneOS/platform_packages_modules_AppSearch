@@ -635,6 +635,17 @@ public final class AppSearchImpl implements Closeable {
         }
     }
 
+    /** Clears all data from the current icing instance. */
+    public void clearAndDestroy() {
+        mReadWriteLock.writeLock().lock();
+        try {
+            throwIfClosedLocked();
+            mIcingSearchEngineLocked.clearAndDestroy();
+        } finally {
+            mReadWriteLock.writeLock().unlock();
+        }
+    }
+
     /**
      * Updates the AppSearch schema for this app.
      *

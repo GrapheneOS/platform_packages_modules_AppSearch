@@ -19,6 +19,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.DeadObjectException;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.isolated_storage_service.IIcingSearchEngine;
@@ -70,64 +71,49 @@ import com.google.protobuf.Parser;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 /** Icing engine backed by the isolated storage service. */
 public final class IcingSearchEngine implements IcingSearchEngineInterface {
     private static final String TAG = "IcingSearchEngine";
+    private static final int GET_VM_ISOLATED_STORAGE_SERVICE_TIMEOUT_SECONDS = 5;
+    private static final int GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS = 5;
 
     private final IcingSearchEngineOptions mOptions;
-    private final VmStateSignaler mVmStateSignaler;
-    private volatile IIcingSearchEngine mEngine;
-    // The isolated storage service implemented by the VM to access icing.
-    private volatile com.android.isolated_storage_service.IIsolatedStorageService
-            mVmIsolatedStorageService;
-    private volatile boolean mIsReconnecting = false;
+    private final IsolatedStorageServiceManager mManager;
+    private final UserHandle mUserHandle;
 
     /** Enforces singleton class pattern. */
     public IcingSearchEngine(
-            @NonNull IIcingSearchEngine engine,
-            @NonNull IcingSearchEngineOptions options,
-            @NonNull VmStateSignaler vmStateSignaler,
-            @NonNull
-                    com.android.isolated_storage_service.IIsolatedStorageService
-                            vmIsolatedStorageService) {
+            @NonNull IsolatedStorageServiceManager manager,
+            @NonNull UserHandle userHandle,
+            @NonNull IcingSearchEngineOptions options) {
         Log.d(TAG, "constructing");
-        mEngine = Objects.requireNonNull(engine);
-        mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
+        mManager = Objects.requireNonNull(manager);
+        mUserHandle = Objects.requireNonNull(userHandle);
         mOptions = Objects.requireNonNull(options);
-        mVmStateSignaler = Objects.requireNonNull(vmStateSignaler);
-    }
-
-    /**
-     * Sets the VM instances, including engine and isolated storage service.
-     *
-     * <p>Use this to replace dead VM instances.
-     */
-    public void setVmInstances(
-            @NonNull IIcingSearchEngine engine,
-            @NonNull
-                    com.android.isolated_storage_service.IIsolatedStorageService
-                            vmIsolatedStorageService) {
-        mEngine = Objects.requireNonNull(engine);
-        mVmIsolatedStorageService = Objects.requireNonNull(vmIsolatedStorageService);
-    }
-
-    /** Sets whether the vm engine is reconnecting. */
-    public void setIsReconnecting(boolean isReconnecting) {
-        mIsReconnecting = isReconnecting;
+        mManager.setIcingSearchEngineOptions(userHandle, options);
     }
 
     @Override
     public void close() {
         Log.d(TAG, "closing");
+        IIcingSearchEngine vmIcingInstance = mManager.getVmIcingInstanceOrNull(mUserHandle);
+        if (vmIcingInstance == null) {
+            Log.w(TAG, "vm Icing instance for " + mUserHandle + "doesn't exist");
+            return;
+        }
         try {
-            mVmStateSignaler.signalActivityStarts();
-            mEngine.close();
-        } catch (RemoteException e) {
+            mManager.signalActivityStarts();
+            vmIcingInstance.close();
+            mManager.removeUserInstance(mUserHandle);
+        } catch (Exception e) {
             Log.e(TAG, "failed to call close", e);
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
     }
 
@@ -136,12 +122,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public InitializeResultProto initialize() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.initialize(mOptions.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .initialize(mOptions.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return InitializeResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return InitializeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -164,8 +155,13 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.setSchema(input, ignoreErrorsAndDeleteDocuments);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .setSchema(input, ignoreErrorsAndDeleteDocuments);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return SetSchemaResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (OutOfMemoryError e) {
             Log.w(
                     TAG,
@@ -179,7 +175,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -200,8 +196,13 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.setSchemaWithRequestProto(inputRequest);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .setSchemaWithRequestProto(inputRequest);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return SetSchemaResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (OutOfMemoryError e) {
             // TODO: if we are still seeing issue, print VM MemAvailable as well
             Log.w(
@@ -214,7 +215,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         } catch (RemoteException e) {
             return SetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -228,12 +229,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetSchemaResultProto getSchema() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getSchema();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getSchema();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return GetSchemaResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -247,12 +253,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetSchemaResultProto getSchemaForDatabase(@NonNull String database) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getSchemaForDatabase(database);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getSchemaForDatabase(database);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return GetSchemaResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return GetSchemaResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -266,14 +277,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetSchemaTypeResultProto getSchemaType(@NonNull String schemaType) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getSchemaType(schemaType);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getSchemaType(schemaType);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return GetSchemaTypeResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return GetSchemaTypeResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -289,8 +307,13 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.put(input);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .put(input);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return PutResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (OutOfMemoryError e) {
             Log.w(TAG, "Got out of memory in put. Request length: " + input.length);
             logFreeMemoryInfo(e);
@@ -299,7 +322,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         } catch (RemoteException e) {
             return PutResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -315,8 +338,13 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.batchPut(input);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .batchPut(input);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BatchPutResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (OutOfMemoryError e) {
             Log.w(
                     TAG,
@@ -333,7 +361,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -354,12 +382,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull GetResultSpecProto getResultSpec) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.get(namespace, uri, getResultSpec.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .get(namespace, uri, getResultSpec.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return GetResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return GetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -376,7 +409,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         BatchGetResultProto.Builder responseBuilderIfLimitReached = null;
 
         try {
-            mVmStateSignaler.signalActivityStarts();
+            mManager.signalActivityStarts();
             // TODO(b/401245769) this could be set directly in the caller so we don't need to do
             //  this extra toBuilder here.
             // The transaction limit for the VM is 600KB. We just use the same limit for query here.
@@ -402,7 +435,10 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 // requestBuilder is reused for all the batchGet so we need to clear ids here.
                 requestBuilder.clearIds();
 
-                byte[] resultData = mEngine.batchGet(getResultSpec.toByteArray());
+                byte[] resultData =
+                        mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                                .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                .batchGet(getResultSpec.toByteArray());
                 BatchGetResultProto response = getResponseProtoFromRawData(
                         resultData,
                         BatchGetResultProto.getDefaultInstance(),
@@ -457,13 +493,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 // 2) curIndex is not changed(prevIndex == curIndex).
                 // It means somehow we get stuck. It could be the asked doc size is always bigger
                 // than the limit set. In this case, we should just exit.
-            } while(curIndex < numIdsRequested && prevIndex < curIndex);
+            } while (curIndex < numIdsRequested && prevIndex < curIndex);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BatchGetResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return BatchGetResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         if (responseBuilderIfLimitReached == null) {
@@ -478,12 +516,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public ReportUsageResultProto reportUsage(@NonNull UsageReport usageReport) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.reportUsage(usageReport.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .reportUsage(usageReport.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return ReportUsageResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return ReportUsageResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -497,14 +540,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetAllNamespacesResultProto getAllNamespaces() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getAllNamespaces();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getAllNamespaces();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return GetAllNamespacesResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return GetAllNamespacesResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -521,16 +571,20 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull ResultSpecProto resultSpec) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
+            mManager.signalActivityStarts();
             resultData =
-                    mEngine.search(
-                            searchSpec.toByteArray(),
-                            scoringSpec.toByteArray(),
-                            resultSpec.toByteArray());
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .search(
+                                    searchSpec.toByteArray(),
+                                    scoringSpec.toByteArray(),
+                                    resultSpec.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return SearchResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -544,12 +598,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public SearchResultProto getNextPage(long nextPageToken) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getNextPage(nextPageToken);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getNextPage(nextPageToken);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return SearchResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -565,12 +624,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getNextPageWithRequestProto(inputRequest);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getNextPageWithRequestProto(inputRequest);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return SearchResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -582,12 +646,16 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public void invalidateNextPageToken(long nextPageToken) {
         try {
-            mVmStateSignaler.signalActivityStarts();
-            mEngine.invalidateNextPageToken(nextPageToken);
+            mManager.signalActivityStarts();
+            mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                    .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .invalidateNextPageToken(nextPageToken);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            Log.e(TAG, "failed to get VM icing instance", e);
         } catch (RemoteException e) {
             Log.e(TAG, "failed to call invalidateNextPageToken", e);
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
     }
 
@@ -596,12 +664,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto openWriteBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.openWriteBlob(blobHandle.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .openWriteBlob(blobHandle.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BlobProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -615,12 +688,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto removeBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.removeBlob(blobHandle.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .removeBlob(blobHandle.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BlobProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -634,12 +712,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto openReadBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.openReadBlob(blobHandle.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .openReadBlob(blobHandle.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BlobProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -653,12 +736,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public BlobProto commitBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.commitBlob(blobHandle.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .commitBlob(blobHandle.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BlobProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -672,12 +760,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteResultProto delete(@NonNull String namespace, @NonNull String uri) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.deleteDoc(namespace, uri);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .deleteDoc(namespace, uri);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return DeleteResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return DeleteResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -691,12 +784,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public SuggestionResponse searchSuggestions(@NonNull SuggestionSpecProto suggestionSpec) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.searchSuggestions(suggestionSpec.toByteArray());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .searchSuggestions(suggestionSpec.toByteArray());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return SuggestionResponse.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return SuggestionResponse.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -710,14 +808,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteByNamespaceResultProto deleteByNamespace(@NonNull String namespace) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.deleteByNamespace(namespace);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .deleteByNamespace(namespace);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return DeleteByNamespaceResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return DeleteByNamespaceResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -731,14 +836,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteBySchemaTypeResultProto deleteBySchemaType(@NonNull String schemaType) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.deleteBySchemaType(schemaType);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .deleteBySchemaType(schemaType);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return DeleteBySchemaTypeResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return DeleteBySchemaTypeResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -752,16 +864,23 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteByQueryResultProto deleteByQuery(@NonNull SearchSpecProto searchSpec) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
+            mManager.signalActivityStarts();
             resultData =
-                    mEngine.deleteByQuery(
-                            searchSpec.toByteArray(), /* returnDeletedDocumentInfo= */ false);
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .deleteByQuery(
+                                    searchSpec.toByteArray(),
+                                    /* returnDeletedDocumentInfo= */ false);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return DeleteByQueryResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -776,14 +895,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull SearchSpecProto searchSpec, boolean returnDeletedDocumentInfo) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.deleteByQuery(searchSpec.toByteArray(), returnDeletedDocumentInfo);
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .deleteByQuery(searchSpec.toByteArray(), returnDeletedDocumentInfo);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return DeleteByQueryResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -797,14 +923,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public PersistToDiskResultProto persistToDisk(@NonNull PersistType.Code persistTypeCode) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.persistToDisk(persistTypeCode.getNumber());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .persistToDisk(persistTypeCode.getNumber());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return PersistToDiskResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return PersistToDiskResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -818,12 +951,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public OptimizeResultProto optimize() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.optimize();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .optimize();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return OptimizeResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return OptimizeResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -837,14 +975,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public GetOptimizeInfoResultProto getOptimizeInfo() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getOptimizeInfo();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getOptimizeInfo();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return GetOptimizeInfoResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
         } catch (RemoteException e) {
             return GetOptimizeInfoResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
                     .build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -858,12 +1003,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public StorageInfoResultProto getStorageInfo() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getStorageInfo();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getStorageInfo();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return StorageInfoResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return StorageInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -877,12 +1027,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DebugInfoResultProto getDebugInfo(@NonNull DebugInfoVerbosity.Code verbosity) {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.getDebugInfo(verbosity.getNumber());
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getDebugInfo(verbosity.getNumber());
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return DebugInfoResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return DebugInfoResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -896,12 +1051,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public ResetResultProto reset() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.reset();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .reset();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return ResetResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
 
         return getResponseProtoFromRawData(
@@ -915,13 +1075,20 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public ResetResultProto clearAndDestroy() {
         byte[] resultData;
         try {
-            mVmStateSignaler.signalActivityStarts();
-            resultData = mEngine.clearAndDestroy();
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .clearAndDestroy();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return ResetResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
         } catch (RemoteException e) {
             return ResetResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
-            mVmStateSignaler.signalActivityEnds();
+            mManager.signalActivityEnds();
         }
+
+        mManager.removeUserInstance(mUserHandle);
 
         return getResponseProtoFromRawData(
                 resultData,
@@ -953,9 +1120,24 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         return parser.parseFrom(data);
     }
 
+    private @NonNull StatusProto futureGetFailureStatus(@NonNull Exception e) {
+        String message;
+        if (mManager.isReconnecting()) {
+            Log.w(TAG, "Reconnecting to isolated storage service", e);
+            message = "reconnecting to isolated storage service, please wait and retry";
+        } else {
+            Log.w(TAG, "Failed to get future result", e);
+            message = "vm isolated storage service/icing is not available: " + e.getMessage();
+        }
+        return StatusProto.newBuilder()
+                .setCode(StatusProto.Code.UNAVAILABLE)
+                .setMessage(message)
+                .build();
+    }
+
     private @NonNull StatusProto remoteExceptionStatus(@NonNull RemoteException e) {
         String message;
-        if (mIsReconnecting && e instanceof DeadObjectException) {
+        if (mManager.isReconnecting() && e instanceof DeadObjectException) {
             Log.w(TAG, "Reconnecting to isolated storage service", e);
             message = "reconnecting to isolated storage service, please wait and retry";
         } else {
@@ -1009,7 +1191,12 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
 
         long vmIsolatedStorageFreeMemoryKb = -1;
         try {
-            vmIsolatedStorageFreeMemoryKb = mVmIsolatedStorageService.getAvailableMemory();
+            vmIsolatedStorageFreeMemoryKb =
+                    mManager.getVmIsolatedStorageServiceAsync()
+                            .get(GET_VM_ISOLATED_STORAGE_SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .getAvailableMemory();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            Log.wtf(TAG, "Unable to get vm isolated storage service", e);
         } catch (RemoteException e) {
             Log.wtf(TAG, "Unable to get vm isolated storage free memory size", e);
         } catch (OutOfMemoryError e) {
