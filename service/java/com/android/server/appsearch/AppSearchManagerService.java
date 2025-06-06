@@ -395,7 +395,9 @@ public class AppSearchManagerService extends SystemService {
 
         if (mIsolatedStorageServiceManager != null) {
             SHARED_EXECUTOR.execute(
-                    () -> mIsolatedStorageServiceManager.onUserUnlocking(mAppSearchConfig));
+                    () ->
+                            mIsolatedStorageServiceManager.onUserUnlocking(
+                                    mAppSearchConfig, userHandle));
         }
 
         // Only schedule task if AppSearch exists for this user.

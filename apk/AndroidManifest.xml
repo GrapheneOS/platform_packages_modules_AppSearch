@@ -29,6 +29,7 @@
         increase the ROLLBACK_INDEX value to prevent rolling pVM back to old versions with lower
         ROLLBACK_INDEX value. -->
         <property android:name="android.system.virtualmachine.ROLLBACK_INDEX" android:value="1" />
+        <property android:name="android.system.virtualmachine.ENCRYPTED_STORE_MODE" android:value="1" />
         <service
             android:name="com.android.server.appsearch.isolated_storage_service.IsolatedStorageService"
             android:exported="true"
