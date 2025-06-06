@@ -21,6 +21,8 @@ import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Signals VM state changes.
  *
@@ -33,48 +35,62 @@ final class VmStateSignaler {
     private static final long ENABLEMENT_DELAY_MS = 60 * 1000; // 60 seconds
     private final Handler mHandler;
     private final Runnable mVmStateIdleSetter;
-    private final Object mLock = new Object();
+    private final ReentrantLock mLock = new ReentrantLock();
 
     @GuardedBy("mLock")
-    private int mNumActivities = 0;
+    private int mNumActivitiesLocked = 0;
 
-    private volatile boolean mEnabled = false;
-    private volatile Boolean mIsIdle = null;
+    @GuardedBy("mLock")
+    private boolean mEnabledLocked = false;
+
+    @GuardedBy("mLock")
+    private Boolean mIsIdleLocked = null;
 
     public VmStateSignaler() {
         System.loadLibrary("appsearchservice");
         mHandler = new Handler(Looper.getMainLooper());
         mVmStateIdleSetter =
                 () -> {
-                    if (mIsIdle == null || !mIsIdle) {
-                        mIsIdle = true;
-                        notifyIdle(true);
+                    synchronized (mLock) {
+                        if (mIsIdleLocked == null || !mIsIdleLocked) {
+                            mIsIdleLocked = true;
+                            notifyIdle(true);
+                        }
                     }
                 };
     }
 
     /** Schedules the signaler to be enabled. */
     public void scheduleEnablement() {
-        if (mEnabled) {
-            Log.i(TAG, "already enabled");
-            return;
+        synchronized (mLock) {
+            if (mEnabledLocked) {
+                Log.i(TAG, "already enabled");
+                return;
+            }
+            mHandler.postDelayed(
+                    () -> {
+                        synchronized (mLock) {
+                            mEnabledLocked = true;
+                        }
+                    },
+                    ENABLEMENT_DELAY_MS);
         }
-        mHandler.postDelayed(() -> mEnabled = true, ENABLEMENT_DELAY_MS);
     }
 
     /** Signals that a VM activity starts. */
     public void signalActivityStarts() {
         synchronized (mLock) {
-            mNumActivities++;
-        }
-        if (!mEnabled) {
-            return;
-        }
-        mHandler.removeCallbacks(mVmStateIdleSetter);
+            mNumActivitiesLocked++;
 
-        if (mIsIdle == null || mIsIdle) {
-            mIsIdle = false;
-            notifyIdle(false);
+            if (!mEnabledLocked) {
+                return;
+            }
+            mHandler.removeCallbacks(mVmStateIdleSetter);
+
+            if (mIsIdleLocked == null || mIsIdleLocked) {
+                mIsIdleLocked = false;
+                notifyIdle(false);
+            }
         }
     }
 
@@ -85,8 +101,11 @@ final class VmStateSignaler {
      */
     public void signalActivityEnds() {
         synchronized (mLock) {
-            mNumActivities--;
-            if (mEnabled && mNumActivities == 0) {
+            mNumActivitiesLocked--;
+            if (mNumActivitiesLocked < 0) {
+                Log.wtf(TAG, "mNumActivitiesLocked =" + mNumActivitiesLocked);
+            }
+            if (mEnabledLocked && mNumActivitiesLocked == 0) {
                 mHandler.postDelayed(mVmStateIdleSetter, INACTIVITY_TIMEOUT_MS);
             }
         }
@@ -94,4 +113,21 @@ final class VmStateSignaler {
 
     /** Signals that the VM is idle. */
     private static native void notifyIdle(boolean idle);
+
+    @Override
+    protected void finalize() throws Throwable {
+        if (mLock.tryLock()) {
+            try {
+                if (mNumActivitiesLocked != 0) {
+                    Log.wtf(
+                            TAG,
+                            "finalizing VmStateSignaler with mNumActivitiesLocked ="
+                                    + mNumActivitiesLocked);
+                }
+            } finally {
+                mLock.unlock();
+            }
+        }
+        super.finalize();
+    }
 }
