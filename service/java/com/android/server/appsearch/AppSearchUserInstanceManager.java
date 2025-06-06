@@ -343,6 +343,9 @@ public final class AppSearchUserInstanceManager {
                         TAG,
                         "Creating new AppSearch instance for " + userHandle + " at: " + icingDir);
             }
+            // Data is stored in host. We need to delete the migration status file
+            // so next migration can run.
+            DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir);
         }
         VisibilityChecker visibilityCheckerImpl =
                 AppSearchComponentFactory.createVisibilityCheckerInstance(userContext);
@@ -609,7 +612,8 @@ public final class AppSearchUserInstanceManager {
     /**
      * Gets the isolated icing engine for the user if isolated storage is enabled.
      *
-     * @return IcingSearchEngineInterface or null if isolated storage is not enabled.
+     * @return IcingSearchEngineInterface or null if isolated storage is not enabled or
+     *     can't be used right away due to, e.g. pending data migration.
      * @throws AppSearchException if isolated storage is enabled, but the isolated storage service
      *     is unavailable or fails.
      */
@@ -637,11 +641,8 @@ public final class AppSearchUserInstanceManager {
                     RESULT_INTERNAL_ERROR, "Failed to get isolated storage instance!");
         }
 
-        if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
-            return isolatedIcingInterface;
-        }
-
-        if (!config.enableIsolatedStorageMigration()) {
+        if (!config.enableIsolatedStorageMigration()
+                || !DataMigrationUtil.needDataMigration(userContext, userHandle)) {
             return isolatedIcingInterface;
         }
 
@@ -650,6 +651,8 @@ public final class AppSearchUserInstanceManager {
             ScheduledFuture<?> migrationFuture = mPerUserMigrationFutureLocked.get(userHandle);
             if (migrationFuture == null) {
                 // TODO(b/407815165): Allow configuring resetDestination, forceOverride & delay
+                // TODO(b/407815165): we should schedule a background job to do migration,
+                //  and we should block any incoming write APIs while migration runs.
                 migrationFuture =
                         executorManager.scheduleLambdaForUserNoCallbackAsync(
                                 userHandle,
@@ -695,18 +698,30 @@ public final class AppSearchUserInstanceManager {
                                                         .swapIcingSearchEngineLocked(
                                                                 isolatedIcingInterface);
 
+                                        DataMigrationUtil.createMigrationStatus(
+                                                AppSearchEnvironmentFactory
+                                                        .getEnvironmentInstance()
+                                                        .getAppSearchDir(userContext, userHandle));
+
                                         // Destroy the current instance.
-                                        ResetResultProto resetResult =
-                                                priorIcingSearchEngine.clearAndDestroy();
-                                        priorIcingSearchEngine.close();
-                                        if (LogUtil.INFO) {
-                                            Log.i(TAG, "Clear and destroy result: " + resetResult);
+                                        if (Flags.enableWipingOutSystemServerDataAfterMigration()) {
+                                            // TODO(b/407815165): We can't delete blob related
+                                            //  files as well as migration status file.
+                                            ResetResultProto resetResult =
+                                                    priorIcingSearchEngine.clearAndDestroy();
+                                            priorIcingSearchEngine.close();
+                                            if (LogUtil.INFO) {
+                                                Log.i(TAG,
+                                                        "Clear and destroy result: "
+                                                                + resetResult);
+                                            }
                                         }
                                     }
                                 },
                                 1,
                                 TimeUnit.MINUTES);
                 mPerUserMigrationFutureLocked.put(userHandle, migrationFuture);
+                Log.i(TAG, "Data migration for " + userHandle + " scheduled.");
             }
         }
         // If we need a migration, return null so that AppSearch will create the non-isolated

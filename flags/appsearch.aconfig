@@ -660,3 +660,10 @@ flag {
     description: "Enables the Eigen library for embedding scoring."
     bug: "420960001"
 }
+
+flag {
+    name: "enable_wiping_out_system_server_data_after_migration"
+    namespace: "appsearch"
+    description: "Enable wiping out old icing directory after data has been migrated to the VM."
+    bug: "422162268"
+}
