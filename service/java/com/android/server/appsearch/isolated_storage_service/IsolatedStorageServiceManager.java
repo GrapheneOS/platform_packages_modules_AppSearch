@@ -102,6 +102,8 @@ public final class IsolatedStorageServiceManager {
     private final Runnable mVmStatusChecker;
     private final Object mLock = new Object();
 
+    private final VmDataUnlocker mVmUnlocker = new VmDataUnlocker();
+
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
 
@@ -211,10 +213,22 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Called when the user unlocks the device. */
-    public void onUserUnlocking(@NonNull ServiceAppSearchConfig appSearchConfig) {
+    public void onUserUnlocking(
+            @NonNull ServiceAppSearchConfig appSearchConfig, @NonNull UserHandle userHandle) {
         Objects.requireNonNull(appSearchConfig);
+        Objects.requireNonNull(userHandle);
+
+        if (!isUserAllowed(userHandle)) {
+            // Currently the Isolated Storage Service only stores data for the primary
+            // user. Ignore calls for other users. In the future, when the Isolated Storage
+            // service supports multiple users, we may handle this call appropriately.
+            Log.i(TAG, "ignoring onUserUnlocking call for disallowed user " + userHandle);
+            return;
+        }
+
         Log.i(TAG, "onUserUnlocking");
         mVmStateSignaler.scheduleEnablement();
+        mVmUnlocker.onUserUnlocking();
 
         synchronized (mLock) {
             if (mIsolatedStorageService != null
@@ -321,7 +335,9 @@ public final class IsolatedStorageServiceManager {
                     com.android.isolated_storage_service.IIsolatedStorageService.Stub.asInterface(
                             iBinder);
             iBinder.linkToDeath(mVmIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
+            mVmUnlocker.onVmAvailable();
         } catch (Exception e) {
+            mVmIsolatedStorageService = null;
             Log.e(TAG, "Unable to connect to vm", e);
             throw new AppSearchException(RESULT_UNAVAILABLE, "Unable to connect to vm", e);
         }
@@ -526,6 +542,7 @@ public final class IsolatedStorageServiceManager {
             Log.w(TAG, "binderDied: VmIsolatedStorageService");
             synchronized (mLock) {
                 mVmIsolatedStorageService = null;
+                mVmUnlocker.onVmUnavailable();
             }
             mExecutor.execute(() -> replaceVmIcingInstances());
         }
@@ -595,6 +612,59 @@ public final class IsolatedStorageServiceManager {
                             + MAX_ICING_INITIALIZATION_RETRIES
                             + " retries");
             // TODO(b/416509382): consider resetting the icing instance
+        }
+    }
+
+    private final class VmDataUnlocker {
+        @GuardedBy("mLock")
+        private boolean mIsUserUnlocked = false;
+
+        @GuardedBy("mLock")
+        private boolean mIsVmAvailable = false;
+
+        private void onVmAvailable() {
+            synchronized (mLock) {
+                mIsVmAvailable = true;
+                tryVmDataUnlock();
+            }
+        }
+
+        private void onVmUnavailable() {
+            synchronized (mLock) {
+                mIsVmAvailable = false;
+            }
+        }
+
+        private void onUserUnlocking() {
+            synchronized (mLock) {
+                mIsUserUnlocked = true;
+                try {
+                    tryVmDataUnlock();
+                } catch (Exception e) {
+                    Log.e(TAG, "tryVmDataUnlock failed", e);
+                }
+            }
+        }
+
+        @GuardedBy("mLock")
+        private void tryVmDataUnlock() {
+            if (!mIsVmAvailable || !mIsUserUnlocked) {
+                Log.i(
+                        TAG,
+                        "not ready to unlock isVmAvailable="
+                                + mIsVmAvailable
+                                + " isUserUnlocked="
+                                + mIsUserUnlocked);
+                return;
+            }
+
+            Log.i(TAG, "signaling VM to unlock");
+            try {
+                mVmIsolatedStorageService.onUserUnlocking();
+            } catch (RemoteException e) {
+                Log.e(TAG, "onUserUnlocking VM notify failure", e);
+                ExceptionUtil.handleRemoteException(e);
+            }
         }
     }
 }

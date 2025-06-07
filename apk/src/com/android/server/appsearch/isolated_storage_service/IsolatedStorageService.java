@@ -47,6 +47,7 @@ import com.android.server.appsearch.stats.IsolateStorageServiceLogger;
 import com.android.server.appsearch.stats.VMPayloadStats;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -225,7 +226,7 @@ public class IsolatedStorageService extends Service {
     }
 
     @GuardedBy("mLock")
-    private void deleteCurrentVmLocked() {
+    private void deleteCurrentVmLocked(@Nullable String vmErrorMessage) {
         Log.i(TAG, "Deleting current VM...");
         Context context = createDeviceProtectedStorageContext();
         VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
@@ -234,7 +235,11 @@ public class IsolatedStorageService extends Service {
             return;
         }
         if (deleteVm(vmm, VM_NAME)) {
-            Log.i(TAG, "Deleted current VM");
+            if (vmErrorMessage != null) {
+                Log.wtf(TAG, vmErrorMessage);
+            } else {
+                Log.i(TAG, "Successfully deleted the VM.");
+            }
             mVm = null;
             mNumConsecutivePayloadChangedErrors = 0;
         } else {
@@ -269,7 +274,9 @@ public class IsolatedStorageService extends Service {
 
     @GuardedBy("mLock")
     private boolean isPayloadReadyLocked() {
-        return mPayloadReadyFuture != null && mPayloadReadyFuture.isDone();
+        return mPayloadReadyFuture != null
+                && !mPayloadReadyFuture.isCancelled()
+                && mPayloadReadyFuture.isDone();
     }
 
     /** Callbacks for pVM status changes. */
@@ -340,14 +347,18 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void onError(VirtualMachine vm, int errorCode, String errorMessage) {
-            Log.e(TAG, "Error " + VM_NAME + " code : " + errorCode + " msg : " + errorMessage);
 
             synchronized (mLock) {
+                String vmErrorMessage = "Error " + VM_NAME + " code : " + errorCode + " msg : "
+                        + errorMessage;
+                Log.e(TAG, vmErrorMessage);
                 if (errorCode == VirtualMachineCallback.ERROR_PAYLOAD_CHANGED) {
                     mNumConsecutivePayloadChangedErrors++;
                     if (mNumConsecutivePayloadChangedErrors
                             >= CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD) {
-                        deleteCurrentVmLocked();
+                        vmErrorMessage = vmErrorMessage + ". Previous payload changed error count: "
+                                + mNumConsecutivePayloadChangedErrors;
+                        deleteCurrentVmLocked(vmErrorMessage);
                     } else {
                         Log.i(
                                 TAG,
@@ -364,6 +375,8 @@ public class IsolatedStorageService extends Service {
                     new VMPayloadStats.Builder(CALLBACK_TYPE_ERROR).setErrorCode(errorCode).build();
             mLogger.logStats(stats);
 
+            // The future itself is trivial - it's just a signaling mechanism for the waiting thread
+            // (i.e. get()) to unblock before timeout.
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
@@ -375,6 +388,10 @@ public class IsolatedStorageService extends Service {
                             .setStopReason(stopReason)
                             .build();
             mLogger.logStats(stats);
+
+            // The future itself is trivial - it's just a signaling mechanism for the waiting thread
+            // (i.e. get()) to unblock before timeout.
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
     }
 
@@ -444,7 +461,7 @@ public class IsolatedStorageService extends Service {
 
             try {
                 localPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (InterruptedException | TimeoutException e) {
+            } catch (InterruptedException | TimeoutException | CancellationException e) {
                 Log.w(TAG, "Unable to wait for payload ready", e);
                 return false;
             } catch (Exception e) {
