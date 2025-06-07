@@ -967,9 +967,15 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
 
-                        // Now that the batch has been written. Persist the newly written data.
-                        instance.getAppSearchImpl().persistToDisk(
-                                mAppSearchConfig.getLightweightPersistType());
+                        // Now that the batch has been written, persist the newly written data.
+                        if (Flags.enableDelayedPersistToDisk()) {
+                            schedulePersistToDisk(targetUser, instance,
+                                    mAppSearchConfig.getLightweightPersistType(),
+                                    mAppSearchConfig.getCachedPersistDelayMillis());
+                        } else {
+                            instance.getAppSearchImpl().persistToDisk(
+                                    mAppSearchConfig.getLightweightPersistType());
+                        }
                     } else {
                         if (!documentParcels.isEmpty() || !takenActionDocumentParcels.isEmpty()) {
                             // List to hold the current batch.
@@ -2385,7 +2391,15 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
                     }
-                    instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
+                    // Now that the batch has been written, persist the newly written data.
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        schedulePersistToDisk(targetUser, instance,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis());
+                    } else {
+                        instance.getAppSearchImpl().persistToDisk(
+                                mAppSearchConfig.getLightweightPersistType());
+                    }
 
                     schemaMigrationStatsBuilder
                             .setTotalSuccessMigratedDocumentCount(operationSuccessCount)
@@ -2688,9 +2702,15 @@ public class AppSearchManagerService extends SystemService {
                             ++operationFailureCount;
                         }
                     }
-                    // Now that the batch has been written. Persist the newly written data.
-                    instance.getAppSearchImpl().persistToDisk(
-                            mAppSearchConfig.getLightweightPersistType());
+                    // Now that the batch has been written, persist the newly written data.
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        schedulePersistToDisk(targetUser, instance,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis());
+                    } else {
+                        instance.getAppSearchImpl().persistToDisk(
+                                mAppSearchConfig.getLightweightPersistType());
+                    }
                     invokeCallbackOnResult(callback, AppSearchBatchResultParcel.fromStringToVoid(
                             resultBuilder.build()));
 
@@ -2780,9 +2800,15 @@ public class AppSearchManagerService extends SystemService {
                             request.getQueryExpression(),
                             request.getSearchSpec(),
                             /* removeStatsBuilder= */ null);
-                    // Now that the batch has been written. Persist the newly written data.
-                    instance.getAppSearchImpl().persistToDisk(
-                            mAppSearchConfig.getLightweightPersistType());
+                    // Now that the batch has been written, persist the newly written data.
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        schedulePersistToDisk(targetUser, instance,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis());
+                    } else {
+                        instance.getAppSearchImpl().persistToDisk(
+                                mAppSearchConfig.getLightweightPersistType());
+                    }
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
 

@@ -655,6 +655,20 @@ flag {
 }
 
 flag {
+    name: "enable_delayed_persist_to_disk"
+    namespace: "appsearch"
+    description: "Enables AppSearch write API calls to schedule persistToDisk calls after a specified delay, rather than executing them immediately."
+    bug: "417463182"
+}
+
+flag {
+    name: "enable_five_min_persist_to_disk_delay"
+    namespace: "appsearch"
+    description: "Sets scheduled persist to disk delay time to five minutes."
+    bug: "417463182"
+}
+
+flag {
     name: "enable_eigen_embedding_scoring"
     namespace: "appsearch"
     description: "Enables the Eigen library for embedding scoring."

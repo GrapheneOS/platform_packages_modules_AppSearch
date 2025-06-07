@@ -63,6 +63,7 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_API_CA
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FIVE_MINUTE_PERSIST_DELAY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ICING_CONFIG_USE_READ_ONLY_SEARCH;
@@ -89,8 +90,8 @@ import static com.android.server.appsearch.external.localstorage.IcingOptionsCon
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.content.Context;
 import android.app.appsearch.testutil.AppSearchTestUtils;
+import android.content.Context;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.DeviceConfig;
@@ -110,6 +111,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 
+import java.util.concurrent.TimeUnit;
+
 public class ServiceAppSearchConfigTest {
     @Rule
     public final RuleChain mRuleChain =
@@ -128,6 +131,20 @@ public class ServiceAppSearchConfigTest {
         } else {
             assertThat(appSearchConfig.getCachedMinTimeOptimizeThresholdMs())
                     .isEqualTo(DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS);
+        }
+    }
+
+    @Test
+    public void testDefaultValues_cachedPersistDelayMillis() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+
+        if (Flags.enableFiveMinPersistToDiskDelay()) {
+            assertThat(appSearchConfig.getCachedPersistDelayMillis())
+                    .isEqualTo(DEFAULT_FIVE_MINUTE_PERSIST_DELAY);
+        } else {
+            assertThat(appSearchConfig.getCachedPersistDelayMillis())
+                    .isEqualTo(DEFAULT_PERSIST_DELAY);
         }
     }
 
@@ -230,7 +247,6 @@ public class ServiceAppSearchConfigTest {
                 .isEqualTo(DEFAULT_USE_NEW_QUALIFIED_ID_JOIN_INDEX);
         assertThat(appSearchConfig.getCachedFullyPersistJobIntervalMillis())
                 .isEqualTo(DEFAULT_FULLY_PERSIST_JOB_INTERVAL);
-        assertThat(appSearchConfig.getCachedPersistDelayMillis()).isEqualTo(DEFAULT_PERSIST_DELAY);
         assertThat(appSearchConfig.getMaxOpenBlobCount()).isEqualTo(DEFAULT_MAX_OPEN_BLOB_COUNT);
         assertThat(appSearchConfig.getOrphanBlobTimeToLiveMs())
                 .isEqualTo(DEFAULT_ORPHAN_BLOB_TIME_TO_LIVE_MS);
