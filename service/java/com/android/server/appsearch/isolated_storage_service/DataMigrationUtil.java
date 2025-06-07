@@ -21,7 +21,6 @@ import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
 
-import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 
 import com.google.android.icing.IcingSearchEngineInterface;
@@ -37,6 +36,7 @@ import com.google.android.icing.proto.StatusProto;
 import com.google.android.icing.proto.TermMatchType;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * Utils to migrate data from AppSearch to IsolatedStorage.
@@ -44,31 +44,66 @@ import java.io.File;
  * @hide
  */
 public class DataMigrationUtil {
-
     private DataMigrationUtil() {}
 
     private static final String TAG = "IcingDataMigration";
 
+    private static final String DATA_MIGRATION_STATUS_FILE = "data_migration_status";
+
     /** Checks if data migration is needed from AppSearch to Isolated Storage. */
     // TODO(b/407815165) Right now just check if the icing/version on host exists
     //  We can persist a file to save the migration status, so dir deletion could happen later.
-    //
-    // TODO(b/407815165) Right now we are checking for USE_ISOLATED_STORAGE flag, later this can be
-    // replaced by checking DATA_MIGRATION_TO_ISOLATED_STORAGE_ENABLED flag as well.
     public static boolean needDataMigration(
-            @NonNull Context userContext,
-            @NonNull UserHandle userHandle,
-            @NonNull ServiceAppSearchConfig config) {
-        if (!IsolatedStorageServiceManager.useIsolatedStorage(userContext, config)) {
-            return false;
-        }
-
+            @NonNull Context userContext, @NonNull UserHandle userHandle) {
         File appSearchDir =
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
-        File icingDir = new File(appSearchDir, "icing/version");
+        File icingVersion = new File(appSearchDir, "icing/version");
+        File dataMigrationStatus = new File(
+                appSearchDir, DATA_MIGRATION_STATUS_FILE);
 
-        return icingDir.exists();
+        // icing version exists means icing has been initialized and used.
+        // And if there is no migration_status file created, it means migration has not been
+        // scheduled yet, so we need to schedule a migration.
+        return icingVersion.exists() && !dataMigrationStatus.exists();
+    }
+
+    /** deletes the migration status file if it exists. */
+    public static void deleteMigrationStatus(
+            @NonNull UserHandle userHandle,
+            @NonNull File appSearchDir) {
+        try {
+            File icingMigrationStatus = new File(
+                    appSearchDir,  DATA_MIGRATION_STATUS_FILE);
+            if (icingMigrationStatus.exists())  {
+                Log.i(TAG,
+                        "data migration was run before for " + userHandle);
+                icingMigrationStatus.delete();
+            }
+        } catch (Exception e) {
+            Log.e(TAG,
+                    "Exception thrown while checking migration status "
+                            + "file for " + userHandle,
+                    e);
+        }
+    }
+
+    /** creates the migration status file. */
+    public static void createMigrationStatus(@NonNull File appSearchDir) {
+        try {
+            // TODO(b/407815165) right now we just create this file
+            //  to mark migration done successfully.
+            //  In the future we might want to create the file
+            //  earlier and put different statuses for
+            //  different stages during migration.
+            File icingMigrationStatus = new File(
+                    appSearchDir, DATA_MIGRATION_STATUS_FILE);
+            icingMigrationStatus.createNewFile();
+        } catch (IOException e) {
+            Log.e(TAG,
+                    "Fail to create marker file to mark "
+                            + "data migration done.", e);
+        }
     }
 
     /**
@@ -84,7 +119,8 @@ public class DataMigrationUtil {
             boolean resetDestination,
             boolean forceOverride) {
         // TODO(b/407815165): Either remove this limit or make it configurable in future.
-        int maxBytesPerPage = 500_000; // 500KB
+        int maxBytesPerPage =
+                IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
 
         if (resetDestination) {
             // Clear all current data from icing instance and reinitialize it.

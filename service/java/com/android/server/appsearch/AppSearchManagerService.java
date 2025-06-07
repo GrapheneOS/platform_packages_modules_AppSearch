@@ -395,7 +395,9 @@ public class AppSearchManagerService extends SystemService {
 
         if (mIsolatedStorageServiceManager != null) {
             SHARED_EXECUTOR.execute(
-                    () -> mIsolatedStorageServiceManager.onUserUnlocking(mAppSearchConfig));
+                    () ->
+                            mIsolatedStorageServiceManager.onUserUnlocking(
+                                    mAppSearchConfig, userHandle));
         }
 
         // Only schedule task if AppSearch exists for this user.
@@ -446,10 +448,10 @@ public class AppSearchManagerService extends SystemService {
     @Override
     public void onUserStopping(@NonNull TargetUser user) {
         Objects.requireNonNull(user);
-        onUserStopping(user.getUserHandle());
+        onUserStopping(user.getUserHandle(), /* requiresShutdown= */ false);
     }
 
-    private void onUserStopping(@NonNull UserHandle userHandle) {
+    private void onUserStopping(@NonNull UserHandle userHandle, boolean requiresShutdown) {
         Objects.requireNonNull(userHandle);
         if (LogUtil.INFO) {
             Log.i(TAG, "Shutting down AppSearch for user " + userHandle);
@@ -465,9 +467,33 @@ public class AppSearchManagerService extends SystemService {
                 // Cancel the persistToDisk task if it is scheduled but has not yet started.
                 persistToDiskFuture.cancel(/* mayInterruptIfRunning= */ false);
             }
-            mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
 
-            mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+            if (mIsolatedStorageServiceManager == null
+                    || !IsolatedStorageServiceManager.isUserAllowed(userHandle)
+                    || requiresShutdown) {
+                if (LogUtil.INFO) {
+                    Log.i(TAG,
+                            "Shutting down executor and closing AppSearch for user " + userHandle);
+                }
+                mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
+                mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+            } else {
+                if (LogUtil.INFO) {
+                    Log.i(TAG, "Scheduling close for AppSearch for user " + userHandle);
+                }
+                mExecutorManager.executeLambdaForUserNoCallbackAsync(userHandle, () -> {
+                    if (LogUtil.INFO) {
+                        Log.i(TAG, "Closing AppSearch for user " + userHandle);
+                    }
+                    // The user instance is removed in a locked critical section and then its
+                    // AppSearchImpl is closed outside of that section. This is safe currently
+                    // in a single-threaded environment but possibly dangerous in a
+                    // multi-threaded environment in the case that an initialize() task manages
+                    // to create a new AppSearchImpl at the same time
+                    mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+                });
+            }
+
             AppSearchMaintenanceService.cancelFullyPersistJobIfScheduled(
                     mContext, userHandle.getIdentifier());
             if (LogUtil.INFO) {
@@ -497,7 +523,7 @@ public class AppSearchManagerService extends SystemService {
         //
         // When isolated storage is enabled, we must explicitly delete the data in the AppSearch
         // user instance.
-        onUserStopping(userHandle);
+        onUserStopping(userHandle, /* requiresShutdown= */ true);
         Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
         try {
             mAppSearchUserInstanceManager.removeUserData(
@@ -941,9 +967,15 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
 
-                        // Now that the batch has been written. Persist the newly written data.
-                        instance.getAppSearchImpl().persistToDisk(
-                                mAppSearchConfig.getLightweightPersistType());
+                        // Now that the batch has been written, persist the newly written data.
+                        if (Flags.enableDelayedPersistToDisk()) {
+                            schedulePersistToDisk(targetUser, instance,
+                                    mAppSearchConfig.getLightweightPersistType(),
+                                    mAppSearchConfig.getCachedPersistDelayMillis());
+                        } else {
+                            instance.getAppSearchImpl().persistToDisk(
+                                    mAppSearchConfig.getLightweightPersistType());
+                        }
                     } else {
                         if (!documentParcels.isEmpty() || !takenActionDocumentParcels.isEmpty()) {
                             // List to hold the current batch.
@@ -2359,7 +2391,15 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
                     }
-                    instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
+                    // Now that the batch has been written, persist the newly written data.
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        schedulePersistToDisk(targetUser, instance,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis());
+                    } else {
+                        instance.getAppSearchImpl().persistToDisk(
+                                mAppSearchConfig.getLightweightPersistType());
+                    }
 
                     schemaMigrationStatsBuilder
                             .setTotalSuccessMigratedDocumentCount(operationSuccessCount)
@@ -2662,9 +2702,15 @@ public class AppSearchManagerService extends SystemService {
                             ++operationFailureCount;
                         }
                     }
-                    // Now that the batch has been written. Persist the newly written data.
-                    instance.getAppSearchImpl().persistToDisk(
-                            mAppSearchConfig.getLightweightPersistType());
+                    // Now that the batch has been written, persist the newly written data.
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        schedulePersistToDisk(targetUser, instance,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis());
+                    } else {
+                        instance.getAppSearchImpl().persistToDisk(
+                                mAppSearchConfig.getLightweightPersistType());
+                    }
                     invokeCallbackOnResult(callback, AppSearchBatchResultParcel.fromStringToVoid(
                             resultBuilder.build()));
 
@@ -2754,9 +2800,15 @@ public class AppSearchManagerService extends SystemService {
                             request.getQueryExpression(),
                             request.getSearchSpec(),
                             /* removeStatsBuilder= */ null);
-                    // Now that the batch has been written. Persist the newly written data.
-                    instance.getAppSearchImpl().persistToDisk(
-                            mAppSearchConfig.getLightweightPersistType());
+                    // Now that the batch has been written, persist the newly written data.
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        schedulePersistToDisk(targetUser, instance,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis());
+                    } else {
+                        instance.getAppSearchImpl().persistToDisk(
+                                mAppSearchConfig.getLightweightPersistType());
+                    }
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
 

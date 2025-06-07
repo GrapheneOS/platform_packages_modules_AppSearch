@@ -47,6 +47,7 @@ import com.android.server.appsearch.stats.IsolateStorageServiceLogger;
 import com.android.server.appsearch.stats.VMPayloadStats;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,11 +76,24 @@ public class IsolatedStorageService extends Service {
      */
     private static final long DEFAULT_ENCRYPTED_STORAGE_BYTES = 2_000_000_000L; // 2GB
 
+    /**
+     * The threshold to delete vm after encountering consecutive {@link
+     * VirtualMachineCallback#ERROR_PAYLOAD_CHANGED} VM errors when trying to start the vm.
+     */
+    private static final int CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD = 4;
+
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
             new IsolatedStorageServiceStub();
 
     private final Object mLock = new Object();
+
+    /**
+     * Number of consecutive {@link VirtualMachineCallback#ERROR_PAYLOAD_CHANGED} VM errors when
+     * starting the VM.
+     */
+    @GuardedBy("mLock")
+    private int mNumConsecutivePayloadChangedErrors = 0;
 
     /**
      * Future object for payload ready state checking and waiting. IsolatedStorageService uses this
@@ -211,6 +225,28 @@ public class IsolatedStorageService extends Service {
         }
     }
 
+    @GuardedBy("mLock")
+    private void deleteCurrentVmLocked(@Nullable String vmErrorMessage) {
+        Log.i(TAG, "Deleting current VM...");
+        Context context = createDeviceProtectedStorageContext();
+        VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
+        if (vmm == null) {
+            Log.e(TAG, "Unable to get VirtualMachineManager");
+            return;
+        }
+        if (deleteVm(vmm, VM_NAME)) {
+            if (vmErrorMessage != null) {
+                Log.wtf(TAG, vmErrorMessage);
+            } else {
+                Log.i(TAG, "Successfully deleted the VM.");
+            }
+            mVm = null;
+            mNumConsecutivePayloadChangedErrors = 0;
+        } else {
+            Log.e(TAG, "Failed to delete current VM");
+        }
+    }
+
     private void deleteOldVms() {
         VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
@@ -221,12 +257,14 @@ public class IsolatedStorageService extends Service {
         deleteVm(vmm, "isolated_storage_service2_vm");
     }
 
-    private void deleteVm(VirtualMachineManager vmm, String name) {
+    private boolean deleteVm(VirtualMachineManager vmm, String name) {
         try {
             vmm.delete(name);
         } catch (VirtualMachineException e) {
             Log.e(TAG, "Failed to delete VM " + name, e);
+            return false;
         }
+        return true;
     }
 
     @GuardedBy("mLock")
@@ -236,7 +274,9 @@ public class IsolatedStorageService extends Service {
 
     @GuardedBy("mLock")
     private boolean isPayloadReadyLocked() {
-        return mPayloadReadyFuture != null && mPayloadReadyFuture.isDone();
+        return mPayloadReadyFuture != null
+                && !mPayloadReadyFuture.isCancelled()
+                && mPayloadReadyFuture.isDone();
     }
 
     /** Callbacks for pVM status changes. */
@@ -260,6 +300,8 @@ public class IsolatedStorageService extends Service {
         @Override
         public void onPayloadReady(VirtualMachine vm) {
             synchronized (mLock) {
+                mNumConsecutivePayloadChangedErrors = 0;
+
                 if (mFuture != mPayloadReadyFuture) {
                     Log.w(
                             TAG,
@@ -305,10 +347,37 @@ public class IsolatedStorageService extends Service {
 
         @Override
         public void onError(VirtualMachine vm, int errorCode, String errorMessage) {
-            Log.e(TAG, "Error " + VM_NAME + " code : " + errorCode + " msg : " + errorMessage);
+
+            synchronized (mLock) {
+                String vmErrorMessage = "Error " + VM_NAME + " code : " + errorCode + " msg : "
+                        + errorMessage;
+                Log.e(TAG, vmErrorMessage);
+                if (errorCode == VirtualMachineCallback.ERROR_PAYLOAD_CHANGED) {
+                    mNumConsecutivePayloadChangedErrors++;
+                    if (mNumConsecutivePayloadChangedErrors
+                            >= CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD) {
+                        vmErrorMessage = vmErrorMessage + ". Previous payload changed error count: "
+                                + mNumConsecutivePayloadChangedErrors;
+                        deleteCurrentVmLocked(vmErrorMessage);
+                    } else {
+                        Log.i(
+                                TAG,
+                                "Encountered "
+                                        + mNumConsecutivePayloadChangedErrors
+                                        + " payload changed errors. Not deleting current VM.");
+                    }
+                } else {
+                    mNumConsecutivePayloadChangedErrors = 0;
+                }
+            }
+
             VMPayloadStats stats =
                     new VMPayloadStats.Builder(CALLBACK_TYPE_ERROR).setErrorCode(errorCode).build();
             mLogger.logStats(stats);
+
+            // The future itself is trivial - it's just a signaling mechanism for the waiting thread
+            // (i.e. get()) to unblock before timeout.
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
         @Override
@@ -319,6 +388,10 @@ public class IsolatedStorageService extends Service {
                             .setStopReason(stopReason)
                             .build();
             mLogger.logStats(stats);
+
+            // The future itself is trivial - it's just a signaling mechanism for the waiting thread
+            // (i.e. get()) to unblock before timeout.
+            mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
     }
 
@@ -388,7 +461,7 @@ public class IsolatedStorageService extends Service {
 
             try {
                 localPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (InterruptedException | TimeoutException e) {
+            } catch (InterruptedException | TimeoutException | CancellationException e) {
                 Log.w(TAG, "Unable to wait for payload ready", e);
                 return false;
             } catch (Exception e) {

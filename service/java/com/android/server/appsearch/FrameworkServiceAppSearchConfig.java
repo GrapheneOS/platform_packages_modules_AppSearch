@@ -598,12 +598,21 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             throwIfClosedLocked();
             // TODO: b/389105038 - remove the temporary workaround for binder transaction
             //  limit.
-            int defaultMaxPageBytesLimit = IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT;
-            if (IsolatedStorageServiceManager.useIsolatedStorage(mContext, this)) {
-                // It's very likely we are using pVM backed isolated storage now.
-                defaultMaxPageBytesLimit = DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
-            }
-            return mBundleLocked.getInt(KEY_ICING_MAX_PAGE_BYTES_LIMIT, defaultMaxPageBytesLimit);
+            return mBundleLocked.getInt(
+                    KEY_ICING_MAX_PAGE_BYTES_LIMIT,
+                    IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+        }
+    }
+
+    @Override
+    public int getMaxPageBytesLimitForVm() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            // TODO: b/389105038 - remove the temporary workaround for binder transaction
+            //  limit.
+            return mBundleLocked.getInt(
+                    KEY_ICING_MAX_PAGE_BYTES_LIMIT,
+                    DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
         }
     }
 
@@ -645,7 +654,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public long getCachedPersistDelayMillis() {
         synchronized (mLock) {
             throwIfClosedLocked();
-            return mBundleLocked.getLong(KEY_PERSIST_DELAY, DEFAULT_PERSIST_DELAY);
+            return mBundleLocked.getLong(KEY_PERSIST_DELAY, defaultPersistDelayMillis());
         }
     }
 
@@ -1069,7 +1078,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 break;
             case KEY_PERSIST_DELAY:
                 synchronized (mLock) {
-                    mBundleLocked.putLong(key, properties.getLong(key, DEFAULT_PERSIST_DELAY));
+                    mBundleLocked.putLong(
+                            key, properties.getLong(key, defaultPersistDelayMillis()));
                 }
                 break;
             case KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS:

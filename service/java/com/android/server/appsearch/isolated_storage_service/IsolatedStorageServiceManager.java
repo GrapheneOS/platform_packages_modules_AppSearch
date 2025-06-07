@@ -82,10 +82,13 @@ public final class IsolatedStorageServiceManager {
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
     private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
-    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 20;
+    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 61;
     private static final int MAX_VM_START_RETRIES = 3;
+    private static final int MAX_REINITIALIZATION_RETRIES = 9;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
     private static final long VM_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
+
+    private static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
@@ -97,14 +100,18 @@ public final class IsolatedStorageServiceManager {
             new VmIsolatedStorageServiceDeathRecipient();
     private final Handler mHandler;
     private final Runnable mVmStatusChecker;
+    private final Object mLock = new Object();
+
+    private final VmDataUnlocker mVmUnlocker = new VmDataUnlocker();
 
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
-    // The isolated storage service implemented by the VM to access icing.
-    private volatile com.android.isolated_storage_service.IIsolatedStorageService
-            mVmIsolatedStorageService;
 
-    @GuardedBy("mIcingInstancesLocked")
+    // The isolated storage service implemented by the VM to access icing.
+    @GuardedBy("mLock")
+    private com.android.isolated_storage_service.IIsolatedStorageService mVmIsolatedStorageService;
+
+    @GuardedBy("mLock")
     private final Map<UserHandle, IcingSearchEngine> mIcingInstancesLocked = new ArrayMap<>();
 
     public IsolatedStorageServiceManager(
@@ -120,17 +127,20 @@ public final class IsolatedStorageServiceManager {
                 new Runnable() {
                     @Override
                     public void run() {
-                        try {
-                            if (mIsolatedStorageService == null) {
-                                Log.i(TAG, "Isolated storage service not connected");
-                            } else {
-                                int status = mIsolatedStorageService.getVmStatus();
-                                Log.i(TAG, "Isolated storage service VM status: " + status);
+                        synchronized (mLock) {
+                            try {
+                                if (mIsolatedStorageService == null) {
+                                    Log.i(TAG, "Isolated storage service not connected");
+                                } else {
+                                    int status = mIsolatedStorageService.getVmStatus();
+                                    Log.i(TAG, "Isolated storage service VM status: " + status);
+                                }
+
+                            } catch (Exception | OutOfMemoryError e) {
+                                Log.e(TAG, "Unable to get VM status", e);
+                            } finally {
+                                mHandler.postDelayed(this, VM_STATUS_CHECK_INTERVAL_MS);
                             }
-                        } catch (Exception | OutOfMemoryError e) {
-                            Log.e(TAG, "Unable to get VM status", e);
-                        } finally {
-                            mHandler.postDelayed(this, VM_STATUS_CHECK_INTERVAL_MS);
                         }
                     }
                 };
@@ -175,23 +185,25 @@ public final class IsolatedStorageServiceManager {
      * not already.
      */
     public void initialize() throws AppSearchException {
-        initialize(false);
+        initialize(false, MAX_VM_START_RETRIES);
     }
 
     /**
      * Initializes the isolated storage service if not already.
      *
+     * <p>This will bind to the isolated storage service, start the VM, and connects to the VM if
+     * not already.
+     *
      * @param forceVmRestart Whether to force restarting the VM.
-     *     <p>This will bind to the isolated storage service, start the VM, and connects to the VM
-     *     if not already.
+     * @param numRetries Number of retries when starting the VM.
      */
-    private void initialize(boolean forceVmRestart) throws AppSearchException {
-        synchronized (mIcingInstancesLocked) {
+    private void initialize(boolean forceVmRestart, int numRetries) throws AppSearchException {
+        synchronized (mLock) {
             if (mIsolatedStorageService == null) {
-                bindIsolatedStorageService();
+                bindIsolatedStorageServiceLocked();
             }
             if (mVmIsolatedStorageService == null) {
-                connectToVmIsolatedStorageService(forceVmRestart);
+                connectToVmIsolatedStorageServiceLocked(forceVmRestart, numRetries);
             }
             if (LogUtil.INFO && !mHandler.hasCallbacks(mVmStatusChecker)) {
                 Log.d(TAG, "Scheduling VM status check");
@@ -201,22 +213,38 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Called when the user unlocks the device. */
-    public void onUserUnlocking(@NonNull ServiceAppSearchConfig appSearchConfig) {
+    public void onUserUnlocking(
+            @NonNull ServiceAppSearchConfig appSearchConfig, @NonNull UserHandle userHandle) {
         Objects.requireNonNull(appSearchConfig);
+        Objects.requireNonNull(userHandle);
+
+        if (!isUserAllowed(userHandle)) {
+            // Currently the Isolated Storage Service only stores data for the primary
+            // user. Ignore calls for other users. In the future, when the Isolated Storage
+            // service supports multiple users, we may handle this call appropriately.
+            Log.i(TAG, "ignoring onUserUnlocking call for disallowed user " + userHandle);
+            return;
+        }
+
         Log.i(TAG, "onUserUnlocking");
         mVmStateSignaler.scheduleEnablement();
-        if (mIsolatedStorageService != null && appSearchConfig.getIsolatedStorageDeleteCeVms()) {
-            try {
-                mIsolatedStorageService.cleanUpOldVms();
-            } catch (RemoteException e) {
-                Log.e(TAG, "Unable to clean up old VMs", e);
+        mVmUnlocker.onUserUnlocking();
+
+        synchronized (mLock) {
+            if (mIsolatedStorageService != null
+                    && appSearchConfig.getIsolatedStorageDeleteCeVms()) {
+                try {
+                    mIsolatedStorageService.cleanUpOldVms();
+                } catch (RemoteException e) {
+                    Log.e(TAG, "Unable to clean up old VMs", e);
+                }
             }
         }
     }
 
     /** Removes the icing instance for the corresponding userHandle */
     public void removeUserInstance(UserHandle userHandle) {
-        synchronized (mIcingInstancesLocked) {
+        synchronized (mLock) {
             IcingSearchEngineInterface instance = mIcingInstancesLocked.remove(userHandle);
             if (instance != null) {
                 // Delete the corresponding user data in isolated storage
@@ -241,7 +269,8 @@ public final class IsolatedStorageServiceManager {
 
     /** Binds to the isolated storage service if not already. */
     @WorkerThread
-    private void bindIsolatedStorageService() throws AppSearchException {
+    @GuardedBy("mLock")
+    private void bindIsolatedStorageServiceLocked() throws AppSearchException {
         if (mIsolatedStorageService != null) {
             Log.i(TAG, "Isolated storage service already bound");
             return;
@@ -261,7 +290,7 @@ public final class IsolatedStorageServiceManager {
                 intent,
                 new IsolatedStorageServiceConnection(future),
                 Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
-                UserHandle.SYSTEM);
+                ISOLATED_STORAGE_USER);
         try {
             future.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -278,20 +307,21 @@ public final class IsolatedStorageServiceManager {
 
     /** Connects to the VM isolated storage service if not already. */
     @WorkerThread
-    private void connectToVmIsolatedStorageService(boolean forceVmRestart)
+    @GuardedBy("mLock")
+    private void connectToVmIsolatedStorageServiceLocked(boolean forceVmRestart, int numRetries)
             throws AppSearchException {
         if (mVmIsolatedStorageService != null) {
             Log.i(TAG, "VM already connected");
             return;
         }
         Log.i(TAG, "Connecting to vm");
-        waitForVmPayloadReady(forceVmRestart);
+        waitForVmPayloadReadyLocked(forceVmRestart, numRetries);
         try {
             IBinder iBinder =
                     VirtualMachine.binderFromPreconnectedClient(
                             () -> {
                                 try {
-                                    ParcelFileDescriptor pfd = getVmConnection();
+                                    ParcelFileDescriptor pfd = getVmConnectionLocked();
                                     return pfd;
                                 } catch (Exception e) {
                                     Log.e(TAG, "Unable to get vm connection", e);
@@ -305,7 +335,9 @@ public final class IsolatedStorageServiceManager {
                     com.android.isolated_storage_service.IIsolatedStorageService.Stub.asInterface(
                             iBinder);
             iBinder.linkToDeath(mVmIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
+            mVmUnlocker.onVmAvailable();
         } catch (Exception e) {
+            mVmIsolatedStorageService = null;
             Log.e(TAG, "Unable to connect to vm", e);
             throw new AppSearchException(RESULT_UNAVAILABLE, "Unable to connect to vm", e);
         }
@@ -342,11 +374,17 @@ public final class IsolatedStorageServiceManager {
         return resolveInfos.get(0).serviceInfo.packageName;
     }
 
-    private void waitForVmPayloadReady(boolean forceVmRestart) throws AppSearchException {
+    @GuardedBy("mLock")
+    private void waitForVmPayloadReadyLocked(boolean forceVmRestart, int numRetries)
+            throws AppSearchException {
         boolean vmStarted = false;
         ServiceConfig serviceConfig = createServiceConfig();
         try {
-            for (int i = 0; i < MAX_VM_START_RETRIES; i++) {
+            for (int i = 0; i < numRetries; i++) {
+                // TODO(b/421272017): log latency, improve timeout and retry worst total time.
+                // - For recovering from dead vm, usually it takes more time to restart the vm in a
+                //   single attempt, so we increased PAYLOAD_WAIT_TIMEOUT_SECONDS.
+                // - But for rebooting, the total time is much stricter, so we should tune them.
                 if (mIsolatedStorageService.startVm(
                         serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS, forceVmRestart)) {
                     vmStarted = true;
@@ -366,7 +404,8 @@ public final class IsolatedStorageServiceManager {
     }
 
     @NonNull
-    private ParcelFileDescriptor getVmConnection()
+    @GuardedBy("mLock")
+    private ParcelFileDescriptor getVmConnectionLocked()
             throws RemoteException, NullPointerException, IllegalStateException {
         ParcelFileDescriptor pfd = mIsolatedStorageService.getVmConnection();
         if (pfd == null) {
@@ -375,6 +414,18 @@ public final class IsolatedStorageServiceManager {
             throw new IllegalStateException("PFD VM connection is an invalid FD: " + pfd.getFd());
         }
         return pfd;
+    }
+
+    /**
+     * Return true iff data from this user can be stored in isolatedStorage.
+     *
+     * <p>To ensure that data is encrypted with the appropriate credential encryption (CE) keys, we
+     * restrict Isolated Storage usage to only users running with the same ID as the Isolated
+     * Storage Service user. Other users should store their data in conventionally protected
+     * storage, which has equivalent security properties.
+     */
+    public static boolean isUserAllowed(@NonNull UserHandle id) {
+        return ISOLATED_STORAGE_USER.equals(id);
     }
 
     private ServiceConfig createServiceConfig() {
@@ -395,7 +446,7 @@ public final class IsolatedStorageServiceManager {
         Objects.requireNonNull(config);
 
         IcingSearchEngine instance;
-        synchronized (mIcingInstancesLocked) {
+        synchronized (mLock) {
             // initialize the isolated storage service if not already
             initialize();
 
@@ -451,7 +502,9 @@ public final class IsolatedStorageServiceManager {
         @Override
         public void onServiceDisconnected(ComponentName className) {
             Log.i(TAG, "IsolatedStorageService disconnected");
-            mIsolatedStorageService = null;
+            synchronized (mLock) {
+                mIsolatedStorageService = null;
+            }
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
@@ -459,14 +512,15 @@ public final class IsolatedStorageServiceManager {
         public void onBindingDied(ComponentName className) {
             // TODO(b/416509934): properly handle this when it's correctly triggered
             Log.i(TAG, "IsolatedStorageService binding died");
-            mIsolatedStorageService = null;
+            synchronized (mLock) {
+                mIsolatedStorageService = null;
+            }
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
 
         @Override
         public void onNullBinding(ComponentName className) {
             Log.i(TAG, "IsolatedStorageService null binding");
-            mIsolatedStorageService = null;
             mFuture.cancel(/* mayInterruptIfRunning= */ true);
         }
     }
@@ -475,8 +529,9 @@ public final class IsolatedStorageServiceManager {
         @Override
         public void binderDied() {
             Log.w(TAG, "binderDied: IsolatedStorageService");
-            mIsolatedStorageService = null;
-            mVmIsolatedStorageService = null;
+            synchronized (mLock) {
+                mIsolatedStorageService = null;
+            }
             mExecutor.execute(() -> replaceVmIcingInstances());
         }
     }
@@ -485,35 +540,57 @@ public final class IsolatedStorageServiceManager {
         @Override
         public void binderDied() {
             Log.w(TAG, "binderDied: VmIsolatedStorageService");
-            mVmIsolatedStorageService = null;
+            synchronized (mLock) {
+                mVmIsolatedStorageService = null;
+                mVmUnlocker.onVmUnavailable();
+            }
             mExecutor.execute(() -> replaceVmIcingInstances());
         }
     }
 
     private void replaceVmIcingInstances() {
-        synchronized (mIcingInstancesLocked) {
+        synchronized (mLock) {
             try {
-                initialize(true);
-            } catch (AppSearchException e) {
-                Log.e(TAG, "failed to re-initialize", e);
-                return;
-            }
-            for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
-                IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
+                notifyVmReconnectingLocked(true);
                 try {
-                    instance.setVmInstances(
-                            mVmIsolatedStorageService.getOrCreateIcingConnection(
-                                    userHandle.getIdentifier()),
-                            mVmIsolatedStorageService);
-                    initializeIcingWithRetry(instance);
-                } catch (RemoteException e) {
-                    Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
+                    // TODO(b/421272017): add logs that will cover how many retries we're attempting
+                    // and whether they actually recover eventually.
+                    initialize(true, MAX_REINITIALIZATION_RETRIES);
+                } catch (AppSearchException e) {
+                    Log.e(
+                            TAG,
+                            "failed to re-initialize after "
+                                    + MAX_REINITIALIZATION_RETRIES
+                                    + " retries");
+                    return;
                 }
+                for (UserHandle userHandle : mIcingInstancesLocked.keySet()) {
+                    IcingSearchEngine instance = mIcingInstancesLocked.get(userHandle);
+                    try {
+                        instance.setVmInstances(
+                                mVmIsolatedStorageService.getOrCreateIcingConnection(
+                                        userHandle.getIdentifier()),
+                                mVmIsolatedStorageService);
+                        initializeIcingWithRetryLocked(instance);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
+                    }
+                }
+            } finally {
+                notifyVmReconnectingLocked(false);
             }
         }
     }
 
-    private static void initializeIcingWithRetry(IcingSearchEngine instance) {
+    @GuardedBy("mLock")
+    private void notifyVmReconnectingLocked(boolean isReconnecting) {
+        for (IcingSearchEngine instance : mIcingInstancesLocked.values()) {
+            instance.setIsReconnecting(isReconnecting);
+        }
+    }
+
+    @GuardedBy("mLock")
+    private static void initializeIcingWithRetryLocked(IcingSearchEngine instance) {
         boolean succeeded = false;
         for (int i = 0; i < MAX_ICING_INITIALIZATION_RETRIES; i++) {
             InitializeResultProto initializeResultProto = instance.initialize();
@@ -535,6 +612,59 @@ public final class IsolatedStorageServiceManager {
                             + MAX_ICING_INITIALIZATION_RETRIES
                             + " retries");
             // TODO(b/416509382): consider resetting the icing instance
+        }
+    }
+
+    private final class VmDataUnlocker {
+        @GuardedBy("mLock")
+        private boolean mIsUserUnlocked = false;
+
+        @GuardedBy("mLock")
+        private boolean mIsVmAvailable = false;
+
+        private void onVmAvailable() {
+            synchronized (mLock) {
+                mIsVmAvailable = true;
+                tryVmDataUnlock();
+            }
+        }
+
+        private void onVmUnavailable() {
+            synchronized (mLock) {
+                mIsVmAvailable = false;
+            }
+        }
+
+        private void onUserUnlocking() {
+            synchronized (mLock) {
+                mIsUserUnlocked = true;
+                try {
+                    tryVmDataUnlock();
+                } catch (Exception e) {
+                    Log.e(TAG, "tryVmDataUnlock failed", e);
+                }
+            }
+        }
+
+        @GuardedBy("mLock")
+        private void tryVmDataUnlock() {
+            if (!mIsVmAvailable || !mIsUserUnlocked) {
+                Log.i(
+                        TAG,
+                        "not ready to unlock isVmAvailable="
+                                + mIsVmAvailable
+                                + " isUserUnlocked="
+                                + mIsUserUnlocked);
+                return;
+            }
+
+            Log.i(TAG, "signaling VM to unlock");
+            try {
+                mVmIsolatedStorageService.onUserUnlocking();
+            } catch (RemoteException e) {
+                Log.e(TAG, "onUserUnlocking VM notify failure", e);
+                ExceptionUtil.handleRemoteException(e);
+            }
         }
     }
 }
