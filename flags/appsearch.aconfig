@@ -655,6 +655,16 @@ flag {
 }
 
 flag {
+    name: "app_open_event_indexer_paginated_read_enabled"
+    namespace: "appsearch"
+    description: "Enables paginated reads from UsageStatsManager to reduce peak memory usage"
+    bug: "415189891"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "enable_delayed_persist_to_disk"
     namespace: "appsearch"
     description: "Enables AppSearch write API calls to schedule persistToDisk calls after a specified delay, rather than executing them immediately."
