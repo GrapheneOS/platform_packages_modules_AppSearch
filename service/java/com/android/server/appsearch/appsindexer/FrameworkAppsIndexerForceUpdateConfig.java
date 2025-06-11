@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 
 import android.provider.DeviceConfig;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 
 /**
@@ -30,9 +31,15 @@ import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
  * @hide
  */
 public class FrameworkAppsIndexerForceUpdateConfig implements IndexerForceUpdateConfig {
-    static final boolean DEFAULT_APPS_INDEXER_FORCE_UPDATE_ENABLED = false;
-    static final int DEFAULT_APPS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER = 0;
+
+    @VisibleForTesting static final boolean DEFAULT_APPS_INDEXER_FORCE_UPDATE_ENABLED = false;
+
+    @VisibleForTesting static final int DEFAULT_APPS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER = 0;
+
+    @VisibleForTesting
     static final String KEY_APPS_INDEXER_FORCE_UPDATE_ENABLED = "apps_indexer_force_update_enabled";
+
+    @VisibleForTesting
     static final String KEY_APPS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER =
             "apps_indexer_force_update_emergency_counter";
 
