@@ -1518,7 +1518,10 @@ public class AppSearchManagerServiceTest {
         // cached. Clear the cache so that our new settings take effect.
         AppSearchUserInstanceManager.getInstance().closeAndRemoveUserInstance(mUserHandle);
         IsolatedStorageServiceManager isolatedStorageServiceManager =
-                new IsolatedStorageServiceManager(context, appSearchConfig, DIRECT_EXECUTOR);
+                new IsolatedStorageServiceManager(
+                        context,
+                        appSearchConfig,
+                        ExecutorManager.createDefaultScheduledExecutorService());
         // Ensure that AppSearch fails if the isolated storage service fails
         TestContext testContext =
                 new TestContext(context, mRoleManager, mDevicePolicyManager,
