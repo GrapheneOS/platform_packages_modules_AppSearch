@@ -969,7 +969,7 @@ public class AppSearchManagerService extends SystemService {
 
                         // Now that the batch has been written, persist the newly written data.
                         if (Flags.enableDelayedPersistToDisk()) {
-                            schedulePersistToDisk(targetUser, instance,
+                            schedulePersistToDisk(targetUser,
                                     mAppSearchConfig.getLightweightPersistType(),
                                     mAppSearchConfig.getCachedPersistDelayMillis());
                         } else {
@@ -1027,7 +1027,7 @@ public class AppSearchManagerService extends SystemService {
                                     /* sendChangeNotifications=*/ true,
                                     instance.getLogger(),
                                     PersistType.Code.UNKNOWN);
-                            schedulePersistToDisk(targetUser, instance,
+                            schedulePersistToDisk(targetUser,
                                     mAppSearchConfig.getLightweightPersistType(),
                                     mAppSearchConfig.getCachedPersistDelayMillis());
                         }
@@ -2393,7 +2393,7 @@ public class AppSearchManagerService extends SystemService {
                     }
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(targetUser, instance,
+                        schedulePersistToDisk(targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
                                 mAppSearchConfig.getCachedPersistDelayMillis());
                     } else {
@@ -2704,7 +2704,7 @@ public class AppSearchManagerService extends SystemService {
                     }
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(targetUser, instance,
+                        schedulePersistToDisk(targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
                                 mAppSearchConfig.getCachedPersistDelayMillis());
                     } else {
@@ -2802,7 +2802,7 @@ public class AppSearchManagerService extends SystemService {
                             /* removeStatsBuilder= */ null);
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(targetUser, instance,
+                        schedulePersistToDisk(targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
                                 mAppSearchConfig.getCachedPersistDelayMillis());
                     } else {
@@ -3731,7 +3731,6 @@ public class AppSearchManagerService extends SystemService {
     @WorkerThread
     private void schedulePersistToDisk(
             @NonNull UserHandle targetUser,
-            @NonNull AppSearchUserInstance instance,
             @NonNull PersistType.Code persistType,
             long delayMs) {
         if (mServiceImplHelper.isUserLocked(targetUser)) {
@@ -3749,6 +3748,8 @@ public class AppSearchManagerService extends SystemService {
                                 return;
                             }
                             try {
+                                AppSearchUserInstance instance =
+                                        mAppSearchUserInstanceManager.getUserInstance(targetUser);
                                 instance.getAppSearchImpl().persistToDisk(persistType);
                             } catch (Exception e) {
                                 Log.w(TAG, "Unable to persist the data to disk", e);
