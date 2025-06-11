@@ -31,9 +31,7 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.SystemProperties;
@@ -56,8 +54,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** Manages the isolated storage service and provides related services. */
 public final class IsolatedStorageServiceManager {
@@ -86,21 +85,20 @@ public final class IsolatedStorageServiceManager {
     private static final int MAX_VM_START_RETRIES = 3;
     private static final int MAX_REINITIALIZATION_RETRIES = 9;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
-    private static final long VM_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
+    private static final long VM_STATUS_CHECK_INITIAL_DELAY_SECONDS = 120; // 2 minutes
+    private static final long VM_STATUS_CHECK_INTERVAL_SECONDS = 60; // 1 minute
 
     private static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
-    private final Executor mExecutor;
+    private final ScheduledExecutorService mScheduledExecutorService;
     private final VmStateSignaler mVmStateSignaler;
     private final IsolatedStorageServiceDeathRecipient mIsolatedStorageServiceDeathRecipient =
             new IsolatedStorageServiceDeathRecipient();
     private final VmIsolatedStorageServiceDeathRecipient mVmIsolatedStorageServiceDeathRecipient =
             new VmIsolatedStorageServiceDeathRecipient();
-    private final Handler mHandler;
-    private final Runnable mVmStatusChecker;
-    private final Object mLock = new Object();
+    private final ReentrantLock mLock = new ReentrantLock();
 
     private final VmDataUnlocker mVmUnlocker = new VmDataUnlocker();
 
@@ -117,33 +115,38 @@ public final class IsolatedStorageServiceManager {
     public IsolatedStorageServiceManager(
             @NonNull Context context,
             @NonNull ServiceAppSearchConfig appSearchConfig,
-            @NonNull Executor executor) {
+            @NonNull ScheduledExecutorService scheduledExecutorService) {
         mContext = Objects.requireNonNull(context);
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
-        mExecutor = Objects.requireNonNull(executor);
+        mScheduledExecutorService = Objects.requireNonNull(scheduledExecutorService);
         mVmStateSignaler = new VmStateSignaler();
-        mHandler = new Handler(Looper.getMainLooper());
-        mVmStatusChecker =
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        synchronized (mLock) {
-                            try {
-                                if (mIsolatedStorageService == null) {
-                                    Log.i(TAG, "Isolated storage service not connected");
-                                } else {
-                                    int status = mIsolatedStorageService.getVmStatus();
-                                    Log.i(TAG, "Isolated storage service VM status: " + status);
-                                }
+        if (LogUtil.INFO) {
+            Log.d(TAG, "Scheduling VM status check");
+            mScheduledExecutorService.scheduleAtFixedRate(
+                    this::checkVmStatus,
+                    VM_STATUS_CHECK_INITIAL_DELAY_SECONDS,
+                    VM_STATUS_CHECK_INTERVAL_SECONDS,
+                    TimeUnit.SECONDS);
+        }
+    }
 
-                            } catch (Exception | OutOfMemoryError e) {
-                                Log.e(TAG, "Unable to get VM status", e);
-                            } finally {
-                                mHandler.postDelayed(this, VM_STATUS_CHECK_INTERVAL_MS);
-                            }
-                        }
-                    }
-                };
+    private void checkVmStatus() {
+        if (mLock.tryLock()) {
+            try {
+                if (mIsolatedStorageService == null) {
+                    Log.i(TAG, "Isolated storage service not connected");
+                } else {
+                    int status = mIsolatedStorageService.getVmStatus();
+                    Log.i(TAG, "Isolated storage service VM status: " + status);
+                }
+            } catch (Exception | OutOfMemoryError e) {
+                Log.e(TAG, "Unable to get VM status", e);
+            } finally {
+                mLock.unlock();
+            }
+        } else {
+            Log.d(TAG, "Unable to lock mLock in checkVmStatus");
+        }
     }
 
     /** Gets whether isolated storage should be used. */
@@ -204,10 +207,6 @@ public final class IsolatedStorageServiceManager {
             }
             if (mVmIsolatedStorageService == null) {
                 connectToVmIsolatedStorageServiceLocked(forceVmRestart, numRetries);
-            }
-            if (LogUtil.INFO && !mHandler.hasCallbacks(mVmStatusChecker)) {
-                Log.d(TAG, "Scheduling VM status check");
-                mHandler.post(mVmStatusChecker);
             }
         }
     }
@@ -532,7 +531,7 @@ public final class IsolatedStorageServiceManager {
             synchronized (mLock) {
                 mIsolatedStorageService = null;
             }
-            mExecutor.execute(() -> replaceVmIcingInstances());
+            mScheduledExecutorService.execute(() -> replaceVmIcingInstances());
         }
     }
 
@@ -544,7 +543,7 @@ public final class IsolatedStorageServiceManager {
                 mVmIsolatedStorageService = null;
                 mVmUnlocker.onVmUnavailable();
             }
-            mExecutor.execute(() -> replaceVmIcingInstances());
+            mScheduledExecutorService.execute(() -> replaceVmIcingInstances());
         }
     }
 
