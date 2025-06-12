@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import java.util.concurrent.TimeUnit;
+
 public class TestAppOpenEventIndexerConfig implements AppOpenEventIndexerConfig {
     @Override
     public boolean isAppOpenEventIndexerEnabled() {
@@ -40,5 +42,15 @@ public class TestAppOpenEventIndexerConfig implements AppOpenEventIndexerConfig 
     @Override
     public int getLoggingSamplingRate() {
         return 10;
+    }
+
+    @Override
+    public boolean isPaginatedReadEnabled() {
+        return true;
+    }
+
+    @Override
+    public long getPaginationIntervalMs() {
+        return TimeUnit.HOURS.toMillis(1);
     }
 }

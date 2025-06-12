@@ -33,6 +33,10 @@ public class FrameworkAppOpenEventIndexerConfig implements AppOpenEventIndexerCo
             "app_open_event_update_interval_millis";
     static final String KEY_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS =
             "min_time_between_syncs_millis";
+    static final String KEY_APP_OPEN_EVENT_INDEXER_PAGINATED_READ_ENABLED =
+            "app_open_event_indexer_paginated_read_enabled";
+    static final String KEY_APP_OPEN_EVENT_PAGINATION_INTERVAL_MILLIS =
+            "app_open_event_indexer_paginated_read_interval_millis";
     static final String KEY_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_ENABLED =
             "app_open_event_indexer_stats_logging_enabled";
     static final String KEY_APP_OPEN_EVENT_INDEXER_STATS_LOGGING_SAMPLING_RATE =
@@ -60,6 +64,22 @@ public class FrameworkAppOpenEventIndexerConfig implements AppOpenEventIndexerCo
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS,
                 DEFAULT_APP_OPEN_EVENT_MIN_TIME_BETWEEN_SYNCS_MILLIS);
+    }
+
+    @Override
+    public boolean isPaginatedReadEnabled() {
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_INDEXER_PAGINATED_READ_ENABLED,
+                DEFAULT_APP_OPEN_EVENT_INDEXER_PAGINATED_READ_ENABLED);
+    }
+
+    @Override
+    public long getPaginationIntervalMs() {
+        return DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_PAGINATION_INTERVAL_MILLIS,
+                DEFAULT_APP_OPEN_EVENT_PAGINATION_INTERVAL_MS);
     }
 
     @Override

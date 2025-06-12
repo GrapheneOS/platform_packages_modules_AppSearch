@@ -247,7 +247,8 @@ public class AppSearchManagerServiceTest {
         // The TemporaryFolder rule's teardown will delete the current test folder; by removing the
         // current user instance, the next test will be able to create a new AppSearchImpl with
         // a new test folder
-        AppSearchUserInstanceManager.getInstance().closeAndRemoveUserInstance(mUserHandle);
+        AppSearchUserInstanceManager.getInstance()
+                .closeAndRemoveUserInstance(mUserHandle, /* removeUserData= */ true);
     }
 
     @Test
@@ -1516,7 +1517,8 @@ public class AppSearchManagerServiceTest {
         assumeTrue(IsolatedStorageServiceManager.useIsolatedStorage(context, appSearchConfig));
         // The original user0 was created to not use isolated storage, and that result was
         // cached. Clear the cache so that our new settings take effect.
-        AppSearchUserInstanceManager.getInstance().closeAndRemoveUserInstance(mUserHandle);
+        AppSearchUserInstanceManager.getInstance()
+                .closeAndRemoveUserInstance(mUserHandle, /* removeUserData= */ true);
         IsolatedStorageServiceManager isolatedStorageServiceManager =
                 new IsolatedStorageServiceManager(
                         context,

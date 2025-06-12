@@ -180,7 +180,7 @@ public class AppSearchUserInstanceManagerTest {
         manager.getOrCreateUserInstance(
                 mContext, mUserHandle, mServiceConfig, mExecutorManager, null);
 
-        manager.closeAndRemoveUserInstance(mUserHandle);
+        manager.closeAndRemoveUserInstance(mUserHandle, /* removeUserData= */ true);
         assertThat(manager.getAllUserHandles()).doesNotContain(mUserHandle);
     }
 

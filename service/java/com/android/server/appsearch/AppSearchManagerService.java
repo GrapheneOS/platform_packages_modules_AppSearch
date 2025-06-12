@@ -451,10 +451,12 @@ public class AppSearchManagerService extends SystemService {
     @Override
     public void onUserStopping(@NonNull TargetUser user) {
         Objects.requireNonNull(user);
-        onUserStopping(user.getUserHandle(), /* requiresShutdown= */ false);
+        onUserStopping(
+                user.getUserHandle(), /* requiresShutdown= */ false, /* removeUserData= */ false);
     }
 
-    private void onUserStopping(@NonNull UserHandle userHandle, boolean requiresShutdown) {
+    private void onUserStopping(
+            @NonNull UserHandle userHandle, boolean requiresShutdown, boolean removeUserData) {
         Objects.requireNonNull(userHandle);
         if (LogUtil.INFO) {
             Log.i(TAG, "Shutting down AppSearch for user " + userHandle);
@@ -479,22 +481,29 @@ public class AppSearchManagerService extends SystemService {
                             "Shutting down executor and closing AppSearch for user " + userHandle);
                 }
                 mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
-                mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
+                mAppSearchUserInstanceManager.closeAndRemoveUserInstance(
+                        userHandle, removeUserData);
             } else {
                 if (LogUtil.INFO) {
                     Log.i(TAG, "Scheduling close for AppSearch for user " + userHandle);
                 }
-                mExecutorManager.executeLambdaForUserNoCallbackAsync(userHandle, () -> {
-                    if (LogUtil.INFO) {
-                        Log.i(TAG, "Closing AppSearch for user " + userHandle);
-                    }
-                    // The user instance is removed in a locked critical section and then its
-                    // AppSearchImpl is closed outside of that section. This is safe currently
-                    // in a single-threaded environment but possibly dangerous in a
-                    // multi-threaded environment in the case that an initialize() task manages
-                    // to create a new AppSearchImpl at the same time
-                    mAppSearchUserInstanceManager.closeAndRemoveUserInstance(userHandle);
-                });
+                mExecutorManager.executeLambdaForUserNoCallbackAsync(
+                        userHandle,
+                        () -> {
+                            if (LogUtil.INFO) {
+                                Log.i(TAG, "Closing AppSearch for user " + userHandle);
+                            }
+                            // The user instance is removed in a locked critical section and then
+                            // its
+                            // AppSearchImpl is closed outside of that section. This is safe
+                            // currently
+                            // in a single-threaded environment but possibly dangerous in a
+                            // multi-threaded environment in the case that an initialize() task
+                            // manages
+                            // to create a new AppSearchImpl at the same time
+                            mAppSearchUserInstanceManager.closeAndRemoveUserInstance(
+                                    userHandle, removeUserData);
+                        });
             }
 
             AppSearchMaintenanceService.cancelFullyPersistJobIfScheduled(
@@ -526,14 +535,7 @@ public class AppSearchManagerService extends SystemService {
         //
         // When isolated storage is enabled, we must explicitly delete the data in the AppSearch
         // user instance.
-        onUserStopping(userHandle, /* requiresShutdown= */ true);
-        Context userContext = mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
-        try {
-            mAppSearchUserInstanceManager.removeUserData(
-                    userHandle, userContext, mAppSearchConfig, mIsolatedStorageServiceManager);
-        } catch (RuntimeException e) {
-            Log.e(TAG, "Unable to remove user data: " + userHandle, e);
-        }
+        onUserStopping(userHandle, /* requiresShutdown= */ true, /* removeUserData= */ true);
     }
 
     class LocalService {

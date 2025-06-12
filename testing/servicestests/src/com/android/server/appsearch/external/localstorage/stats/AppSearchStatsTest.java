@@ -400,6 +400,7 @@ public class AppSearchStatsTest {
         int additionalPageCount = 218;
         int numResultsReturnedAdditionalPages = 219;
         int additionalPagesRetrievalLatency = 220;
+        int firstNativeCallLatencyMillis = 221;
 
         final QueryStats.Builder sStatsBuilder =
                 new QueryStats.Builder(visibilityScope, TEST_PACKAGE_NAME)
@@ -430,7 +431,8 @@ public class AppSearchStatsTest {
                         .setNumResultStatsEvicted(numResultStatesEvicted)
                         .setAdditionalPageCount(additionalPageCount)
                         .setAdditionalPagesReturnedResultCount(numResultsReturnedAdditionalPages)
-                        .setAdditionalPageRetrievalLatencyMillis(additionalPagesRetrievalLatency);
+                        .setAdditionalPageRetrievalLatencyMillis(additionalPagesRetrievalLatency)
+                        .setFirstNativeCallLatency(firstNativeCallLatencyMillis);
         final QueryStats sStats = sStatsBuilder.build();
 
         assertThat(sStats.getEnabledFeatures()).isEqualTo(enabledFeatures);
@@ -452,6 +454,8 @@ public class AppSearchStatsTest {
         assertThat(sStats.getCurrentPageReturnedResultCount())
                 .isEqualTo(nativeNumResultsReturnedCurrentPage);
         assertThat(sStats.getNativeLatencyMillis()).isEqualTo(nativeLatencyMillis);
+        assertThat(sStats.getFirstNativeCallLatencyMillis())
+                .isEqualTo(firstNativeCallLatencyMillis);
         assertThat(sStats.getRankingLatencyMillis()).isEqualTo(nativeRankingLatencyMillis);
         assertThat(sStats.getResultWithSnippetsCount()).isEqualTo(nativeNumResultsSnippeted);
         assertThat(sStats.getDocumentRetrievingLatencyMillis())

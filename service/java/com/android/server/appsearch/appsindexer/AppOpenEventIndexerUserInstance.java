@@ -116,7 +116,8 @@ public final class AppOpenEventIndexerUserInstance {
         Objects.requireNonNull(appOpenEventIndexerDir);
         Objects.requireNonNull(appOpenEventIndexerConfig);
         Objects.requireNonNull(executorService);
-        AppOpenEventIndexerImpl appOpenEventIndexerImpl = new AppOpenEventIndexerImpl(context);
+        AppOpenEventIndexerImpl appOpenEventIndexerImpl =
+                new AppOpenEventIndexerImpl(context, appOpenEventIndexerConfig);
 
         AppOpenEventIndexerUserInstance indexer =
                 new AppOpenEventIndexerUserInstance(

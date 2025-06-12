@@ -16,7 +16,6 @@
 
 package com.android.server.appsearch;
 
-import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
 import static android.app.appsearch.AppSearchResult.RESULT_OK;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 
@@ -39,6 +38,7 @@ import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
+import com.android.server.appsearch.isolated_storage_service.IcingSearchEngine;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.appsearch.util.ExecutorManager;
 
@@ -160,40 +160,18 @@ public final class AppSearchUserInstanceManager {
      * <p>All mutations applied to the underlying {@link AppSearchImpl} will be persisted to disk.
      *
      * @param userHandle The multi-user user handle of the user that needs to be removed.
+     * @param removeUserData Whether to remove the user data.
      */
-    public void closeAndRemoveUserInstance(@NonNull UserHandle userHandle) {
+    public void closeAndRemoveUserInstance(@NonNull UserHandle userHandle, boolean removeUserData) {
         Objects.requireNonNull(userHandle);
         if (Flags.enableUserInstanceFutures()) {
-            closeAndRemoveUserInstanceFuture(userHandle);
+            closeAndRemoveUserInstanceFuture(userHandle, removeUserData);
         } else {
-            internalCloseAndRemoveUserInstance(userHandle);
+            internalCloseAndRemoveUserInstance(userHandle, removeUserData);
         }
 
         synchronized (mStorageInfoLocked) {
             mStorageInfoLocked.remove(userHandle);
-        }
-    }
-
-    /**
-     * Removes the user data for the given {@link AppSearchUserInstance} user. This is handled
-     * automatically by the system unless isolated storage is used.
-     *
-     * @param userHandle The multi-user user handle of the user that needs to be removed.
-     * @param userContext Context for the user instance being removed.
-     * @param isolatedStorageServiceManager Manager for isolated storage.
-     */
-    public void removeUserData(
-            @NonNull UserHandle userHandle,
-            @NonNull Context userContext,
-            @NonNull ServiceAppSearchConfig config,
-            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager) {
-        Objects.requireNonNull(userHandle);
-        Objects.requireNonNull(userContext);
-        Objects.requireNonNull(config);
-
-        // Remove the icing user instance in IsolatedStorageService
-        if (isolatedStorageServiceManager != null) {
-            isolatedStorageServiceManager.removeUserInstance(userHandle);
         }
     }
 
@@ -479,7 +457,7 @@ public final class AppSearchUserInstanceManager {
         }
     }
 
-    private void closeAndRemoveUserInstanceFuture(UserHandle userHandle) {
+    private void closeAndRemoveUserInstanceFuture(UserHandle userHandle, boolean removeUserData) {
         Future<AppSearchUserInstance> instanceFuture;
         mFutureInstanceMapLock.lock();
         try {
@@ -490,7 +468,12 @@ public final class AppSearchUserInstanceManager {
         if (instanceFuture != null) {
             if (instanceFuture.isDone()) {
                 try {
-                    instanceFuture.get().getAppSearchImpl().close();
+                    AppSearchImpl appSearchImpl = instanceFuture.get().getAppSearchImpl();
+                    if (removeUserData) {
+                        appSearchImpl.clearAndDestroy();
+                    } else {
+                        appSearchImpl.close();
+                    }
                 } catch (InterruptedException | ExecutionException | CancellationException e) {
                     Log.w(
                             TAG,
@@ -503,7 +486,7 @@ public final class AppSearchUserInstanceManager {
         }
     }
 
-    private void internalCloseAndRemoveUserInstance(UserHandle userHandle) {
+    private void internalCloseAndRemoveUserInstance(UserHandle userHandle, boolean removeUserData) {
         AppSearchUserInstance instance;
         mInstanceMapLock.lock();
         try {
@@ -512,7 +495,11 @@ public final class AppSearchUserInstanceManager {
             mInstanceMapLock.unlock();
         }
         if (instance != null) {
-            instance.getAppSearchImpl().close();
+            if (removeUserData) {
+                instance.getAppSearchImpl().clearAndDestroy();
+            } else {
+                instance.getAppSearchImpl().close();
+            }
         }
     }
 
@@ -625,12 +612,10 @@ public final class AppSearchUserInstanceManager {
     }
 
     /**
-     * Gets the isolated icing engine for the user if isolated storage is enabled.
+     * Gets the isolated icing engine for the user.
      *
-     * @return IcingSearchEngineInterface or null if isolated storage is not enabled or
-     *     can't be used right away due to, e.g. pending data migration.
-     * @throws AppSearchException if isolated storage is enabled, but the isolated storage service
-     *     is unavailable or fails.
+     * @return IcingSearchEngineInterface or null if isolated storage can't be used right away due
+     *     to, e.g. pending data migration.
      */
     @Nullable
     private IcingSearchEngineInterface maybeGetIsolatedIcingSearchEngine(
@@ -638,8 +623,7 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager)
-            throws AppSearchException {
+            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager) {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
@@ -647,13 +631,17 @@ public final class AppSearchUserInstanceManager {
         Objects.requireNonNull(isolatedStorageServiceManager);
 
         IcingSearchEngineInterface isolatedIcingInterface =
-                isolatedStorageServiceManager.getIcingInstance(userHandle, config);
+                new IcingSearchEngine(
+                        isolatedStorageServiceManager,
+                        userHandle,
+                        config.toIcingSearchEngineOptions(
+                                /* baseDir= */ "appsearch", /* isVMEnabled= */ true));
 
-        // Enforce successful isolated storage creation when configured for use
-        if (isolatedIcingInterface == null) {
-            Log.e(TAG, "Failed to get isolated storage instance!");
-            throw new AppSearchException(
-                    RESULT_INTERNAL_ERROR, "Failed to get isolated storage instance!");
+        // Initialize the isolated storage service if not already
+        try {
+            isolatedStorageServiceManager.initialize();
+        } catch (AppSearchException e) {
+            Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
         if (!config.enableIsolatedStorageMigration()
