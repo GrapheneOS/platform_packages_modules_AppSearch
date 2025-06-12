@@ -17,17 +17,21 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
+import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
+import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchPutResultProto;
 import com.google.android.icing.proto.PutDocumentRequest;
 import com.google.android.icing.proto.ResetResultProto;
 import com.google.android.icing.proto.ResultSpecProto;
+import com.google.android.icing.proto.SchemaProto;
+import com.google.android.icing.proto.SchemaTypeConfigProto;
 import com.google.android.icing.proto.ScoringSpecProto;
 import com.google.android.icing.proto.SearchResultProto;
 import com.google.android.icing.proto.SearchSpecProto;
@@ -133,8 +137,11 @@ public class DataMigrationUtil {
         }
 
         // Step-1 Set schema in destination by getting schema from source.
-        SetSchemaResultProto setSchemaResult =
-                destination.setSchema(source.rawGetSchema(), forceOverride);
+        SchemaProto rawSchema = source.rawGetSchema();
+        if (!source.useDatabaseScopedSchemaOperations()) {
+            rawSchema = getSchemaProtoWithDatabase(rawSchema);
+        }
+        SetSchemaResultProto setSchemaResult = destination.setSchema(rawSchema, forceOverride);
         if (setSchemaResult.getStatus().getCode() != StatusProto.Code.OK) {
             return setSchemaResult.getStatus();
         }
@@ -193,5 +200,30 @@ public class DataMigrationUtil {
         Log.i(TAG, "Successfully migrated " + totalDocuments + " documents");
 
         return StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
+    }
+
+    /**
+     * Returns a new {@link SchemaProto} with the database field populated for each type in the
+     * input schema.
+     */
+    private static SchemaProto getSchemaProtoWithDatabase(SchemaProto schema) {
+        SchemaProto.Builder schemaBuilder = SchemaProto.newBuilder();
+        for (int i = 0; i < schema.getTypesList().size(); i++) {
+            SchemaTypeConfigProto type = schema.getTypes(i);
+            String prefix = "";
+            try {
+                prefix = PrefixUtil.getPrefix(type.getSchemaType());
+            } catch (AppSearchException e) {
+                Log.w(
+                        TAG,
+                        "No database prefix found in schema type: "
+                                + type.getSchemaType()
+                                + ". This should never happen.");
+            }
+            SchemaTypeConfigProto.Builder typeBuilder =
+                    SchemaTypeConfigProto.newBuilder(type).setDatabase(prefix);
+            schemaBuilder.addTypes(typeBuilder);
+        }
+        return schemaBuilder.build();
     }
 }

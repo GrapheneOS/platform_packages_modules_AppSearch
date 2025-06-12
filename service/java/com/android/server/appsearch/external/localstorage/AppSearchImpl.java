@@ -616,8 +616,7 @@ public final class AppSearchImpl implements Closeable {
     }
 
     /** Returns whether this AppSearchImpl instance should use database-scoped set and get schema */
-    @VisibleForTesting
-    boolean useDatabaseScopedSchemaOperations() {
+    public boolean useDatabaseScopedSchemaOperations() {
         return mIsIcingSchemaDatabaseEnabled;
     }
 
