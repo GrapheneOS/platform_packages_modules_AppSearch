@@ -1209,11 +1209,14 @@ public final class AppSearchSession implements Closeable {
     public void close() {
         if (mIsMutated && !mIsClosed) {
             try {
-                mService.persistToDisk(
-                        new PersistToDiskAidlRequest(
-                                mCallerAttributionSource,
-                                mUserHandle,
-                                /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime()));
+                if (!Flags.enableNoOpManualPersist()) {
+                    mService.persistToDisk(
+                            new PersistToDiskAidlRequest(
+                                    mCallerAttributionSource,
+                                    mUserHandle,
+                                    /* binderCallStartTimeMillis= */
+                                    SystemClock.elapsedRealtime()));
+                }
                 mIsClosed = true;
             } catch (RemoteException e) {
                 Log.e(TAG, "Unable to close the AppSearchSession", e);
