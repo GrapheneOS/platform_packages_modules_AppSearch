@@ -30,6 +30,7 @@ import android.util.SparseIntArray;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.AppSearchMetricsProto.AppSearchVmStartAttempts;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.appsindexer.AppOpenEventStats;
@@ -44,6 +45,8 @@ import com.android.server.appsearch.external.localstorage.stats.SearchIntentStat
 import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
+import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
+import com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats;
 import com.android.server.appsearch.util.ApiCallRecord;
 import com.android.server.appsearch.util.PackageUtil;
 import com.android.server.appsearch.util.StatsUtil;
@@ -265,6 +268,18 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @Override
+    public void logStats(@NonNull VmInitializationStats stats) {
+        Objects.requireNonNull(stats);
+        synchronized (mLock) {
+            // ignore close exception
+            AppSearchStatsLog.write(
+                    AppSearchStatsLog.APP_SEARCH_VM_INITIALIZATION_STATS_REPORTED,
+                    stats.getVmInitType(),
+                    getSerializedVmStartAttempts(stats.getVmStartAttemptsStats()));
+        }
+    }
+
+    @Override
     public void removeCacheForPackage(@NonNull String packageName) {
         removeCachedUidForPackage(packageName);
     }
@@ -294,6 +309,28 @@ public class PlatformLogger implements InternalAppSearchLogger {
             trimExcessStatsQueueLocked();
             return new ArrayList<>(mLastNCalls);
         }
+    }
+
+    /**
+     * Helper function to convert a list of {@link VmStartAttemptStats} to {@link
+     * AppSearchVmStartAttempts} and serialize to a byte array.
+     *
+     * @param vmStartAttemptsStats a list of {@link VmStartAttemptStats}.
+     * @return byteArray of the converted and serialized {@link AppSearchVmStartAttempts}.
+     */
+    private static byte[] getSerializedVmStartAttempts(
+            @NonNull List<VmStartAttemptStats> vmStartAttemptsStats) {
+        AppSearchVmStartAttempts.Builder builder = AppSearchVmStartAttempts.newBuilder();
+        for (int i = 0; i < vmStartAttemptsStats.size(); ++i) {
+            VmStartAttemptStats stats = vmStartAttemptsStats.get(i);
+            builder.addStats(
+                    AppSearchVmStartAttempts.Stats.newBuilder()
+                            .setStatusCode(
+                                    AppSearchVmStartAttempts.Stats.Status.Code.forNumber(
+                                            stats.getStatusCode()))
+                            .setLatencyMillis(stats.getLatencyMillis()));
+        }
+        return builder.build().toByteArray();
     }
 
     @GuardedBy("mLock")

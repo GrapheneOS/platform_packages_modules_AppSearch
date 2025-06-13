@@ -1,0 +1,62 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto2";
+
+package appsearch.metrics.AppSearchMetricsProto;
+
+option java_package = "com.android.server.appsearch";
+option java_outer_classname = "AppSearchMetricsProto";
+
+/**
+ * Statistics for multiple AppSearch VM start attempts in MODE_BYTES. It is reported under
+ * AppSearchVmInitializationStatsReported.
+ *
+ * Needs to be kept consistent with AppSearchVmStartAttempts in
+ * frameworks/proto_logging/stats/atoms/appsearch/appsearch_extension_atoms.proto
+ *
+ * Next tag: 2
+ */
+message AppSearchVmStartAttempts {
+  /**
+   * Statistics for a single VM start attempt.
+   *
+   * Next tag: 3
+   */
+  message Stats {
+    /** The enum class of AppSearch VM start status code. */
+    message Status {
+      // Next tag: 4
+      enum Code {
+        UNKNOWN = 0;
+
+        // Indicates that the VM starts successfully.
+        SUCCESS = 1;
+
+        // Indicates that timeout occurs when attempting to start the VM.
+        TIMEOUT = 2;
+
+        // Indicates that an error occurs when attempting to start the VM.
+        ERROR = 3;
+      }
+    }
+    optional Status.Code status_code = 1;
+
+    /** Overall time for a single VM start attempt in milliseconds. */
+    optional int64 latency_millis = 2;
+  }
+  repeated Stats stats = 1;
+}
