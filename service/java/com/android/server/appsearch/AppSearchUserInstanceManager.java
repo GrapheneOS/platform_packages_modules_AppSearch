@@ -641,7 +641,7 @@ public final class AppSearchUserInstanceManager {
             Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
-        if (!config.enableIsolatedStorageMigration()
+        if (config.disableIsolatedStorageMigration()
                 || !DataMigrationUtil.needDataMigration(userContext, userHandle)) {
             return isolatedIcingInterface;
         }
