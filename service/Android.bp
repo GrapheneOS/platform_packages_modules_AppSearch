@@ -61,6 +61,8 @@ java_defaults {
 
         "appsearch_flags_java_lib",
         "modules-utils-preconditions",
+
+        "android.permission.flags-aconfig-java-export",
     ],
     libs: [
         "framework-appsearch.impl",
