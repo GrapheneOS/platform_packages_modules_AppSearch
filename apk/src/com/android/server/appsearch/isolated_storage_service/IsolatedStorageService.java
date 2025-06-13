@@ -212,7 +212,17 @@ public class IsolatedStorageService extends Service {
                             .setShouldUseHugepages(true)
                             .build();
             try {
-                return vmm.getOrCreate(VM_NAME, config);
+                VirtualMachine vm = vmm.getOrCreate(VM_NAME, config);
+                VirtualMachineConfig actualConfig = vm.getConfig();
+                if (!config.isCompatibleWith(actualConfig)) {
+                    Log.w(
+                            TAG,
+                            "expected config is not compatible with the running config. Recreating"
+                                    + " VM");
+                    deleteVm(vmm, VM_NAME);
+                    return vmm.getOrCreate(VM_NAME, config);
+                }
+                return vm;
             } catch (VirtualMachineException e) {
                 Log.e(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
                 return null;
