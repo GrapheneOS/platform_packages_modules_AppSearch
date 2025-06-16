@@ -215,7 +215,7 @@ public final class AppSearchImpl implements Closeable {
     @VisibleForTesting
     IcingSearchEngineInterface mIcingSearchEngineLocked;
 
-    private final boolean mIsVMEnabled;
+    private boolean mIsVMEnabled;
 
     private boolean mIsIcingSchemaDatabaseEnabled = false;
 
@@ -623,12 +623,15 @@ public final class AppSearchImpl implements Closeable {
     /** Atomic method to set a new icing search engine and return the previous engine. */
     @GuardedBy("mReadWriteLock")
     public @NonNull IcingSearchEngineInterface swapIcingSearchEngineLocked(
-            @NonNull IcingSearchEngineInterface icingSearchEngineLocked) {
+            @NonNull IcingSearchEngineInterface icingSearchEngineLocked, boolean isVmEnabled) {
         Objects.requireNonNull(icingSearchEngineLocked);
         mReadWriteLock.writeLock().lock();
         try {
             IcingSearchEngineInterface previousIcingSearchEngine = mIcingSearchEngineLocked;
             mIcingSearchEngineLocked = icingSearchEngineLocked;
+            mIsVMEnabled = isVmEnabled;
+            mIsIcingSchemaDatabaseEnabled =
+                    Flags.enableDatabaseScopedSchemaOperations() || isVmEnabled;
             return previousIcingSearchEngine;
         } finally {
             mReadWriteLock.writeLock().unlock();
