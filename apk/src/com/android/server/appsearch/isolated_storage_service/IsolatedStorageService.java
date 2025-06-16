@@ -31,6 +31,7 @@ import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.system.virtualmachine.VirtualMachine;
 import android.system.virtualmachine.VirtualMachineCallback;
@@ -40,12 +41,15 @@ import android.system.virtualmachine.VirtualMachineManager;
 import android.util.Log;
 
 import androidx.annotation.GuardedBy;
+import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.server.appsearch.stats.IsolateStorageServiceLogger;
 import com.android.server.appsearch.stats.VMPayloadStats;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -81,6 +85,27 @@ public class IsolatedStorageService extends Service {
      * VirtualMachineCallback#ERROR_PAYLOAD_CHANGED} VM errors when trying to start the vm.
      */
     private static final int CONSECUTIVE_VM_PAYLOAD_CHANGED_ERROR_THRESHOLD = 4;
+
+    /**
+     * Status codes for vm start result. Needs to be kept consistent with status codes defined in
+     * VmStartAttemptStats under packages/modules/AppSearch/service.
+     */
+    @IntDef(
+            value = {
+                VM_START_STATUS_UNKNOWN,
+                VM_START_STATUS_SUCCESS,
+                VM_START_STATUS_TIMEOUT,
+                VM_START_STATUS_ERROR,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface VmStartStatus {}
+
+    // TODO(b/422197198): refactor these constants to a common class for both IsolatedStorageService
+    //   and VmStartAttemptStats usage.
+    private static final int VM_START_STATUS_UNKNOWN = 0;
+    private static final int VM_START_STATUS_SUCCESS = 1;
+    private static final int VM_START_STATUS_TIMEOUT = 2;
+    private static final int VM_START_STATUS_ERROR = 3;
 
     private final ExecutorService mExecutorService = Executors.newFixedThreadPool(1);
     private final IsolatedStorageServiceStub mIsolatedStorageServiceStub =
@@ -440,12 +465,27 @@ public class IsolatedStorageService extends Service {
         }
 
         @Override
-        public boolean startVm(ServiceConfig config, long timeoutSeconds, boolean forceRestart)
+        public VmStartResult startVm(
+                ServiceConfig config, long timeoutSeconds, boolean forceRestart)
+                throws RemoteException {
+            long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
+
+            VmStartResult result = new VmStartResult();
+            result.pStatusCode = startVmImpl(config, timeoutSeconds, forceRestart);
+            result.pTotalLatencyMillis =
+                    SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis;
+            return result;
+        }
+
+        private @VmStartStatus int startVmImpl(
+                ServiceConfig config, long timeoutSeconds, boolean forceRestart)
                 throws RemoteException {
             CompletableFuture<Void> localPayloadReadyFuture = null;
             synchronized (mLock) {
                 if (isVmRunningLocked() && isPayloadReadyLocked() && !forceRestart) {
-                    return true;
+                    // TODO(b/422197198): add VM_START_STATUS_ALREADY_RUNNING constant and atom enum
+                    //   for this case.
+                    return VM_START_STATUS_SUCCESS;
                 }
 
                 try {
@@ -471,14 +511,17 @@ public class IsolatedStorageService extends Service {
 
             try {
                 localPayloadReadyFuture.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (InterruptedException | TimeoutException | CancellationException e) {
+            } catch (InterruptedException | CancellationException e) {
                 Log.w(TAG, "Unable to wait for payload ready", e);
-                return false;
+                return VM_START_STATUS_ERROR;
+            } catch (TimeoutException e) {
+                Log.w(TAG, "Unable to wait for payload ready", e);
+                return VM_START_STATUS_TIMEOUT;
             } catch (Exception e) {
                 Log.e(TAG, "Unable to start VM", e);
                 throw new RemoteException(e.getMessage());
             }
-            return true;
+            return VM_START_STATUS_SUCCESS;
         }
 
         @Override
