@@ -699,7 +699,8 @@ public final class AppSearchUserInstanceManager {
                                         IcingSearchEngineInterface priorIcingSearchEngine =
                                                 instance.getAppSearchImpl()
                                                         .swapIcingSearchEngineLocked(
-                                                                isolatedIcingInterface);
+                                                                isolatedIcingInterface,
+                                                                /*isVMEnabled=*/ true);
 
                                         DataMigrationUtil.createMigrationStatus(
                                                 AppSearchEnvironmentFactory
