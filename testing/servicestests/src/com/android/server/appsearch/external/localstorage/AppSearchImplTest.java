@@ -1139,6 +1139,63 @@ public class AppSearchImplTest {
     }
 
     @Test
+    @RequiresFlagsEnabled({
+        Flags.FLAG_ENABLE_RESET_VISIBILITY_STORE,
+        Flags.FLAG_ENABLE_DATABASE_SCOPED_SCHEMA_OPERATIONS
+    })
+    public void testResetVisibilityStore() throws Exception {
+        // Setup Icing mock to success to all calls in initialize expect the setSchema call of
+        // VisibilityStore.
+        InitializeResultProto okInit = InitializeResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.initialize()).thenReturn(okInit);
+
+        GetSchemaResultProto successGetSchema =
+                GetSchemaResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.getSchema()).thenReturn(successGetSchema);
+        when(mMockIcingSearchEngine.getSchemaForDatabase(any())).thenReturn(successGetSchema);
+
+        StorageInfoResultProto successGetStorageInfo =
+                StorageInfoResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.getStorageInfo()).thenReturn(successGetStorageInfo);
+
+        // Setup Icing mock to fail the first time setSchema call for visibility type. Success to
+        // the second time setSchema call which is after the reset.
+        SetSchemaResultProto failedSetSchemaResult =
+                SetSchemaResultProto.newBuilder().setStatus(ERROR).build();
+        SetSchemaResultProto okSetSchemaResult =
+                SetSchemaResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.setSchemaWithRequestProto(any()))
+                .thenReturn(failedSetSchemaResult, okSetSchemaResult);
+
+        ResetResultProto successReset = ResetResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.reset()).thenReturn(successReset);
+
+        PersistToDiskResultProto successPersist =
+                PersistToDiskResultProto.newBuilder().setStatus(OK).build();
+        when(mMockIcingSearchEngine.persistToDisk(any())).thenReturn(successPersist);
+
+        InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
+        // Initializing with a custom icing instance will cause AppSearch to assume
+        // isVMEnabled. This will enable both database-scoped operations and init retries.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        initStatsBuilder,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        mMockIcingSearchEngine,
+                        ALWAYS_OPTIMIZE);
+
+        // Check recovery state
+        InitializeStats initStats = initStatsBuilder.build();
+        assertThat(initStats).isNotNull();
+        assertThat(initStats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_INTERNAL_ERROR);
+        assertThat(initStats.hasReset()).isTrue();
+    }
+
+    @Test
     public void testQueryEmptyDatabase() throws Exception {
         SearchSpec searchSpec =
                 new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
