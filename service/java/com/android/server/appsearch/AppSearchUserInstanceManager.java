@@ -35,6 +35,7 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
+import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
@@ -651,14 +652,11 @@ public final class AppSearchUserInstanceManager {
             ScheduledFuture<?> migrationFuture = mPerUserMigrationFutureLocked.get(userHandle);
             if (migrationFuture == null) {
                 // TODO(b/407815165): Allow configuring resetDestination, forceOverride & delay
-                // TODO(b/407815165): we should schedule a background job to do migration,
-                //  and we should block any incoming write APIs while migration runs.
                 migrationFuture =
                         executorManager.scheduleLambdaForUserNoCallbackAsync(
                                 userHandle,
                                 () -> {
-                                    // Run the data migration if not done yet. This is run on our
-                                    // worker executor.
+                                    // Run the data migration. This is run on our worker executor.
                                     // Right now it only has one thread, so it will block
                                     // other API calls.
                                     // We need to let the migration happen in AppSearchImpl to
@@ -666,9 +664,17 @@ public final class AppSearchUserInstanceManager {
                                     executorManager.executeLambdaForUserNoCallbackAsync(
                                             userHandle,
                                             () -> {
+                                                // TODO(b/407815165) we should move this outside so
+                                                //  it will include executor waiting time. And we
+                                                //  can add execution_latency for migration later.
+                                                long totalLatencyStartTimeMillis =
+                                                        SystemClock.elapsedRealtime();
+                                                @AppSearchResult.ResultCode int statusCode =
+                                                        RESULT_OK;
+
+                                                AppSearchUserInstance instance =
+                                                        getUserInstanceOrNull(userHandle);
                                                 try {
-                                                    AppSearchUserInstance instance =
-                                                            getUserInstanceOrNull(userHandle);
                                                     DataMigrationUtil.runDataMigrationForUser(
                                                             userContext,
                                                             userHandle,
@@ -676,6 +682,28 @@ public final class AppSearchUserInstanceManager {
                                                             isolatedIcingInterface);
                                                 } catch (Exception e) {
                                                     Log.e(TAG, "Fail to migrate the data.", e);
+                                                    statusCode = AppSearchResult
+                                                            .throwableToFailedResult(e)
+                                                            .getResultCode();
+                                                } finally {
+                                                    if (instance == null
+                                                            || instance.getLogger() == null) {
+                                                        return;
+                                                    }
+                                                    int totalLatencyMillis =
+                                                            (int) (SystemClock.elapsedRealtime()
+                                                                    - totalLatencyStartTimeMillis);
+                                                    instance.getLogger().logStats(
+                                                            new CallStats.Builder()
+                                                                    .setStatusCode(statusCode)
+                                                                    .setCallReceivedTimestampMillis(
+                                                                            totalLatencyStartTimeMillis)
+                                                                    .setTotalLatencyMillis(
+                                                                            totalLatencyMillis)
+                                                                    .setCallType(CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
+                                                                    .setLaunchVMEnabled(
+                                                                            instance.isVMEnabled())
+                                                                    .build());
                                                 }
                                             });
                                 },
