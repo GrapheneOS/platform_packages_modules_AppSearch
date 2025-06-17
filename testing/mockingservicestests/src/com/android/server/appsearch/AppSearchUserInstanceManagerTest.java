@@ -31,6 +31,7 @@ import android.os.UserHandle;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.util.ExecutorManager;
 
 import org.junit.Before;
@@ -49,6 +50,10 @@ import java.util.concurrent.Future;
 public class AppSearchUserInstanceManagerTest {
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
+    @Rule
+    public final TestableDeviceConfig.TestableDeviceConfigRule mDeviceConfigRule =
+            new TestableDeviceConfig.TestableDeviceConfigRule();
+
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
     private Context mContext;
@@ -62,6 +67,7 @@ public class AppSearchUserInstanceManagerTest {
         mContext = ApplicationProvider.getApplicationContext();
         mUserHandle = mContext.getUser();
 
+
         // Set a test environment that provides a temporary folder for AppSearch
         File mAppSearchDir = mTemporaryFolder.newFolder();
         AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
@@ -74,7 +80,6 @@ public class AppSearchUserInstanceManagerTest {
                 });
 
         mServiceConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, mContext);
-        AppSearchComponentFactory.setConfigInstanceForTest(mServiceConfig);
 
         mExecutorManager = new ExecutorManager(mServiceConfig);
     }
