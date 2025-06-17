@@ -383,6 +383,20 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] resultData;
         try {
             mManager.signalActivityStarts();
+            if (getResultSpec.getNumTotalDocumentBytesToReturn()
+                    > IsolatedStorageServiceManager
+                            .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE) {
+                Log.w(
+                        TAG,
+                        "numTotalDocumentBytesToReturn was set incorrectly for GetResultSpecProto: "
+                                + getResultSpec.getNumTotalDocumentBytesToReturn());
+                getResultSpec =
+                        getResultSpec.toBuilder()
+                                .setNumTotalDocumentBytesToReturn(
+                                        IsolatedStorageServiceManager
+                                                .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE)
+                                .build();
+            }
             resultData =
                     mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
                             .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -572,6 +586,20 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] resultData;
         try {
             mManager.signalActivityStarts();
+            if (resultSpec.getNumTotalBytesPerPageThreshold()
+                    > IsolatedStorageServiceManager
+                            .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE) {
+                Log.w(
+                        TAG,
+                        "numTotalBytesPerPageThreshold was set incorrectly for ResultSpecProto: "
+                                + resultSpec.getNumTotalBytesPerPageThreshold());
+                resultSpec =
+                        resultSpec.toBuilder()
+                                .setNumTotalBytesPerPageThreshold(
+                                        IsolatedStorageServiceManager
+                                                .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE)
+                                .build();
+            }
             resultData =
                     mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
                             .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
