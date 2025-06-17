@@ -331,13 +331,10 @@ public class DataMigrationUtil {
         priorIcingSearchEngine.close();
 
         // Destroy the current instance.
-        if (Flags.enableWipingOutSystemServerDataAfterMigration()) {
-            if (LogUtil.INFO) {
-                Log.i(TAG,
-                        "Data migration: wiping source directory.");
-            }
-            File icingDir = new File(appSearchDir, "icing");
-            DataMigrationUtil.wipeSourceIcingDir(icingDir);
+        if (LogUtil.INFO) {
+            Log.i(TAG, "Data migration: wiping source directory.");
         }
+        File icingDir = new File(appSearchDir, "icing");
+        DataMigrationUtil.wipeSourceIcingDir(icingDir);
     }
 }
