@@ -17,16 +17,20 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
+import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.util.LogUtil;
 import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchPutResultProto;
+import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.PutDocumentRequest;
 import com.google.android.icing.proto.ResetResultProto;
 import com.google.android.icing.proto.ResultSpecProto;
@@ -111,13 +115,62 @@ public class DataMigrationUtil {
     }
 
     /**
+     * Wipes source Icing directory after a successful migration.
+     *
+     * <p>Currently everything will be wiped except for blob_dir.
+     * @param icingDir
+     */
+    public static void wipeSourceIcingDir(@NonNull File icingDir) {
+        if (icingDir.exists() && icingDir.isDirectory()) {
+            File[] files = icingDir.listFiles();
+            boolean all_deleted = true;
+            if (files != null) {
+                for (int i = 0; i < files.length; ++i) {
+                    File file = files[i];
+                    // blob_dir will still be used no matter which backend we are
+                    // connecting. So we need to keep it.
+                    if (!file.getName().equals("blob_dir")) {
+                        if (!deleteDirectoryRecursively(file)) {
+                            Log.e(TAG, "Data migration: failed to delete " + file.getName());
+                            all_deleted = false;
+                        }
+                    } else {
+                        all_deleted = false;
+                    }
+                }
+            }
+
+            // icingDir is now empty. We can just delete it.
+            if (all_deleted) {
+                icingDir.delete();
+            }
+        }
+    }
+
+    // Returns true if file/directory gets deleted. false otherwise.
+    private static boolean deleteDirectoryRecursively(@NonNull File dir) {
+        if (!dir.exists()) {
+            return true;
+        }
+        if (dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (int i = 0; i < files.length; ++i) {
+                    deleteDirectoryRecursively(files[i]);
+                }
+            }
+        }
+        return dir.delete();
+    }
+
+    /**
      * Copies all the data from the source to the destination.
      *
      * <p>{@code source} won't be modified by this method.
      *
      * <p>This method calls AppSearchImpl's thread-safe APIs for source.
      */
-    public static StatusProto copyData(
+    private static StatusProto copyData(
             @NonNull AppSearchImpl source,
             @NonNull IcingSearchEngineInterface destination,
             boolean resetDestination,
@@ -165,9 +218,9 @@ public class DataMigrationUtil {
                         ResultSpecProto.newBuilder()
                                 .setNumTotalBytesPerPageThreshold(maxBytesPerPage)
                                 // median doc size is 700b.
-                                // half of the maxBytesPerPage is 250_000.
-                                // so 250_000 / 700 = 350 results per page.
-                                .setNumPerPage(350)
+                                // half of the maxBytesPerPage is 64_000b.
+                                // so 64_000 / 700 ~= 95 results per page.
+                                .setNumPerPage(95)
                                 .build());
         if (searchResult.getStatus().getCode() != StatusProto.Code.OK) {
             return searchResult.getStatus();
@@ -225,5 +278,66 @@ public class DataMigrationUtil {
             schemaBuilder.addTypes(typeBuilder);
         }
         return schemaBuilder.build();
+    }
+
+    /**
+     * Runs data migration for the specified user.
+     *
+     * @param context User Context
+     * @param userHandle User to run migration for
+     * @param host {@link AppSearchImpl} instance for the host(source).
+     * @param vm {@link IcingSearchEngineInterface} instance for the vm(destination).
+     *
+     * @throws AppSearchException if there is any failures during migration.
+     */
+    public static void runDataMigrationForUser(
+            @NonNull Context context,
+            @NonNull UserHandle userHandle,
+            @NonNull AppSearchImpl host,
+            @NonNull IcingSearchEngineInterface vm) throws AppSearchException {
+        InitializeResultProto initResult = vm.initialize();
+        if (initResult.getStatus().getCode() != StatusProto.Code.OK) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_INTERNAL_ERROR,
+                    "Failed to initialize Isolated Storage Icing!"
+                            + " Status code: "
+                            + initResult.getStatus().getCode().getNumber());
+        }
+
+        // TODO(b/407815165) probably this should be moved to AppSearchImpl so lock can be
+        //  grabbed there.
+        StatusProto status =
+                DataMigrationUtil.copyData(host, vm,
+                        /* resetDestination= */ false, /* forceOverride= */ true);
+        Log.i(TAG, "Data migration status: " + status);
+
+        if (status.getCode() != StatusProto.Code.OK) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_INTERNAL_ERROR,
+                    "Data migration: failed with status code: "
+                            + status.getCode().getNumber()
+                            + ", status message: "
+                            + status.getMessage());
+        }
+
+        // Switch to the isolated instance.
+        IcingSearchEngineInterface priorIcingSearchEngine = host.swapIcingSearchEngineLocked(
+                vm, /*isVMEnabled=*/ true);
+
+        File appSearchDir = AppSearchEnvironmentFactory
+                .getEnvironmentInstance()
+                .getAppSearchDir(context, userHandle);
+        DataMigrationUtil.createMigrationStatus(appSearchDir);
+        priorIcingSearchEngine.close();
+
+        // Destroy the current instance.
+        if (Flags.enableWipingOutSystemServerDataAfterMigration()) {
+            if (LogUtil.INFO) {
+                Log.i(TAG,
+                        "Data migration: wiping source directory.");
+            }
+            File icingDir = new File(appSearchDir, "icing");
+            DataMigrationUtil.wipeSourceIcingDir(icingDir);
+        }
     }
 }

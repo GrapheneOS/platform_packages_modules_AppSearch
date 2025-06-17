@@ -711,3 +711,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_reset_visibility_store"
+    namespace: "appsearch"
+    description: "Enable reset visibility store if we failed to create it"
+    bug: "424334313"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

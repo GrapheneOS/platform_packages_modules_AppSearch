@@ -339,6 +339,7 @@ public final class AppSearchImpl implements Closeable {
 
         // By default, we don't perform any retries.
         int maxInitRetries = 0;
+        Map<String, VisibilityStore> visibilityStoreMap = new ArrayMap<>();
         mReadWriteLock.writeLock().lock();
         try {
             // We synchronize here because we don't want to call IcingSearchEngine.initialize() more
@@ -537,6 +538,14 @@ public final class AppSearchImpl implements Closeable {
                                             - prepareSchemaAndNamespacesLatencyStartMillis));
                 }
 
+                if (Flags.enableResetVisibilityStore() || mIsVMEnabled) {
+                    // Move initialize Visibility Store in the try-catch reset block. We will
+                    // trigger reset if we cannot create Visibility Store properly.
+                    visibilityStoreMap =
+                            initializeVisibilityStore(
+                                    mRevocableFileDescriptorStore, initStatsBuilder);
+                }
+
                 LogUtil.piiTrace(TAG, "Init completed successfully");
 
             } catch (AppSearchException e) {
@@ -546,28 +555,47 @@ public final class AppSearchImpl implements Closeable {
                     initStatsBuilder.setStatusCode(e.getResultCode());
                 }
                 resetLocked(initStatsBuilder);
+                if (Flags.enableResetVisibilityStore() || mIsVMEnabled) {
+                    visibilityStoreMap =
+                            initializeVisibilityStore(
+                                    mRevocableFileDescriptorStore, initStatsBuilder);
+                }
             }
-
-            // AppSearchImpl core parameters are initialized and we should be able to build
-            // VisibilityStores based on that. We shouldn't wipe out everything if we only failed to
-            // build VisibilityStores.
-            long prepareVisibilityStoreLatencyStartMillis = SystemClock.elapsedRealtime();
-            mDocumentVisibilityStoreLocked = VisibilityStore.createDocumentVisibilityStore(this);
-            if (mRevocableFileDescriptorStore != null) {
-                mBlobVisibilityStoreLocked = VisibilityStore.createBlobVisibilityStore(this);
-            } else {
-                mBlobVisibilityStoreLocked = null;
+            if (!(Flags.enableResetVisibilityStore() || mIsVMEnabled)) {
+                visibilityStoreMap =
+                        initializeVisibilityStore(mRevocableFileDescriptorStore, initStatsBuilder);
             }
-            long prepareVisibilityStoreLatencyEndMillis = SystemClock.elapsedRealtime();
-            if (initStatsBuilder != null) {
-                initStatsBuilder.setPrepareVisibilityStoreLatencyMillis(
-                        (int)
-                                (prepareVisibilityStoreLatencyEndMillis
-                                        - prepareVisibilityStoreLatencyStartMillis));
-            }
+            mDocumentVisibilityStoreLocked =
+                    visibilityStoreMap.get(VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME);
+            mBlobVisibilityStoreLocked =
+                    visibilityStoreMap.get(VisibilityStore.BLOB_VISIBILITY_DATABASE_NAME);
         } finally {
             mReadWriteLock.writeLock().unlock();
         }
+    }
+
+    private Map<String, VisibilityStore> initializeVisibilityStore(
+            @Nullable RevocableFileDescriptorStore revocableFileDescriptorStore,
+            InitializeStats.@Nullable Builder initStatsBuilder)
+            throws AppSearchException {
+        long prepareVisibilityStoreLatencyStartMillis = SystemClock.elapsedRealtime();
+        Map<String, VisibilityStore> visibilityStoreMap = new ArrayMap<>();
+        visibilityStoreMap.put(
+                VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
+                VisibilityStore.createDocumentVisibilityStore(this));
+        VisibilityStore blobVisibilityStore = null;
+        if (revocableFileDescriptorStore != null) {
+            blobVisibilityStore = VisibilityStore.createBlobVisibilityStore(this);
+        }
+        visibilityStoreMap.put(VisibilityStore.BLOB_VISIBILITY_DATABASE_NAME, blobVisibilityStore);
+        long prepareVisibilityStoreLatencyEndMillis = SystemClock.elapsedRealtime();
+        if (initStatsBuilder != null) {
+            initStatsBuilder.setPrepareVisibilityStoreLatencyMillis(
+                    (int)
+                            (prepareVisibilityStoreLatencyEndMillis
+                                    - prepareVisibilityStoreLatencyStartMillis));
+        }
+        return visibilityStoreMap;
     }
 
     @GuardedBy("mReadWriteLock")
@@ -3991,6 +4019,39 @@ public final class AppSearchImpl implements Closeable {
     }
 
     /**
+     * Deletes all blob files managed by AppSearch.
+     *
+     * @throws AppSearchException if an I/O error occurs.
+     */
+    @GuardedBy("mReadWriteLock")
+    private void deleteBlobFilesLocked() throws AppSearchException {
+        if (!Flags.enableAppSearchManageBlobFiles()) {
+            return;
+        }
+        if (mBlobFilesDir.isFile() && !mBlobFilesDir.delete()) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_IO_ERROR,
+                    "The blob file directory is a file and cannot delete it.");
+        }
+        if (!mBlobFilesDir.exists() && !mBlobFilesDir.mkdirs()) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_IO_ERROR,
+                    "The blob file directory does not exist and cannot create a new one.");
+        }
+        File[] blobFiles = mBlobFilesDir.listFiles();
+        if (blobFiles == null) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_IO_ERROR, "Cannot list the blob files.");
+        }
+        for (int i = 0; i < blobFiles.length; i++) {
+            File blobFile = blobFiles[i];
+            if (!blobFile.delete()) {
+                Log.e(TAG, "Cannot delete the blob file: " + blobFile.getName());
+            }
+        }
+    }
+
+    /**
      * Clears documents and schema across all packages and databaseNames.
      *
      * <p>This method belongs to mutate group.
@@ -4033,6 +4094,9 @@ public final class AppSearchImpl implements Closeable {
         }
 
         checkSuccess(resetResultProto.getStatus());
+
+        // Delete all blob files if AppSearch manages them.
+        deleteBlobFilesLocked();
     }
 
     /** Wrapper around schema changes */

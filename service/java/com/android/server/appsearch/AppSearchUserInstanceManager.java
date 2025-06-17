@@ -43,9 +43,6 @@ import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServ
 import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.IcingSearchEngineInterface;
-import com.google.android.icing.proto.InitializeResultProto;
-import com.google.android.icing.proto.ResetResultProto;
-import com.google.android.icing.proto.StatusProto;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -660,67 +657,27 @@ public final class AppSearchUserInstanceManager {
                         executorManager.scheduleLambdaForUserNoCallbackAsync(
                                 userHandle,
                                 () -> {
-                                    AppSearchUserInstance instance =
-                                            getUserInstanceOrNull(userHandle);
-                                    if (instance != null) {
-                                        InitializeResultProto initResult =
-                                                isolatedIcingInterface.initialize();
-                                        if (initResult.getStatus().getCode()
-                                                != StatusProto.Code.OK) {
-                                            Log.e(
-                                                    TAG,
-                                                    "Failed to initialize Isolated Storage Icing!"
-                                                            + " Status code: "
-                                                            + initResult
-                                                                    .getStatus()
-                                                                    .getCode()
-                                                                    .getNumber());
-                                        }
-                                        StatusProto status =
-                                                DataMigrationUtil.copyData(
-                                                        // Get the non-isolated icing instance
-                                                        instance.getAppSearchImpl(),
-                                                        isolatedIcingInterface,
-                                                        /* resetDestination= */ false,
-                                                        /* forceOverride= */ true);
-                                        if (LogUtil.INFO) {
-                                            Log.i(TAG, "Data migration status: " + status);
-                                        }
-
-                                        if (status.getCode() != StatusProto.Code.OK) {
-                                            Log.e(
-                                                    TAG,
-                                                    "Data migration failed with status code: "
-                                                            + status.getCode().getNumber());
-                                            return;
-                                        }
-
-                                        // Switch to the isolated instance
-                                        IcingSearchEngineInterface priorIcingSearchEngine =
-                                                instance.getAppSearchImpl()
-                                                        .swapIcingSearchEngineLocked(
-                                                                isolatedIcingInterface,
-                                                                /*isVMEnabled=*/ true);
-
-                                        DataMigrationUtil.createMigrationStatus(
-                                                AppSearchEnvironmentFactory
-                                                        .getEnvironmentInstance()
-                                                        .getAppSearchDir(userContext, userHandle));
-
-                                        // Destroy the current instance.
-                                        if (Flags.enableWipingOutSystemServerDataAfterMigration()) {
-                                            // TODO(b/407815165): We can't delete blob related
-                                            //  files as well as migration status file.
-                                            ResetResultProto resetResult =
-                                                    priorIcingSearchEngine.clearAndDestroy();
-                                            priorIcingSearchEngine.close();
-                                            if (LogUtil.INFO) {
-                                                Log.i(TAG,
-                                                        "Clear and destroy result: "
-                                                                + resetResult);
-                                            }
-                                        }
-                                    }
+                                    // Run the data migration if not done yet. This is run on our
+                                    // worker executor.
+                                    // Right now it only has one thread, so it will block
+                                    // other API calls.
+                                    // We need to let the migration happen in AppSearchImpl to
+                                    // grab ReadWrite lock there once multi-threading is enabled.
+                                    executorManager.executeLambdaForUserNoCallbackAsync(
+                                            userHandle,
+                                            () -> {
+                                                try {
+                                                    AppSearchUserInstance instance =
+                                                            getUserInstanceOrNull(userHandle);
+                                                    DataMigrationUtil.runDataMigrationForUser(
+                                                            userContext,
+                                                            userHandle,
+                                                            instance.getAppSearchImpl(),
+                                                            isolatedIcingInterface);
+                                                } catch (Exception e) {
+                                                    Log.e(TAG, "Fail to migrate the data.", e);
+                                                }
+                                            });
                                 },
                                 1,
                                 TimeUnit.MINUTES);
@@ -728,6 +685,7 @@ public final class AppSearchUserInstanceManager {
                 Log.i(TAG, "Data migration for " + userHandle + " scheduled.");
             }
         }
+
         // If we need a migration, return null so that AppSearch will create the non-isolated
         // version of Icing in AppSearchImpl.create.
         return null;
