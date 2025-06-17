@@ -28,6 +28,20 @@ genrule {
     out: ["com/android/server/appsearch/stats/AppSearchStatsLog.java"],
 }
 
+java_library_static {
+    name: "appsearch-metrics-protos-lite",
+    host_supported: true,
+    proto: {
+        type: "lite",
+    },
+    srcs: [
+        "java/com/android/server/appsearch/metrics/appsearch.proto",
+    ],
+    min_sdk_version: "Tiramisu",
+    apex_available: ["com.android.appsearch"],
+    sdk_version: "current",
+}
+
 java_library {
     name: "statslog-appsearch-lib",
     srcs: [":statslog-appsearch-java-gen"],
@@ -59,6 +73,7 @@ java_defaults {
         "libicing-java",
         "statslog-appsearch-lib",
 
+        "appsearch-metrics-protos-lite",
         "appsearch_flags_java_lib",
         "modules-utils-preconditions",
     ],

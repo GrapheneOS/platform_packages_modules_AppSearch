@@ -44,7 +44,11 @@ import android.util.Log;
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.isolated_storage_service.IIcingSearchEngine;
+import com.android.server.appsearch.AppSearchComponentFactory;
+import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
+import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
+import com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats;
 
 import com.google.android.icing.proto.IcingSearchEngineOptions;
 import com.google.android.icing.proto.InitializeResultProto;
@@ -115,6 +119,8 @@ public final class IsolatedStorageServiceManager {
     @GuardedBy("mLock")
     private final Map<UserHandle, UserInstance> mUserInstancesLocked = new ArrayMap<>();
 
+    private InternalAppSearchLogger mLogger;
+
     public IsolatedStorageServiceManager(
             @NonNull Context context,
             @NonNull ServiceAppSearchConfig appSearchConfig,
@@ -131,6 +137,11 @@ public final class IsolatedStorageServiceManager {
                     VM_STATUS_CHECK_INTERVAL_SECONDS,
                     TimeUnit.SECONDS);
         }
+
+        // TODO(b/422197198): consider using logger from the user instance instead of creating a new
+        //   one here. For now, only 1 user is allowed to use the vm, but we should plan for
+        //   multiple users in the future.
+        mLogger = AppSearchComponentFactory.createLoggerInstance(mContext, appSearchConfig);
     }
 
     private void checkVmStatus() {
@@ -191,7 +202,15 @@ public final class IsolatedStorageServiceManager {
      * not already.
      */
     public void initialize() throws AppSearchException {
-        initialize(false, MAX_VM_START_RETRIES);
+        VmInitializationStats.Builder statsBuilder =
+                new VmInitializationStats.Builder(VmInitializationStats.VM_INIT_TYPE_BOOTING);
+        try {
+            initialize(/* forceVmRestart= */ false, MAX_VM_START_RETRIES, statsBuilder);
+        } finally {
+            if (mLogger != null) {
+                mLogger.logStats(statsBuilder.build());
+            }
+        }
     }
 
     /**
@@ -202,14 +221,19 @@ public final class IsolatedStorageServiceManager {
      *
      * @param forceVmRestart Whether to force restarting the VM.
      * @param numRetries Number of retries when starting the VM.
+     * @param statsBuilder nullable {@link VmInitializationStats.Builder} for stats report.
      */
-    private void initialize(boolean forceVmRestart, int numRetries) throws AppSearchException {
+    private void initialize(
+            boolean forceVmRestart,
+            int numRetries,
+            @Nullable VmInitializationStats.Builder statsBuilder)
+            throws AppSearchException {
         synchronized (mLock) {
             if (mIsolatedStorageService == null) {
                 bindIsolatedStorageServiceLocked();
             }
             if (mVmIsolatedStorageServiceLocked == null) {
-                connectToVmIsolatedStorageServiceLocked(forceVmRestart, numRetries);
+                connectToVmIsolatedStorageServiceLocked(forceVmRestart, numRetries, statsBuilder);
             }
         }
     }
@@ -304,14 +328,17 @@ public final class IsolatedStorageServiceManager {
     /** Connects to the VM isolated storage service if not already. */
     @WorkerThread
     @GuardedBy("mLock")
-    private void connectToVmIsolatedStorageServiceLocked(boolean forceVmRestart, int numRetries)
+    private void connectToVmIsolatedStorageServiceLocked(
+            boolean forceVmRestart,
+            int numRetries,
+            @Nullable VmInitializationStats.Builder statsBuilder)
             throws AppSearchException {
         if (mVmIsolatedStorageServiceLocked != null) {
             Log.i(TAG, "VM already connected");
             return;
         }
         Log.i(TAG, "Connecting to vm");
-        waitForVmPayloadReadyLocked(forceVmRestart, numRetries);
+        waitForVmPayloadReadyLocked(forceVmRestart, numRetries, statsBuilder);
         try {
             IBinder iBinder =
                     VirtualMachine.binderFromPreconnectedClient(
@@ -371,18 +398,28 @@ public final class IsolatedStorageServiceManager {
     }
 
     @GuardedBy("mLock")
-    private void waitForVmPayloadReadyLocked(boolean forceVmRestart, int numRetries)
+    private void waitForVmPayloadReadyLocked(
+            boolean forceVmRestart,
+            int numRetries,
+            @Nullable VmInitializationStats.Builder statsBuilder)
             throws AppSearchException {
         boolean vmStarted = false;
         ServiceConfig serviceConfig = createServiceConfig();
+
         try {
             for (int i = 0; i < numRetries; i++) {
-                // TODO(b/421272017): log latency, improve timeout and retry worst total time.
-                // - For recovering from dead vm, usually it takes more time to restart the vm in a
-                //   single attempt, so we increased PAYLOAD_WAIT_TIMEOUT_SECONDS.
-                // - But for rebooting, the total time is much stricter, so we should tune them.
-                if (mIsolatedStorageService.startVm(
-                        serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS, forceVmRestart)) {
+                VmStartResult result =
+                        mIsolatedStorageService.startVm(
+                                serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS, forceVmRestart);
+                if (statsBuilder != null) {
+                    statsBuilder.addStartAttemptStats(
+                            new VmStartAttemptStats.Builder()
+                                    .setStatusCode(result.pStatusCode)
+                                    .setLatencyMillis(result.pTotalLatencyMillis)
+                                    .build());
+                }
+
+                if (result.pStatusCode == VmStartAttemptStats.VM_START_STATUS_SUCCESS) {
                     vmStarted = true;
                     break;
                 }
@@ -391,6 +428,12 @@ public final class IsolatedStorageServiceManager {
             }
         } catch (Exception e) {
             Log.e(TAG, "Unable to wait for pVM to be ready", e);
+            if (statsBuilder != null) {
+                statsBuilder.addStartAttemptStats(
+                        new VmStartAttemptStats.Builder()
+                                .setStatusCode(VmStartAttemptStats.VM_START_STATUS_ERROR)
+                                .build());
+            }
             throw new AppSearchException(RESULT_UNAVAILABLE, "Failed to start VM and load payload");
         }
         if (!vmStarted) {
@@ -621,10 +664,14 @@ public final class IsolatedStorageServiceManager {
         synchronized (mLock) {
             try {
                 mIsReconnecting = true;
+                VmInitializationStats.Builder statsBuilder =
+                        new VmInitializationStats.Builder(
+                                VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
                 try {
                     // TODO(b/421272017): add logs that will cover how many retries we're attempting
                     // and whether they actually recover eventually.
-                    initialize(true, MAX_REINITIALIZATION_RETRIES);
+                    initialize(
+                            /* forceVmRestart= */ true, MAX_REINITIALIZATION_RETRIES, statsBuilder);
                 } catch (AppSearchException e) {
                     Log.e(
                             TAG,
@@ -632,7 +679,12 @@ public final class IsolatedStorageServiceManager {
                                     + MAX_REINITIALIZATION_RETRIES
                                     + " retries");
                     return;
+                } finally {
+                    if (mLogger != null) {
+                        mLogger.logStats(statsBuilder.build());
+                    }
                 }
+
                 for (UserHandle userHandle : mUserInstancesLocked.keySet()) {
                     try {
                         UserInstance userInstance = mUserInstancesLocked.get(userHandle);
