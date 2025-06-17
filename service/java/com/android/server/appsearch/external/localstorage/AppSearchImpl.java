@@ -4019,6 +4019,39 @@ public final class AppSearchImpl implements Closeable {
     }
 
     /**
+     * Deletes all blob files managed by AppSearch.
+     *
+     * @throws AppSearchException if an I/O error occurs.
+     */
+    @GuardedBy("mReadWriteLock")
+    private void deleteBlobFilesLocked() throws AppSearchException {
+        if (!Flags.enableAppSearchManageBlobFiles()) {
+            return;
+        }
+        if (mBlobFilesDir.isFile() && !mBlobFilesDir.delete()) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_IO_ERROR,
+                    "The blob file directory is a file and cannot delete it.");
+        }
+        if (!mBlobFilesDir.exists() && !mBlobFilesDir.mkdirs()) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_IO_ERROR,
+                    "The blob file directory does not exist and cannot create a new one.");
+        }
+        File[] blobFiles = mBlobFilesDir.listFiles();
+        if (blobFiles == null) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_IO_ERROR, "Cannot list the blob files.");
+        }
+        for (int i = 0; i < blobFiles.length; i++) {
+            File blobFile = blobFiles[i];
+            if (!blobFile.delete()) {
+                Log.e(TAG, "Cannot delete the blob file: " + blobFile.getName());
+            }
+        }
+    }
+
+    /**
      * Clears documents and schema across all packages and databaseNames.
      *
      * <p>This method belongs to mutate group.
@@ -4061,6 +4094,9 @@ public final class AppSearchImpl implements Closeable {
         }
 
         checkSuccess(resetResultProto.getStatus());
+
+        // Delete all blob files if AppSearch manages them.
+        deleteBlobFilesLocked();
     }
 
     /** Wrapper around schema changes */
