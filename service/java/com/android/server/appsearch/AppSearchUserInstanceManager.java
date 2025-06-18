@@ -686,24 +686,24 @@ public final class AppSearchUserInstanceManager {
                                                             .throwableToFailedResult(e)
                                                             .getResultCode();
                                                 } finally {
-                                                    if (instance == null
-                                                            || instance.getLogger() == null) {
-                                                        return;
+                                                    if (instance != null
+                                                            && instance.getLogger() != null) {
+                                                        int totalLatencyMillis =
+                                                                (int) (SystemClock.elapsedRealtime()
+                                                                        - totalLatencyStartTimeMillis);
+                                                        instance.getLogger().logStats(
+                                                                new CallStats.Builder()
+                                                                        .setStatusCode(statusCode)
+                                                                        .setCallReceivedTimestampMillis(
+                                                                                totalLatencyStartTimeMillis)
+                                                                        .setTotalLatencyMillis(
+                                                                                totalLatencyMillis)
+                                                                        .setCallType(
+                                                                                CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
+                                                                        .setLaunchVMEnabled(
+                                                                                instance.isVMEnabled())
+                                                                        .build());
                                                     }
-                                                    int totalLatencyMillis =
-                                                            (int) (SystemClock.elapsedRealtime()
-                                                                    - totalLatencyStartTimeMillis);
-                                                    instance.getLogger().logStats(
-                                                            new CallStats.Builder()
-                                                                    .setStatusCode(statusCode)
-                                                                    .setCallReceivedTimestampMillis(
-                                                                            totalLatencyStartTimeMillis)
-                                                                    .setTotalLatencyMillis(
-                                                                            totalLatencyMillis)
-                                                                    .setCallType(CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
-                                                                    .setLaunchVMEnabled(
-                                                                            instance.isVMEnabled())
-                                                                    .build());
                                                 }
                                             });
                                 },
