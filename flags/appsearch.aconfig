@@ -721,3 +721,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_no_op_manual_persist"
+    namespace: "appsearch"
+    description: "Makes manual persist to disk calls a no-op."
+    bug: "417463182"
+}
