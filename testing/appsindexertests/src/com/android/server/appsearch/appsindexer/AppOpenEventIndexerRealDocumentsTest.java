@@ -17,14 +17,15 @@ package com.android.server.appsearch.appsindexer;
 
 import static android.Manifest.permission.OBSERVE_APP_USAGE;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
+import static android.Manifest.permission.READ_DEVICE_CONFIG;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppOpenEventsIndexerSession;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakeAppOpenEventDocuments;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assume.assumeTrue;
 
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -113,7 +114,7 @@ public class AppOpenEventIndexerRealDocumentsTest {
 
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         mUiAutomation.adoptShellPermissionIdentity(
-                PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE, RECEIVE_BOOT_COMPLETED);
+                PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE, RECEIVE_BOOT_COMPLETED, READ_DEVICE_CONFIG);
 
         File mAppSearchDir = mTemporaryFolder.newFolder();
         AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
