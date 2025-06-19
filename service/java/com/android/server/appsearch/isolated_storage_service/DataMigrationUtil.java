@@ -281,21 +281,21 @@ public class DataMigrationUtil {
     }
 
     /**
-     * Runs data migration for the specified user.
+     * Runs data migration for the specified user to move data from {@code source} to {@code dest}.
      *
      * @param context User Context
      * @param userHandle User to run migration for
-     * @param host {@link AppSearchImpl} instance for the host(source).
-     * @param vm {@link IcingSearchEngineInterface} instance for the vm(destination).
+     * @param source {@link AppSearchImpl} instance for the source.
+     * @param dest {@link IcingSearchEngineInterface} instance for the destination.
      *
      * @throws AppSearchException if there is any failures during migration.
      */
     public static void runDataMigrationForUser(
             @NonNull Context context,
             @NonNull UserHandle userHandle,
-            @NonNull AppSearchImpl host,
-            @NonNull IcingSearchEngineInterface vm) throws AppSearchException {
-        InitializeResultProto initResult = vm.initialize();
+            @NonNull AppSearchImpl source,
+            @NonNull IcingSearchEngineInterface dest) throws AppSearchException {
+        InitializeResultProto initResult = dest.initialize();
         if (initResult.getStatus().getCode() != StatusProto.Code.OK) {
             throw new AppSearchException(
                     AppSearchResult.RESULT_INTERNAL_ERROR,
@@ -307,7 +307,7 @@ public class DataMigrationUtil {
         // TODO(b/407815165) probably this should be moved to AppSearchImpl so lock can be
         //  grabbed there.
         StatusProto status =
-                DataMigrationUtil.copyData(host, vm,
+                DataMigrationUtil.copyData(source, dest,
                         /* resetDestination= */ false, /* forceOverride= */ true);
         Log.i(TAG, "Data migration status: " + status);
 
@@ -321,8 +321,8 @@ public class DataMigrationUtil {
         }
 
         // Switch to the isolated instance.
-        IcingSearchEngineInterface priorIcingSearchEngine = host.swapIcingSearchEngineLocked(
-                vm, /*isVMEnabled=*/ true);
+        IcingSearchEngineInterface priorIcingSearchEngine = source.swapIcingSearchEngineLocked(
+                dest, /*isVMEnabled=*/ true);
 
         File appSearchDir = AppSearchEnvironmentFactory
                 .getEnvironmentInstance()
@@ -331,13 +331,10 @@ public class DataMigrationUtil {
         priorIcingSearchEngine.close();
 
         // Destroy the current instance.
-        if (Flags.enableWipingOutSystemServerDataAfterMigration()) {
-            if (LogUtil.INFO) {
-                Log.i(TAG,
-                        "Data migration: wiping source directory.");
-            }
-            File icingDir = new File(appSearchDir, "icing");
-            DataMigrationUtil.wipeSourceIcingDir(icingDir);
+        if (LogUtil.INFO) {
+            Log.i(TAG, "Data migration: wiping source directory.");
         }
+        File icingDir = new File(appSearchDir, "icing");
+        DataMigrationUtil.wipeSourceIcingDir(icingDir);
     }
 }

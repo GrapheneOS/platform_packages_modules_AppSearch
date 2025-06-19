@@ -85,7 +85,10 @@ public class CallStats extends BaseStats {
                 CALL_TYPE_OPEN_READ_BLOB,
                 CALL_TYPE_GLOBAL_OPEN_READ_BLOB,
                 CALL_TYPE_REMOVE_BLOB,
-                CALL_TYPE_SET_BLOB_VISIBILITY
+                CALL_TYPE_SET_BLOB_VISIBILITY,
+                // Internal call types
+                INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER,
+                INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CallType {}
@@ -131,6 +134,7 @@ public class CallStats extends BaseStats {
     // Most call types are for AppSearchManager APIs. This call type is for internal calls, such
     // as from indexers.
     public static final int INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER = 38;
+    public static final int INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION = 39;
 
     // These strings are for the subset of call types that correspond to an AppSearchManager API
     private static final String CALL_TYPE_STRING_INITIALIZE = "initialize";

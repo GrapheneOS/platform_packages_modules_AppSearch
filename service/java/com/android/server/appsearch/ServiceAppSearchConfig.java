@@ -235,13 +235,13 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /** Returns whether or not AppSearch should use Isolated Storage */
-    default boolean getIsolatedStorageEnabled() {
-        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLED;
+    default boolean getIsolatedStorageDisabled() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_DISABLED;
     }
 
     /** Returns whether or not AppSearch should migrate data to isolated storage. */
-    default boolean enableIsolatedStorageMigration() {
-        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_ENABLED;
+    default boolean disableIsolatedStorageMigration() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_MIGRATION_DISABLED;
     }
 
     /** Returns whether or not we need to clean up old CE VMs */

@@ -17,6 +17,7 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import android.os.ParcelFileDescriptor;
 import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
+import com.android.server.appsearch.isolated_storage_service.VmStartResult;
 
 /**
  * Isolated storage service.
@@ -32,10 +33,10 @@ interface IIsolatedStorageService {
      * @param config The service configuration.
      * @param timeoutSeconds The timeout in seconds when waiting for the pVm payload to be ready.
      * @param forceRestart Whether to force the pVM to restart if it's already running.
-     * @return true if the pVm payload is ready, false otherwise. If false, please retry.
+     * @return VmStartResult object with essential values for the caller.
      */
     // TODO(b/416035857): remove forceRestart once VM status is fixed.
-    boolean startVm(in ServiceConfig config, in long timeoutSeconds, in boolean forceRestart);
+    VmStartResult startVm(in ServiceConfig config, in long timeoutSeconds, in boolean forceRestart);
 
     /**
      * Gets the connection to the pVM.

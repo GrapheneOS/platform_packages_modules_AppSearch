@@ -2961,8 +2961,15 @@ public class AppSearchManagerService extends SystemService {
                     int operationSuccessCount = 0;
                     int operationFailureCount = 0;
                     try {
-                        instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                        instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
+                        if (Flags.enableNoOpManualPersist()) {
+                            Log.w(TAG,
+                                    "Received persistToDisk call. Skipping since "
+                                            + "AppSearchManagerService manages its own "
+                                            + "persistence schedule");
+                        } else {
+                            instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                            instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
+                        }
                         ++operationSuccessCount;
                     } catch (AppSearchException | RuntimeException | InterruptedException
                              | ExecutionException e) {
