@@ -206,6 +206,13 @@ flag {
 }
 
 flag {
+    name: "app_open_event_indexer_enabled_v2"
+    namespace: "appsearch"
+    description: "Enables the app open event indexer module"
+    bug: "357835538"
+}
+
+flag {
     name: "enable_result_already_exists"
     namespace: "appsearch"
     description: "Enable the RESULT_ALREADY_EXISTS constant in AppSearchResult"
@@ -649,16 +656,6 @@ flag {
     namespace: "appsearch"
     description: "Enable checking VisibleToConfig for schema visibility when querying with enterprise global search session."
     bug: "417289133"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "app_open_event_indexer_paginated_read_enabled"
-    namespace: "appsearch"
-    description: "Enables paginated reads from UsageStatsManager to reduce peak memory usage"
-    bug: "415189891"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

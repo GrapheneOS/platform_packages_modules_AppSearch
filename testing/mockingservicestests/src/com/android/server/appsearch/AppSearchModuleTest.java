@@ -162,7 +162,7 @@ public class AppSearchModuleTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED)
+    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
     public void testAllIndexersEnabled_withAppOpenEventIndexer() {
         mLifecycle.onStart();
         assertThat(mLifecycle.mAppsIndexerManagerService).isNotNull();

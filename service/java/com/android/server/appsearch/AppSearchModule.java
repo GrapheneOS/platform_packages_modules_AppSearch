@@ -158,11 +158,11 @@ public class AppSearchModule {
 
             AppOpenEventIndexerConfig appOpenEventIndexerConfig =
                     new FrameworkAppOpenEventIndexerConfig();
-            // Flags.appOpenEventIndexerEnabled will be rolled out through gantry, and this check
+            // Flags.appOpenEventIndexerEnabledV2 will be rolled out through gantry, and this check
             // will be removed once it is fully rolled out.
             // appOpenEventIndexerConfig.isAppOpenEventIndexerEnabled checks DeviceConfig, so we can
             // keep this check here in case we need to turn off app open event indexer.
-            if (Flags.appOpenEventIndexerEnabled()
+            if (Flags.appOpenEventIndexerEnabledV2()
                     && appOpenEventIndexerConfig.isAppOpenEventIndexerEnabled()) {
                 mAppOpenEventIndexerManagerService =
                         createAppOpenEventIndexerManagerService(

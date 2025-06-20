@@ -696,7 +696,7 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED)
+    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
     public void testSetSchema_visibleToPackageUsageStatsOnly() throws Exception {
         String prefix = PrefixUtil.createPrefix("package", "database");
 
