@@ -17,8 +17,3 @@ rule com.android.internal.util.Preconditions* com.android.server.appsearch.inter
 rule com.android.appsearch.flags.*FeatureFlags* com.android.server.appsearch.flags.@1FeatureFlags@2
 rule com.android.appsearch.flags.FeatureFlags* com.android.server.appsearch.flags.FeatureFlags@1
 rule com.android.appsearch.flags.Flags com.android.server.appsearch.flags.Flags
-
-rule android.permission.flags.*FeatureFlags* com.android.server.appsearch.flags.@0
-rule android.permission.flags.FeatureFlags* com.android.server.appsearch.flags.@0
-rule android.permission.flags.FeatureFlags com.android.server.appsearch.flags.@0
-rule android.permission.flags.Flags com.android.server.appsearch.flags.@0
