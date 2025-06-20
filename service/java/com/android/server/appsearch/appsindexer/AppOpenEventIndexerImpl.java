@@ -22,9 +22,8 @@ import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
-
 import android.os.SystemClock;
-import com.android.appsearch.flags.Flags;
+
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 
 import java.io.Closeable;
@@ -66,7 +65,10 @@ public final class AppOpenEventIndexerImpl implements Closeable {
      *     ran
      */
     @WorkerThread
-    public void doUpdate(@NonNull AppOpenEventIndexerSettings settings, @NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder) throws AppSearchException {
+    public void doUpdate(
+            @NonNull AppOpenEventIndexerSettings settings,
+            @NonNull AppOpenEventStats.Builder appOpenEventStatsBuilder)
+            throws AppSearchException {
         Objects.requireNonNull(settings);
         Objects.requireNonNull(appOpenEventStatsBuilder);
 
@@ -82,7 +84,6 @@ public final class AppOpenEventIndexerImpl implements Closeable {
         appOpenEventStatsBuilder.setLastAppUpdateTimestampMillis(
                 settings.getLastUpdateTimestampMillis());
 
-
         try {
             // This should be a no-op if the schema is already set and unchanged.
             long startTimeMillis = SystemClock.elapsedRealtime();
@@ -90,12 +91,12 @@ public final class AppOpenEventIndexerImpl implements Closeable {
             appOpenEventStatsBuilder.setAppSearchSetSchemaLatencyMillis(
                     SystemClock.elapsedRealtime() - startTimeMillis);
 
-
             long paginationInterval = mAppOpenEventIndexerConfig.getPaginationIntervalMs();
 
-            // This is already gated by Flags.appOpenEventIndexerEnabled() &&
+            // This is already gated by Flags.appOpenEventIndexerEnabledV2() &&
             // appOpenEventIndexerConfig.isAppOpenEventIndexerEnabled() in AppSearchModule
-            if (isPaginatedReadEnabled() && paginationInterval >= MIN_PAGINATION_INTERVAL_MS) {
+            if (mAppOpenEventIndexerConfig.isPaginatedReadEnabled()
+                    && paginationInterval >= MIN_PAGINATION_INTERVAL_MS) {
                 long summedPutLatencyMillis = 0;
                 long summedReadLatencyMillis = 0;
                 int numberOfAppOpenEventsAdded = 0;
@@ -118,14 +119,17 @@ public final class AppOpenEventIndexerImpl implements Closeable {
 
                     if (appOpenEventsInChunk != null && !appOpenEventsInChunk.isEmpty()) {
                         long indexStartTimeMillis = SystemClock.elapsedRealtime();
-                        mAppSearchHelper.indexAppOpenEvents(appOpenEventsInChunk, appOpenEventStatsBuilder);
-                        summedPutLatencyMillis += SystemClock.elapsedRealtime() - indexStartTimeMillis;
+                        mAppSearchHelper.indexAppOpenEvents(
+                                appOpenEventsInChunk, appOpenEventStatsBuilder);
+                        summedPutLatencyMillis +=
+                                SystemClock.elapsedRealtime() - indexStartTimeMillis;
                     }
                     currentChunkStartTimeMillis = currentChunkEndTimeMillis;
                 }
                 appOpenEventStatsBuilder.setAppSearchPutLatencyMillis(summedPutLatencyMillis);
                 appOpenEventStatsBuilder.setNumberOfAppOpenEventsAdded(numberOfAppOpenEventsAdded);
-                appOpenEventStatsBuilder.setUsageStatsManagerReadLatencyMillis(summedReadLatencyMillis);
+                appOpenEventStatsBuilder.setUsageStatsManagerReadLatencyMillis(
+                        summedReadLatencyMillis);
 
             } else {
                 // Fallback to original non-paginated behavior if pagination is not enabled or if
@@ -146,7 +150,8 @@ public final class AppOpenEventIndexerImpl implements Closeable {
                 }
             }
 
-            appOpenEventStatsBuilder.setTotalLatencyMillis(SystemClock.elapsedRealtime() - startTimeMillis);
+            appOpenEventStatsBuilder.setTotalLatencyMillis(
+                    SystemClock.elapsedRealtime() - startTimeMillis);
             settings.setLastUpdateTimestampMillis(currentTimeMillis);
         } catch (AppSearchException e) {
             throw e;
@@ -159,11 +164,5 @@ public final class AppOpenEventIndexerImpl implements Closeable {
     @Override
     public void close() {
         mAppSearchHelper.close();
-    }
-
-    /** Checks if paginated read is enabled based on both the feature flag and the config. */
-    private boolean isPaginatedReadEnabled() {
-        return Flags.appOpenEventIndexerPaginatedReadEnabled()
-                && mAppOpenEventIndexerConfig.isPaginatedReadEnabled();
     }
 }

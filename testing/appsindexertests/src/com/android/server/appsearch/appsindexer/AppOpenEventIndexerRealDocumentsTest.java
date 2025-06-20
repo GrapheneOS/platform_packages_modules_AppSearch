@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 import static android.Manifest.permission.OBSERVE_APP_USAGE;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
+import static android.Manifest.permission.READ_DEVICE_CONFIG;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppOpenEventsIndexerSession;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakeAppOpenEventDocuments;
@@ -113,7 +114,7 @@ public class AppOpenEventIndexerRealDocumentsTest {
 
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         mUiAutomation.adoptShellPermissionIdentity(
-                PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE, RECEIVE_BOOT_COMPLETED);
+                PACKAGE_USAGE_STATS, OBSERVE_APP_USAGE, RECEIVE_BOOT_COMPLETED, READ_DEVICE_CONFIG);
 
         File mAppSearchDir = mTemporaryFolder.newFolder();
         AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
@@ -190,7 +191,6 @@ public class AppOpenEventIndexerRealDocumentsTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_PAGINATED_READ_ENABLED)
     public void testRealDocuments_check() throws Exception {
         long testStartTimeMillis = System.currentTimeMillis();
 
@@ -306,111 +306,5 @@ public class AppOpenEventIndexerRealDocumentsTest {
         Assert.assertTrue(
                 "Matching indexed app open event was not found in AppSearch.",
                 hasMatchingIndexedResult);
-    }
-
-    @Test
-    @RequiresFlagsDisabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_PAGINATED_READ_ENABLED)
-    public void testRealDocuments_check_withoutPaginatedRead() throws Exception {
-        long testStartTimeMillis = System.currentTimeMillis();
-
-        Intent launchIntent =
-                mContext.getPackageManager().getLaunchIntentForPackage(mContext.getPackageName());
-        assertThat(launchIntent).isNotNull();
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
-        mContext.startActivity(launchIntent);
-
-        UsageStatsManager usageStatsManager = mContext.getSystemService(UsageStatsManager.class);
-
-        boolean foundMatchingEvent = false;
-        long matchingEventTimestamp = 0;
-        long maxWaitMillis = TimeUnit.SECONDS.toMillis(10);
-        long waitStartTime = System.currentTimeMillis();
-        long sleepMillis = 100;
-
-        while (!foundMatchingEvent
-                && (System.currentTimeMillis() - waitStartTime) < maxWaitMillis) {
-            UsageEvents events =
-                    usageStatsManager.queryEvents(testStartTimeMillis, System.currentTimeMillis());
-            UsageEvents.Event event = new UsageEvents.Event();
-
-            while (events.hasNextEvent()) {
-                events.getNextEvent(event);
-                if (event.getEventType() == UsageEvents.Event.ACTIVITY_RESUMED
-                        && event.getPackageName().equals(mContext.getPackageName())
-                        && event.getTimeStamp() >= testStartTimeMillis) {
-                    foundMatchingEvent = true;
-                    matchingEventTimestamp = event.getTimeStamp();
-                    break;
-                }
-            }
-            Thread.sleep(sleepMillis);
-        }
-        // Usage stats manager does not have an observer/callback API, so we just have to wait for
-        // the event to appear.  If the test is flaky, this is likely the culprit.  Can increase the
-        // spin loop time if needed (may improve flakiness).
-        assumeTrue(foundMatchingEvent);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        AppOpenEventIndexerManagerService appOpenEventIndexerManagerService =
-                new AppOpenEventIndexerManagerService(
-                        mContext, new TestAppOpenEventIndexerConfig(), latch::countDown);
-        SystemService.TargetUser targetUser = new SystemService.TargetUser(mUserInfo);
-        appOpenEventIndexerManagerService.onUserUnlocking(targetUser);
-        appOpenEventIndexerManagerService.mLocalService.doUpdateForUser(
-                targetUser.getUserHandle(), null);
-        assertThat(latch.await(10, TimeUnit.SECONDS)).isEqualTo(true);
-
-        // Search for all app open events for the package opened earlier
-        SearchSpec searchSpec =
-                new SearchSpec.Builder()
-                        .addFilterNamespaces(AppOpenEvent.APP_OPEN_EVENT_NAMESPACE)
-                        .setOrder(SearchSpec.ORDER_DESCENDING)
-                        .setRankingStrategy(SearchSpec.RANKING_STRATEGY_CREATION_TIMESTAMP)
-                        .addFilterPackageNames(mContext.getPackageName())
-                        .build();
-        AppSearchManager manager =
-                ApplicationProvider.getApplicationContext()
-                        .getSystemService(AppSearchManager.class);
-        Executor executor =
-                AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
-        SyncGlobalSearchSession globalSearchSession =
-                new SyncGlobalSearchSessionImpl(manager, executor);
-        String query =
-                AppOpenEvent.APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME
-                        + ":("
-                        + mContext.getPackageName()
-                        + ")";
-        SyncSearchResults searchResults = globalSearchSession.search(query, searchSpec);
-
-        List<SearchResult> results =
-                AppSearchFrameworkTestUtils.retrieveAllSearchResults(searchResults);
-
-        long currentTimeMillis = System.currentTimeMillis();
-        boolean hasMatchingResult = false;
-
-        // Validate that a very recent app open event is for the package we opened. It appears
-        // the emulator has other app open events on the query events API that aren't from the test,
-        // so ignore those.
-        for (SearchResult result : results) {
-            String packageName =
-                    result.getGenericDocument()
-                            .getPropertyString(AppOpenEvent.APP_OPEN_EVENT_PROPERTY_PACKAGE_NAME);
-
-            Long timestampMillis =
-                    result.getGenericDocument()
-                            .getPropertyLong(
-                                    AppOpenEvent.APP_OPEN_EVENT_PROPERTY_APP_OPEN_TIMESTAMP_MILLIS);
-
-            if (packageName != null
-                    && timestampMillis != null
-                    && mContext.getPackageName().equals(packageName)
-                    && (currentTimeMillis - timestampMillis) <= TimeUnit.SECONDS.toMillis(30)
-                    && timestampMillis == matchingEventTimestamp) {
-                hasMatchingResult = true;
-                break;
-            }
-        }
-
-        assertThat(hasMatchingResult).isTrue();
     }
 }
