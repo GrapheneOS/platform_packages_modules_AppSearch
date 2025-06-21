@@ -84,7 +84,7 @@ public class AppOpenEventIndexerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED)
+    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
     public void testAppOpenEventIndexerImpl_updateAppsThrowsError_shouldContinueOnError()
             throws Exception {
         long firstRunTimeBase = System.currentTimeMillis();
@@ -265,7 +265,7 @@ public class AppOpenEventIndexerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED)
+    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
     public void testAppOpenEventIndexerImpl_updateApps_recentQueryStartTime() throws Exception {
         long effectiveCurrentTimeMillis = System.currentTimeMillis();
         AppOpenEventIndexerSettings settings =
@@ -318,7 +318,6 @@ public class AppOpenEventIndexerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_PAGINATED_READ_ENABLED)
     public void paginationMathCheck() throws Exception {
         long effectiveCurrentTimeMillis = System.currentTimeMillis();
         AppOpenEventIndexerConfig config = new TestAppOpenEventIndexerConfig();

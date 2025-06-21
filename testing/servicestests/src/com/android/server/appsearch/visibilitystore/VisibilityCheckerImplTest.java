@@ -28,7 +28,6 @@ import static android.Manifest.permission.READ_SMS;
 import static android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_MANAGER;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static android.permission.flags.Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -51,7 +50,6 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.os.UserHandle;
-import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 
@@ -619,7 +617,7 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsDisabled({FLAG_APP_FUNCTION_ACCESS_API_ENABLED})
+    @RequiresFlagsEnabled(FLAG_ENABLE_APP_FUNCTION_MANAGER)
     public void testSetSchema_visibleToAppFunctionsPermissions() throws Exception {
         String prefix = PrefixUtil.createPrefix("package", "database");
 
@@ -672,64 +670,6 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled({FLAG_ENABLE_APP_FUNCTION_MANAGER, FLAG_APP_FUNCTION_ACCESS_API_ENABLED})
-    public void testSetSchema_visibleToAppFunctionsPermissions_validAgent() throws Exception {
-        String prefix = PrefixUtil.createPrefix("package", "database");
-
-        // Create a VDoc that require either EXECUTE_APP_FUNCTIONS permissions only.
-        InternalVisibilityConfig visibilityConfig =
-                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
-                        .addVisibleToPermissions(
-                                ImmutableSet.of(SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS))
-                        .build();
-        mVisibilityStore.setVisibility(ImmutableList.of(visibilityConfig));
-
-        // Grant the EXECUTE_APP_FUNCTIONS permission, we should able to access.
-        doReturn(true)
-                .when(mVisibilityChecker)
-                .checkPermissionForDataDeliveryGranted(eq(EXECUTE_APP_FUNCTIONS), any(), any());
-        // Make caller a valid agent
-        doReturn(true)
-                .when(mVisibilityChecker)
-                .isValidAppFunctionAgent(eq(mAttributionSource.getPackageName()));
-        assertThat(
-                        mVisibilityChecker.isSchemaSearchableByCaller(
-                                new FrameworkCallerAccess(
-                                        mAttributionSource,
-                                        /* callerHasSystemAccess= */ false,
-                                        /* isForEnterprise= */ false),
-                                "package",
-                                prefix + "Schema",
-                                mVisibilityStore))
-                .isTrue();
-        assertThat(
-                        mVisibilityChecker.isSchemaSearchableByCaller(
-                                new FrameworkCallerAccess(
-                                        mAttributionSource,
-                                        /* callerHasSystemAccess= */ false,
-                                        /* isForEnterprise= */ false),
-                                "package",
-                                prefix + "Schema",
-                                mVisibilityStore))
-                .isTrue();
-
-        // Make it invalid agent
-        doReturn(false)
-                .when(mVisibilityChecker)
-                .isValidAppFunctionAgent(eq(mAttributionSource.getPackageName()));
-        assertThat(
-                        mVisibilityChecker.isSchemaSearchableByCaller(
-                                new FrameworkCallerAccess(
-                                        mAttributionSource,
-                                        /* callerHasSystemAccess= */ false,
-                                        /* isForEnterprise= */ false),
-                                "package",
-                                prefix + "Schema",
-                                mVisibilityStore))
-                .isFalse();
-    }
-
-    @Test
     @RequiresFlagsEnabled(FLAG_ENABLE_APP_FUNCTION_MANAGER)
     public void testSetSchema_executeAppFunctionsTrusted() throws Exception {
         String prefix = PrefixUtil.createPrefix("package", "database");
@@ -756,7 +696,7 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED)
+    @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
     public void testSetSchema_visibleToPackageUsageStatsOnly() throws Exception {
         String prefix = PrefixUtil.createPrefix("package", "database");
 
