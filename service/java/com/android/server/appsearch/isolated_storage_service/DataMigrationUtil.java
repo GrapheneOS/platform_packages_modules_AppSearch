@@ -24,13 +24,14 @@ import android.content.Context;
 import android.os.UserHandle;
 import android.util.Log;
 
-import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchPutResultProto;
 import com.google.android.icing.proto.InitializeResultProto;
+import com.google.android.icing.proto.PersistToDiskResultProto;
+import com.google.android.icing.proto.PersistType;
 import com.google.android.icing.proto.PutDocumentRequest;
 import com.google.android.icing.proto.ResetResultProto;
 import com.google.android.icing.proto.ResultSpecProto;
@@ -221,6 +222,7 @@ public class DataMigrationUtil {
                                 // half of the maxBytesPerPage is 64_000b.
                                 // so 64_000 / 700 ~= 95 results per page.
                                 .setNumPerPage(95)
+                                .setNumToScore(Integer.MAX_VALUE)
                                 .build());
         if (searchResult.getStatus().getCode() != StatusProto.Code.OK) {
             return searchResult.getStatus();
@@ -251,6 +253,14 @@ public class DataMigrationUtil {
             searchResult = source.rawGetNextPage(nextPageToken);
         }
         Log.i(TAG, "Successfully migrated " + totalDocuments + " documents");
+
+        // Step-4 Persist the change to disk.
+        PersistToDiskResultProto persistResultProto = destination.persistToDisk(
+                PersistType.Code.FULL);
+        if (persistResultProto.getStatus().getCode() != StatusProto.Code.OK) {
+            Log.w(TAG, "PersistToDisk Full failed");
+            return persistResultProto.getStatus();
+        }
 
         return StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
     }
@@ -309,6 +319,8 @@ public class DataMigrationUtil {
         StatusProto status =
                 DataMigrationUtil.copyData(source, dest,
                         /* resetDestination= */ false, /* forceOverride= */ true);
+        // TODO(b/407815165) Rework those logging and put useful information in the marker file, so
+        //  dumpsys can read and print those information.
         Log.i(TAG, "Data migration status: " + status);
 
         if (status.getCode() != StatusProto.Code.OK) {
