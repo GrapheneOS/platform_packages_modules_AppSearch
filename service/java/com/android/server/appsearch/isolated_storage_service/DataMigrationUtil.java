@@ -293,18 +293,20 @@ public class DataMigrationUtil {
     /**
      * Runs data migration for the specified user to move data from {@code source} to {@code dest}.
      *
+     * <p>{@code dest} must be instantiated with all VM options enabled.
+     *
      * @param context User Context
      * @param userHandle User to run migration for
      * @param source {@link AppSearchImpl} instance for the source.
      * @param dest {@link IcingSearchEngineInterface} instance for the destination.
-     *
      * @throws AppSearchException if there is any failures during migration.
      */
     public static void runDataMigrationForUser(
             @NonNull Context context,
             @NonNull UserHandle userHandle,
             @NonNull AppSearchImpl source,
-            @NonNull IcingSearchEngineInterface dest) throws AppSearchException {
+            @NonNull IcingSearchEngineInterface dest)
+            throws AppSearchException {
         InitializeResultProto initResult = dest.initialize();
         if (initResult.getStatus().getCode() != StatusProto.Code.OK) {
             throw new AppSearchException(
