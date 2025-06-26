@@ -138,4 +138,12 @@ java_library {
     name: "service-appsearch",
     defaults: ["service-appsearch-defaults"],
     installable: true,
+    dex_preopt: {
+        // The profile is updated monthly or before mainline releases if requested, with the
+        // aggregated profiles collected from Droidfooders. go/boot-image-profiles.
+        profile: select(release_flag("RELEASE_ART_COMPILE_APP_SEARCH_SERVICE_SPEED_PROFILE"), {
+            true: "art-profile",
+            false: "",
+        }),
+    },
 }
