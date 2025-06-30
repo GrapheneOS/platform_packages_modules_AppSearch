@@ -609,6 +609,11 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                                     resultSpec.toByteArray());
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             return SearchResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Got out of memory in search with requested page size="
+                    + resultSpec.getNumTotalBytesPerPageThreshold());
+            logFreeMemoryInfo(e);
+            return SearchResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
@@ -633,6 +638,10 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             .getNextPage(nextPageToken);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             return SearchResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Got out of memory in getNextPage");
+            logFreeMemoryInfo(e);
+            return SearchResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
@@ -659,6 +668,11 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             .getNextPageWithRequestProto(inputRequest);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             return SearchResultProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Got out of memory in getNextPage");
+            logFreeMemoryInfo(e);
+
+            return SearchResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return SearchResultProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
         } finally {
@@ -903,6 +917,10 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(futureGetFailureStatus(e))
                     .build();
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Got out of memory in deleteByQuery without document info.");
+            logFreeMemoryInfo(e);
+            return DeleteByQueryResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
@@ -932,6 +950,10 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(futureGetFailureStatus(e))
                     .build();
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Got out of memory in deleteByQuery with document info.");
+            logFreeMemoryInfo(e);
+            return DeleteByQueryResultProto.newBuilder().setStatus(oomExceptionStatus(e)).build();
         } catch (RemoteException e) {
             return DeleteByQueryResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
