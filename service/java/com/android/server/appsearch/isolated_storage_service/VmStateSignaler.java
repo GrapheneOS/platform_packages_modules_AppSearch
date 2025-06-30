@@ -15,12 +15,15 @@
  */
 package com.android.server.appsearch.isolated_storage_service;
 
+import android.annotation.NonNull;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 
+import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -46,18 +49,21 @@ final class VmStateSignaler {
     @GuardedBy("mLock")
     private Boolean mIsIdleLocked = null;
 
-    public VmStateSignaler() {
+    VmStateSignaler(@NonNull Executor executor) {
+        Objects.requireNonNull(executor);
         System.loadLibrary("appsearchservice");
         mHandler = new Handler(Looper.getMainLooper());
         mVmStateIdleSetter =
-                () -> {
-                    synchronized (mLock) {
-                        if (mIsIdleLocked == null || !mIsIdleLocked) {
-                            mIsIdleLocked = true;
-                            notifyIdle(true);
-                        }
-                    }
-                };
+                () ->
+                        executor.execute(
+                                () -> {
+                                    synchronized (mLock) {
+                                        if (mIsIdleLocked == null || !mIsIdleLocked) {
+                                            mIsIdleLocked = true;
+                                            notifyIdle(true);
+                                        }
+                                    }
+                                });
     }
 
     /** Schedules the signaler to be enabled. */
