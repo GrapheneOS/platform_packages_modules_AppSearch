@@ -16,6 +16,13 @@
 
 package com.android.server.appsearch.indexer;
 
+import android.provider.DeviceConfig;
+import android.provider.DeviceConfig.OnPropertiesChangedListener;
+
+import org.jspecify.annotations.NonNull;
+
+import java.util.concurrent.Executor;
+
 /**
  * An interface which exposes config flags to AppSearch Indexers
  *
@@ -24,9 +31,37 @@ package com.android.server.appsearch.indexer;
  * @hide
  */
 public interface IndexerForceUpdateConfig {
-    /** Returns whether the indexer Forced Update is enabled */
+    /** Returns whether the indexer Force Update is enabled */
     boolean isIndexerForceUpdateEnabled();
 
     /** Returns the indexer Force Update Emergency Counter */
     int getIndexerForceUpdateEmergencyCounter();
+
+    /**
+     * Configures a {@link DeviceConfig.OnPropertiesChangedListener} that runs the given callback on
+     * the given executor when there is a properties change in the AppSearch namespace. This
+     * listener is registered asynchronously using the given executor.
+     *
+     * @param executor The executor to run the callback in.
+     */
+    static OnPropertiesChangedListener addListener(
+            @NonNull Executor executor, @NonNull Runnable callback) {
+        final OnPropertiesChangedListener onDeviceConfigChangedListener =
+                properties -> {
+                    if (!properties.getNamespace().equals(DeviceConfig.NAMESPACE_APPSEARCH)) {
+                        return;
+                    }
+                    callback.run();
+                };
+
+        executor.execute(
+                () -> {
+                    DeviceConfig.addOnPropertiesChangedListener(
+                            DeviceConfig.NAMESPACE_APPSEARCH,
+                            executor,
+                            onDeviceConfigChangedListener);
+                });
+
+        return onDeviceConfigChangedListener;
+    }
 }

@@ -18,11 +18,12 @@ package com.android.server.appsearch.appsindexer;
 
 import android.provider.DeviceConfig;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 
 /**
  * Implementation of {@link IndexerForceUpdateConfig} using {@link DeviceConfig} for
- * ApppOpenEventIndexer.
+ * AppOpenEventIndexer.
  *
  * <p>It contains all the keys for flags related to App Open Event Indexer Force Update
  * Configuration.
@@ -32,12 +33,17 @@ import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
  * @hide
  */
 public class FrameworkAppOpenEventIndexerForceUpdateConfig implements IndexerForceUpdateConfig {
+    @VisibleForTesting
     static final boolean DEFAULT_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_ENABLED = false;
 
+    @VisibleForTesting
     static final int DEFAULT_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER = 0;
 
+    @VisibleForTesting
     static final String KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_ENABLED =
             "app_open_event_indexer_force_update_enabled";
+
+    @VisibleForTesting
     static final String KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER =
             "app_open_event_indexer_force_update_emergency_counter";
 

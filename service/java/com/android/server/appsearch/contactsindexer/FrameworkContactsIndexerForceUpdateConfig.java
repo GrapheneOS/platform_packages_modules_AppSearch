@@ -18,6 +18,7 @@ package com.android.server.appsearch.contactsindexer;
 
 import android.provider.DeviceConfig;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 
 /**
@@ -31,12 +32,16 @@ import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
  * @hide
  */
 public class FrameworkContactsIndexerForceUpdateConfig implements IndexerForceUpdateConfig {
-    static final boolean DEFAULT_CONTACTS_INDEXER_FORCE_UPDATE_ENABLED = false;
 
-    static final int DEFAULT_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER = 0;
+    @VisibleForTesting static final boolean DEFAULT_CONTACTS_INDEXER_FORCE_UPDATE_ENABLED = false;
 
+    @VisibleForTesting static final int DEFAULT_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER = 0;
+
+    @VisibleForTesting
     static final String KEY_CONTACTS_INDEXER_FORCE_UPDATE_ENABLED =
             "contacts_indexer_force_update_enabled";
+
+    @VisibleForTesting
     static final String KEY_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER =
             "contacts_indexer_force_update_emergency_counter";
 
