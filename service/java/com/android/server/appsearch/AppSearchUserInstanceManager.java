@@ -662,6 +662,7 @@ public final class AppSearchUserInstanceManager {
                                     // grab ReadWrite lock there once multi-threading is enabled.
                                     executorManager.executeLambdaForUserNoCallbackAsync(
                                             userHandle,
+                                            /* isReadOnly= */ false,
                                             () -> {
                                                 AppSearchUserInstance instance =
                                                         getUserInstanceOrNull(userHandle);

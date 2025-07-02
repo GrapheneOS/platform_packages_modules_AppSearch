@@ -44,6 +44,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.Manifest;
@@ -141,9 +142,9 @@ import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServ
 import com.android.server.appsearch.util.ExecutorManager;
 import com.android.server.usage.StorageStatsManagerLocal;
 
-import libcore.io.IoBridge;
-
 import com.google.common.util.concurrent.SettableFuture;
+
+import libcore.io.IoBridge;
 
 import org.junit.After;
 import org.junit.Before;
@@ -159,6 +160,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 
 public class AppSearchManagerServiceTest {
     private static final String DATABASE_NAME = "databaseName";
@@ -1539,6 +1541,114 @@ public class AppSearchManagerServiceTest {
                                     mExecutorManager,
                                     isolatedStorageServiceManager);
                 });
+    }
+
+    @Test
+    public void testPutDocuments_usesWriteExecutor() throws Exception {
+        // Set up executor spies
+        ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
+        ExecutorService writeExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ true));
+        executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
+        executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
+
+        TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
+        mAppSearchManagerServiceStub.putDocuments(
+                new PutDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext,
+                                mCallingPid), DATABASE_NAME,
+                        new DocumentsParcel(Collections.emptyList(), Collections.emptyList()),
+                        mUserHandle, BINDER_CALL_START_TIME), callback);
+
+        // Verify write executor was used
+        verify(writeExecutorSpy, times(1)).execute(any());
+        verify(readExecutorSpy, never()).execute(any());
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SEPARATE_READ_WRITE_EXECUTORS)
+    @Test
+    public void testSearch_usesReadOnlyExecutor() throws Exception {
+        // Set up executor spies
+        ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
+        ExecutorService writeExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ true));
+        executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
+        executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
+
+        TestResultCallback callback = new TestResultCallback();
+        mAppSearchManagerServiceStub.search(
+                new SearchAidlRequest(AppSearchAttributionSource.createAttributionSource(mContext,
+                        mCallingPid),
+                        DATABASE_NAME, /* searchExpression= */ "", EMPTY_SEARCH_SPEC, mUserHandle,
+                        BINDER_CALL_START_TIME), callback);
+
+        // Verify read executor was used
+        verify(writeExecutorSpy, never()).execute(any());
+        verify(readExecutorSpy, times(1)).execute(any());
+    }
+
+    @Test
+    public void testSetSchema_usesWriteExecutor() throws Exception {
+        // Set up executor spies
+        ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
+        ExecutorService writeExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ true));
+        executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
+        executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
+
+        TestResultCallback callback = new TestResultCallback();
+        mAppSearchManagerServiceStub.setSchema(
+                new SetSchemaAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        DATABASE_NAME,
+                        /* schemaBundles= */ Collections.emptyList(),
+                        /* visibilityBundles= */ Collections.emptyList(),
+                        /* forceOverride= */ false, /* schemaVersion= */ 0, mUserHandle,
+                        BINDER_CALL_START_TIME, SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE),
+                callback);
+
+        // Verify write executor was used
+        verify(writeExecutorSpy, times(1)).execute(any());
+        verify(readExecutorSpy, never()).execute(any());
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SEPARATE_READ_WRITE_EXECUTORS)
+    @Test
+    public void testGetSchema_usesReadOnlyExecutor() throws Exception {
+        // Set up executor spies
+        ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
+        ExecutorService writeExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy = spy(
+                (ExecutorService) executorManager.getOrCreateUserExecutor(
+                        mUserHandle, /* isReadOnly= */ true));
+        executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
+        executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
+
+        TestResultCallback callback = new TestResultCallback();
+        mAppSearchManagerServiceStub.getSchema(
+                new GetSchemaAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        mContext.getPackageName(), DATABASE_NAME, mUserHandle,
+                        BINDER_CALL_START_TIME, /* isForEnterprise= */ false),
+                callback);
+
+        // Verify read executor was used
+        verify(writeExecutorSpy, never()).execute(any());
+        verify(readExecutorSpy, times(1)).execute(any());
     }
 
     private void verifyLocalCallsResults(int resultCode) throws Exception {
