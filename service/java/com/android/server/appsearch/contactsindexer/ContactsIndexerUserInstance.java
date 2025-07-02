@@ -199,6 +199,7 @@ public final class ContactsIndexerUserInstance {
         if (LogUtil.DEBUG) {
             Log.d(TAG, "Registering ContactsObserver for " + mContext.getUser());
         }
+
         mContext.getContentResolver()
                 .registerContentObserver(
                         ContactsContract.Contacts.CONTENT_URI,
@@ -316,7 +317,7 @@ public final class ContactsIndexerUserInstance {
                 return;
             }
         }
-        executeCp2SyncFirstRun();
+        executeCp2SyncFirstRun(/* isForceUpdateTriggered= */ false);
     }
 
     /**
@@ -361,6 +362,7 @@ public final class ContactsIndexerUserInstance {
     @VisibleForTesting
     CompletableFuture<Void> doFullUpdateInternalAsync(
             @Nullable CancellationSignal signal, @NonNull ContactsUpdateStats updateStats) {
+
         // TODO(b/203605504): handle cancellation signal to abort the job.
         long currentTimeMillis = System.currentTimeMillis();
         updateStats.mUpdateType = ContactsUpdateStats.FULL_UPDATE;
@@ -688,7 +690,8 @@ public final class ContactsIndexerUserInstance {
                 updateStats.mLastDeltaUpdateStartTimeMillis,
                 updateStats.mLastContactUpdatedTimeMillis,
                 updateStats.mLastContactDeletedTimeMillis,
-                updateStats.mPreviousLastContactUpdatedTimeMillis);
+                updateStats.mPreviousLastContactUpdatedTimeMillis,
+                updateStats.mForceUpdateTriggered);
     }
 
     /**
@@ -802,7 +805,8 @@ public final class ContactsIndexerUserInstance {
             }
             if (mContactsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
                     > mSettings.getIndexerForceUpdateEmergencyCounter()) {
-                executeCp2SyncFirstRun();
+                // Do update and log that a Force Update has been triggered
+                executeCp2SyncFirstRun(/* isForceUpdateTriggered= */ true);
             }
         } catch (RuntimeException e) {
             Slog.wtf(
@@ -813,7 +817,9 @@ public final class ContactsIndexerUserInstance {
     }
 
     /** Helper method to schedule a full update job and a first run delta update. */
-    private void executeCp2SyncFirstRun() {
+    private void executeCp2SyncFirstRun(boolean isForceUpdateTriggered) {
+        ContactsUpdateStats contactsUpdateStats = new ContactsUpdateStats();
+        contactsUpdateStats.mForceUpdateTriggered = isForceUpdateTriggered;
         IndexerMaintenanceService.scheduleUpdateJob(
                 mContext,
                 mContext.getUser(),
@@ -825,7 +831,7 @@ public final class ContactsIndexerUserInstance {
         // placeholder exceptionally() block that only logs to the console.
         doDeltaUpdateAsync(
                         mContactsIndexerConfig.getContactsFirstRunIndexingLimit(),
-                        new ContactsUpdateStats())
+                        contactsUpdateStats)
                 .exceptionally(
                         t -> {
                             if (LogUtil.DEBUG) {
@@ -838,7 +844,7 @@ public final class ContactsIndexerUserInstance {
                         });
         if (Flags.enableIndexerForceUpdate()) {
             // Store DeviceConfig Emergency Counter in settings
-            mSettings.setIndexerForceUpdateEmergencyCounterKey(
+            mSettings.setIndexerForceUpdateEmergencyCounter(
                     mContactsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
             persistSettings();
         }

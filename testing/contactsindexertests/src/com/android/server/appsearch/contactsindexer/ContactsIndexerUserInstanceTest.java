@@ -393,6 +393,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             assertThat(latch.await(30L, TimeUnit.SECONDS)).isTrue();
             assertThat(latchForceUpdate.getCount()).isEqualTo(50);
 
+            ArgumentCaptor<Boolean> forceUpdateCaptor = ArgumentCaptor.forClass(Boolean.class);
+
             // Ensure initial update schedules a job once on start
             ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
             verify(mockJobScheduler, times(1)).schedule(jobInfoArgumentCaptor.capture());
@@ -403,10 +405,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             Mockito.clearInvocations(mockJobScheduler);
 
             fakeContactsIndexerConfig.indexingLimit = 100;
-            mInstance.getSettings().setLastContactUpdateTimestampMillis(0);
 
             // Modify Settings and Device Configuration values to force an update
-            mInstance.getSettings().setIndexerForceUpdateEmergencyCounterKey(0);
+            mInstance.getSettings().setLastContactUpdateTimestampMillis(0);
+            mInstance.getSettings().setIndexerForceUpdateEmergencyCounter(0);
 
             DeviceConfig.setProperty(
                     DeviceConfig.NAMESPACE_APPSEARCH,
@@ -421,12 +423,38 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
             assertThat(latchForceUpdate.await(30L, TimeUnit.SECONDS)).isTrue();
 
-            // Ensure force update scheduled a job after device configuration change
+            ExtendedMockito.verify(
+                    () ->
+                            AppSearchStatsLog.write(
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.any(int[].class),
+                                    Mockito.any(int[].class),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyInt(),
+                                    Mockito.anyLong(),
+                                    Mockito.anyLong(),
+                                    Mockito.anyLong(),
+                                    Mockito.anyLong(),
+                                    Mockito.anyLong(),
+                                    Mockito.anyLong(),
+                                    forceUpdateCaptor.capture()),
+                    Mockito.timeout(1000).times(2));
+
+            // Ensure a Scheduled Update and a Force Update are logged accordingly
+            assertThat(forceUpdateCaptor.getAllValues()).containsExactly(false, true);
+
+            // Ensure Force Update scheduled a job after device configuration changes
             jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
             verify(mockJobScheduler, times(1)).schedule(jobInfoArgumentCaptor.capture());
             fullUpdateJob = jobInfoArgumentCaptor.getValue();
             assertThat(fullUpdateJob).isEqualTo(IMMEDIATE_JOB_INFO);
-
         } finally {
             // unregisters observers registered by startAsync()
             mInstance.shutdown();
@@ -585,7 +613,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
 
         executeAndWaitForCompletion(
-                mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1, mUpdateStats),
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // check that delta update set the last contact updated timestamp (but not the previous one)
@@ -618,8 +646,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
 
-        executeAndWaitForCompletion(mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1,
-                        mUpdateStats),
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
                 mSingleThreadedExecutor);
 
         AppSearchHelper searchHelper =
@@ -668,8 +696,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
 
-        executeAndWaitForCompletion(mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ 100,
-                        mUpdateStats),
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ 100, mUpdateStats),
                 mSingleThreadedExecutor);
 
         AppSearchHelper searchHelper =
@@ -688,8 +716,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
 
-        executeAndWaitForCompletion(mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1,
-                        mUpdateStats),
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // Delete a few contacts to trigger delta update.
@@ -702,8 +730,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
                 /*extras=*/ null);
 
-        executeAndWaitForCompletion(mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1,
-                        mUpdateStats),
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
                 mSingleThreadedExecutor);
 
         AppSearchHelper searchHelper =
@@ -765,8 +793,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 /*extras=*/ null);
 
         mUpdateStats.clear();
-        executeAndWaitForCompletion(mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1,
-                        mUpdateStats),
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
                 mSingleThreadedExecutor);
 
         AppSearchHelper searchHelper =
@@ -840,8 +868,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 /*extras=*/ null);
 
         mUpdateStats.clear();
-        executeAndWaitForCompletion(mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1,
-                        mUpdateStats),
+        executeAndWaitForCompletion(
+                mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
                 mSingleThreadedExecutor);
 
         AppSearchHelper searchHelper =
@@ -900,8 +928,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         mUpdateStats.mUpdateStatuses.add(AppSearchResult.RESULT_OUT_OF_SPACE);
 
         executeAndWaitForCompletion(
-                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
-                        mUpdateStats),
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // Verify the full update job is scheduled due to out_of_space.
@@ -914,12 +941,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
         // Configure the timestamps to non-zero on disk.
         PersistableBundle settingsBundle = new PersistableBundle();
-        settingsBundle.putLong(ContactsIndexerSettings.LAST_FULL_UPDATE_TIMESTAMP_KEY,
-                timeAtBeginning);
-        settingsBundle.putLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY,
-                timeAtBeginning);
-        settingsBundle.putLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY,
-                timeAtBeginning);
+        settingsBundle.putLong(
+                ContactsIndexerSettings.LAST_FULL_UPDATE_TIMESTAMP_KEY, timeAtBeginning);
+        settingsBundle.putLong(
+                ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY, timeAtBeginning);
+        settingsBundle.putLong(
+                ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY, timeAtBeginning);
         mSettingsFile.getParentFile().mkdirs();
         mSettingsFile.createNewFile();
         ContactsIndexerSettings.writeBundle(mSettingsFile, settingsBundle);
@@ -997,20 +1024,22 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         CountDownLatch latch = new CountDownLatch(docCount);
         GlobalSearchSessionShim shim =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
-        ObserverCallback callback = new ObserverCallback() {
-            @Override
-            public void onSchemaChanged(SchemaChangeInfo changeInfo) {
-                // Do nothing
-            }
+        ObserverCallback callback =
+                new ObserverCallback() {
+                    @Override
+                    public void onSchemaChanged(SchemaChangeInfo changeInfo) {
+                        // Do nothing
+                    }
 
-            @Override
-            public void onDocumentChanged(DocumentChangeInfo changeInfo) {
-                for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
-                    latch.countDown();
-                }
-            }
-        };
-        shim.registerObserverCallback(mContext.getPackageName(),
+                    @Override
+                    public void onDocumentChanged(DocumentChangeInfo changeInfo) {
+                        for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
+                            latch.countDown();
+                        }
+                    }
+                };
+        shim.registerObserverCallback(
+                mContext.getPackageName(),
                 new ObserverSpec.Builder().addFilterSchemas("builtin:Person").build(),
                 mSingleThreadedExecutor,
                 callback);
@@ -1053,8 +1082,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 /*extras=*/ null);
 
         executeAndWaitForCompletion(
-                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
-                        mUpdateStats),
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // Verify future contacts were indexed
@@ -1096,8 +1124,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
         mUpdateStats.clear();
         executeAndWaitForCompletion(
-                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
-                        mUpdateStats),
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // Verify contacts were indexed
@@ -1140,8 +1167,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(futureDeleteTimestamp).isAtLeast(startTimeMillis + TimeUnit.DAYS.toMillis(1));
 
         executeAndWaitForCompletion(
-                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
-                        mUpdateStats),
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // Verify future contacts were indexed
@@ -1170,8 +1196,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
         mUpdateStats.clear();
         executeAndWaitForCompletion(
-                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE,
-                        mUpdateStats),
+                mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE, mUpdateStats),
                 mSingleThreadedExecutor);
 
         // Verify contacts were not indexed
@@ -1201,26 +1226,29 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
         ArgumentCaptor<int[]> updateStatusArr = ArgumentCaptor.forClass(int[].class);
         ArgumentCaptor<int[]> deleteStatusArr = ArgumentCaptor.forClass(int[].class);
-
-        ExtendedMockito.verify(() -> AppSearchStatsLog.write(
-                Mockito.eq(AppSearchStatsLog.CONTACTS_INDEXER_UPDATE_STATS_REPORTED),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                updateStatusArr.capture(),
-                deleteStatusArr.capture(),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                Mockito.anyInt(),
-                Mockito.anyLong(),
-                Mockito.anyLong(),
-                Mockito.anyLong(),
-                Mockito.anyLong(),
-                Mockito.anyLong(),
-                Mockito.anyLong()));
+        ExtendedMockito.verify(
+                () ->
+                        AppSearchStatsLog.write(
+                                Mockito.eq(
+                                        AppSearchStatsLog.CONTACTS_INDEXER_UPDATE_STATS_REPORTED),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                updateStatusArr.capture(),
+                                deleteStatusArr.capture(),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                Mockito.anyInt(),
+                                Mockito.anyLong(),
+                                Mockito.anyLong(),
+                                Mockito.anyLong(),
+                                Mockito.anyLong(),
+                                Mockito.anyLong(),
+                                Mockito.anyLong(),
+                                Mockito.anyBoolean()));
 
         assertThat(updateStatusArr.getValue()).asList().containsExactly(
                 AppSearchResult.RESULT_UNKNOWN_ERROR, AppSearchResult.RESULT_OUT_OF_SPACE);
@@ -1245,7 +1273,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         }
 
         mSingleThreadedExecutor.submit(
-                () -> mInstance.doDeltaUpdateAsync(/*indexingLimit=*/ -1, mUpdateStats));
+                () -> mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats));
 
         ContactsUpdateStats updateStats = new ContactsUpdateStats();
         executeAndWaitForCompletion(
@@ -1301,13 +1329,17 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
      */
     private <T> T executeAndWaitForCompletion(CompletionStage<T> stage, ExecutorService executor)
             throws Exception {
-        AtomicReference<CompletableFuture<T>> future = new AtomicReference<>(
-                CompletableFuture.completedFuture(null));
-        executor.submit(() -> {
-            // Chain the given stage inside the runnable task so that it executes on the executor.
-            CompletableFuture<T> chainedFuture = future.get().thenCompose(x -> stage);
-            future.set(chainedFuture);
-        }).get();
+        AtomicReference<CompletableFuture<T>> future =
+                new AtomicReference<>(CompletableFuture.completedFuture(null));
+        executor.submit(
+                        () -> {
+                            // Chain the given stage inside the runnable task so that it executes on
+                            // the executor.
+                            CompletableFuture<T> chainedFuture =
+                                    future.get().thenCompose(x -> stage);
+                            future.set(chainedFuture);
+                        })
+                .get();
         // Wait for the task to complete on the executor, and wait for the stage to complete also.
         return future.get().get();
     }
@@ -1325,8 +1357,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         }
 
         @Override
-        public void tearDown() {
-        }
+        public void tearDown() {}
     }
 
     private static class FakeContactsIndexerConfig extends TestContactsIndexerConfig {
