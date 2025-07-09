@@ -128,7 +128,7 @@ public final class IsolatedStorageServiceManager {
         mContext = Objects.requireNonNull(context);
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
         mScheduledExecutorService = Objects.requireNonNull(scheduledExecutorService);
-        mVmStateSignaler = new VmStateSignaler();
+        mVmStateSignaler = new VmStateSignaler(mScheduledExecutorService);
         if (LogUtil.INFO) {
             Log.d(TAG, "Scheduling VM status check");
             mScheduledExecutorService.scheduleAtFixedRate(
