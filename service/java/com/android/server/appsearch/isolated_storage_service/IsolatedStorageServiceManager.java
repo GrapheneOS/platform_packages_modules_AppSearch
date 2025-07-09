@@ -69,11 +69,11 @@ public final class IsolatedStorageServiceManager {
 
     // TODO: b/389105038 - remove the temporary workaround for binder transaction limit.
     // Binder RPC max transaction allocation is 600 KiB.
-    // - We use 64 KiB here. This will leave some room for non-page fields in the response protos
+    // - We use 512 KiB here. This will leave some room for non-page fields in the response protos
     // - The current max doc size is 512 KiB, but the result page retrieval logic will add at least
     //   one document into the page even if it exceeds this limit, so we're still able to get a
     //   single giant document in a single page.
-    public static final int DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE = 64 * 1024;
+    public static final int DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE = 512 * 1024;
 
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
