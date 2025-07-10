@@ -168,8 +168,10 @@ public class IsolatedStorageService extends Service {
     @GuardedBy("mLock")
     private void restartVmLocked(ServiceConfig serviceConfig, boolean forceRestart)
             throws VirtualMachineException, NullPointerException {
+        Context context = createDeviceProtectedStorageContext();
+        VirtualMachineConfig config = getVmConfig(context, serviceConfig);
         if (mVm == null) {
-            mVm = maybeCreateVm(serviceConfig);
+            mVm = maybeCreateVm(context, config);
             if (mVm == null) {
                 throw new NullPointerException("VM instance is null");
             }
@@ -200,6 +202,7 @@ public class IsolatedStorageService extends Service {
         IsolateStorageServiceLogger logger = new IsolateStorageServiceLogger(serviceConfig);
         VmCallback vmCallback = new VmCallback(mPayloadReadyFuture, logger);
         mVm.setCallback(mExecutorService, vmCallback);
+        mVm.setConfig(config);
         mVm.run();
     }
 
@@ -209,55 +212,52 @@ public class IsolatedStorageService extends Service {
      * <p>If the VM already exists, return it. If the VM doesn't exist or is deleted, create a new
      * VM and return it. Return {@code null} if failed to get or create the VM.
      */
-    private @Nullable VirtualMachine maybeCreateVm(ServiceConfig serviceConfig) {
-        Context context = createDeviceProtectedStorageContext();
+    private @Nullable VirtualMachine maybeCreateVm(Context context, VirtualMachineConfig config) {
         VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
             Log.e(TAG, "Unable to get VirtualMachineManager");
             return null;
         }
-
         try {
-            final int vmDebugLevel =
-                    IS_DEBUG_BUILD
-                            ? VirtualMachineConfig.DEBUG_LEVEL_FULL
-                            : VirtualMachineConfig.DEBUG_LEVEL_NONE;
-            // TODO(b/406258175): enable delayed encrypted store setup to allow icing data to be
-            //  protected by CE
-            VirtualMachineConfig config =
-                    new VirtualMachineConfig.Builder(context)
-                            .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
-                            .setProtectedVm(true)
-                            .setDebugLevel(vmDebugLevel)
-                            // Set the maximum size of the VM encrypted storage. Storage is
-                            // allocated on an as needed basis.
-                            .setEncryptedStorageBytes(DEFAULT_ENCRYPTED_STORAGE_BYTES)
-                            .setMemoryBytes(serviceConfig.pVmMemoryBytes)
-                            .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
-                            .setShouldUseHugepages(true)
-                            .build();
-            try {
-                VirtualMachine vm = vmm.getOrCreate(VM_NAME, config);
-                VirtualMachineConfig actualConfig = vm.getConfig();
-                if (!config.isCompatibleWith(actualConfig)) {
-                    Log.w(
-                            TAG,
-                            "expected config is not compatible with the running config. Recreating"
-                                    + " VM");
-                    deleteVm(vmm, VM_NAME);
-                    return vmm.getOrCreate(VM_NAME, config);
-                }
-                return vm;
-            } catch (VirtualMachineException e) {
-                Log.e(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
-                return null;
+            VirtualMachine vm = vmm.getOrCreate(VM_NAME, config);
+            VirtualMachineConfig actualConfig = vm.getConfig();
+            if (!config.isCompatibleWith(actualConfig)) {
+                Log.w(
+                        TAG,
+                        "expected config is not compatible with the running config. Recreating"
+                                + " VM");
+                deleteVm(vmm, VM_NAME);
+                return vmm.getOrCreate(VM_NAME, config);
             }
+            return vm;
+        } catch (VirtualMachineException e) {
+            Log.e(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
+            return null;
         } catch (IllegalArgumentException
                 | IllegalStateException
                 | UnsupportedOperationException e) {
             Log.e(TAG, "Failed to create virtual machine config " + VM_NAME, e);
             return null;
         }
+    }
+
+    private static @NonNull VirtualMachineConfig getVmConfig(
+            Context context, ServiceConfig serviceConfig) {
+        final int vmDebugLevel =
+                IS_DEBUG_BUILD
+                        ? VirtualMachineConfig.DEBUG_LEVEL_FULL
+                        : VirtualMachineConfig.DEBUG_LEVEL_NONE;
+        return new VirtualMachineConfig.Builder(context)
+                .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
+                .setProtectedVm(true)
+                .setDebugLevel(vmDebugLevel)
+                // Set the maximum size of the VM encrypted storage. Storage is
+                // allocated on an as needed basis.
+                .setEncryptedStorageBytes(DEFAULT_ENCRYPTED_STORAGE_BYTES)
+                .setMemoryBytes(serviceConfig.pVmMemoryBytes)
+                .setCpuTopology(VirtualMachineConfig.CPU_TOPOLOGY_ONE_CPU)
+                .setShouldUseHugepages(true)
+                .build();
     }
 
     @GuardedBy("mLock")
