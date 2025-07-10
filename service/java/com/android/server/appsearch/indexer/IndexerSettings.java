@@ -109,7 +109,6 @@ public abstract class IndexerSettings {
     }
 
     /** Static util method to write a bundle to a file. */
-    @VisibleForTesting
     @WorkerThread
     public static void writeBundle(@NonNull File dest, @NonNull PersistableBundle bundle)
             throws IOException {

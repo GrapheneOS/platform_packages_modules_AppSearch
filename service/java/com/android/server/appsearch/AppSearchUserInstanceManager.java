@@ -38,6 +38,7 @@ import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
+import com.android.server.appsearch.isolated_storage_service.DataMigrationStats;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IcingSearchEngine;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
@@ -674,8 +675,9 @@ public final class AppSearchUserInstanceManager {
 
                                                 AppSearchUserInstance instance =
                                                         getUserInstanceOrNull(userHandle);
+                                                DataMigrationStats migrationStats = null;
                                                 try {
-                                                    DataMigrationUtil.runDataMigrationForUser(
+                                                    migrationStats = DataMigrationUtil.runDataMigrationForUser(
                                                             userContext,
                                                             userHandle,
                                                             instance.getAppSearchImpl(),
@@ -691,18 +693,25 @@ public final class AppSearchUserInstanceManager {
                                                         int totalLatencyMillis =
                                                                 (int) (SystemClock.elapsedRealtime()
                                                                         - totalLatencyStartTimeMillis);
-                                                        instance.getLogger().logStats(
+                                                        CallStats.Builder callStatsBuilder =
                                                                 new CallStats.Builder()
-                                                                        .setStatusCode(statusCode)
-                                                                        .setCallReceivedTimestampMillis(
-                                                                                totalLatencyStartTimeMillis)
-                                                                        .setTotalLatencyMillis(
-                                                                                totalLatencyMillis)
-                                                                        .setCallType(
-                                                                                CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
-                                                                        .setLaunchVMEnabled(
-                                                                                instance.isVMEnabled())
-                                                                        .build());
+                                                                .setStatusCode(statusCode)
+                                                                .setCallReceivedTimestampMillis(
+                                                                        totalLatencyStartTimeMillis)
+                                                                .setTotalLatencyMillis(
+                                                                        totalLatencyMillis)
+                                                                .setCallType(
+                                                                        CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
+                                                                .setLaunchVMEnabled(
+                                                                        instance.isVMEnabled());
+                                                        if (migrationStats != null) {
+                                                            callStatsBuilder.setNumOperationsSucceeded(
+                                                                    (int) migrationStats.getNumberOfDocsSucceeded());
+                                                            callStatsBuilder.setNumOperationsFailed(
+                                                                    (int) migrationStats.getNumberOfDocsFailed());
+                                                        }
+                                                        instance.getLogger().logStats(
+                                                                callStatsBuilder.build());
                                                     }
                                                 }
                                             });
