@@ -108,6 +108,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
+import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -128,6 +129,9 @@ import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchSessionStatsExtractor;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore;
+import com.android.server.appsearch.indexer.IndexerSettings;
+import com.android.server.appsearch.isolated_storage_service.DataMigrationStats;
+import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.appsearch.observer.AppSearchObserverProxy;
 import com.android.server.appsearch.stats.PlatformLogger;
@@ -150,6 +154,7 @@ import com.google.android.icing.proto.StorageInfoProto;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
+import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -3299,6 +3304,9 @@ public class AppSearchManagerService extends SystemService {
         }
 
         @BinderThread
+        // Now we would read a data_migration_status file, and IndexerSettings.readBundle requires
+        // to be run on WorkerThread
+        @SuppressLint("WrongThread")
         private void dumpAppSearch(@NonNull PrintWriter pw, boolean verbose) {
             Objects.requireNonNull(pw);
 
@@ -3334,6 +3342,22 @@ public class AppSearchManagerService extends SystemService {
                 pw.println(debugInfo.getDocumentInfo());
                 pw.println();
                 pw.println(debugInfo.getSchemaInfo());
+                pw.println();
+
+                File appSearchDir = AppSearchEnvironmentFactory
+                        .getEnvironmentInstance().getAppSearchDir(mContext, currentUser);
+                File dataMigrationStatus = new File(
+                        appSearchDir, DataMigrationUtil.DATA_MIGRATION_STATUS_FILE);
+                if (dataMigrationStatus.exists()) {
+                    try {
+                        DataMigrationStats migrationStats = new DataMigrationStats();
+                        PersistableBundle bundle = IndexerSettings.readBundle(dataMigrationStatus);
+                        migrationStats.setBundle(bundle);
+                        pw.println(migrationStats);
+                    } catch (IOException e) {
+                        Log.e(TAG, "Fail to read data migration stats.", e);
+                    }
+                }
             } catch (Exception e) {
                 String errorMessage =
                         "Unable to dump the internal state for the user: " + currentUser;
