@@ -39,6 +39,7 @@ import android.util.Slog;
 
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerLocalService;
 
 import java.io.File;
@@ -62,6 +63,7 @@ public final class ContactsIndexerManagerService extends SystemService {
 
     private final Context mContext;
     private final ContactsIndexerConfig mContactsIndexerConfig;
+    private final IndexerForceUpdateConfig mContactsIndexerForceUpdateConfig;
     private final LocalService mLocalService;
     // Sparse array of ContactsIndexerUserInstance indexed by the device-user ID.
     private final Map<UserHandle, ContactsIndexerUserInstance> mContactsIndexersLocked =
@@ -76,6 +78,7 @@ public final class ContactsIndexerManagerService extends SystemService {
         mContext = Objects.requireNonNull(context);
         mContactsIndexerConfig = Objects.requireNonNull(contactsIndexerConfig);
         mLocalService = new LocalService();
+        mContactsIndexerForceUpdateConfig = new FrameworkContactsIndexerForceUpdateConfig();
     }
 
     @Override
@@ -102,7 +105,10 @@ public final class ContactsIndexerManagerService extends SystemService {
                     File contactsDir = new File(appSearchDir, "contacts");
                     instance =
                             ContactsIndexerUserInstance.createInstance(
-                                    userContext, contactsDir, mContactsIndexerConfig);
+                                    userContext,
+                                    contactsDir,
+                                    mContactsIndexerConfig,
+                                    mContactsIndexerForceUpdateConfig);
                     if (LogUtil.DEBUG) {
                         Log.d(TAG, "Created Contacts Indexer instance for user " + userHandle);
                     }

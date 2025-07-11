@@ -16,12 +16,16 @@
 
 package com.android.server.appsearch.contactsindexer;
 
+import static com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerForceUpdateConfig.KEY_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER;
+import static com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerForceUpdateConfig.KEY_CONTACTS_INDEXER_FORCE_UPDATE_ENABLED;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -49,6 +53,7 @@ import android.os.PersistableBundle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.ContactsContract;
+import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -58,7 +63,9 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
@@ -104,9 +111,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
     public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
     @Rule
-    public ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder()
-            .addStaticMockFixtures(TestMockFixture::new)
-            .build();
+    public ExtendedMockitoRule mExtendedMockitoRule =
+            new ExtendedMockitoRule.Builder()
+                    .addStaticMockFixtures(TestMockFixture::new, TestableDeviceConfig::new)
+                    .build();
 
     @Rule
     public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
@@ -117,6 +125,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
     private ContactsIndexerUserInstance mInstance;
     private ContactsUpdateStats mUpdateStats;
     private ContactsIndexerConfig mConfigForTest = new TestContactsIndexerConfig();
+    private IndexerForceUpdateConfig mForceConfigForTest =
+            new TestContactsIndexerForceUpdateConfig();
 
     @Override
     @Before
@@ -126,8 +136,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // Setup the file path to the persisted data
         mContactsDir = new File(mTemporaryFolder.newFolder(), "appsearch/contacts");
         mSettingsFile = new File(mContactsDir, ContactsIndexerSettings.SETTINGS_FILE_NAME);
-        mInstance = ContactsIndexerUserInstance.createInstance(mContext, mContactsDir,
-                mConfigForTest, mSingleThreadedExecutor);
+        mInstance =
+                ContactsIndexerUserInstance.createInstance(
+                        mContext,
+                        mContactsDir,
+                        mConfigForTest,
+                        mForceConfigForTest,
+                        mSingleThreadedExecutor);
         mUpdateStats = new ContactsUpdateStats();
     }
 
@@ -155,9 +170,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             ThreadPoolExecutor singleThreadedExecutor =
                     new ThreadPoolExecutor(/*corePoolSize=*/1, /*maximumPoolSize=*/
                             1, /*KeepAliveTime=*/ 0L, TimeUnit.MILLISECONDS, queue);
-            ContactsIndexerUserInstance instance = ContactsIndexerUserInstance.createInstance(
-                    mContext, mContactsDir,
-                    mConfigForTest, singleThreadedExecutor);
+            ContactsIndexerUserInstance instance =
+                    ContactsIndexerUserInstance.createInstance(
+                            mContext,
+                            mContactsDir,
+                            mConfigForTest,
+                            mForceConfigForTest,
+                            singleThreadedExecutor);
 
             int numOfNotifications = 20;
             for (int i = 0; i < numOfNotifications / 2; ++i) {
@@ -203,9 +222,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             ThreadPoolExecutor singleThreadedExecutor =
                     new ThreadPoolExecutor(/*corePoolSize=*/1, /*maximumPoolSize=*/
                             1, /*KeepAliveTime=*/ 0L, TimeUnit.MILLISECONDS, queue);
-            ContactsIndexerUserInstance instance = ContactsIndexerUserInstance.createInstance(
-                    mContext, mContactsDir,
-                    mConfigForTest, singleThreadedExecutor);
+            ContactsIndexerUserInstance instance =
+                    ContactsIndexerUserInstance.createInstance(
+                            mContext,
+                            mContactsDir,
+                            mConfigForTest,
+                            mForceConfigForTest,
+                            singleThreadedExecutor);
             int docCount = 10;
             // Insert contacts to trigger delta update.
             ContentResolver resolver = mContext.getContentResolver();
@@ -243,13 +266,22 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
     @Test
     public void testCreateInstance_dataDirectoryCreatedAsynchronously() throws Exception {
         File dataDir = new File(mTemporaryFolder.newFolder(), "contacts");
-        boolean isDataDirectoryCreatedSynchronously = mSingleThreadedExecutor.submit(() -> {
-            ContactsIndexerUserInstance unused =
-                    ContactsIndexerUserInstance.createInstance(mContext, dataDir, mConfigForTest,
-                            mSingleThreadedExecutor);
-            // Data directory shouldn't have been created synchronously in createInstance()
-            return dataDir.exists();
-        }).get();
+        boolean isDataDirectoryCreatedSynchronously =
+                mSingleThreadedExecutor
+                        .submit(
+                                () -> {
+                                    ContactsIndexerUserInstance unused =
+                                            ContactsIndexerUserInstance.createInstance(
+                                                    mContext,
+                                                    dataDir,
+                                                    mConfigForTest,
+                                                    mForceConfigForTest,
+                                                    mSingleThreadedExecutor);
+                                    // Data directory shouldn't have been created synchronously in
+                                    // createInstance()
+                                    return dataDir.exists();
+                                })
+                        .get();
         assertThat(isDataDirectoryCreatedSynchronously).isFalse();
         boolean isDataDirectoryCreatedAsynchronously = mSingleThreadedExecutor.submit(
                 dataDir::exists).get();
@@ -299,6 +331,102 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
             JobInfo fullUpdateJob = jobInfoArgumentCaptor.getValue();
             assertThat(fullUpdateJob).isEqualTo(IMMEDIATE_JOB_INFO);
+        } finally {
+            // unregisters observers registered by startAsync()
+            mInstance.shutdown();
+        }
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_INDEXER_FORCE_UPDATE)
+    @Test
+    public void testForceUpdate_schedulesJob() throws Exception {
+        FakeContactsIndexerConfig fakeContactsIndexerConfig = new FakeContactsIndexerConfig();
+        fakeContactsIndexerConfig.indexingLimit = 50;
+        mForceConfigForTest = new FrameworkContactsIndexerForceUpdateConfig();
+
+        mInstance =
+                ContactsIndexerUserInstance.createInstance(
+                        mContext,
+                        mContactsDir,
+                        fakeContactsIndexerConfig,
+                        mForceConfigForTest,
+                        mSingleThreadedExecutor);
+
+        CountDownLatch latch = new CountDownLatch(50);
+        CountDownLatch latchForceUpdate = new CountDownLatch(100);
+        GlobalSearchSessionShim shim =
+                GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
+        ObserverCallback callback =
+                new ObserverCallback() {
+                    @Override
+                    public void onSchemaChanged(SchemaChangeInfo changeInfo) {
+                        // Do nothing
+                    }
+
+                    @Override
+                    public void onDocumentChanged(DocumentChangeInfo changeInfo) {
+                        for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
+                            latch.countDown();
+                            latchForceUpdate.countDown();
+                        }
+                    }
+                };
+        shim.registerObserverCallback(
+                mContext.getPackageName(),
+                new ObserverSpec.Builder().addFilterSchemas("builtin:Person").build(),
+                mSingleThreadedExecutor,
+                callback);
+        // Insert contacts for delta update
+        ContentResolver resolver = mContext.getContentResolver();
+        ContentValues dummyValues = new ContentValues();
+        for (int i = 0; i < 100; i++) {
+            resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
+        }
+
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+
+        try {
+            mInstance.startAsync();
+
+            // Wait for initial delta update to index contacts
+            assertThat(latch.await(30L, TimeUnit.SECONDS)).isTrue();
+            assertThat(latchForceUpdate.getCount()).isEqualTo(50);
+
+            // Ensure initial update schedules a job once on start
+            ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+            verify(mockJobScheduler, times(1)).schedule(jobInfoArgumentCaptor.capture());
+            JobInfo fullUpdateJob = jobInfoArgumentCaptor.getValue();
+            assertThat(fullUpdateJob).isEqualTo(IMMEDIATE_JOB_INFO);
+
+            // Clear captured scheduled jobs
+            Mockito.clearInvocations(mockJobScheduler);
+
+            fakeContactsIndexerConfig.indexingLimit = 100;
+            mInstance.getSettings().setLastContactUpdateTimestampMillis(0);
+
+            // Modify Settings and Device Configuration values to force an update
+            mInstance.getSettings().setIndexerForceUpdateEmergencyCounterKey(0);
+
+            DeviceConfig.setProperty(
+                    DeviceConfig.NAMESPACE_APPSEARCH,
+                    KEY_CONTACTS_INDEXER_FORCE_UPDATE_ENABLED,
+                    Boolean.toString(true),
+                    false);
+            DeviceConfig.setProperty(
+                    DeviceConfig.NAMESPACE_APPSEARCH,
+                    KEY_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER,
+                    Integer.toString(1),
+                    false);
+
+            assertThat(latchForceUpdate.await(30L, TimeUnit.SECONDS)).isTrue();
+
+            // Ensure force update scheduled a job after device configuration change
+            jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+            verify(mockJobScheduler, times(1)).schedule(jobInfoArgumentCaptor.capture());
+            fullUpdateJob = jobInfoArgumentCaptor.getValue();
+            assertThat(fullUpdateJob).isEqualTo(IMMEDIATE_JOB_INFO);
+
         } finally {
             // unregisters observers registered by startAsync()
             mInstance.shutdown();
@@ -814,8 +942,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
         // Initializes an AppSearchHelper
-        mInstance = ContactsIndexerUserInstance.createInstance(mContext, mContactsDir,
-                mConfigForTest, mSingleThreadedExecutor);
+        mInstance =
+                ContactsIndexerUserInstance.createInstance(
+                        mContext,
+                        mContactsDir,
+                        mConfigForTest,
+                        mForceConfigForTest,
+                        mSingleThreadedExecutor);
         try {
             mInstance.startAsync();
             verifyNoMoreInteractions(mockJobScheduler);
@@ -887,8 +1020,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
         // Initializes an AppSearchHelper
-        mInstance = ContactsIndexerUserInstance.createInstance(mContext, mContactsDir,
-                mConfigForTest, mSingleThreadedExecutor);
+        mInstance =
+                ContactsIndexerUserInstance.createInstance(
+                        mContext,
+                        mContactsDir,
+                        mConfigForTest,
+                        mForceConfigForTest,
+                        mSingleThreadedExecutor);
         try {
             mInstance.startAsync();
             latch.await(30L, TimeUnit.SECONDS);
@@ -1188,6 +1326,15 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
         @Override
         public void tearDown() {
+        }
+    }
+
+    private static class FakeContactsIndexerConfig extends TestContactsIndexerConfig {
+        public int indexingLimit = 50;
+
+        @Override
+        public int getContactsFirstRunIndexingLimit() {
+            return indexingLimit;
         }
     }
 }

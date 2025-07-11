@@ -414,7 +414,10 @@ public class ContactsIndexerMaintenanceTest {
         File contactsDir = new File(temporaryFolder.newFolder(), "contacts");
         ContactsIndexerUserInstance instance =
                 ContactsIndexerUserInstance.createInstance(
-                        contextWrapper, contactsDir, new TestContactsIndexerConfig());
+                        contextWrapper,
+                        contactsDir,
+                        new TestContactsIndexerConfig(),
+                        new TestContactsIndexerForceUpdateConfig());
 
         // Latch to ensure that a contacts indexer update is ran
         ContactsIndexerManagerService.LocalService mockLocalService =

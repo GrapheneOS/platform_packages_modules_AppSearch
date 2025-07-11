@@ -38,6 +38,7 @@ import java.util.Objects;
  * <ul>
  *   <li>getting and setting the timestamp of the last update
  *   <li>loading and persisting settings to/from a file
+ *   <li>getting and setting the emergency counter
  * </ul>
  *
  * <p>This class is NOT thread safe (similar to {@link PersistableBundle} which it wraps).
@@ -47,6 +48,7 @@ public abstract class IndexerSettings {
     public static final String LAST_UPDATE_TIMESTAMP_KEY = "last_update_timestamp_millis";
     public static final String LAST_ATTEMPTED_UPDATE_TIMESTAMP_KEY =
             "last_attempted_update_timestamp_millis";
+    public static final String FORCE_UPDATE_EMERGENCY_COUNTER_KEY = "emergency_counter";
 
     private final File mBaseDir;
     private File mFile;
@@ -79,6 +81,16 @@ public abstract class IndexerSettings {
     public void persist() throws IOException {
         ensureFileCreated();
         writeBundle(mFile, mBundle);
+    }
+
+    /** Returns the emergency counter */
+    public int getIndexerForceUpdateEmergencyCounter() {
+        return mBundle.getInt(FORCE_UPDATE_EMERGENCY_COUNTER_KEY);
+    }
+
+    /** Sets the emergency counter value */
+    public void setIndexerForceUpdateEmergencyCounterKey(int emergencyCounter) {
+        mBundle.putInt(FORCE_UPDATE_EMERGENCY_COUNTER_KEY, emergencyCounter);
     }
 
     /** Returns the timestamp of when the last update occurred in milliseconds. */
