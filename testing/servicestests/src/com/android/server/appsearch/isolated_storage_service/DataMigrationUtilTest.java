@@ -19,6 +19,7 @@ package com.android.server.appsearch.isolated_storage_service;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.GenericDocument;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.testutil.AppSearchTestUtils;
@@ -37,12 +38,19 @@ import com.android.server.appsearch.external.localstorage.UnlimitedLimitConfig;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import com.android.server.appsearch.icing.proto.IcingSearchEngineOptions;
 import com.android.server.appsearch.icing.proto.InitializeResultProto;
+import com.android.server.appsearch.icing.proto.PersistType;
+import com.android.server.appsearch.icing.proto.ResultSpecProto;
 import com.android.server.appsearch.icing.proto.SchemaProto;
 import com.android.server.appsearch.icing.proto.SchemaTypeConfigProto;
+import com.android.server.appsearch.icing.proto.ScoringSpecProto;
+import com.android.server.appsearch.icing.proto.SearchResultProto;
+import com.android.server.appsearch.icing.proto.SearchSpecProto;
 import com.android.server.appsearch.icing.proto.StatusProto;
+import com.android.server.appsearch.icing.proto.TermMatchType;
 
 import com.google.android.icing.IcingSearchEngine;
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.common.collect.ImmutableList;
 
 import org.jspecify.annotations.NonNull;
 import org.junit.After;
@@ -53,6 +61,7 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -75,43 +84,45 @@ public class DataMigrationUtilTest {
 
     // Objects for source AppSearchImpl
     private File mAppSearchDir;
-    private AppSearchConfig mAppSearchConfigWithDatabaseSchemaDisabled;
     private AppSearchImpl mAppSearchImpl;
 
     // Objects for dest IcingSearchEngineInterface
     private File mVmIcingSearchEngineDir;
     private IcingSearchEngineInterface mVmIcingSearchEngine;
 
+    private AppSearchConfig mUnlimitedConfig =
+            new AppSearchConfigImpl(
+                    new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig());
+    private AppSearchConfig mAppSearchConfigWithDatabaseSchemaDisabled =
+            new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()) {
+        @Override
+        public @NonNull IcingSearchEngineOptions toIcingSearchEngineOptions(
+                @NonNull String baseDir, boolean isVMEnabled) {
+            IcingSearchEngineOptions.Builder builder =
+                    IcingSearchEngineOptions.newBuilder(
+                            super.toIcingSearchEngineOptions(baseDir, isVMEnabled));
+            // Turn off schema database.
+            builder.setEnableSchemaDatabase(false);
+            return builder.build();
+        }
+    };
+
+
     @Before
     public void setUp() throws Exception {
         mContext = ApplicationProvider.getApplicationContext();
         mUserHandle = mContext.getUser();
-
         mAppSearchDir = mTemporaryFolder.newFolder("test");
-        mAppSearchConfigWithDatabaseSchemaDisabled =
-                new AppSearchConfigImpl(
-                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()) {
-                    @Override
-                    public @NonNull IcingSearchEngineOptions toIcingSearchEngineOptions(
-                            @NonNull String baseDir, boolean isVMEnabled) {
-                        IcingSearchEngineOptions.Builder builder =
-                                IcingSearchEngineOptions.newBuilder(
-                                        super.toIcingSearchEngineOptions(baseDir, isVMEnabled));
-                        // Turn off schema database.
-                        builder.setEnableSchemaDatabase(false);
-                        return builder.build();
-                    }
-                };
         mAppSearchImpl =
                 AppSearchImpl.create(
                         mAppSearchDir,
-                        mAppSearchConfigWithDatabaseSchemaDisabled,
+                        mUnlimitedConfig,
                         /* initStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
-
         mVmIcingSearchEngineDir = mTemporaryFolder.newFolder("vm");
         mVmIcingSearchEngine =
                 new IcingSearchEngine(
@@ -132,6 +143,15 @@ public class DataMigrationUtilTest {
     @Test
     public void migrateFromDbScopedSchemaOperationsDisabled_shouldEnableDbSchemaAfterMigration()
             throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mAppSearchConfigWithDatabaseSchemaDisabled,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isFalse();
 
         String packageName = "package";
@@ -173,6 +193,15 @@ public class DataMigrationUtilTest {
     @Test
     public void migrateFromDbScopedSchemaOperationsDisabled_setNewSchemaAfterMigration()
             throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mAppSearchConfigWithDatabaseSchemaDisabled,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isFalse();
 
         String packageName = "package";
@@ -232,6 +261,15 @@ public class DataMigrationUtilTest {
     @Test
     public void migrateFromDbScopedSchemaOperationsDisabled_setSameSchemaAfterMigration()
             throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mAppSearchConfigWithDatabaseSchemaDisabled,
+                        /* initStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isFalse();
 
         String packageName = "package";
@@ -280,6 +318,114 @@ public class DataMigrationUtilTest {
                         mAppSearchImpl.rawGetSchema(), packageName, databaseName);
         assertThat(schemaTypesAfterMigration.keySet()).containsExactlyElementsIn(List.of("Email"));
         assertThat(schemaTypesAfterMigration.get("Email").getDatabase()).isEqualTo(targetPrefix);
+    }
+
+    @Test
+    public void verifyStatsFromDataMigration() throws Exception {
+        int docNum = 100;
+        insertTestDocsToAppSearchImpl(100);
+        int okStatus = StatusProto.Code.OK.getNumber();
+
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(mContext,
+                mUserHandle,
+                mAppSearchImpl,
+                mVmIcingSearchEngine);
+
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatus);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatus);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatus);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatus);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatus);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatus);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docNum);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+    }
+
+    @Test
+    public void verifyVMResetBeforeMigration() throws Exception {
+        int docNumInVM = 100;
+        int docNumInHost = 1;
+        int okStatus = StatusProto.Code.OK.getNumber();
+        insertTestDocsToAppSearchImpl(docNumInVM);
+        // After that, mVmIcingSearchEngine contains data, and mAppSearchImpl is empty.
+        mVmIcingSearchEngine = mAppSearchImpl.swapIcingSearchEngineLocked(
+                mVmIcingSearchEngine,
+                /*isVMEnabled=*/ true);
+        insertTestDocsToAppSearchImpl(docNumInHost);
+
+        SearchSpecProto searchSpec =
+                SearchSpecProto.newBuilder()
+                        .setQuery("")
+                        .setTermMatchType(TermMatchType.Code.PREFIX)
+                        .build();
+        SearchResultProto searchResultProto =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.getDefaultInstance(),
+                        ResultSpecProto.newBuilder().setNumPerPage(
+                                docNumInVM + docNumInHost).build());
+        assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInVM);
+
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(mContext,
+                mUserHandle,
+                mAppSearchImpl,
+                mVmIcingSearchEngine);
+
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatus);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatus);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatus);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatus);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatus);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatus);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docNumInHost);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+
+        searchResultProto =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.getDefaultInstance(),
+                        ResultSpecProto.newBuilder().setNumPerPage(
+                                docNumInVM + docNumInHost).build());
+        // icing has been reset.
+        assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInHost);
+    }
+
+    private void insertTestDocsToAppSearchImpl(int docNum) throws AppSearchException {
+        // Insert schema
+        List<AppSearchSchema> schemas =
+                ImmutableList.of(
+                        new AppSearchSchema.Builder("Type1").build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        mContext.getPackageName(),
+                        "database1",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert valid docs
+        List<GenericDocument> docs = new ArrayList<>();
+        for (int i = 0; i < docNum; ++i) {
+            GenericDocument doc =
+                    new GenericDocument.Builder<>(
+                            "namespace1", "id" + i, "Type1").build();
+            docs.add(doc);
+        }
+
+        mAppSearchImpl.batchPutDocuments(
+                mContext.getPackageName(),
+                "database1",
+                docs,
+                /*batchResultBuilder=*/ null,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                PersistType.Code.LITE);
     }
 
     /**
