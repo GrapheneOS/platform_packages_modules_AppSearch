@@ -77,8 +77,8 @@ public class FrameworkContactsIndexerForceUpdateConfigTest {
 
     @Test
     public void testDeviceConfigListener_OnPropertyChange() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
         IndexerForceUpdateConfig config = new FrameworkContactsIndexerForceUpdateConfig();
+        CountDownLatch latch = new CountDownLatch(1);
 
         // use directExecutor() for testing since listener is registered asynchronously
         IndexerForceUpdateConfig.addListener(MoreExecutors.directExecutor(), latch::countDown);

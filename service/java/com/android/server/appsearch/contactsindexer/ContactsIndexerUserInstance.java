@@ -34,12 +34,15 @@ import android.net.Uri;
 import android.os.CancellationSignal;
 import android.os.SystemClock;
 import android.provider.ContactsContract;
+import android.provider.DeviceConfig;
+import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import android.util.Log;
 import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
@@ -90,6 +93,8 @@ public final class ContactsIndexerUserInstance {
     private final AppSearchHelper mAppSearchHelper;
     private final ContactsIndexerImpl mContactsIndexerImpl;
     private final ContactsIndexerConfig mContactsIndexerConfig;
+    private final IndexerForceUpdateConfig mContactsIndexerForceUpdateConfig;
+    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     /**
      * Single threaded executor to make sure there is only one active sync for this {@link
@@ -114,15 +119,22 @@ public final class ContactsIndexerUserInstance {
     public static ContactsIndexerUserInstance createInstance(
             @NonNull Context userContext,
             @NonNull File contactsDir,
-            @NonNull ContactsIndexerConfig contactsIndexerConfig) {
+            @NonNull ContactsIndexerConfig contactsIndexerConfig,
+            @NonNull IndexerForceUpdateConfig contactsIndexerForceUpdateConfig) {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(contactsDir);
         Objects.requireNonNull(contactsIndexerConfig);
+        Objects.requireNonNull(contactsIndexerForceUpdateConfig);
 
         ExecutorService singleThreadedExecutor =
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
+
         return createInstance(
-                userContext, contactsDir, contactsIndexerConfig, singleThreadedExecutor);
+                userContext,
+                contactsDir,
+                contactsIndexerConfig,
+                contactsIndexerForceUpdateConfig,
+                singleThreadedExecutor);
     }
 
     @VisibleForTesting
@@ -131,20 +143,24 @@ public final class ContactsIndexerUserInstance {
             @NonNull Context context,
             @NonNull File contactsDir,
             @NonNull ContactsIndexerConfig contactsIndexerConfig,
+            @NonNull IndexerForceUpdateConfig contactsIndexerForceUpdateConfig,
             @NonNull ExecutorService executorService) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(contactsDir);
         Objects.requireNonNull(contactsIndexerConfig);
+        Objects.requireNonNull(contactsIndexerForceUpdateConfig);
         Objects.requireNonNull(executorService);
 
         AppSearchHelper appSearchHelper =
                 AppSearchHelper.createAppSearchHelper(context, executorService);
+
         ContactsIndexerUserInstance indexer =
                 new ContactsIndexerUserInstance(
                         context,
                         contactsDir,
                         appSearchHelper,
                         contactsIndexerConfig,
+                        contactsIndexerForceUpdateConfig,
                         executorService);
         indexer.loadSettingsAsync();
 
@@ -165,10 +181,13 @@ public final class ContactsIndexerUserInstance {
             @NonNull File dataDir,
             @NonNull AppSearchHelper appSearchHelper,
             @NonNull ContactsIndexerConfig contactsIndexerConfig,
+            @NonNull IndexerForceUpdateConfig contactsIndexerForceUpdateConfig,
             @NonNull ExecutorService singleThreadedExecutor) {
         mContext = Objects.requireNonNull(context);
         mDataDir = Objects.requireNonNull(dataDir);
         mContactsIndexerConfig = Objects.requireNonNull(contactsIndexerConfig);
+        mContactsIndexerForceUpdateConfig =
+                Objects.requireNonNull(contactsIndexerForceUpdateConfig);
         mSettings = new ContactsIndexerSettings(mDataDir);
         mAppSearchHelper = Objects.requireNonNull(appSearchHelper);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
@@ -185,7 +204,6 @@ public final class ContactsIndexerUserInstance {
                         ContactsContract.Contacts.CONTENT_URI,
                         /* notifyForDescendants= */ true,
                         mContactsObserver);
-
         executeOnSingleThreadedExecutor(
                 () -> {
                     mAppSearchHelper
@@ -207,12 +225,28 @@ public final class ContactsIndexerUserInstance {
                                     })
                             .exceptionally(e -> Log.w(TAG, "Got exception in startAsync", e));
                 });
+        if (Flags.enableIndexerForceUpdate()) {
+            mOnDeviceConfigChangedListener =
+                    IndexerForceUpdateConfig.addListener(
+                            mSingleThreadedExecutor, this::handleForceUpdateConfigChanged);
+            executeOnSingleThreadedExecutor(this::handleForceUpdateConfigChanged);
+        }
     }
 
     public void shutdown() throws InterruptedException {
         if (LogUtil.DEBUG) {
             Log.d(TAG, "Unregistering ContactsObserver for " + mContext.getUser());
         }
+        if (Flags.enableIndexerForceUpdate()) {
+            if (mOnDeviceConfigChangedListener != null) {
+                executeOnSingleThreadedExecutor(
+                        () -> {
+                            DeviceConfig.removeOnPropertiesChangedListener(
+                                    mOnDeviceConfigChangedListener);
+                        });
+            }
+        }
+
         mContext.getContentResolver().unregisterContentObserver(mContactsObserver);
 
         IndexerMaintenanceService.cancelUpdateJobIfScheduled(
@@ -277,33 +311,12 @@ public final class ContactsIndexerUserInstance {
             }
         } else {
             if (mSettings.getLastFullUpdateTimestampMillis() != 0
-                    && IndexerMaintenanceService.isUpdateJobScheduled(mContext, mContext.getUser(),
-                    CONTACTS_INDEXER)) {
+                    && IndexerMaintenanceService.isUpdateJobScheduled(
+                            mContext, mContext.getUser(), CONTACTS_INDEXER)) {
                 return;
             }
         }
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContext,
-                mContext.getUser(),
-                CONTACTS_INDEXER,
-                /* periodic= */ false,
-                /* intervalMillis= */ -1);
-        // TODO(b/222126568): refactor doDeltaUpdateAsync() to return a future value of
-        // ContactsUpdateStats so that it can be checked and logged here, instead of the
-        // placeholder exceptionally() block that only logs to the console.
-        doDeltaUpdateAsync(
-                        mContactsIndexerConfig.getContactsFirstRunIndexingLimit(),
-                        new ContactsUpdateStats())
-                .exceptionally(
-                        t -> {
-                            if (LogUtil.DEBUG) {
-                                Log.d(
-                                        TAG,
-                                        "Failed to bootstrap Person corpus with CP2 contacts",
-                                        t);
-                            }
-                            return null;
-                        });
+        executeCp2SyncFirstRun();
     }
 
     /**
@@ -771,6 +784,63 @@ public final class ContactsIndexerUserInstance {
                                     e);
                         }
                     });
+        }
+    }
+
+    /**
+     * Handles the force update logic for the contacts indexer.
+     *
+     * <p>This method checks if the force update feature is enabled and if the emergency counter
+     * from the Device Configuration has increased compared to the stored setting. If both
+     * conditions are met, it triggers {@link #executeCp2SyncFirstRun} & updates the settings
+     * emergency counter
+     */
+    public void handleForceUpdateConfigChanged() {
+        try {
+            if (!mContactsIndexerForceUpdateConfig.isIndexerForceUpdateEnabled()) {
+                return;
+            }
+            if (mContactsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
+                    > mSettings.getIndexerForceUpdateEmergencyCounter()) {
+                executeCp2SyncFirstRun();
+            }
+        } catch (RuntimeException e) {
+            Slog.wtf(
+                    TAG,
+                    "ContactsIndexerUserInstance" + ".handleForceUpdateConfigChanged() failed ",
+                    e);
+        }
+    }
+
+    /** Helper method to schedule a full update job and a first run delta update. */
+    private void executeCp2SyncFirstRun() {
+        IndexerMaintenanceService.scheduleUpdateJob(
+                mContext,
+                mContext.getUser(),
+                CONTACTS_INDEXER,
+                /* periodic= */ false,
+                /* intervalMillis= */ -1);
+        // TODO(b/222126568): refactor doDeltaUpdateAsync() to return a future value of
+        // ContactsUpdateStats so that it can be checked and logged here, instead of the
+        // placeholder exceptionally() block that only logs to the console.
+        doDeltaUpdateAsync(
+                        mContactsIndexerConfig.getContactsFirstRunIndexingLimit(),
+                        new ContactsUpdateStats())
+                .exceptionally(
+                        t -> {
+                            if (LogUtil.DEBUG) {
+                                Log.d(
+                                        TAG,
+                                        "Failed to bootstrap Person corpus with CP2 contacts",
+                                        t);
+                            }
+                            return null;
+                        });
+        if (Flags.enableIndexerForceUpdate()) {
+            // Store DeviceConfig Emergency Counter in settings
+            mSettings.setIndexerForceUpdateEmergencyCounterKey(
+                    mContactsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
+            persistSettings();
         }
     }
 }
