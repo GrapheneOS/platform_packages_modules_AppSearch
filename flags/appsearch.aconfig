@@ -788,3 +788,10 @@ flag {
     description: "whether to skip interacting with icing if the set schema call is a noop."
     bug: "436813583"
 }
+
+flag {
+    name: "enable_app_function_agent_allowlist_check"
+    namespace: "appsearch"
+    description: "Enable checking the app is in agent allowlist when deciding document visibility"
+    bug: "420892441"
+}
