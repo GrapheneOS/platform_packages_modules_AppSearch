@@ -35,10 +35,8 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
-import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
-import com.android.server.appsearch.isolated_storage_service.DataMigrationStats;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IcingSearchEngine;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
@@ -643,8 +641,8 @@ public final class AppSearchUserInstanceManager {
             Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
-        if (config.disableIsolatedStorageMigration()
-                || !DataMigrationUtil.needDataMigration(userContext, userHandle)) {
+        if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
+            Log.i(TAG, "Data migration is not needed.");
             return isolatedIcingInterface;
         }
 
@@ -665,54 +663,19 @@ public final class AppSearchUserInstanceManager {
                                     executorManager.executeLambdaForUserNoCallbackAsync(
                                             userHandle,
                                             () -> {
-                                                // TODO(b/407815165) we should move this outside so
-                                                //  it will include executor waiting time. And we
-                                                //  can add execution_latency for migration later.
-                                                long totalLatencyStartTimeMillis =
-                                                        SystemClock.elapsedRealtime();
-                                                @AppSearchResult.ResultCode int statusCode =
-                                                        RESULT_OK;
-
                                                 AppSearchUserInstance instance =
                                                         getUserInstanceOrNull(userHandle);
-                                                DataMigrationStats migrationStats = null;
-                                                try {
-                                                    migrationStats = DataMigrationUtil.runDataMigrationForUser(
+                                                if (instance != null) {
+                                                    // TODO(b/407815165) we should move this outside
+                                                    //  so it will include executor waiting time.
+                                                    //  And we can add execution_latency for
+                                                    //  migration later.
+                                                    DataMigrationUtil.runDataMigrationForUser(
                                                             userContext,
                                                             userHandle,
                                                             instance.getAppSearchImpl(),
-                                                            isolatedIcingInterface);
-                                                } catch (Exception e) {
-                                                    Log.e(TAG, "Fail to migrate the data.", e);
-                                                    statusCode = AppSearchResult
-                                                            .throwableToFailedResult(e)
-                                                            .getResultCode();
-                                                } finally {
-                                                    if (instance != null
-                                                            && instance.getLogger() != null) {
-                                                        int totalLatencyMillis =
-                                                                (int) (SystemClock.elapsedRealtime()
-                                                                        - totalLatencyStartTimeMillis);
-                                                        CallStats.Builder callStatsBuilder =
-                                                                new CallStats.Builder()
-                                                                .setStatusCode(statusCode)
-                                                                .setCallReceivedTimestampMillis(
-                                                                        totalLatencyStartTimeMillis)
-                                                                .setTotalLatencyMillis(
-                                                                        totalLatencyMillis)
-                                                                .setCallType(
-                                                                        CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
-                                                                .setLaunchVMEnabled(
-                                                                        instance.isVMEnabled());
-                                                        if (migrationStats != null) {
-                                                            callStatsBuilder.setNumOperationsSucceeded(
-                                                                    (int) migrationStats.getNumberOfDocsSucceeded());
-                                                            callStatsBuilder.setNumOperationsFailed(
-                                                                    (int) migrationStats.getNumberOfDocsFailed());
-                                                        }
-                                                        instance.getLogger().logStats(
-                                                                callStatsBuilder.build());
-                                                    }
+                                                            isolatedIcingInterface,
+                                                            instance.getLogger());
                                                 }
                                             });
                                 },
