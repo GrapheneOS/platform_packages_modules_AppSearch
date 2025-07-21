@@ -89,7 +89,7 @@ public abstract class IndexerSettings {
     }
 
     /** Sets the emergency counter value */
-    public void setIndexerForceUpdateEmergencyCounterKey(int emergencyCounter) {
+    public void setIndexerForceUpdateEmergencyCounter(int emergencyCounter) {
         mBundle.putInt(FORCE_UPDATE_EMERGENCY_COUNTER_KEY, emergencyCounter);
     }
 

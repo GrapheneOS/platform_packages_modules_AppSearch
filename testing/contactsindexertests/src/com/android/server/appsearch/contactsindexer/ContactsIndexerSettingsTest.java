@@ -42,11 +42,11 @@ public class ContactsIndexerSettingsTest {
     @Test
     public void testLoadAndPersist() throws IOException {
         // Set some values, persist them, and then load them back
-        mContactsIndexerSettings.setIndexerForceUpdateEmergencyCounterKey(1);
+        mContactsIndexerSettings.setIndexerForceUpdateEmergencyCounter(1);
         mContactsIndexerSettings.persist();
 
         // Reset the settings to ensure loading happens from the file
-        mContactsIndexerSettings.setIndexerForceUpdateEmergencyCounterKey(0);
+        mContactsIndexerSettings.setIndexerForceUpdateEmergencyCounter(0);
 
         mContactsIndexerSettings.load();
         assertThat(mContactsIndexerSettings.getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
