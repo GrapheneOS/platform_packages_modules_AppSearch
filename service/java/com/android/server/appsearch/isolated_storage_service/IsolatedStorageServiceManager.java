@@ -78,6 +78,8 @@ public final class IsolatedStorageServiceManager {
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
     public static final long DEFAULT_MEMORY_BYTES = 256_000_000;
+    public static final String SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM =
+            "ro.enable.nonprotected_appsearch_vm";
     public static final boolean DEFAULT_ISOLATED_STORAGE_DISABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_MIGRATION_DISABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS = false;
@@ -191,8 +193,16 @@ public final class IsolatedStorageServiceManager {
         }
         VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
         // Devices that support AVF are not required to support protected VMs.
-        return (vmm != null)
-                && ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0);
+        if (vmm == null) {
+            return false;
+        }
+
+        boolean protectedAppSearchVmEnabled =
+                !SystemProperties.getBoolean(
+                        SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
+        return protectedAppSearchVmEnabled
+                ? ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0)
+                : true;
     }
 
     /**
