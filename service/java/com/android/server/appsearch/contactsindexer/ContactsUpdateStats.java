@@ -135,6 +135,9 @@ public class ContactsUpdateStats {
     // Total # of old contacts to be deleted. It should equal
     // mContactsDeleteFailedCount + mContactsDeleteSucceededCount
     int mTotalContactsToBeDeleted;
+    // Indicates when a force update occurs. This helps us track the rollout of the Force Update
+    // in the case of an emergency
+    boolean mForceUpdateTriggered;
 
     public void clear() {
         mUpdateType = UNKNOWN_UPDATE_TYPE;
@@ -157,6 +160,7 @@ public class ContactsUpdateStats {
         mContactsDeleteSucceededCount = 0;
         mContactsDeleteNotFoundCount = 0;
         mTotalContactsToBeDeleted = 0;
+        mForceUpdateTriggered = false;
     }
 
     @NonNull
@@ -196,6 +200,8 @@ public class ContactsUpdateStats {
                 + ", ContactsDeleteNotFoundCount: "
                 + mContactsDeleteNotFoundCount
                 + ", TotalContactsToBeDeleted: "
-                + mTotalContactsToBeDeleted;
+                + mTotalContactsToBeDeleted
+                + ", ForceUpdateTriggered: "
+                + mForceUpdateTriggered;
     }
 }
