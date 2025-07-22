@@ -18,6 +18,7 @@ package com.android.server.appsearch;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.stats.BaseStats;
 import android.net.Uri;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -179,8 +180,8 @@ public final class Denylist {
     private Set<Integer> retrieveApiTypes(@NonNull String[] apis) {
         Set<Integer> apiTypes = new ArraySet<>(apis.length);
         for (int i = 0; i < apis.length; ++i) {
-            @CallStats.CallType int apiType = CallStats.getApiCallTypeFromName(apis[i]);
-            if (apiType != CallStats.CALL_TYPE_UNKNOWN) {
+            @BaseStats.CallType int apiType = CallStats.getApiCallTypeFromName(apis[i]);
+            if (apiType != BaseStats.CALL_TYPE_UNKNOWN) {
                 apiTypes.add(apiType);
             }
         }
@@ -219,7 +220,7 @@ public final class Denylist {
     public boolean checkDeniedPackageDatabase(
             @NonNull String packageName,
             @NonNull String databaseName,
-            @CallStats.CallType int apiType) {
+            @BaseStats.CallType int apiType) {
         if (checkDeniedPackage(packageName, apiType)
                 || checkDeniedDatabase(databaseName, apiType)) {
             return true;
@@ -241,7 +242,7 @@ public final class Denylist {
      * @return true if the api is denied for the given package name.
      */
     public boolean checkDeniedPackage(
-            @NonNull String packageName, @CallStats.CallType int apiType) {
+            @NonNull String packageName, @BaseStats.CallType int apiType) {
         Set<Integer> deniedApiTypes = deniedPackages.get(packageName);
         return deniedApiTypes != null && deniedApiTypes.contains(apiType);
     }
@@ -255,7 +256,7 @@ public final class Denylist {
      * @return true if the api is denied for the given database name.
      */
     private boolean checkDeniedDatabase(
-            @NonNull String databaseName, @CallStats.CallType int apiType) {
+            @NonNull String databaseName, @BaseStats.CallType int apiType) {
         Set<Integer> deniedApiTypes = deniedDatabases.get(databaseName);
         return deniedApiTypes != null && deniedApiTypes.contains(apiType);
     }

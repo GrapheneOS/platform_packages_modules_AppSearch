@@ -19,6 +19,7 @@ package com.android.server.appsearch.stats;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.stats.SchemaMigrationStats;
 import android.content.Context;
 import android.os.Build;
@@ -38,6 +39,7 @@ import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.ClickStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
+import com.android.server.appsearch.external.localstorage.stats.PersistToDiskStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
@@ -85,7 +87,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
      * type of stats next time. E.g. the true count of an event could be estimated as:
      * SUM(sampling_interval * (num_skipped_sample + 1)) as est_count
      *
-     * <p>The key to the SparseArray is {@link CallStats.CallType}
+     * <p>The key to the SparseArray is {@link BaseStats.CallType}
      */
     @GuardedBy("mLock")
     private final SparseIntArray mSkippedSampleCountLocked = new SparseIntArray();
@@ -171,7 +173,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull PutDocumentStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_PUT_DOCUMENT)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_PUT_DOCUMENT)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -181,7 +183,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull InitializeStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_INITIALIZE)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_INITIALIZE)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -191,7 +193,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull AppOpenEventStats appOpenEventStats) {
         Objects.requireNonNull(appOpenEventStats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER)) {
+            if (shouldLogForTypeLocked(BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER)) {
                 logStatsImplLocked(appOpenEventStats);
             }
         }
@@ -201,7 +203,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull QueryStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_SEARCH)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SEARCH)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -211,7 +213,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull RemoveStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -228,7 +230,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
             } else {
                 mLastNCalls.clear();
             }
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_OPTIMIZE)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_OPTIMIZE)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -238,7 +240,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull SetSchemaStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_SET_SCHEMA)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SET_SCHEMA)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -248,7 +250,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull SchemaMigrationStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(CallStats.CALL_TYPE_SCHEMA_MIGRATION)) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SCHEMA_MIGRATION)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -276,6 +278,16 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     AppSearchStatsLog.APP_SEARCH_VM_INITIALIZATION_STATS_REPORTED,
                     stats.getVmInitType(),
                     getSerializedVmStartAttempts(stats.getVmStartAttemptsStats()));
+        }
+    }
+
+    @Override
+    public void logStats(@NonNull PersistToDiskStats stats) {
+        Objects.requireNonNull(stats);
+        synchronized (mLock) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_FLUSH)) {
+                logStatsImplLocked(stats);
+            }
         }
     }
 
@@ -384,7 +396,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull SetSchemaStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(stats.getPackageName(), CallStats.CALL_TYPE_SET_SCHEMA);
+                createExtraStatsLocked(stats.getPackageName(), BaseStats.CALL_TYPE_SET_SCHEMA);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -416,7 +428,10 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getGetObserverLatencyMillis(),
                     stats.getPreparingChangeNotificationLatencyMillis(),
                     stats.getSchemaMigrationCallType(),
-                    stats.getEnabledFeatures());
+                    stats.getEnabledFeatures(),
+                    stats.getLastWriteOperation(),
+                    stats.getLastWriteOperationLatencyMillis(),
+                    stats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -435,7 +450,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
                 createExtraStatsLocked(
-                        stats.getPackageName(), CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID);
+                        stats.getPackageName(), BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -457,7 +472,11 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getNumNamespacesFiltered(),
                     stats.getNumSchemaTypesFiltered(),
                     stats.getParseQueryLatencyMillis(),
-                    stats.getDocumentRemovalLatencyMillis());
+                    stats.getDocumentRemovalLatencyMillis(),
+                    stats.getLastWriteOperation(),
+                    stats.getLastWriteOperationLatencyMillis(),
+                    stats.getJavaLockAcquisitionLatencyMillis(),
+                    stats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -476,7 +495,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
                 createExtraStatsLocked(
-                        stats.getPackageName(), CallStats.CALL_TYPE_SCHEMA_MIGRATION);
+                        stats.getPackageName(), BaseStats.CALL_TYPE_SCHEMA_MIGRATION);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -515,7 +534,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull PutDocumentStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(stats.getPackageName(), CallStats.CALL_TYPE_PUT_DOCUMENT);
+                createExtraStatsLocked(stats.getPackageName(), BaseStats.CALL_TYPE_PUT_DOCUMENT);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -538,7 +557,11 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     /* nativeExceededMaxNumTokens= */ false /* Deprecated and removed */,
                     stats.getEnabledFeatures(),
                     stats.getMetadataTermIndexLatencyMillis(),
-                    stats.getEmbeddingIndexLatencyMillis());
+                    stats.getEmbeddingIndexLatencyMillis(),
+                    stats.getLastWriteOperation(),
+                    stats.getLastWriteOperationLatencyMillis(),
+                    stats.getJavaLockAcquisitionLatencyMillis(),
+                    stats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -556,7 +579,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull QueryStats queryStats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(queryStats.getPackageName(), CallStats.CALL_TYPE_SEARCH);
+                createExtraStatsLocked(queryStats.getPackageName(), BaseStats.CALL_TYPE_SEARCH);
         String database = queryStats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -637,7 +660,10 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     queryStats.getLiteIndexHitBufferByteSize(),
                     queryStats.getLiteIndexHitBufferUnsortedByteSize(),
                     queryStats.getPageTokenType(),
-                    queryStats.getNumResultStatesEvicted());
+                    queryStats.getNumResultStatesEvicted(),
+                    queryStats.getLastWriteOperation(),
+                    queryStats.getLastWriteOperationLatencyMillis(),
+                    queryStats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -655,7 +681,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull InitializeStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(/* packageName= */ null, CallStats.CALL_TYPE_INITIALIZE);
+                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_INITIALIZE);
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_INITIALIZE_STATS_REPORTED,
                 extraStats.mSamplingInterval,
@@ -684,14 +710,16 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getNativeQualifiedIdJoinIndexRestorationCause(),
                 stats.getNativeEmbeddingIndexRestorationCause(),
                 stats.getNativeInitializeIcuDataStatusCode(),
-                stats.getNativeNumFailedReindexedDocuments());
+                stats.getNativeNumFailedReindexedDocuments(),
+                stats.getJavaLockAcquisitionLatencyMillis(),
+                stats.getGetVmLatencyMillis());
     }
 
     @GuardedBy("mLock")
     private void logStatsImplLocked(@NonNull OptimizeStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(/* packageName= */ null, CallStats.CALL_TYPE_OPTIMIZE);
+                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_OPTIMIZE);
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_OPTIMIZE_STATS_REPORTED,
                 extraStats.mSamplingInterval,
@@ -710,7 +738,44 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getEnabledFeatures(),
                 stats.getIndexRestorationMode(),
                 stats.getNumOriginalNamespaces(),
-                stats.getNumDeletedNamespaces());
+                stats.getNumDeletedNamespaces(),
+                stats.getLastWriteOperation(),
+                stats.getLastWriteOperationLatencyMillis(),
+                stats.getJavaLockAcquisitionLatencyMillis(),
+                stats.getGetVmLatencyMillis());
+    }
+
+    @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull PersistToDiskStats stats) {
+        mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
+        ExtraStats extraStats =
+                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_OPTIMIZE);
+        AppSearchStatsLog.write(
+                AppSearchStatsLog.APP_SEARCH_PERSIST_TO_DISK_STATS_REPORTED,
+                extraStats.mSamplingInterval,
+                extraStats.mSkippedSampleCount,
+                extraStats.mPackageUid,
+                stats.getStatusCode(),
+                stats.getEnabledFeatures(),
+                stats.getTriggerCallType(),
+                stats.getLastWriteOperation(),
+                stats.getLastWriteOperationLatencyMillis(),
+                stats.getJavaLockAcquisitionLatencyMillis(),
+                stats.getGetVmLatencyMillis(),
+                stats.getPersistType().getNumber(),
+                stats.getTotalLatencyMillis(),
+                stats.getNativeLatencyMillis(),
+                stats.getBlobStorePersistLatencyMillis(),
+                stats.getDocumentStoreTotalPersistLatencyMillis(),
+                stats.getDocumentStoreComponentsPersistLatencyMillis(),
+                stats.getDocumentStoreChecksumUpdateLatencyMillis(),
+                stats.getDocumentLogChecksumUpdateLatencyMillis(),
+                stats.getDocumentLogDataSyncLatencyMillis(),
+                stats.getSchemaStorePersistLatencyMillis(),
+                stats.getIndexPersistLatencyMillis(),
+                stats.getIntegerIndexPersistLatencyMillis(),
+                stats.getQualifiedIdJoinIndexPersistLatencyMillis(),
+                stats.getEmbeddingIndexPersistLatencyMillis());
     }
 
     @GuardedBy("mLock")
@@ -876,7 +941,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     @GuardedBy("mLock")
     @NonNull
     ExtraStats createExtraStatsLocked(
-            @Nullable String packageName, @CallStats.CallType int callType) {
+            @Nullable String packageName, @BaseStats.CallType int callType) {
         int packageUid = Process.INVALID_UID;
         if (packageName != null) {
             packageUid = getPackageUidAsUserLocked(packageName);
@@ -906,7 +971,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     // remove this @VisibleForTesting and directly use PlatformLogger.logStats to test sampling and
     // rate limiting.
     @VisibleForTesting
-    boolean shouldLogForTypeLocked(@CallStats.CallType int callType) {
+    boolean shouldLogForTypeLocked(@BaseStats.CallType int callType) {
         int samplingInterval = getSamplingIntervalFromConfig(callType);
         // Sampling
         if (!StatsUtil.shouldSample(samplingInterval)) {
@@ -944,50 +1009,50 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     /** Returns sampling ratio for stats type specified form {@link ServiceAppSearchConfig}. */
-    private int getSamplingIntervalFromConfig(@CallStats.CallType int statsType) {
+    private int getSamplingIntervalFromConfig(@BaseStats.CallType int statsType) {
         switch (statsType) {
-            case CallStats.CALL_TYPE_PUT_DOCUMENTS:
-            case CallStats.CALL_TYPE_GET_DOCUMENTS:
-            case CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID:
-            case CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH:
+            case BaseStats.CALL_TYPE_PUT_DOCUMENTS:
+            case BaseStats.CALL_TYPE_GET_DOCUMENTS:
+            case BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID:
+            case BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH:
                 return mConfig.getCachedSamplingIntervalForBatchCallStats();
-            case CallStats.CALL_TYPE_PUT_DOCUMENT:
+            case BaseStats.CALL_TYPE_PUT_DOCUMENT:
                 return mConfig.getCachedSamplingIntervalForPutDocumentStats();
-            case CallStats.CALL_TYPE_INITIALIZE:
+            case BaseStats.CALL_TYPE_INITIALIZE:
                 return mConfig.getCachedSamplingIntervalForInitializeStats();
-            case CallStats.CALL_TYPE_SEARCH:
+            case BaseStats.CALL_TYPE_SEARCH:
                 return mConfig.getCachedSamplingIntervalForSearchStats();
-            case CallStats.CALL_TYPE_GLOBAL_SEARCH:
+            case BaseStats.CALL_TYPE_GLOBAL_SEARCH:
                 return mConfig.getCachedSamplingIntervalForGlobalSearchStats();
-            case CallStats.CALL_TYPE_OPTIMIZE:
+            case BaseStats.CALL_TYPE_OPTIMIZE:
                 return mConfig.getCachedSamplingIntervalForOptimizeStats();
-            case CallStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER:
+            case BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER:
                 return mConfig.getAppOpenEventIndexerLoggingSamplingRate();
-            case CallStats.CALL_TYPE_UNKNOWN:
-            case CallStats.CALL_TYPE_SET_SCHEMA:
-            case CallStats.CALL_TYPE_GET_DOCUMENT:
-            case CallStats.CALL_TYPE_REMOVE_DOCUMENT_BY_ID:
-            case CallStats.CALL_TYPE_FLUSH:
-            case CallStats.CALL_TYPE_REMOVE_DOCUMENT_BY_SEARCH:
-            case CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID:
-            case CallStats.CALL_TYPE_GLOBAL_GET_SCHEMA:
-            case CallStats.CALL_TYPE_GET_SCHEMA:
-            case CallStats.CALL_TYPE_GET_NAMESPACES:
-            case CallStats.CALL_TYPE_GET_NEXT_PAGE:
-            case CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN:
-            case CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE:
-            case CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE:
-            case CallStats.CALL_TYPE_SEARCH_SUGGESTION:
-            case CallStats.CALL_TYPE_REPORT_SYSTEM_USAGE:
-            case CallStats.CALL_TYPE_REPORT_USAGE:
-            case CallStats.CALL_TYPE_GET_STORAGE_INFO:
-            case CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK:
-            case CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK:
-            case CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE:
-            case CallStats.CALL_TYPE_OPEN_WRITE_BLOB:
-            case CallStats.CALL_TYPE_COMMIT_BLOB:
-            case CallStats.CALL_TYPE_OPEN_READ_BLOB:
-            case CallStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION:
+            case BaseStats.CALL_TYPE_UNKNOWN:
+            case BaseStats.CALL_TYPE_SET_SCHEMA:
+            case BaseStats.CALL_TYPE_GET_DOCUMENT:
+            case BaseStats.CALL_TYPE_REMOVE_DOCUMENT_BY_ID:
+            case BaseStats.CALL_TYPE_FLUSH:
+            case BaseStats.CALL_TYPE_REMOVE_DOCUMENT_BY_SEARCH:
+            case BaseStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID:
+            case BaseStats.CALL_TYPE_GLOBAL_GET_SCHEMA:
+            case BaseStats.CALL_TYPE_GET_SCHEMA:
+            case BaseStats.CALL_TYPE_GET_NAMESPACES:
+            case BaseStats.CALL_TYPE_GET_NEXT_PAGE:
+            case BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN:
+            case BaseStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE:
+            case BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE:
+            case BaseStats.CALL_TYPE_SEARCH_SUGGESTION:
+            case BaseStats.CALL_TYPE_REPORT_SYSTEM_USAGE:
+            case BaseStats.CALL_TYPE_REPORT_USAGE:
+            case BaseStats.CALL_TYPE_GET_STORAGE_INFO:
+            case BaseStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK:
+            case BaseStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK:
+            case BaseStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE:
+            case BaseStats.CALL_TYPE_OPEN_WRITE_BLOB:
+            case BaseStats.CALL_TYPE_COMMIT_BLOB:
+            case BaseStats.CALL_TYPE_OPEN_READ_BLOB:
+            case BaseStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION:
             // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
             default:
                 return mConfig.getCachedSamplingIntervalDefault();

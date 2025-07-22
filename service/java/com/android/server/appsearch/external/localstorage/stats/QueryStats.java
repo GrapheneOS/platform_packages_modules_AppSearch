@@ -99,9 +99,6 @@ public final class QueryStats extends BaseStats {
     /** Time used to rewrite the search results. */
     private final int mRewriteSearchResultLatencyMillis;
 
-    /** Time passed while waiting to acquire the lock during Java function calls. */
-    private final int mJavaLockAcquisitionLatencyMillis;
-
     /**
      * Time spent on ACL checking. This is the time spent filtering namespaces based on package
      * permissions and Android permission access.
@@ -197,7 +194,6 @@ public final class QueryStats extends BaseStats {
         mTotalLatencyMillis = builder.mTotalLatencyMillis;
         mRewriteSearchSpecLatencyMillis = builder.mRewriteSearchSpecLatencyMillis;
         mRewriteSearchResultLatencyMillis = builder.mRewriteSearchResultLatencyMillis;
-        mJavaLockAcquisitionLatencyMillis = builder.mJavaLockAcquisitionLatencyMillis;
         mAclCheckLatencyMillis = builder.mAclCheckLatencyMillis;
         mVisibilityScope = builder.mVisibilityScope;
         mSearchSourceLogTag = builder.mSearchSourceLogTag;
@@ -260,11 +256,6 @@ public final class QueryStats extends BaseStats {
     /** Returns how much time spent on rewriting the {@link android.app.appsearch.SearchResult}. */
     public int getRewriteSearchResultLatencyMillis() {
         return mRewriteSearchResultLatencyMillis;
-    }
-
-    /** Returns time passed while waiting to acquire the lock during Java function calls */
-    public int getJavaLockAcquisitionLatencyMillis() {
-        return mJavaLockAcquisitionLatencyMillis;
     }
 
     /**
@@ -476,7 +467,6 @@ public final class QueryStats extends BaseStats {
         int mTotalLatencyMillis;
         int mRewriteSearchSpecLatencyMillis;
         int mRewriteSearchResultLatencyMillis;
-        int mJavaLockAcquisitionLatencyMillis;
         int mAclCheckLatencyMillis;
         int mVisibilityScope;
         @Nullable String mSearchSourceLogTag;
@@ -549,14 +539,6 @@ public final class QueryStats extends BaseStats {
         public @NonNull Builder setRewriteSearchResultLatencyMillis(
                 int rewriteSearchResultLatencyMillis) {
             mRewriteSearchResultLatencyMillis = rewriteSearchResultLatencyMillis;
-            return this;
-        }
-
-        /** Sets time passed while waiting to acquire the lock during Java function calls. */
-        @CanIgnoreReturnValue
-        public @NonNull Builder setJavaLockAcquisitionLatencyMillis(
-                int javaLockAcquisitionLatencyMillis) {
-            mJavaLockAcquisitionLatencyMillis = javaLockAcquisitionLatencyMillis;
             return this;
         }
 

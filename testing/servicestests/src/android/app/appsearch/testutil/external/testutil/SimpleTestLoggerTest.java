@@ -18,11 +18,13 @@ package android.app.appsearch.testutil;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.stats.SchemaMigrationStats;
 
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
+import com.android.server.appsearch.external.localstorage.stats.PersistToDiskStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
@@ -43,6 +45,7 @@ public class SimpleTestLoggerTest {
         assertThat(logger.mOptimizeStats).isNull();
         assertThat(logger.mSetSchemaStats).isEmpty();
         assertThat(logger.mSchemaMigrationStats).isNull();
+        assertThat(logger.mPersistToDiskStats).isNull();
     }
 
     @Test
@@ -58,6 +61,9 @@ public class SimpleTestLoggerTest {
         logger.logStats(new OptimizeStats.Builder().build());
         logger.logStats(new SetSchemaStats.Builder("package", "db").build());
         logger.logStats(new SchemaMigrationStats.Builder("package", "db").build());
+        logger.logStats(
+                new PersistToDiskStats.Builder("package", BaseStats.CALL_TYPE_PUT_DOCUMENTS)
+                        .build());
 
         assertThat(logger.mCallStats).isNotNull();
         assertThat(logger.mPutDocumentStats).isNotNull();
@@ -67,5 +73,6 @@ public class SimpleTestLoggerTest {
         assertThat(logger.mOptimizeStats).isNotNull();
         assertThat(logger.mSetSchemaStats).isNotNull();
         assertThat(logger.mSchemaMigrationStats).isNotNull();
+        assertThat(logger.mPersistToDiskStats).isNotNull();
     }
 }

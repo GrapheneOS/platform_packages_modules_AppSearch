@@ -51,7 +51,6 @@ public final class SetSchemaStats extends BaseStats {
     private final int mVerifyIncomingCallLatencyMillis;
     private final int mExecutorAcquisitionLatencyMillis;
     private final int mRebuildFromBundleLatencyMillis;
-    private final int mJavaLockAcquisitionLatencyMillis;
     private final int mRewriteSchemaLatencyMillis;
     private final int mTotalNativeLatencyMillis;
     private final int mVisibilitySettingLatencyMillis;
@@ -78,7 +77,6 @@ public final class SetSchemaStats extends BaseStats {
         mVerifyIncomingCallLatencyMillis = builder.mVerifyIncomingCallLatencyMillis;
         mExecutorAcquisitionLatencyMillis = builder.mExecutorAcquisitionLatencyMillis;
         mRebuildFromBundleLatencyMillis = builder.mRebuildFromBundleLatencyMillis;
-        mJavaLockAcquisitionLatencyMillis = builder.mJavaLockAcquisitionLatencyMillis;
         mRewriteSchemaLatencyMillis = builder.mRewriteSchemaLatencyMillis;
         mTotalNativeLatencyMillis = builder.mTotalNativeLatencyMillis;
         mVisibilitySettingLatencyMillis = builder.mVisibilitySettingLatencyMillis;
@@ -153,11 +151,6 @@ public final class SetSchemaStats extends BaseStats {
     /** Gets time used for verifying the incoming call. */
     public int getVerifyIncomingCallLatencyMillis() {
         return mVerifyIncomingCallLatencyMillis;
-    }
-
-    /** Gets time passed while waiting to acquire the lock during Java function calls. */
-    public int getJavaLockAcquisitionLatencyMillis() {
-        return mJavaLockAcquisitionLatencyMillis;
     }
 
     /** Gets latency for the rebuild schema object from bundle action in milliseconds. */
@@ -240,7 +233,6 @@ public final class SetSchemaStats extends BaseStats {
         int mVerifyIncomingCallLatencyMillis;
         int mExecutorAcquisitionLatencyMillis;
         int mRebuildFromBundleLatencyMillis;
-        int mJavaLockAcquisitionLatencyMillis;
         int mRewriteSchemaLatencyMillis;
         int mTotalNativeLatencyMillis;
         int mVisibilitySettingLatencyMillis;
@@ -331,16 +323,6 @@ public final class SetSchemaStats extends BaseStats {
         public @NonNull Builder setRebuildFromBundleLatencyMillis(
                 int rebuildFromBundleLatencyMillis) {
             mRebuildFromBundleLatencyMillis = rebuildFromBundleLatencyMillis;
-            return this;
-        }
-
-        /**
-         * Sets latency for waiting to acquire the lock during Java function calls in milliseconds.
-         */
-        @CanIgnoreReturnValue
-        public @NonNull Builder setJavaLockAcquisitionLatencyMillis(
-                int javaLockAcquisitionLatencyMillis) {
-            mJavaLockAcquisitionLatencyMillis = javaLockAcquisitionLatencyMillis;
             return this;
         }
 
