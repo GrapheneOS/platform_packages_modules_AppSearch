@@ -26,6 +26,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
@@ -71,6 +72,8 @@ public class IsolatedStorageService extends Service {
     private static final String PAYLOAD_BINARY_NAME = "libicing_anywhere.so";
 
     private static final String SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD = "ro.debuggable";
+    private static final String SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM =
+            "ro.enable.nonprotected_appsearch_vm";
     private static final boolean IS_DEBUG_BUILD =
             SystemProperties.getInt(SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD, /* def= */ 0) == 1;
 
@@ -247,9 +250,20 @@ public class IsolatedStorageService extends Service {
                 IS_DEBUG_BUILD
                         ? VirtualMachineConfig.DEBUG_LEVEL_FULL
                         : VirtualMachineConfig.DEBUG_LEVEL_NONE;
+        // Detect if cuttlefish. pKVM is not currently supported on CF, so launch in non-protected
+        // mode
+        final boolean protectedAppSearchVmEnabled =
+                !SystemProperties.getBoolean(
+                        SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
+        Log.i(
+                TAG,
+                "Creating VM config with: MODEL="
+                        + Build.MODEL
+                        + ", protected VM="
+                        + protectedAppSearchVmEnabled);
         return new VirtualMachineConfig.Builder(context)
                 .setPayloadBinaryName(PAYLOAD_BINARY_NAME)
-                .setProtectedVm(true)
+                .setProtectedVm(protectedAppSearchVmEnabled)
                 .setDebugLevel(vmDebugLevel)
                 // Set the maximum size of the VM encrypted storage. Storage is
                 // allocated on an as needed basis.
