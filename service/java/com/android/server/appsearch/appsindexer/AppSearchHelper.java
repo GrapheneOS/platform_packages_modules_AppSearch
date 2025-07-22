@@ -47,6 +47,11 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocume
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.sync.SyncAppSearchSession;
+import com.android.server.appsearch.sync.SyncAppSearchSessionImpl;
+import com.android.server.appsearch.sync.SyncGlobalSearchSession;
+import com.android.server.appsearch.sync.SyncGlobalSearchSessionImpl;
+import com.android.server.appsearch.sync.SyncSearchResults;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -74,7 +79,7 @@ import java.util.concurrent.ExecutorService;
  * @hide
  */
 public class AppSearchHelper implements Closeable {
-    private static final String TAG = "AppSearchAppsIndexerAppSearchHelper";
+    private static final String TAG = "AppSearchAppIndxrHlp";
 
     // The apps indexer uses one database, and in that database we have one schema for every app
     // that is indexed. The reason for this is that we keep the schema types the same for every app

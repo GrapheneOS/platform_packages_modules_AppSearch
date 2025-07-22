@@ -25,8 +25,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Set;
 
+/**
+ * A class for holding detailed stats about an AppsIndexer update.
+ *
+ * @hide
+ */
 public class AppsUpdateStats {
 
+    /** The type of update that was performed. */
     @IntDef(
             value = {
                 UNKNOWN_UPDATE_TYPE,

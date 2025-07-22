@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.server.appsearch.appsindexer;
+package com.android.server.appsearch.sync;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
