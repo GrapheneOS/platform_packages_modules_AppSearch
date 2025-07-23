@@ -17,8 +17,6 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.os.PersistableBundle;
-
 import org.junit.Test;
 
 public class DataMigrationStatsTest {
@@ -36,6 +34,7 @@ public class DataMigrationStatsTest {
         stats.setPutStatus(putStatus);
         stats.setNumberOfDocsSucceeded(6);
         stats.setNumberOfDocsFailed(7);
+        stats.setDataMigrationRunCounter(8);
 
         assertThat(stats.getDataMigrationStatus()).isEqualTo(0);
         assertThat(stats.getVMInitStatus()).isEqualTo(1);
@@ -46,6 +45,7 @@ public class DataMigrationStatsTest {
         assertThat(stats.getPutStatus()).asList().containsExactly(1, 2, 3);
         assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(6);
         assertThat(stats.getNumberOfDocsFailed()).isEqualTo(7);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(8);
     }
 
     @Test
@@ -61,6 +61,7 @@ public class DataMigrationStatsTest {
         stats.setPutStatus(putStatus);
         stats.setNumberOfDocsSucceeded(6);
         stats.setNumberOfDocsFailed(7);
+        stats.setDataMigrationRunCounter(8);
 
         DataMigrationStats statsCopy = new DataMigrationStats();
         statsCopy.setBundle(stats.getBundle());
@@ -74,20 +75,22 @@ public class DataMigrationStatsTest {
         assertThat(statsCopy.getPutStatus()).asList().containsExactly(1, 2, 3);
         assertThat(statsCopy.getNumberOfDocsSucceeded()).isEqualTo(6);
         assertThat(statsCopy.getNumberOfDocsFailed()).isEqualTo(7);
+        assertThat(statsCopy.getDataMigrationRunCounter()).isEqualTo(8);
     }
 
     @Test
     public void TestDefaultValues() {
         DataMigrationStats stats = new DataMigrationStats();
 
-        assertThat(stats.getDataMigrationStatus()).isEqualTo(DataMigrationStats.STATUS_NOT_SET);
-        assertThat(stats.getVMInitStatus()).isEqualTo(DataMigrationStats.STATUS_NOT_SET);
-        assertThat(stats.getResetStatus()).isEqualTo(DataMigrationStats.STATUS_NOT_SET);
-        assertThat(stats.getSetSchemaStatus()).isEqualTo(DataMigrationStats.STATUS_NOT_SET);
-        assertThat(stats.getFlushStatus()).isEqualTo(DataMigrationStats.STATUS_NOT_SET);
-        assertThat(stats.getQueryStatus()).isEqualTo(DataMigrationStats.STATUS_NOT_SET);
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
+        assertThat(stats.getVMInitStatus()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
+        assertThat(stats.getResetStatus()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
+        assertThat(stats.getFlushStatus()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
+        assertThat(stats.getQueryStatus()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
         assertThat(stats.getPutStatus()).isEqualTo(null);
         assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(0);
         assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(DataMigrationStats.VALUE_NOT_SET);
     }
 }
