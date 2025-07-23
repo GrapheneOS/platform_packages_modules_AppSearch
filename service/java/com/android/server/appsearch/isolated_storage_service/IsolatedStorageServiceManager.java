@@ -607,29 +607,103 @@ public final class IsolatedStorageServiceManager {
                     mVmIsolatedStorageServiceLocked.getOrCreateIcingConnection(
                             userHandle.getIdentifier()));
         }
+        instance.reinitializeIfNeeded();
         return instance.getEngine();
     }
 
-    private static final class UserInstance {
+    private final class UserInstance {
+        private final Object mLock = new Object();
         private final IcingSearchEngineOptions mOptions;
-        private IIcingSearchEngine mEngine;
+
+        @GuardedBy("mLock")
+        private IIcingSearchEngine mEngineLocked;
+
+        @GuardedBy("mLock")
+        private boolean mRequiresReInitializationLocked = false;
 
         UserInstance(IcingSearchEngineOptions options) {
             mOptions = options;
         }
 
-        @NonNull
-        IcingSearchEngineOptions getOptions() {
-            return mOptions;
-        }
-
         @Nullable
         IIcingSearchEngine getEngine() {
-            return mEngine;
+            synchronized (mLock) {
+                return mEngineLocked;
+            }
         }
 
         void setEngine(@NonNull IIcingSearchEngine engine) {
-            mEngine = Objects.requireNonNull(engine);
+            synchronized (mLock) {
+                mEngineLocked = Objects.requireNonNull(engine);
+            }
+        }
+
+        void reset() {
+            synchronized (mLock) {
+                mEngineLocked = null;
+                mRequiresReInitializationLocked = true;
+            }
+        }
+
+        void reinitializeIfNeeded() {
+            synchronized (mLock) {
+                if (!mRequiresReInitializationLocked) {
+                    return;
+                }
+                if (mEngineLocked == null) {
+                    Log.e(TAG, "reinitializeIfNeeded: engine is null");
+                    return;
+                }
+                Log.i(TAG, "reinitializing icing instance...");
+                mRequiresReInitializationLocked = !initializeIcingWithRetryLocked();
+            }
+        }
+
+        @GuardedBy("mLock")
+        private boolean initializeIcingWithRetryLocked() {
+            boolean succeeded = false;
+            for (int i = 0; i < MAX_ICING_INITIALIZATION_RETRIES; i++) {
+                if (initializeIcingLocked()) {
+                    succeeded = true;
+                    break;
+                }
+            }
+            if (succeeded) {
+                Log.i(TAG, "successfully initialized icing instance");
+            } else {
+                Log.e(
+                        TAG,
+                        "failed to initialize icing after "
+                                + MAX_ICING_INITIALIZATION_RETRIES
+                                + " retries");
+                // TODO(b/416509382): consider resetting the icing instance
+            }
+            return succeeded;
+        }
+
+        @GuardedBy("mLock")
+        private boolean initializeIcingLocked() {
+            boolean succeeded = false;
+            try {
+                signalActivityStarts();
+                byte[] resultBytes = mEngineLocked.initialize(mOptions.toByteArray());
+                InitializeResultProto result = InitializeResultProto.parseFrom(resultBytes);
+                if (result.getStatus().getCode() == StatusProto.Code.OK) {
+                    succeeded = true;
+                } else {
+                    Log.e(
+                            TAG,
+                            "failed to initialize icing: "
+                                    + result.getStatus().getCode().getNumber()
+                                    + " "
+                                    + result.getStatus().getMessage());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "failed to initialize icing", e);
+            } finally {
+                signalActivityEnds();
+            }
+            return succeeded;
         }
     }
 
@@ -701,6 +775,9 @@ public final class IsolatedStorageServiceManager {
             synchronized (mLock) {
                 mVmIsolatedStorageServiceLocked = null;
                 mVmUnlocker.onVmUnavailable();
+                for (UserInstance userInstance : mUserInstancesLocked.values()) {
+                    userInstance.reset();
+                }
             }
             mScheduledExecutorService.execute(() -> replaceVmIcingInstances());
         }
@@ -738,7 +815,7 @@ public final class IsolatedStorageServiceManager {
                                 mVmIsolatedStorageServiceLocked.getOrCreateIcingConnection(
                                         userHandle.getIdentifier());
                         userInstance.setEngine(newEngine);
-                        initializeIcingWithRetryLocked(newEngine, userInstance.getOptions());
+                        userInstance.reinitializeIfNeeded();
                     } catch (RemoteException e) {
                         Log.e(TAG, "failed to get vm icing instance for user " + userHandle, e);
                     }
@@ -747,54 +824,6 @@ public final class IsolatedStorageServiceManager {
                 mIsReconnecting = false;
             }
         }
-    }
-
-    @GuardedBy("mLock")
-    private void initializeIcingWithRetryLocked(
-            IIcingSearchEngine instance, IcingSearchEngineOptions options) {
-        boolean succeeded = false;
-        for (int i = 0; i < MAX_ICING_INITIALIZATION_RETRIES; i++) {
-            if (initializeIcingLocked(instance, options)) {
-                succeeded = true;
-                break;
-            }
-        }
-        if (succeeded) {
-            Log.i(TAG, "successfully initialized icing instance");
-        } else {
-            Log.e(
-                    TAG,
-                    "failed to initialize icing after "
-                            + MAX_ICING_INITIALIZATION_RETRIES
-                            + " retries");
-            // TODO(b/416509382): consider resetting the icing instance
-        }
-    }
-
-    @GuardedBy("mLock")
-    private boolean initializeIcingLocked(
-            IIcingSearchEngine instance, IcingSearchEngineOptions options) {
-        boolean succeeded = false;
-        try {
-            mVmStateSignaler.signalActivityStarts();
-            byte[] resultBytes = instance.initialize(options.toByteArray());
-            InitializeResultProto result = InitializeResultProto.parseFrom(resultBytes);
-            if (result.getStatus().getCode() == StatusProto.Code.OK) {
-                succeeded = true;
-            } else {
-                Log.e(
-                        TAG,
-                        "failed to initialize icing: "
-                                + result.getStatus().getCode().getNumber()
-                                + " "
-                                + result.getStatus().getMessage());
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "failed to initialize icing", e);
-        } finally {
-            mVmStateSignaler.signalActivityEnds();
-        }
-        return succeeded;
     }
 
     private final class VmDataUnlocker {
