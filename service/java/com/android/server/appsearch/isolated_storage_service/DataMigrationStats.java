@@ -29,6 +29,8 @@ import java.util.Arrays;
  * @hide
  */
 public class DataMigrationStats {
+    private static final String DATA_MIGRATION_RUN_COUNTER = "data_migration_run_counter";
+
     private static final String DATA_MIGRATION_STATUS = "data_migration_status";
     private static final String DATA_MIGRATION_VM_INIT_STATUS = "data_migration_vm_init_status";
     private static final String DATA_MIGRATION_RESET_STATUS = "data_migration_reset_status";
@@ -38,20 +40,22 @@ public class DataMigrationStats {
     private static final String DATA_MIGRATION_QUERY_STATUS = "data_migration_query_status";
 
     private static final String DATA_MIGRATION_PUT_STATUS = "data_migration_put_status";
+
     private static final String DATA_MIGRATION_NUMBER_OF_DOCS_SUCCEEDED =
             "data_migration_number_of_docs_succeeded";
     private static final String DATA_MIGRATION_NUMBER_OF_DOCS_FAILED =
             "data_migration_number_of_docs_failed";
 
     @VisibleForTesting
-    static final int STATUS_NOT_SET = -1;
+    static final int VALUE_NOT_SET = -1;
 
     private PersistableBundle mBundle = new PersistableBundle();
 
     @Override
     public String toString() {
         // TODO(b/430610163) Switch to StringBuilder.
-        String str = "Data Migration status: " + getDataMigrationStatus() + ".\n"
+        String str = "Number of Data Migration runs: " + getDataMigrationRunCounter() + ".\n"
+                + "Data Migration status: " + getDataMigrationStatus() + ".\n"
                 + "VM initialization Status: " + getVMInitStatus() + ".\n"
                 + "Reset Status: " + getResetStatus() + ".\n"
                 + "SetSchema status: " + getSetSchemaStatus() + ".\n"
@@ -64,14 +68,23 @@ public class DataMigrationStats {
         return str;
     }
 
+    /** Gets the number of times data migration has been run.
+     *
+     * <p>Normally it should be either 0(data migration not needed) or 1(success). If it is more
+     * than 1, it means previous migration has failed.
+     */
+    public int getDataMigrationRunCounter() {
+        return mBundle.getInt(DATA_MIGRATION_RUN_COUNTER, VALUE_NOT_SET);
+    }
+
     /** Gets the overall data migration status. */
     public int getDataMigrationStatus() {
-        return mBundle.getInt(DATA_MIGRATION_STATUS, STATUS_NOT_SET);
+        return mBundle.getInt(DATA_MIGRATION_STATUS, VALUE_NOT_SET);
     }
 
     /** Gets the VM initialization status. */
     public int getVMInitStatus() {
-        return mBundle.getInt(DATA_MIGRATION_VM_INIT_STATUS, STATUS_NOT_SET);
+        return mBundle.getInt(DATA_MIGRATION_VM_INIT_STATUS, VALUE_NOT_SET);
     }
 
     /**
@@ -80,22 +93,22 @@ public class DataMigrationStats {
      * <p>Reset is not always called so this could be {@code STATUS_NOT_SET}.
      */
     public int getResetStatus() {
-        return mBundle.getInt(DATA_MIGRATION_RESET_STATUS, STATUS_NOT_SET);
+        return mBundle.getInt(DATA_MIGRATION_RESET_STATUS, VALUE_NOT_SET);
     }
 
     /** Gets setSchema status. */
     public int getSetSchemaStatus() {
-        return mBundle.getInt(DATA_MIGRATION_SET_SCHEMA_STATUS, STATUS_NOT_SET);
+        return mBundle.getInt(DATA_MIGRATION_SET_SCHEMA_STATUS, VALUE_NOT_SET);
     }
 
     /** Gets Flush(PersistToDisk) status. */
     public int getFlushStatus() {
-        return mBundle.getInt(DATA_MIGRATION_FLUSH_STATUS, STATUS_NOT_SET);
+        return mBundle.getInt(DATA_MIGRATION_FLUSH_STATUS, VALUE_NOT_SET);
     }
 
     /** Gets Query status. */
     public int getQueryStatus() {
-        return mBundle.getInt(DATA_MIGRATION_QUERY_STATUS, STATUS_NOT_SET);
+        return mBundle.getInt(DATA_MIGRATION_QUERY_STATUS, VALUE_NOT_SET);
     }
 
     /**
@@ -131,6 +144,11 @@ public class DataMigrationStats {
     // class to print.
     public void setBundle(@NonNull PersistableBundle bundle) {
         mBundle = bundle;
+    }
+
+    /** Sets the number of times data migration has been run. */
+    public void setDataMigrationRunCounter(int counter) {
+        mBundle.putInt(DATA_MIGRATION_RUN_COUNTER, counter);
     }
 
     /** Sets the overall data migration status. */

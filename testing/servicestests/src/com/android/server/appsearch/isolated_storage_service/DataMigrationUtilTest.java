@@ -18,12 +18,16 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.testutil.AppSearchEmail;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.content.Context;
+import android.os.PersistableBundle;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 
@@ -47,6 +51,7 @@ import com.android.server.appsearch.icing.proto.SearchResultProto;
 import com.android.server.appsearch.icing.proto.SearchSpecProto;
 import com.android.server.appsearch.icing.proto.StatusProto;
 import com.android.server.appsearch.icing.proto.TermMatchType;
+import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.android.icing.IcingSearchEngine;
 import com.google.android.icing.IcingSearchEngineInterface;
@@ -108,6 +113,43 @@ public class DataMigrationUtilTest {
         }
     };
 
+    private static void populateEmailsInAppSearchImpl(@NonNull AppSearchImpl appSearchImpl,
+            @NonNull String packageName, @NonNull String databaseName,
+            @NonNull String startId, int docCount) throws Exception {
+        // Insert schema
+        List<AppSearchSchema> schema = ImmutableList.of(AppSearchEmail.SCHEMA);
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                appSearchImpl.setSchema(
+                        packageName,
+                        databaseName,
+                        schema,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        // Insert 10 documents
+        List<GenericDocument> docs = new ArrayList<>();
+        for (int i = 0; i < docCount; i++) {
+            AppSearchEmail email =
+                    new AppSearchEmail.Builder("namespace", startId + i)
+                            .setFrom("from@example.com")
+                            .setTo("to1@example.com", "to2@example.com")
+                            .setSubject("testPut example")
+                            .setBody("This is the body of the testPut email")
+                            .build();
+            docs.add(email);
+        }
+        appSearchImpl.batchPutDocuments(
+                packageName,
+                databaseName,
+                docs,
+                /*batchResultBuilder=*/ null,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                PersistType.Code.LITE);
+    }
+
 
     @Before
     public void setUp() throws Exception {
@@ -138,6 +180,400 @@ public class DataMigrationUtilTest {
     public void tearDown() {
         mAppSearchImpl.close();
         mVmIcingSearchEngine.close();
+    }
+
+
+    @Test
+    public void testNeedDataMigration() throws Exception {
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = new File(appSearchDir, "icing");
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return appSearchDir;
+                    }
+                });
+        // This should create appsearchDir/icing/version file
+        AppSearchImpl.create(
+                icingDir,
+                mUnlimitedConfig,
+                /* initStatsBuilder= */ null,
+                /* visibilityChecker= */ null,
+                /* revocableFileDescriptorStore= */ null,
+                /* icingSearchEngine= */ null,
+                ALWAYS_OPTIMIZE);
+        File icingVersion = new File(appSearchDir, "icing/version");
+
+        assertThat(icingVersion.exists()).isTrue();
+        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle)).isTrue();
+    }
+
+    @Test
+    public void testNeedDataMigrationEvenIfStatusFileExist() throws Exception {
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = new File(appSearchDir, "icing");
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return appSearchDir;
+                    }
+                });
+        // This should create appsearchDir/icing/version file
+        AppSearchImpl.create(
+                icingDir,
+                mUnlimitedConfig,
+                /* initStatsBuilder= */ null,
+                /* visibilityChecker= */ null,
+                /* revocableFileDescriptorStore= */ null,
+                /* icingSearchEngine= */ null,
+                ALWAYS_OPTIMIZE);
+        File icingVersion = new File(appSearchDir, "icing/version");
+        File dataMigrationStatusFile = new File(appSearchDir,
+                DataMigrationUtil.DATA_MIGRATION_STATUS_FILE);
+        dataMigrationStatusFile.createNewFile();
+
+        assertThat(dataMigrationStatusFile.exists()).isTrue();
+        assertThat(icingVersion.exists()).isTrue();
+        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle)).isTrue();
+    }
+
+    @Test
+    public void testNeedDataMigrationNotNeeded() throws Exception {
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = mTemporaryFolder.newFolder("appsearch/icing");
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return appSearchDir;
+                    }
+                });
+
+
+        File icingVersion = new File(appSearchDir, "icing/version");
+
+        assertThat(icingDir.exists()).isTrue();
+        assertThat(icingVersion.exists()).isFalse();
+        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle)).isFalse();
+    }
+
+    @Test
+    public void testDataMigrationSucceed() throws Exception {
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = new File(appSearchDir, "icing");
+        File dataMigrationStatusFile = new File(appSearchDir,
+                DataMigrationUtil.DATA_MIGRATION_STATUS_FILE);
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return appSearchDir;
+                    }
+                });
+        // This should create appsearchDir/icing/version file
+        AppSearchImpl appSearchImpl = AppSearchImpl.create(
+                icingDir,
+                mUnlimitedConfig,
+                /* initStatsBuilder= */ null,
+                /* visibilityChecker= */ null,
+                /* revocableFileDescriptorStore= */ null,
+                /* icingSearchEngine= */ null,
+                ALWAYS_OPTIMIZE);
+        int docCount = 100;
+        populateEmailsInAppSearchImpl(appSearchImpl, "package1",
+                "database1", "id", docCount);
+
+        // migration status file doesn't exist before migration.
+        assertThat(dataMigrationStatusFile.exists()).isFalse();
+        assertThat(appSearchImpl.isVMEnabled()).isFalse();
+
+        // Do data migration.
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, appSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(appSearchImpl.isVMEnabled()).isTrue();
+
+        // check stats
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docCount);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
+
+        // check dumpsys file
+        assertThat(dataMigrationStatusFile.exists()).isTrue();
+        PersistableBundle bundle = IndexerSettings.readBundle(dataMigrationStatusFile);
+        stats.setBundle(bundle);
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docCount);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
+
+        // Check AppSearchImpl after migration
+        SearchSpecProto searchSpec = SearchSpecProto.newBuilder()
+                        .setQuery("") // an empty query will return all docs.
+                        .setTermMatchType(TermMatchType.Code.PREFIX)
+                        .build();
+        SearchResultProto searchResult =
+                appSearchImpl.rawSearch(
+                        searchSpec,
+                        ScoringSpecProto.newBuilder().build(),
+                        ResultSpecProto.newBuilder()
+                                .setNumToScore(Integer.MAX_VALUE)
+                                .setNumPerPage(Integer.MAX_VALUE)
+                                .build());
+        assertThat(searchResult.getResultsCount()).isEqualTo(docCount);
+
+        // check the vm instance
+        searchResult =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.newBuilder().build(),
+                        ResultSpecProto.newBuilder()
+                                .setNumToScore(Integer.MAX_VALUE)
+                                .setNumPerPage(Integer.MAX_VALUE)
+                                .build());
+        assertThat(searchResult.getResultsCount()).isEqualTo(docCount);
+    }
+
+    @Test
+    public void testDataMigrationOnPrevFailures() throws Exception {
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = new File(appSearchDir, "icing");
+        File dataMigrationStatusFile = new File(appSearchDir,
+                DataMigrationUtil.DATA_MIGRATION_STATUS_FILE);
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return appSearchDir;
+                    }
+                });
+        // This should create appsearchDir/icing/version file
+        AppSearchImpl appSearchImpl = AppSearchImpl.create(
+                icingDir,
+                mUnlimitedConfig,
+                /* initStatsBuilder= */ null,
+                /* visibilityChecker= */ null,
+                /* revocableFileDescriptorStore= */ null,
+                /* icingSearchEngine= */ null,
+                ALWAYS_OPTIMIZE);
+
+        int docCount = 100;
+        populateEmailsInAppSearchImpl(appSearchImpl, "package1",
+                "database1", "id", docCount);
+
+        // Create status file to indicate previous failures:
+        assertThat(dataMigrationStatusFile.exists()).isFalse();
+        int prevRunTimes = 2;
+        DataMigrationStats prevStats = new DataMigrationStats();
+        prevStats.setDataMigrationRunCounter(prevRunTimes); // failed twice
+        prevStats.setDataMigrationStatus(StatusProto.Code.ABORTED.getNumber());
+        IndexerSettings.writeBundle(dataMigrationStatusFile, prevStats.getBundle());
+        assertThat(dataMigrationStatusFile.exists()).isTrue();
+
+        // Do data migration.
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, appSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(appSearchImpl.isVMEnabled()).isTrue();
+
+        // check stats
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docCount);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(prevRunTimes + 1);
+
+        // check dumpsys file
+        assertThat(dataMigrationStatusFile.exists()).isTrue();
+        PersistableBundle bundle = IndexerSettings.readBundle(dataMigrationStatusFile);
+        stats.setBundle(bundle);
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docCount);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(prevRunTimes + 1);
+
+        // Check AppSearchImpl after migration
+        SearchSpecProto searchSpec = SearchSpecProto.newBuilder()
+                .setQuery("") // an empty query will return all docs.
+                .setTermMatchType(TermMatchType.Code.PREFIX)
+                .build();
+        SearchResultProto searchResult =
+                appSearchImpl.rawSearch(
+                        searchSpec,
+                        ScoringSpecProto.newBuilder().build(),
+                        ResultSpecProto.newBuilder()
+                                .setNumToScore(Integer.MAX_VALUE)
+                                .setNumPerPage(Integer.MAX_VALUE)
+                                .build());
+        assertThat(searchResult.getResultsCount()).isEqualTo(docCount);
+
+        // check the vm instance
+        searchResult =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.newBuilder().build(),
+                        ResultSpecProto.newBuilder()
+                                .setNumToScore(Integer.MAX_VALUE)
+                                .setNumPerPage(Integer.MAX_VALUE)
+                                .build());
+        assertThat(searchResult.getResultsCount()).isEqualTo(docCount);
+    }
+
+    @Test
+    public void testDataMigrationVMReset() throws Exception {
+        int docCount = 100;
+        populateEmailsInAppSearchImpl(mAppSearchImpl, "package1",
+                "database1", "id", docCount);
+
+        // Do data migration.
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
+
+        // check stats
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docCount);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
+
+        // Check AppSearchImpl after migration
+        SearchSpecProto searchSpec = SearchSpecProto.newBuilder()
+                .setQuery("") // an empty query will return all docs.
+                .setTermMatchType(TermMatchType.Code.PREFIX)
+                .build();
+
+        // check the vm instance
+        SearchResultProto searchResult =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.newBuilder().build(),
+                        ResultSpecProto.newBuilder()
+                                .setNumToScore(Integer.MAX_VALUE)
+                                .setNumPerPage(Integer.MAX_VALUE)
+                                .build());
+        assertThat(searchResult.getResultsCount()).isEqualTo(docCount);
+
+        // Create a new AppSearchInstance
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = new File(appSearchDir, "icing");
+        // This should create appsearchDir/icing/version file
+        AppSearchImpl appSearchImpl = AppSearchImpl.create(
+                icingDir,
+                mUnlimitedConfig,
+                /* initStatsBuilder= */ null,
+                /* visibilityChecker= */ null,
+                /* revocableFileDescriptorStore= */ null,
+                /* icingSearchEngine= */ null,
+                ALWAYS_OPTIMIZE);
+        int newDocCount = docCount / 2;
+        populateEmailsInAppSearchImpl(appSearchImpl, "package1",
+                "database1", "id", newDocCount);
+
+        stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, appSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(appSearchImpl.isVMEnabled()).isTrue();
+
+        // Check AppSearchImpl after migration
+        searchSpec = SearchSpecProto.newBuilder()
+                .setQuery("") // an empty query will return all docs.
+                .setTermMatchType(TermMatchType.Code.PREFIX)
+                .build();
+
+        // check the vm instance
+        searchResult =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.newBuilder().build(),
+                        ResultSpecProto.newBuilder()
+                                .setNumToScore(Integer.MAX_VALUE)
+                                .setNumPerPage(Integer.MAX_VALUE)
+                                .build());
+        assertThat(searchResult.getResultsCount()).isEqualTo(newDocCount);
+    }
+
+    @Test
+    public void testDataMigrationSucceedOnEmptySource() throws Exception {
+        File appSearchDir = mTemporaryFolder.newFolder("appsearch");
+        File icingDir = new File(appSearchDir, "icing");
+        File dataMigrationStatusFile = new File(appSearchDir,
+                DataMigrationUtil.DATA_MIGRATION_STATUS_FILE);
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment() {
+                    @Override
+                    public File getAppSearchDir(
+                            @NonNull Context unused, @NonNull UserHandle userHandle) {
+                        return appSearchDir;
+                    }
+                });
+        // This should create appsearchDir/icing/version file
+        AppSearchImpl appSearchImpl = AppSearchImpl.create(
+                icingDir,
+                mUnlimitedConfig,
+                /* initStatsBuilder= */ null,
+                /* visibilityChecker= */ null,
+                /* revocableFileDescriptorStore= */ null,
+                /* icingSearchEngine= */ null,
+                ALWAYS_OPTIMIZE);
+
+        // migration status file doesn't exist before migration.
+        assertThat(dataMigrationStatusFile.exists()).isFalse();
+        assertThat(appSearchImpl.isVMEnabled()).isFalse();
+
+        // Do data migration.
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, appSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(appSearchImpl.isVMEnabled()).isTrue();
+        assertThat(dataMigrationStatusFile.exists()).isTrue();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).isNull();
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(0);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
     }
 
     @Test
@@ -179,8 +615,8 @@ public class DataMigrationUtilTest {
         assertThat(schemaTypesBeforeMigration.get("Email").getDatabase()).isEqualTo("");
 
         // Migrate the schema.
-        DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine);
+        DataMigrationStats migrationStats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isTrue();
 
         Map<String, SchemaTypeConfigProto> schemaTypesAfterMigration =
@@ -229,8 +665,8 @@ public class DataMigrationUtilTest {
         assertThat(schemaTypesBeforeMigration.get("Email").getDatabase()).isEqualTo("");
 
         // Migrate the schema.
-        DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine);
+        DataMigrationStats migrationStats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isTrue();
 
         // Set another new schema after migration.
@@ -297,8 +733,8 @@ public class DataMigrationUtilTest {
         assertThat(schemaTypesBeforeMigration.get("Email").getDatabase()).isEqualTo("");
 
         // Migrate the schema.
-        DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine);
+        DataMigrationStats migrationStats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isTrue();
 
         // Set the same schema after migration.
@@ -329,7 +765,8 @@ public class DataMigrationUtilTest {
         DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(mContext,
                 mUserHandle,
                 mAppSearchImpl,
-                mVmIcingSearchEngine);
+                mVmIcingSearchEngine,
+                /*logger=*/ null);
 
         assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
         assertThat(stats.getVMInitStatus()).isEqualTo(okStatus);
@@ -370,7 +807,8 @@ public class DataMigrationUtilTest {
         DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(mContext,
                 mUserHandle,
                 mAppSearchImpl,
-                mVmIcingSearchEngine);
+                mVmIcingSearchEngine,
+                /*logger=*/ null);
 
         assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
         assertThat(stats.getVMInitStatus()).isEqualTo(okStatus);
