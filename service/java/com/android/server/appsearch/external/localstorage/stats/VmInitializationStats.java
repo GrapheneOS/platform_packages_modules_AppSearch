@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.server.appsearch.external.localstorage.stats;
 
 import android.annotation.IntDef;
@@ -115,7 +116,7 @@ public class VmInitializationStats {
         }
 
         /** Builds a new {@link VmInitializationStats} object. */
-        public VmInitializationStats build() {
+        public @NonNull VmInitializationStats build() {
             mBuilt = true;
             return new VmInitializationStats(/* builder= */ this);
         }

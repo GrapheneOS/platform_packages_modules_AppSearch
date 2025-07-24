@@ -21,6 +21,7 @@ import android.app.appsearch.stats.SchemaMigrationStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
+import com.android.server.appsearch.external.localstorage.stats.PersistToDiskStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
@@ -103,6 +104,11 @@ public interface AppSearchLogger {
      * respectively.
      */
     default void logStats(@NonNull List<SearchSessionStats> searchSessionsStats) {
+        // no-op
+    }
+
+    /** Logs {@link PersistToDiskStats} */
+    default void logStats(@NonNull PersistToDiskStats stats) {
         // no-op
     }
 

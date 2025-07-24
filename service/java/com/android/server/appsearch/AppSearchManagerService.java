@@ -553,7 +553,12 @@ public class AppSearchManagerService extends SystemService {
             UserHandle targetUser = UserHandle.getUserHandleForUid(userId);
             AppSearchUserInstance instance =
                     mAppSearchUserInstanceManager.getUserInstance(targetUser);
-            instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
+            instance.getAppSearchImpl().persistToDisk(
+                    /*callingPackageName=*/ null,
+                    BaseStats.INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
+                    PersistType.Code.FULL,
+                    instance.getLogger()
+            );
         }
     }
 
@@ -577,7 +582,7 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_SET_SCHEMA, callback, targetUser,
+                    BaseStats.CALL_TYPE_SET_SCHEMA, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
@@ -586,7 +591,7 @@ public class AppSearchManagerService extends SystemService {
 
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(
-                    targetUser, callback, callingPackageName, CallStats.CALL_TYPE_SET_SCHEMA,
+                    targetUser, callback, callingPackageName, BaseStats.CALL_TYPE_SET_SCHEMA,
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
 
@@ -662,7 +667,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
+                                .setCallType(BaseStats.CALL_TYPE_SET_SCHEMA)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -698,9 +706,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_SET_SCHEMA, targetUser,
+                        BaseStats.CALL_TYPE_SET_SCHEMA, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /*numOperations=*/ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -735,15 +746,17 @@ public class AppSearchManagerService extends SystemService {
             // package does not match the target package, then the call is global and the target
             // database is not a calling database.
             String callingDatabaseName = global ? null : request.getDatabaseName();
-            int callType = global ? CallStats.CALL_TYPE_GLOBAL_GET_SCHEMA
-                    : CallStats.CALL_TYPE_GET_SCHEMA;
+            int callType = global ? BaseStats.CALL_TYPE_GLOBAL_GET_SCHEMA
+                    : BaseStats.CALL_TYPE_GET_SCHEMA;
             if (checkCallDenied(callingPackageName, callingDatabaseName, callType, callback,
                     targetUser, request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, callType, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -786,6 +799,9 @@ public class AppSearchManagerService extends SystemService {
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -798,9 +814,13 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, callingDatabaseName,
                         callType, targetUser, request.getBinderCallStartTimeMillis(),
-                        totalLatencyStartTimeMillis, /*numOperations=*/ 1, RESULT_RATE_LIMITED);
+                        totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
+                        /*numOperations=*/ 1, RESULT_RATE_LIMITED);
             }
         }
 
@@ -820,13 +840,15 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_GET_NAMESPACES, callback, targetUser,
+                    BaseStats.CALL_TYPE_GET_NAMESPACES, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_GET_NAMESPACES, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_GET_NAMESPACES, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -862,7 +884,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_GET_NAMESPACES)
+                                .setCallType(BaseStats.CALL_TYPE_GET_NAMESPACES)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -875,9 +900,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_GET_NAMESPACES, targetUser,
+                        BaseStats.CALL_TYPE_GET_NAMESPACES, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /*numOperations=*/ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -898,13 +926,15 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_PUT_DOCUMENTS, callback, targetUser,
+                    BaseStats.CALL_TYPE_PUT_DOCUMENTS, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ request.getDocumentsParcel().getTotalDocumentCount())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_PUT_DOCUMENTS, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_PUT_DOCUMENTS, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -979,12 +1009,18 @@ public class AppSearchManagerService extends SystemService {
 
                         // Now that the batch has been written, persist the newly written data.
                         if (Flags.enableDelayedPersistToDisk()) {
-                            schedulePersistToDisk(targetUser,
+                            schedulePersistToDisk(
+                                    callingPackageName,
+                                    BaseStats.CALL_TYPE_PUT_DOCUMENTS,
+                                    targetUser,
                                     mAppSearchConfig.getLightweightPersistType(),
                                     mAppSearchConfig.getCachedPersistDelayMillis());
                         } else {
                             instance.getAppSearchImpl().persistToDisk(
-                                    mAppSearchConfig.getLightweightPersistType());
+                                    callingPackageName,
+                                    BaseStats.CALL_TYPE_PUT_DOCUMENTS,
+                                    mAppSearchConfig.getLightweightPersistType(),
+                                    instance.getLogger());
                         }
                     } else {
                         if (!documentParcels.isEmpty() || !takenActionDocumentParcels.isEmpty()) {
@@ -1037,7 +1073,10 @@ public class AppSearchManagerService extends SystemService {
                                     /* sendChangeNotifications=*/ true,
                                     instance.getLogger(),
                                     PersistType.Code.UNKNOWN);
-                            schedulePersistToDisk(targetUser,
+                            schedulePersistToDisk(
+                                    callingPackageName,
+                                    BaseStats.CALL_TYPE_PUT_DOCUMENTS,
+                                    targetUser,
                                     mAppSearchConfig.getLightweightPersistType(),
                                     mAppSearchConfig.getCachedPersistDelayMillis());
                         }
@@ -1099,7 +1138,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_PUT_DOCUMENTS)
+                                .setCallType(BaseStats.CALL_TYPE_PUT_DOCUMENTS)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1123,12 +1165,15 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_PUT_DOCUMENTS, targetUser,
+                        BaseStats.CALL_TYPE_PUT_DOCUMENTS, targetUser,
                         request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
-                        /* numOperations= */
-                        request.getDocumentsParcel().getTotalDocumentCount(), RESULT_RATE_LIMITED);
+                        executorAcquisitionLatencyMillis,
+                        /* numOperations= */request.getDocumentsParcel().getTotalDocumentCount(),
+                        RESULT_RATE_LIMITED);
             }
         }
 
@@ -1181,15 +1226,17 @@ public class AppSearchManagerService extends SystemService {
             // package does not match the target package, then the call is global and the target
             // database is not a calling database.
             String callingDatabaseName = global ? null : request.getDatabaseName();
-            int callType = global ? CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID
-                    : CallStats.CALL_TYPE_GET_DOCUMENTS;
+            int callType = global ? BaseStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID
+                    : BaseStats.CALL_TYPE_GET_DOCUMENTS;
             if (checkCallDenied(callingPackageName, callingDatabaseName, callType, callback,
                     targetUser, request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ request.getGetByDocumentIdRequest().getIds().size())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, callType, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1345,6 +1392,9 @@ public class AppSearchManagerService extends SystemService {
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1357,9 +1407,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, callingDatabaseName,
                         callType, targetUser, request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ request.getGetByDocumentIdRequest().getIds().size(),
                         RESULT_RATE_LIMITED);
 
@@ -1384,13 +1437,15 @@ public class AppSearchManagerService extends SystemService {
                 return; // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, callingDatabaseName,
-                    CallStats.CALL_TYPE_OPEN_WRITE_BLOB, callback, targetUser,
+                    BaseStats.CALL_TYPE_OPEN_WRITE_BLOB, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ request.getBlobHandles().size())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, CallStats.CALL_TYPE_OPEN_WRITE_BLOB, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_OPEN_WRITE_BLOB, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1439,10 +1494,13 @@ public class AppSearchManagerService extends SystemService {
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
-                                .setCallType(CallStats.CALL_TYPE_OPEN_WRITE_BLOB)
+                                .setCallType(BaseStats.CALL_TYPE_OPEN_WRITE_BLOB)
                                 .setStatusCode(statusCode)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1456,13 +1514,16 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(
                         callingPackageName,
                         /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_OPEN_WRITE_BLOB,
+                        BaseStats.CALL_TYPE_OPEN_WRITE_BLOB,
                         targetUser,
                         request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         request.getBlobHandles().size(),
                         RESULT_RATE_LIMITED);
             }
@@ -1487,13 +1548,15 @@ public class AppSearchManagerService extends SystemService {
                 return; // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, callingDatabaseName,
-                    CallStats.CALL_TYPE_REMOVE_BLOB, callback, targetUser,
+                    BaseStats.CALL_TYPE_REMOVE_BLOB, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ request.getBlobHandles().size())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, CallStats.CALL_TYPE_REMOVE_BLOB, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_REMOVE_BLOB, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1541,10 +1604,13 @@ public class AppSearchManagerService extends SystemService {
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
-                                .setCallType(CallStats.CALL_TYPE_REMOVE_BLOB)
+                                .setCallType(BaseStats.CALL_TYPE_REMOVE_BLOB)
                                 .setStatusCode(statusCode)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1558,13 +1624,16 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(
                         callingPackageName,
                         /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_REMOVE_BLOB,
+                        BaseStats.CALL_TYPE_REMOVE_BLOB,
                         targetUser,
                         request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         request.getBlobHandles().size(),
                         RESULT_RATE_LIMITED);
             }
@@ -1589,13 +1658,15 @@ public class AppSearchManagerService extends SystemService {
                 return; // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, callingDatabaseName,
-                    CallStats.CALL_TYPE_COMMIT_BLOB, callback, targetUser,
+                    BaseStats.CALL_TYPE_COMMIT_BLOB, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ request.getBlobHandles().size())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, CallStats.CALL_TYPE_COMMIT_BLOB, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_COMMIT_BLOB, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1644,10 +1715,13 @@ public class AppSearchManagerService extends SystemService {
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
-                                .setCallType(CallStats.CALL_TYPE_COMMIT_BLOB)
+                                .setCallType(BaseStats.CALL_TYPE_COMMIT_BLOB)
                                 .setStatusCode(statusCode)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1662,13 +1736,16 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(
                         callingPackageName,
                         /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_COMMIT_BLOB,
+                        BaseStats.CALL_TYPE_COMMIT_BLOB,
                         targetUser,
                         request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         request.getBlobHandles().size(),
                         RESULT_RATE_LIMITED);
             }
@@ -1690,8 +1767,8 @@ public class AppSearchManagerService extends SystemService {
             String callingPackageName = request.getCallerAttributionSource().getPackageName();
             String callingDatabaseName = request.getCallingDatabaseName();
             boolean global = callingDatabaseName == null;
-            int callType = global ? CallStats.CALL_TYPE_GLOBAL_OPEN_READ_BLOB
-                    : CallStats.CALL_TYPE_OPEN_READ_BLOB;
+            int callType = global ? BaseStats.CALL_TYPE_GLOBAL_OPEN_READ_BLOB
+                    : BaseStats.CALL_TYPE_OPEN_READ_BLOB;
             if (targetUser == null) {
                 return; // Verification failed; verifyIncomingCall triggered callback.
             }
@@ -1700,8 +1777,10 @@ public class AppSearchManagerService extends SystemService {
                     /* numOperations= */ request.getBlobHandles().size())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
                     callingPackageName, callType, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1762,6 +1841,9 @@ public class AppSearchManagerService extends SystemService {
                                 .setCallType(callType)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1775,6 +1857,8 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(
                         callingPackageName,
                         /* callingDatabaseName= */ null,
@@ -1782,6 +1866,7 @@ public class AppSearchManagerService extends SystemService {
                         targetUser,
                         request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         request.getBlobHandles().size(),
                         RESULT_RATE_LIMITED);
             }
@@ -1806,13 +1891,15 @@ public class AppSearchManagerService extends SystemService {
                 return; // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, callingDatabaseName,
-                    CallStats.CALL_TYPE_SET_BLOB_VISIBILITY, callback, targetUser,
+                    BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, CallStats.CALL_TYPE_SET_BLOB_VISIBILITY, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1845,10 +1932,13 @@ public class AppSearchManagerService extends SystemService {
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
-                                .setCallType(CallStats.CALL_TYPE_SET_BLOB_VISIBILITY)
+                                .setCallType(BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY)
                                 .setStatusCode(statusCode)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setTotalLatencyMillis(totalLatencyMillis)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1862,13 +1952,16 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(
                         callingPackageName,
                         /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_SET_BLOB_VISIBILITY,
+                        BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY,
                         targetUser,
                         request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1,
                         RESULT_RATE_LIMITED);
             }
@@ -1892,13 +1985,15 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_SEARCH, callback, targetUser,
+                    BaseStats.CALL_TYPE_SEARCH, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_SEARCH, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_SEARCH, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -1934,7 +2029,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_SEARCH)
+                                .setCallType(BaseStats.CALL_TYPE_SEARCH)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1947,9 +2045,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_SEARCH, targetUser,
+                        BaseStats.CALL_TYPE_SEARCH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -1981,13 +2082,15 @@ public class AppSearchManagerService extends SystemService {
                 return;
             }
             if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
-                    CallStats.CALL_TYPE_GLOBAL_SEARCH, callback, targetUser,
+                    BaseStats.CALL_TYPE_GLOBAL_SEARCH, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_GLOBAL_SEARCH, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_GLOBAL_SEARCH, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2032,7 +2135,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_GLOBAL_SEARCH)
+                                .setCallType(BaseStats.CALL_TYPE_GLOBAL_SEARCH)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2045,10 +2151,14 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName,
-                        /* callingDatabaseName= */ null, CallStats.CALL_TYPE_GLOBAL_SEARCH,
+                        /* callingDatabaseName= */ null, BaseStats.CALL_TYPE_GLOBAL_SEARCH,
                         targetUser, request.getBinderCallStartTimeMillis(),
-                        totalLatencyStartTimeMillis, /* numOperations= */ 1, RESULT_RATE_LIMITED);
+                        totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
+                        /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
 
@@ -2078,15 +2188,17 @@ public class AppSearchManagerService extends SystemService {
             }
             // Enterprise session calls are considered global for CallStats logging
             boolean global = request.getDatabaseName() == null || request.isForEnterprise();
-            int callType = global ? CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE
-                    : CallStats.CALL_TYPE_GET_NEXT_PAGE;
+            int callType = global ? BaseStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE
+                    : BaseStats.CALL_TYPE_GET_NEXT_PAGE;
             if (checkCallDenied(callingPackageName, request.getDatabaseName(), callType, callback,
                     targetUser, request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, callType, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2136,6 +2248,9 @@ public class AppSearchManagerService extends SystemService {
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2149,9 +2264,13 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
                         callType, targetUser, request.getBinderCallStartTimeMillis(),
-                        totalLatencyStartTimeMillis, /* numOperations= */ 1, RESULT_RATE_LIMITED);
+                        totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
+                        /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
 
@@ -2173,14 +2292,16 @@ public class AppSearchManagerService extends SystemService {
                 }
                 String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, targetUser,
+                        BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                         /* numOperations= */ 1)) {
                     return;
                 }
+                long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
                         targetUser, callingPackageName,
-                        CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, () -> {
+                        BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, () -> {
+                    long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                     AppSearchUserInstance instance = null;
                     int operationSuccessCount = 0;
@@ -2209,7 +2330,10 @@ public class AppSearchManagerService extends SystemService {
                                     .setStatusCode(statusCode)
                                     .setTotalLatencyMillis(totalLatencyMillis)
                                     .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                    .setCallType(CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN)
+                                    .setCallType(BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN)
+                                    .setExecutorAcquisitionLatencyMillis(
+                                            (int) (waitExecutorEndTimeMillis
+                                                    - waitExecutorStartTimeMillis))
                                     // TODO(b/173532925) check the existing binder call latency
                                     //  chart
                                     // is good enough for us:
@@ -2223,10 +2347,13 @@ public class AppSearchManagerService extends SystemService {
                     }
                 });
                 if (!callAccepted) {
+                    int executorAcquisitionLatencyMillis =
+                            (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                     logRateLimitedOrCallDeniedCallStats(
                             callingPackageName, /* callingDatabaseName= */ null,
-                            CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, targetUser,
+                            BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, targetUser,
                             request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                            executorAcquisitionLatencyMillis,
                             /* numOperations= */ 1, RESULT_RATE_LIMITED);
                 }
             } catch (RuntimeException e) {
@@ -2253,14 +2380,16 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE, callback, targetUser,
+                    BaseStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE,
+                    callback, callingPackageName, BaseStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE,
                     () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2310,7 +2439,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE)
+                                .setCallType(BaseStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2323,9 +2455,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE, targetUser,
+                        BaseStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -2348,14 +2483,16 @@ public class AppSearchManagerService extends SystemService {
             // Since we don't read from the given file, we don't know the number of documents so we
             // just set numOperations to 1 instead
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE, callback, targetUser,
+                    BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), callStatsTotalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
+                    callback, callingPackageName, BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
                     () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2403,12 +2540,18 @@ public class AppSearchManagerService extends SystemService {
                     }
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(targetUser,
+                        schedulePersistToDisk(
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
+                                targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
                                 mAppSearchConfig.getCachedPersistDelayMillis());
                     } else {
                         instance.getAppSearchImpl().persistToDisk(
-                                mAppSearchConfig.getLightweightPersistType());
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                instance.getLogger());
                     }
 
                     schemaMigrationStatsBuilder
@@ -2448,7 +2591,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(callStatsTotalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE)
+                                .setCallType(BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2457,7 +2603,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setNumOperationsFailed(operationFailureCount)
                                 .setLaunchVMEnabled(instance.isVMEnabled())
                                 .build());
-                        long enabledFeatures = new BaseStats.Builder<>()
+                        long enabledFeatures = new CallStats.Builder()
                                 .setLaunchVMEnabled(true).build().getEnabledFeatures();
                         instance.getLogger().logStats(schemaMigrationStatsBuilder
                                 .setStatusCode(statusCode)
@@ -2469,10 +2615,14 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE, targetUser,
+                        BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE, targetUser,
                         request.getBinderCallStartTimeMillis(),
-                        callStatsTotalLatencyStartTimeMillis, /* numOperations= */ 1,
+                        callStatsTotalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
+                        /* numOperations= */ 1,
                         RESULT_RATE_LIMITED);
             }
         }
@@ -2493,14 +2643,16 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_SEARCH_SUGGESTION, callback, targetUser,
+                    BaseStats.CALL_TYPE_SEARCH_SUGGESTION, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_SEARCH_SUGGESTION,
+                    callback, callingPackageName, BaseStats.CALL_TYPE_SEARCH_SUGGESTION,
                     () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2538,7 +2690,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_SEARCH_SUGGESTION)
+                                .setCallType(BaseStats.CALL_TYPE_SEARCH_SUGGESTION)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2551,9 +2706,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_SEARCH_SUGGESTION, targetUser,
+                        BaseStats.CALL_TYPE_SEARCH_SUGGESTION, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -2578,16 +2736,18 @@ public class AppSearchManagerService extends SystemService {
             // calling database.
             String callingDatabaseName = request.isSystemUsage()
                     ? null : request.getDatabaseName();
-            int callType = request.isSystemUsage() ? CallStats.CALL_TYPE_REPORT_SYSTEM_USAGE
-                    : CallStats.CALL_TYPE_REPORT_USAGE;
+            int callType = request.isSystemUsage() ? BaseStats.CALL_TYPE_REPORT_SYSTEM_USAGE
+                    : BaseStats.CALL_TYPE_REPORT_USAGE;
             if (checkCallDenied(callingPackageName, callingDatabaseName, callType, callback,
                     targetUser, request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_REPORT_USAGE,
+                    callback, callingPackageName, BaseStats.CALL_TYPE_REPORT_USAGE,
                     () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2640,6 +2800,9 @@ public class AppSearchManagerService extends SystemService {
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setCallType(callType)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2652,9 +2815,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, callingDatabaseName,
                         callType, targetUser, request.getBinderCallStartTimeMillis(),
                         totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -2675,14 +2841,16 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, callback, targetUser,
+                    BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ request.getRemoveByDocumentIdRequest().getIds().size())) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
+                    callback, callingPackageName, BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
                     () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2714,12 +2882,17 @@ public class AppSearchManagerService extends SystemService {
                     }
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(targetUser,
+                        schedulePersistToDisk(callingPackageName,
+                                BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
+                                targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
                                 mAppSearchConfig.getCachedPersistDelayMillis());
                     } else {
                         instance.getAppSearchImpl().persistToDisk(
-                                mAppSearchConfig.getLightweightPersistType());
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                instance.getLogger());
                     }
                     invokeCallbackOnResult(callback, AppSearchBatchResultParcel.fromStringToVoid(
                             resultBuilder.build()));
@@ -2751,7 +2924,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)
+                                .setCallType(BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2764,9 +2940,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, targetUser,
+                        BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ request.getRemoveByDocumentIdRequest().getIds().size(),
                         RESULT_RATE_LIMITED);
             }
@@ -2790,14 +2969,16 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH, callback, targetUser,
+                    BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                    callback, callingPackageName, BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
                     () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2812,12 +2993,17 @@ public class AppSearchManagerService extends SystemService {
                             /* removeStatsBuilder= */ null);
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(targetUser,
+                        schedulePersistToDisk(callingPackageName,
+                                BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                                targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
                                 mAppSearchConfig.getCachedPersistDelayMillis());
                     } else {
                         instance.getAppSearchImpl().persistToDisk(
-                                mAppSearchConfig.getLightweightPersistType());
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                instance.getLogger());
                     }
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
@@ -2849,7 +3035,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH)
+                                .setCallType(BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2862,9 +3051,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH, targetUser,
+                        BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -2885,13 +3077,15 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (checkCallDenied(callingPackageName, request.getDatabaseName(),
-                    CallStats.CALL_TYPE_GET_STORAGE_INFO, callback, targetUser,
+                    BaseStats.CALL_TYPE_GET_STORAGE_INFO, callback, targetUser,
                     request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                     /* numOperations= */ 1)) {
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, CallStats.CALL_TYPE_GET_STORAGE_INFO, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_GET_STORAGE_INFO, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -2923,7 +3117,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_GET_STORAGE_INFO)
+                                .setCallType(BaseStats.CALL_TYPE_GET_STORAGE_INFO)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2936,9 +3133,12 @@ public class AppSearchManagerService extends SystemService {
                 }
             });
             if (!callAccepted) {
+                int executorAcquisitionLatencyMillis =
+                        (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                 logRateLimitedOrCallDeniedCallStats(callingPackageName, request.getDatabaseName(),
-                        CallStats.CALL_TYPE_GET_STORAGE_INFO, targetUser,
+                        BaseStats.CALL_TYPE_GET_STORAGE_INFO, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                        executorAcquisitionLatencyMillis,
                         /* numOperations= */ 1, RESULT_RATE_LIMITED);
             }
         }
@@ -2954,13 +3154,15 @@ public class AppSearchManagerService extends SystemService {
                         request.getCallerAttributionSource(), request.getUserHandle());
                 String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_FLUSH, targetUser,
+                        BaseStats.CALL_TYPE_FLUSH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                         /* numOperations= */ 1)) {
                     return;
                 }
+                long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        targetUser, callingPackageName, CallStats.CALL_TYPE_FLUSH, () -> {
+                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH, () -> {
+                    long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                     AppSearchUserInstance instance = null;
                     int operationSuccessCount = 0;
@@ -2973,7 +3175,11 @@ public class AppSearchManagerService extends SystemService {
                                             + "persistence schedule");
                         } else {
                             instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                            instance.getAppSearchImpl().persistToDisk(PersistType.Code.FULL);
+                            instance.getAppSearchImpl().persistToDisk(
+                                    callingPackageName,
+                                    BaseStats.CALL_TYPE_FLUSH,
+                                    PersistType.Code.FULL,
+                                    instance.getLogger());
                         }
                         ++operationSuccessCount;
                     } catch (AppSearchException | RuntimeException | InterruptedException
@@ -2998,7 +3204,10 @@ public class AppSearchManagerService extends SystemService {
                                     .setStatusCode(statusCode)
                                     .setTotalLatencyMillis(totalLatencyMillis)
                                     .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                    .setCallType(CallStats.CALL_TYPE_FLUSH)
+                                    .setCallType(BaseStats.CALL_TYPE_FLUSH)
+                                    .setExecutorAcquisitionLatencyMillis(
+                                            (int) (waitExecutorEndTimeMillis
+                                                    - waitExecutorStartTimeMillis))
                                     // TODO(b/173532925) check the existing binder call latency
                                     // chart is good enough for us:
                                     // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3011,10 +3220,13 @@ public class AppSearchManagerService extends SystemService {
                     }
                 });
                 if (!callAccepted) {
+                    int executorAcquisitionLatencyMillis =
+                            (int) (SystemClock.elapsedRealtime() - waitExecutorStartTimeMillis);
                     logRateLimitedOrCallDeniedCallStats(
                             callingPackageName, /* callingDatabaseName= */ null,
-                            CallStats.CALL_TYPE_FLUSH, targetUser,
+                            BaseStats.CALL_TYPE_FLUSH, targetUser,
                             request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
+                            executorAcquisitionLatencyMillis,
                             /* numOperations= */ 1, RESULT_RATE_LIMITED);
                 }
             } catch (RuntimeException e) {
@@ -3044,7 +3256,7 @@ public class AppSearchManagerService extends SystemService {
                         request.getCallerAttributionSource(), request.getUserHandle());
                 callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK, targetUser,
+                        BaseStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                         /* numOperations= */ 1)) {
                     return AppSearchResultParcel.fromFailedResult(AppSearchResult.newFailedResult(
@@ -3101,7 +3313,7 @@ public class AppSearchManagerService extends SystemService {
                             .setStatusCode(statusCode)
                             .setTotalLatencyMillis(totalLatencyMillis)
                             .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                            .setCallType(CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK)
+                            .setCallType(BaseStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK)
                             // TODO(b/173532925) check the existing binder call latency chart
                             // is good enough for us:
                             // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3134,7 +3346,7 @@ public class AppSearchManagerService extends SystemService {
                         request.getCallerAttributionSource(), request.getUserHandle());
                 String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
-                        CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK, targetUser,
+                        BaseStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                         /* numOperations= */ 1)) {
                     return AppSearchResultParcel.fromFailedResult(AppSearchResult.newFailedResult(
@@ -3170,7 +3382,7 @@ public class AppSearchManagerService extends SystemService {
                             .setStatusCode(statusCode)
                             .setTotalLatencyMillis(totalLatencyMillis)
                             .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                            .setCallType(CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK)
+                            .setCallType(BaseStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK)
                             // TODO(b/173532925) check the existing binder call latency chart
                             // is good enough for us:
                             // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3199,15 +3411,17 @@ public class AppSearchManagerService extends SystemService {
                 return;  // Verification failed; verifyIncomingCall triggered callback.
             }
             if (mAppSearchConfig.getCachedDenylist().checkDeniedPackage(callingPackageName,
-                    CallStats.CALL_TYPE_INITIALIZE)) {
+                    BaseStats.CALL_TYPE_INITIALIZE)) {
                 // Note: can't log CallStats here since UserInstance isn't guaranteed to (and most
                 // likely does not) exist
                 invokeCallbackOnResult(callback, AppSearchResultParcel.fromFailedResult(
                         AppSearchResult.newFailedResult(RESULT_DENIED, null)));
                 return;
             }
+            long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             mExecutorManager.executeLambdaForUserAsync(targetUser, callback, callingPackageName,
-                    CallStats.CALL_TYPE_INITIALIZE, () -> {
+                    BaseStats.CALL_TYPE_INITIALIZE, () -> {
+                long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
                 int operationSuccessCount = 0;
@@ -3241,7 +3455,10 @@ public class AppSearchManagerService extends SystemService {
                                 .setStatusCode(statusCode)
                                 .setTotalLatencyMillis(totalLatencyMillis)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setCallType(CallStats.CALL_TYPE_INITIALIZE)
+                                .setCallType(BaseStats.CALL_TYPE_INITIALIZE)
+                                .setExecutorAcquisitionLatencyMillis(
+                                        (int) (waitExecutorEndTimeMillis
+                                                - waitExecutorStartTimeMillis))
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3766,6 +3983,8 @@ public class AppSearchManagerService extends SystemService {
 
     @WorkerThread
     private void schedulePersistToDisk(
+            @NonNull String callingPackageName,
+            @BaseStats.CallType int callType,
             @NonNull UserHandle targetUser,
             @NonNull PersistType.Code persistType,
             long delayMs) {
@@ -3786,7 +4005,8 @@ public class AppSearchManagerService extends SystemService {
                             try {
                                 AppSearchUserInstance instance =
                                         mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                                instance.getAppSearchImpl().persistToDisk(persistType);
+                                instance.getAppSearchImpl().persistToDisk(callingPackageName,
+                                        callType, persistType, instance.getLogger());
                             } catch (Exception e) {
                                 Log.w(TAG, "Unable to persist the data to disk", e);
                             }
@@ -3814,10 +4034,10 @@ public class AppSearchManagerService extends SystemService {
      * Logs rate-limited or denied calls to CallStats.
      */
     private void logRateLimitedOrCallDeniedCallStats(@NonNull String callingPackageName,
-            @Nullable String callingDatabaseName, @CallStats.CallType int apiType,
+            @Nullable String callingDatabaseName, @BaseStats.CallType int apiType,
             @NonNull UserHandle targetUser, long binderCallStartTimeMillis,
-            long totalLatencyStartTimeMillis, int numOperations,
-            @AppSearchResult.ResultCode int statusCode) {
+            long totalLatencyStartTimeMillis, int executorAcquisitionLatencyMillis,
+            int numOperations, @AppSearchResult.ResultCode int statusCode) {
         Objects.requireNonNull(callingPackageName);
         Objects.requireNonNull(targetUser);
         int estimatedBinderLatencyMillis =
@@ -3831,6 +4051,7 @@ public class AppSearchManagerService extends SystemService {
                             .setDatabase(callingDatabaseName)
                             .setStatusCode(statusCode)
                             .setTotalLatencyMillis(totalLatencyMillis)
+                            .setExecutorAcquisitionLatencyMillis(executorAcquisitionLatencyMillis)
                             .setCallType(apiType)
                             .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
                             .setNumOperationsFailed(numOperations)
@@ -3888,13 +4109,13 @@ public class AppSearchManagerService extends SystemService {
 
     /**
      * Checks if an API call for a given calling package and calling database should be denied
-     * according to the denylist. If the call is denied, also logs the denial through CallStats.
+     * according to the denylist. If the call is denied, also logs the denial through BaseStats.
      *
      * @return true if the given api call should be denied for the given calling package and calling
      * database; otherwise false
      */
     private boolean checkCallDenied(@NonNull String callingPackageName,
-            @Nullable String callingDatabaseName, @CallStats.CallType int apiType,
+            @Nullable String callingDatabaseName, @BaseStats.CallType int apiType,
             @NonNull UserHandle targetUser, long binderCallStartTimeMillis,
             long totalLatencyStartTimeMillis, int numOperations) {
         Denylist denylist = mAppSearchConfig.getCachedDenylist();
@@ -3904,7 +4125,7 @@ public class AppSearchManagerService extends SystemService {
         if (denied) {
             logRateLimitedOrCallDeniedCallStats(callingPackageName, callingDatabaseName, apiType,
                     targetUser, binderCallStartTimeMillis, totalLatencyStartTimeMillis,
-                    numOperations, RESULT_DENIED);
+                    /*executorAcquisitionLatencyMillis=*/0, numOperations, RESULT_DENIED);
         }
         return denied;
     }
@@ -3918,7 +4139,7 @@ public class AppSearchManagerService extends SystemService {
      * database; otherwise false
      */
     private boolean checkCallDenied(@NonNull String callingPackageName,
-            @Nullable String callingDatabaseName, @CallStats.CallType int apiType,
+            @Nullable String callingDatabaseName, @BaseStats.CallType int apiType,
             @NonNull IAppSearchResultCallback callback, @NonNull UserHandle targetUser,
             long binderCallStartTimeMillis, long totalLatencyStartTimeMillis, int numOperations) {
         if (checkCallDenied(callingPackageName, callingDatabaseName, apiType, targetUser,
@@ -3939,7 +4160,7 @@ public class AppSearchManagerService extends SystemService {
      * database; otherwise false
      */
     private boolean checkCallDenied(@NonNull String callingPackageName,
-            @Nullable String callingDatabaseName, @CallStats.CallType int apiType,
+            @Nullable String callingDatabaseName, @BaseStats.CallType int apiType,
             @NonNull IAppSearchBatchResultCallback callback, @NonNull UserHandle targetUser,
             long binderCallStartTimeMillis, long totalLatencyStartTimeMillis, int numOperations) {
         if (checkCallDenied(callingPackageName, callingDatabaseName, apiType, targetUser,

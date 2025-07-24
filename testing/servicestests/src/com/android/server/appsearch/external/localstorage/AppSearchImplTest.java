@@ -64,6 +64,7 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.observer.DocumentChangeInfo;
 import android.app.appsearch.observer.ObserverSpec;
 import android.app.appsearch.observer.SchemaChangeInfo;
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.testutil.AppSearchEmail;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.TestObserverCallback;
@@ -83,6 +84,7 @@ import com.android.server.appsearch.appsearch.proto.PackageIdentifierProto;
 import com.android.server.appsearch.appsearch.proto.VisibilityConfigProto;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
+import com.android.server.appsearch.external.localstorage.stats.PersistToDiskStats;
 import com.android.server.appsearch.external.localstorage.stats.PutDocumentStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
@@ -4027,7 +4029,11 @@ public class AppSearchImplTest {
         writePfd.close();
         mAppSearchImpl.commitBlob("package", "db1", handle);
 
-        mAppSearchImpl.persistToDisk(PersistType.Code.FULL);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_COMMIT_BLOB,
+                PersistType.Code.FULL,
+                /* logger= */ null);
 
         // Optimize remove the expired orphan blob.
         mAppSearchImpl.optimize(/* builder= */ null);
@@ -4108,7 +4114,11 @@ public class AppSearchImplTest {
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
 
-        mAppSearchImpl.persistToDisk(PersistType.Code.FULL);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.FULL,
+                /* logger= */ null);
 
         // Optimize won't remove the blob since it has reference document.
         mAppSearchImpl.optimize(/* builder= */ null);
@@ -5728,7 +5738,12 @@ public class AppSearchImplTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> mAppSearchImpl.persistToDisk(PersistType.Code.FULL));
+                () ->
+                        mAppSearchImpl.persistToDisk(
+                                "package",
+                                BaseStats.CALL_TYPE_COMMIT_BLOB,
+                                PersistType.Code.FULL,
+                                /* logger= */ null));
     }
 
     @Test
@@ -5755,7 +5770,11 @@ public class AppSearchImplTest {
                 document,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.getDocument(
@@ -5822,7 +5841,11 @@ public class AppSearchImplTest {
                 document2,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.getDocument(
@@ -5835,7 +5858,11 @@ public class AppSearchImplTest {
 
         // Delete the first document
         mAppSearchImpl.remove("package", "database", "namespace1", "id1", /* statsBuilder= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_REMOVE_DOCUMENT_BY_ID,
+                PersistType.Code.LITE,
+                /* logger= */ null);
         assertThrows(
                 AppSearchException.class,
                 () ->
@@ -5919,7 +5946,11 @@ public class AppSearchImplTest {
                 document2,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.getDocument(
@@ -5940,7 +5971,11 @@ public class AppSearchImplTest {
                         .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
                         .build(),
                 /* statsBuilder= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                PersistType.Code.LITE,
+                /* logger= */ null);
         assertThrows(
                 AppSearchException.class,
                 () ->
@@ -6016,7 +6051,11 @@ public class AppSearchImplTest {
                 document,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.RECOVERY_PROOF);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.RECOVERY_PROOF,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.getDocument(
@@ -6083,7 +6122,11 @@ public class AppSearchImplTest {
                 document2,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.RECOVERY_PROOF);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.RECOVERY_PROOF,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.getDocument(
@@ -6096,7 +6139,11 @@ public class AppSearchImplTest {
 
         // Delete the first document
         mAppSearchImpl.remove("package", "database", "namespace1", "id1", /* statsBuilder= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.RECOVERY_PROOF);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_REMOVE_DOCUMENT_BY_ID,
+                PersistType.Code.RECOVERY_PROOF,
+                /* logger= */ null);
         assertThrows(
                 AppSearchException.class,
                 () ->
@@ -6180,7 +6227,11 @@ public class AppSearchImplTest {
                 document2,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.RECOVERY_PROOF);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.RECOVERY_PROOF,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.getDocument(
@@ -6201,7 +6252,11 @@ public class AppSearchImplTest {
                         .setTermMatch(SearchSpec.TERM_MATCH_EXACT_ONLY)
                         .build(),
                 /* statsBuilder= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.RECOVERY_PROOF);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                PersistType.Code.RECOVERY_PROOF,
+                /* logger= */ null);
         assertThrows(
                 AppSearchException.class,
                 () ->
@@ -6639,6 +6694,275 @@ public class AppSearchImplTest {
         mAppSearchImpl.optimize(optimizeStatsBuilder);
         OptimizeStats optimizeStats = optimizeStatsBuilder.build();
         assertThat(optimizeStats.getEnabledFeatures()).isEqualTo(noLaunchFeature);
+    }
+
+    @Test
+    public void testLastWriteOperationStats() throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mUnlimitedConfig,
+                        /*=initStatsBuilder*/ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        // Set a schema and check last write operation is Initialize
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(new AppSearchSchema.Builder("type").build());
+        SetSchemaStats.Builder setSchemaStatsBuilder =
+                new SetSchemaStats.Builder("package", "database");
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        SetSchemaStats setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_INITIALIZE);
+
+        // Put a document and check last write operation is SetSchema
+        AppSearchLogger fakeLogger =
+                new AppSearchLogger() {
+                    @Override
+                    public void logStats(@NonNull SetSchemaStats stats) {
+                        assertThat(stats.getLastWriteOperation())
+                                .isEqualTo(BaseStats.CALL_TYPE_SET_SCHEMA);
+                    }
+                };
+        GenericDocument document = new GenericDocument.Builder<>("namespace", "id", "type").build();
+        mAppSearchImpl.putDocument(
+                "package", "database", document, /* sendChangeNotifications= */ false, fakeLogger);
+
+        // Batch put a document and check last write operation is PUT_DOCUMENT
+        fakeLogger =
+                new AppSearchLogger() {
+                    @Override
+                    public void logStats(@NonNull PutDocumentStats stats) {
+                        assertThat(stats.getLastWriteOperation())
+                                .isEqualTo(BaseStats.CALL_TYPE_PUT_DOCUMENT);
+                    }
+                };
+        List<GenericDocument> documents = new ArrayList<>();
+        documents.add(document);
+        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package",
+                "database",
+                documents,
+                resultBuilder,
+                /* sendChangeNotifications= */ false,
+                fakeLogger,
+                PersistType.Code.LITE);
+
+        // Search document and check last write operation is PUT_DOCUMENTS
+        fakeLogger =
+                new AppSearchLogger() {
+                    @Override
+                    public void logStats(@NonNull QueryStats stats) {
+                        assertThat(stats.getLastWriteOperation())
+                                .isEqualTo(BaseStats.CALL_TYPE_PUT_DOCUMENTS);
+                    }
+                };
+        mAppSearchImpl.query(
+                "package", "database", "", new SearchSpec.Builder().build(), fakeLogger);
+
+        // Report usage
+        mAppSearchImpl.reportUsage(
+                "package",
+                "database",
+                "namespace",
+                "id",
+                /* usageTimestampMillis= */ 10,
+                /* systemUsage= */ false);
+
+        // Remove document and check last write operation is REPORT_USAGE
+        RemoveStats.Builder removeStatsBuilder = new RemoveStats.Builder("package", "database");
+        mAppSearchImpl.remove("package", "database", "namespace", "id", removeStatsBuilder);
+        RemoveStats removeStats = removeStatsBuilder.build();
+        assertThat(removeStats.getLastWriteOperation()).isEqualTo(BaseStats.CALL_TYPE_REPORT_USAGE);
+
+        // RemoveByQuery and check last write operation is REMOVE_DOCUMENT_BY_ID
+        removeStatsBuilder = new RemoveStats.Builder("package", "database");
+        mAppSearchImpl.removeByQuery(
+                "package", "database", "", new SearchSpec.Builder().build(), removeStatsBuilder);
+        removeStats = removeStatsBuilder.build();
+        assertThat(removeStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_REMOVE_DOCUMENT_BY_ID);
+
+        // Optimize to check the last write operation is REMOVE_DOCUMENTS_BY_SEARCH
+        OptimizeStats.Builder optimizeStatsBuilder = new OptimizeStats.Builder();
+        mAppSearchImpl.optimize(optimizeStatsBuilder);
+        OptimizeStats optimizeStats = optimizeStatsBuilder.build();
+        assertThat(optimizeStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH);
+
+        // Use SetSchema Stats to check the last write operation is Optimize
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation()).isEqualTo(BaseStats.CALL_TYPE_OPTIMIZE);
+
+        // Flush and check the last write operation
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.FULL,
+                /* logger= */ null);
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation()).isEqualTo(BaseStats.CALL_TYPE_FLUSH);
+
+        // Clear package data and check the last write operation
+        mAppSearchImpl.clearPackageData("nonExistPackage");
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.INTERNAL_CALL_TYPE_PRUNE_PACKAGE_DATA);
+
+        // Write blob and check the last write operation
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(
+                        /* digest= */ new byte[32], "package", "db1", "ns");
+        try {
+            mAppSearchImpl.openWriteBlob("package", "database", handle);
+        } catch (Exception e) {
+            // We don't care whether the write blob is success or not, just want to verify the last
+            // write operation.
+        }
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_OPEN_WRITE_BLOB);
+
+        // Commit blob and check the last write operation
+        try {
+            mAppSearchImpl.commitBlob("package", "database", handle);
+        } catch (Exception e) {
+            // We don't care whether the write blob is success or not, just want to verify the last
+            // write operation.
+        }
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_COMMIT_BLOB);
+
+        // Remove blob and check the last write operation
+        try {
+            mAppSearchImpl.removeBlob("package", "database", handle);
+        } catch (Exception e) {
+            // We don't care whether the write blob is success or not, just want to verify the last
+            // write operation.
+        }
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_REMOVE_BLOB);
+
+        // Set blob visibility and check the last write operation
+        try {
+            mAppSearchImpl.setBlobNamespaceVisibility("package", "database", ImmutableList.of());
+        } catch (Exception e) {
+            // We don't care whether the write blob is success or not, just want to verify the last
+            // write operation.
+        }
+        internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        setSchemaStatsBuilder);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        setSchemaStats = setSchemaStatsBuilder.build();
+        assertThat(setSchemaStats.getLastWriteOperation())
+                .isEqualTo(BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY);
+    }
+
+    @Test
+    public void testPersistToDiskStats() throws Exception {
+        final List<PersistToDiskStats> loggedStats = new ArrayList<>();
+        AppSearchLogger fakeLogger =
+                new AppSearchLogger() {
+                    @Override
+                    public void logStats(@NonNull PersistToDiskStats stats) {
+                        loggedStats.add(stats);
+                        assertThat(stats.getPackageName()).isEqualTo("testPackage");
+                        assertThat(stats.getTriggerCallType())
+                                .isEqualTo(BaseStats.CALL_TYPE_PUT_DOCUMENTS);
+                        assertThat(stats.getPersistType()).isEqualTo(PersistType.Code.FULL);
+                        assertThat(stats.getStatusCode()).isEqualTo(AppSearchResult.RESULT_OK);
+                    }
+                };
+
+        mAppSearchImpl.persistToDisk(
+                "testPackage",
+                BaseStats.CALL_TYPE_PUT_DOCUMENTS,
+                PersistType.Code.FULL,
+                fakeLogger);
+        assertThat(loggedStats).hasSize(1);
     }
 
     @Test
@@ -8822,7 +9146,11 @@ public class AppSearchImplTest {
                 document,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         AppSearchException e =
                 assertThrows(
@@ -8879,7 +9207,11 @@ public class AppSearchImplTest {
                 document,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         GenericDocument getResult =
                 mAppSearchImpl.globalGetDocument(
@@ -8932,7 +9264,11 @@ public class AppSearchImplTest {
                 document,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         AppSearchException e =
                 assertThrows(
@@ -9004,7 +9340,11 @@ public class AppSearchImplTest {
                 document,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         AppSearchException unauthorizedException =
                 assertThrows(
@@ -11306,7 +11646,11 @@ public class AppSearchImplTest {
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null);
         mAppSearchImpl.optimize(/* builder= */ null);
-        mAppSearchImpl.persistToDisk(PersistType.Code.LITE);
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.LITE,
+                /* logger= */ null);
 
         // Record storage size (the document should be compressed)
         StorageInfoProto storageInfo = mAppSearchImpl.getRawStorageInfoProto();
