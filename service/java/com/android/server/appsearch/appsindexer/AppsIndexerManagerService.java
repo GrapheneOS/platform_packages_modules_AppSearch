@@ -21,8 +21,6 @@ import static android.os.Process.INVALID_UID;
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.appsearch.AppSearchEnvironment;
-import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.util.LogUtil;
 import android.content.BroadcastReceiver;
@@ -33,21 +31,17 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.CancellationSignal;
 import android.os.UserHandle;
-import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
-import com.android.internal.annotations.GuardedBy;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerLocalService;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -62,10 +56,6 @@ public final class AppsIndexerManagerService extends SystemService {
 
     private final Context mContext;
     private final LocalService mLocalService;
-
-    // Map of AppsIndexerUserInstances indexed by the UserHandle
-    @GuardedBy("mAppsIndexersLocked")
-    private final Map<UserHandle, AppsIndexerUserInstance> mAppsIndexersLocked = new ArrayMap<>();
 
     private final AppsIndexerConfig mAppsIndexerConfig;
     private final IndexerForceUpdateConfig mAppsIndexerForceUpdateConfig;
@@ -92,31 +82,12 @@ public final class AppsIndexerManagerService extends SystemService {
         try {
             Objects.requireNonNull(user);
             UserHandle userHandle = user.getUserHandle();
-            synchronized (mAppsIndexersLocked) {
-                AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);
-                if (instance == null) {
-                    AppSearchEnvironment appSearchEnvironment =
-                            AppSearchEnvironmentFactory.getEnvironmentInstance();
-                    Context userContext =
-                            appSearchEnvironment.createContextAsUser(mContext, userHandle);
-                    File appSearchDir =
-                            appSearchEnvironment.getAppSearchDir(userContext, userHandle);
-                    File appsDir = new File(appSearchDir, "apps");
-                    instance =
-                            AppsIndexerUserInstance.createInstance(
-                                    userContext,
-                                    appsDir,
-                                    mAppsIndexerConfig,
-                                    mAppsIndexerForceUpdateConfig);
-                    instance.startAsync();
-                    if (LogUtil.DEBUG) {
-                        Log.d(TAG, "Created Apps Indexer instance for user " + userHandle);
-                    }
-                    mAppsIndexersLocked.put(userHandle, instance);
-                }
-
-                instance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
-            }
+            AppsIndexerUserInstanceManager.getInstance()
+                    .handleUserUnlock(
+                            mContext,
+                            userHandle,
+                            mAppsIndexerConfig,
+                            mAppsIndexerForceUpdateConfig);
         } catch (RuntimeException e) {
             Slog.wtf(TAG, "AppsIndexerManagerService.onUserUnlocking() failed ", e);
         } catch (AppSearchException e) {
@@ -130,17 +101,7 @@ public final class AppsIndexerManagerService extends SystemService {
         try {
             Objects.requireNonNull(user);
             UserHandle userHandle = user.getUserHandle();
-            synchronized (mAppsIndexersLocked) {
-                AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);
-                if (instance != null) {
-                    mAppsIndexersLocked.remove(userHandle);
-                    try {
-                        instance.shutdown();
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, "Failed to shutdown apps indexer for " + userHandle, e);
-                    }
-                }
-            }
+            AppsIndexerUserInstanceManager.getInstance().removeInstance(userHandle);
         } catch (RuntimeException e) {
             Slog.wtf(TAG, "AppsIndexerManagerService.onUserStopping() failed ", e);
         }
@@ -152,10 +113,8 @@ public final class AppsIndexerManagerService extends SystemService {
         try {
             Objects.requireNonNull(userHandle);
             Objects.requireNonNull(pw);
-            AppsIndexerUserInstance instance;
-            synchronized (mAppsIndexersLocked) {
-                instance = mAppsIndexersLocked.get(userHandle);
-            }
+            AppsIndexerUserInstance instance =
+                    AppsIndexerUserInstanceManager.getInstance().getUserInstanceOrNull(userHandle);
             if (instance != null) {
                 instance.dump(pw);
             } else {
@@ -294,13 +253,9 @@ public final class AppsIndexerManagerService extends SystemService {
                 @NonNull UserHandle userHandle, @Nullable CancellationSignal unused) {
             // TODO(b/275592563): handle cancellation signal to abort the job.
             Objects.requireNonNull(userHandle);
-            synchronized (mAppsIndexersLocked) {
-                AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);
-                if (instance != null) {
-                    instance.updateAsync(
-                            /* firstRun= */ false, /* isForceUpdateTriggered= */ false);
-                }
-            }
+            AppsIndexerUserInstanceManager.getInstance()
+                    .handleUpdateForUser(
+                            userHandle, /* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         }
     }
 }
