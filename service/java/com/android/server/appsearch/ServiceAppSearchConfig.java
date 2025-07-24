@@ -64,7 +64,8 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     int DEFAULT_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS = 0;
     int DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS = (int) TimeUnit.HOURS.toMillis(4);
     // Cached API Call Stats is disabled by default
-    int DEFAULT_API_CALL_STATS_LIMIT = 0;
+    int DEFAULT_DISABLED_API_CALL_STATS_LIMIT = 0;
+    int DEFAULT_ENABLED_API_CALL_STATS_LIMIT = 50;
     boolean DEFAULT_RATE_LIMIT_ENABLED = false;
 
     /** This defines the task queue's total capacity for rate limiting. */
@@ -197,8 +198,19 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      */
     int getCachedMinTimeOptimizeThresholdMs();
 
-    /** Returns the maximum number of last API calls' statistics that can be included in dumpsys. */
+    /**
+     * Returns the maximum number of last API calls' statistics that can be included in the tracking
+     * queue.
+     */
     int getCachedApiCallStatsLimit();
+
+    /**
+     * Returns the maximum number of last API calls' statistics that can be included in the tracking
+     * queue when VM is enabled.
+     */
+    default int getCachedApiCallStatsLimitForVm() {
+        return DEFAULT_ENABLED_API_CALL_STATS_LIMIT;
+    }
 
     /** Returns the cached denylist. */
     Denylist getCachedDenylist();
@@ -279,6 +291,13 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return Flags.enableFiveMinPersistToDiskDelay()
                 ? DEFAULT_FIVE_MINUTE_PERSIST_DELAY
                 : DEFAULT_PERSIST_DELAY;
+    }
+
+    /** Default number of API call stats appsearch is tracking. */
+    default int defaultApiCallStatsLimit() {
+        return Flags.enableApiCallStatsTracking()
+                ? DEFAULT_ENABLED_API_CALL_STATS_LIMIT
+                : DEFAULT_DISABLED_API_CALL_STATS_LIMIT;
     }
 
     /**

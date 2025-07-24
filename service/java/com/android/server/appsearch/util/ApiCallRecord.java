@@ -19,7 +19,6 @@ package com.android.server.appsearch.util;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchResult;
-import android.os.SystemClock;
 
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.OptimizeStats;
@@ -28,7 +27,7 @@ import java.util.Objects;
 
 /** A class that wraps basic information of AppSearch API calls for dumpsys. */
 public class ApiCallRecord {
-    // The time when the API call is logged, in the form of the milliseconds since boot.
+    // The time that the API call was first received.
     private final long mTimeMillis;
 
     @CallStats.CallType private final int mCallType;
@@ -41,26 +40,35 @@ public class ApiCallRecord {
 
     private final int mTotalLatencyMillis;
 
+    // The amount of time that the task is running on the executor.
+    private final int mOnExecutorLatencyMillis;
+
+    private final long mEnabledFeatures;
+
     public ApiCallRecord(@NonNull CallStats callStats) {
         Objects.requireNonNull(callStats);
 
-        mTimeMillis = SystemClock.elapsedRealtime();
+        mTimeMillis = callStats.getCallReceivedTimestampMillis();
         mCallType = callStats.getCallType();
         mPackageName = callStats.getPackageName();
         mDatabaseName = callStats.getDatabase();
         mStatusCode = callStats.getStatusCode();
         mTotalLatencyMillis = callStats.getTotalLatencyMillis();
+        mOnExecutorLatencyMillis = callStats.getOnExecutorLatencyMillis();
+        mEnabledFeatures = callStats.getEnabledFeatures();
     }
 
     public ApiCallRecord(@NonNull OptimizeStats stats) {
         Objects.requireNonNull(stats);
 
-        mTimeMillis = SystemClock.elapsedRealtime();
+        mTimeMillis = stats.getCallReceivedTimestampMillis();
         mCallType = CallStats.CALL_TYPE_OPTIMIZE;
         mPackageName = null;
         mDatabaseName = null;
         mStatusCode = stats.getStatusCode();
         mTotalLatencyMillis = stats.getTotalLatencyMillis();
+        mOnExecutorLatencyMillis = stats.getOnExecutorLatencyMillis();
+        mEnabledFeatures = stats.getEnabledFeatures();
     }
 
     public long getTimeMillis() {
@@ -89,6 +97,14 @@ public class ApiCallRecord {
 
     public int getTotalLatencyMillis() {
         return mTotalLatencyMillis;
+    }
+
+    public int getOnExecutorLatencyMillis() {
+        return mOnExecutorLatencyMillis;
+    }
+
+    public long getEnabledFeatures() {
+        return mEnabledFeatures;
     }
 
     /**

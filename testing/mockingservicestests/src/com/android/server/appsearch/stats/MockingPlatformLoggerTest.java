@@ -307,35 +307,39 @@ public class MockingPlatformLoggerTest {
                 "1",
                 false);
 
+        int totalLatency = 10;
+        long callReceivedTimestamp = 20;
         logger.addStatsToQueueLocked(
-                new ApiCallRecord(new CallStats.Builder()
-                        .setPackageName("test_package1")
-                        .setDatabase("test_database1")
-                        .setStatusCode(0)
-                        .setTotalLatencyMillis(10)
-                        .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
-                        .build())
-        );
+                new ApiCallRecord(
+                        new CallStats.Builder()
+                                .setPackageName("test_package1")
+                                .setDatabase("test_database1")
+                                .setStatusCode(0)
+                                .setTotalLatencyMillis(totalLatency)
+                                .setCallReceivedTimestampMillis(callReceivedTimestamp)
+                                .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
+                                .build()));
         logger.addStatsToQueueLocked(
-                new ApiCallRecord(new CallStats.Builder()
-                        .setPackageName("test_package2")
-                        .setDatabase("test_database2")
-                        .setStatusCode(0)
-                        .setTotalLatencyMillis(10)
-                        .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
-                        .build())
-        );
+                new ApiCallRecord(
+                        new CallStats.Builder()
+                                .setPackageName("test_package2")
+                                .setDatabase("test_database2")
+                                .setStatusCode(0)
+                                .setTotalLatencyMillis(totalLatency)
+                                .setCallReceivedTimestampMillis(callReceivedTimestamp)
+                                .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
+                                .build()));
 
         // If the queue is at capacity, the earliest stats will be dropped.
         assertThat(logger.getLastCalledApis()).hasSize(1);
         ApiCallRecord apiCallRecord = logger.getLastCalledApis().get(0);
         assertThat(apiCallRecord.toString()).contains("test_package2");
-        assertThat(apiCallRecord.getTimeMillis()).isGreaterThan(0);
+        assertThat(apiCallRecord.getTimeMillis()).isEqualTo(callReceivedTimestamp);
         assertThat(apiCallRecord.getCallType()).isEqualTo(CallStats.CALL_TYPE_SET_SCHEMA);
         assertThat(apiCallRecord.getPackageName()).isEqualTo("test_package2");
         assertThat(apiCallRecord.getDatabaseName()).isEqualTo("test_database2");
         assertThat(apiCallRecord.getStatusCode()).isEqualTo(0);
-        assertThat(apiCallRecord.getTotalLatencyMillis()).isEqualTo(10);
+        assertThat(apiCallRecord.getTotalLatencyMillis()).isEqualTo(totalLatency);
     }
 
     @Test
@@ -350,24 +354,28 @@ public class MockingPlatformLoggerTest {
                 "2",
                 false);
 
+        int totalLatency = 10;
+        long callReceivedTimestamp = 20;
         logger.addStatsToQueueLocked(
-                new ApiCallRecord(new CallStats.Builder()
-                        .setPackageName("test_package1")
-                        .setDatabase("test_database1")
-                        .setStatusCode(0)
-                        .setTotalLatencyMillis(10)
-                        .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
-                        .build())
-        );
+                new ApiCallRecord(
+                        new CallStats.Builder()
+                                .setPackageName("test_package1")
+                                .setDatabase("test_database1")
+                                .setStatusCode(0)
+                                .setTotalLatencyMillis(totalLatency)
+                                .setCallReceivedTimestampMillis(callReceivedTimestamp)
+                                .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
+                                .build()));
         logger.addStatsToQueueLocked(
-                new ApiCallRecord(new CallStats.Builder()
-                        .setPackageName("test_package2")
-                        .setDatabase("test_database2")
-                        .setStatusCode(0)
-                        .setTotalLatencyMillis(10)
-                        .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
-                        .build())
-        );
+                new ApiCallRecord(
+                        new CallStats.Builder()
+                                .setPackageName("test_package2")
+                                .setDatabase("test_database2")
+                                .setStatusCode(0)
+                                .setTotalLatencyMillis(totalLatency)
+                                .setCallReceivedTimestampMillis(callReceivedTimestamp)
+                                .setCallType(CallStats.CALL_TYPE_SET_SCHEMA)
+                                .build()));
 
         assertThat(logger.getLastCalledApis()).hasSize(2);
 
@@ -380,11 +388,11 @@ public class MockingPlatformLoggerTest {
         assertThat(logger.getLastCalledApis()).hasSize(1);
         ApiCallRecord apiCallRecord = logger.getLastCalledApis().get(0);
         assertThat(apiCallRecord.toString()).contains("test_package2");
-        assertThat(apiCallRecord.getTimeMillis()).isGreaterThan(0);
+        assertThat(apiCallRecord.getTimeMillis()).isEqualTo(callReceivedTimestamp);
         assertThat(apiCallRecord.getCallType()).isEqualTo(CallStats.CALL_TYPE_SET_SCHEMA);
         assertThat(apiCallRecord.getPackageName()).isEqualTo("test_package2");
         assertThat(apiCallRecord.getDatabaseName()).isEqualTo("test_database2");
         assertThat(apiCallRecord.getStatusCode()).isEqualTo(0);
-        assertThat(apiCallRecord.getTotalLatencyMillis()).isEqualTo(10);
+        assertThat(apiCallRecord.getTotalLatencyMillis()).isEqualTo(totalLatency);
     }
 }

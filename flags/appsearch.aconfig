@@ -732,3 +732,10 @@ flag {
     description: "Separates executors into read and write threadpools"
     bug: "382519820"
 }
+
+flag {
+    name: "enable_api_call_stats_tracking"
+    namespace: "appsearch"
+    description: "the number of the last API calls appsearch is tracking."
+    bug: "246778338"
+}

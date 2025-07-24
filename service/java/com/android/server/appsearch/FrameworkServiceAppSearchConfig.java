@@ -493,7 +493,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public int getCachedApiCallStatsLimit() {
         synchronized (mLock) {
             throwIfClosedLocked();
-            return mBundleLocked.getInt(KEY_API_CALL_STATS_LIMIT, DEFAULT_API_CALL_STATS_LIMIT);
+            return mBundleLocked.getInt(KEY_API_CALL_STATS_LIMIT, defaultApiCallStatsLimit());
         }
     }
 
@@ -806,6 +806,15 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         }
     }
 
+    @Override
+    public int getCachedApiCallStatsLimitForVm() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(
+                    KEY_API_CALL_STATS_LIMIT, DEFAULT_ENABLED_API_CALL_STATS_LIMIT);
+        }
+    }
+
     private void updateCachedValues(DeviceConfig.@NonNull Properties properties) {
         for (String key : properties.getKeyset()) {
             updateCachedValue(key, properties);
@@ -909,7 +918,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 break;
             case KEY_API_CALL_STATS_LIMIT:
                 synchronized (mLock) {
-                    mBundleLocked.putInt(key, properties.getInt(key, DEFAULT_API_CALL_STATS_LIMIT));
+                    mBundleLocked.putInt(
+                            key, properties.getInt(key, defaultApiCallStatsLimit()));
                 }
                 break;
             case KEY_DENYLIST:
