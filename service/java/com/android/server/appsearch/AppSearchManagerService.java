@@ -240,6 +240,11 @@ public class AppSearchManagerService extends SystemService {
         }
     }
 
+    @VisibleForTesting
+    ExecutorManager getExecutorManager() {
+        return mExecutorManager;
+    }
+
     @Override
     public void onStart() {
         publishBinderService(Context.APP_SEARCH_SERVICE, new Stub());
@@ -261,6 +266,7 @@ public class AppSearchManagerService extends SystemService {
         }
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 UserHandle.SYSTEM,
+                /* isReadOnly= */ true,
                 () -> {
                     Log.i(TAG, "Initializing isolated storage service");
                     try {
@@ -373,6 +379,7 @@ public class AppSearchManagerService extends SystemService {
         if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
                     userHandle,
+                    /* isReadOnly= */ false,
                     () -> {
                         try {
                             Context userContext =
@@ -412,6 +419,7 @@ public class AppSearchManagerService extends SystemService {
         if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
                     userHandle,
+                    /* isReadOnly= */ false,
                     () -> {
                         // Try to prune garbage package data, this is to recover if user remove a
                         // package and reboot the device before we prune the package data.
@@ -494,6 +502,7 @@ public class AppSearchManagerService extends SystemService {
                 }
                 mExecutorManager.executeLambdaForUserNoCallbackAsync(
                         userHandle,
+                        /* isReadOnly= */ false,
                         () -> {
                             if (LogUtil.INFO) {
                                 Log.i(TAG, "Closing AppSearch for user " + userHandle);
@@ -3286,7 +3295,8 @@ public class AppSearchManagerService extends SystemService {
                                     callerHasSystemAccess, /*isForEnterprise=*/ false),
                             request.getTargetPackageName(),
                             request.getObserverSpec(),
-                            mExecutorManager.getOrCreateUserExecutor(targetUser),
+                            mExecutorManager.getOrCreateUserExecutor(targetUser, /* isReadOnly= */
+                                    true),
                             new AppSearchObserverProxy(observerProxyStub));
                     ++operationSuccessCount;
                     return AppSearchResultParcel.fromVoid();
@@ -3926,6 +3936,7 @@ public class AppSearchManagerService extends SystemService {
         }
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
+                /* isReadOnly= */ false,
                 () -> {
                     long totalLatencyStartMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder builder = new OptimizeStats.Builder();
@@ -3958,6 +3969,7 @@ public class AppSearchManagerService extends SystemService {
         }
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
+                /* isReadOnly= */ false,
                 () -> {
                     long totalLatencyStartMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder builder = new OptimizeStats.Builder();

@@ -34,14 +34,14 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.AppSearchRateLimitConfig;
 import com.android.server.appsearch.FrameworkServiceAppSearchConfig;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -51,6 +51,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Manages executors within AppSearch.
@@ -60,6 +61,8 @@ import java.util.concurrent.TimeUnit;
  * @hide
  */
 public class ExecutorManager {
+    private static final long AWAIT_DURATION_MS = 30 * 1000;
+
     /**
      * Creates a new {@link ExecutorService} with default settings for use in AppSearch.
      *
@@ -84,6 +87,21 @@ public class ExecutorManager {
     }
 
     /**
+     * Creates a new {@link ExecutorService} with fixed thread settings for use in AppSearch.
+     */
+    @NonNull
+    public static ExecutorService createFixedThreadExecutorService() {
+        return AppSearchEnvironmentFactory.getEnvironmentInstance()
+                .createExecutorService(
+                        /* corePoolSize= */ 1,
+                        /* maxConcurrency= */ 1,
+                        /* keepAliveTime= */ 0L,
+                        /* unit= */ TimeUnit.SECONDS,
+                        /* workQueue= */ new LinkedBlockingQueue<>(),
+                        /* priority= */ 0); // priority is unused.
+    }
+
+    /**
      * Creates a new single-threaded {@link ScheduledExecutorService} for scheduling and running
      * background tasks in AppSearch.
      */
@@ -102,15 +120,42 @@ public class ExecutorManager {
     private final Map<UserHandle, ExecutorService> mPerUserExecutorsLocked = new ArrayMap<>();
 
     /**
+     * A map of per-user executors for queued read-only work. These can be started or shut down via
+     * this class's public API.
+     */
+    @GuardedBy("mPerUserReadOnlyExecutorsLocked")
+    private final Map<UserHandle, ExecutorService> mPerUserReadOnlyExecutorsLocked =
+            new ArrayMap<>();
+
+    /**
      * A map of per-user scheduled executors for scheduled work. These can be started or shut down
      * via this class's public API.
      */
+    // TODO: b/433949020 - merge scheduled executor with mPerUserExecutorsLocked
     @GuardedBy("mPerUserScheduledExecutorsLocked")
     private final Map<UserHandle, ScheduledExecutorService> mPerUserScheduledExecutorsLocked =
             new ArrayMap<>();
 
     public ExecutorManager(@NonNull ServiceAppSearchConfig appSearchConfig) {
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
+    }
+
+    /** Sets the user executor for a given {@link UserHandle} for testing. */
+    @VisibleForTesting
+    public void setUserExecutorForTest(@NonNull UserHandle userHandle,
+            @NonNull ExecutorService executorService) {
+        synchronized (mPerUserExecutorsLocked) {
+            mPerUserExecutorsLocked.put(userHandle, executorService);
+        }
+    }
+
+    /** Sets the read-only user executor for a given {@link UserHandle} for testing. */
+    @VisibleForTesting
+    public void setReadOnlyUserExecutorForTest(@NonNull UserHandle userHandle,
+            @NonNull ExecutorService executorService) {
+        synchronized (mPerUserReadOnlyExecutorsLocked) {
+            mPerUserReadOnlyExecutorsLocked.put(userHandle, executorService);
+        }
     }
 
     /**
@@ -123,14 +168,31 @@ public class ExecutorManager {
      * be created without problems but most operations on locked users will fail.
      */
     @NonNull
-    public Executor getOrCreateUserExecutor(@NonNull UserHandle userHandle) {
+    public Executor getOrCreateUserExecutor(@NonNull UserHandle userHandle, boolean isReadOnly) {
         Objects.requireNonNull(userHandle);
-        synchronized (mPerUserExecutorsLocked) {
-            if (mAppSearchConfig.getCachedRateLimitEnabled()) {
-                return getOrCreateUserRateLimitedExecutorLocked(
-                        userHandle, mAppSearchConfig.getCachedRateLimitConfig());
-            } else {
-                return getOrCreateUserExecutorLocked(userHandle);
+        if (Flags.enableSeparateReadWriteExecutors() && isReadOnly) {
+            synchronized (mPerUserReadOnlyExecutorsLocked) {
+                if (mAppSearchConfig.getCachedRateLimitEnabled()) {
+                    return getOrCreateUserRateLimitedExecutorLocked(userHandle,
+                            mPerUserReadOnlyExecutorsLocked,
+                            ExecutorManager::createFixedThreadExecutorService,
+                            mAppSearchConfig.getCachedRateLimitConfig());
+                } else {
+                    return getOrCreateUserExecutorLocked(userHandle,
+                            mPerUserReadOnlyExecutorsLocked,
+                            ExecutorManager::createFixedThreadExecutorService);
+                }
+            }
+        } else {
+            synchronized (mPerUserExecutorsLocked) {
+                if (mAppSearchConfig.getCachedRateLimitEnabled()) {
+                    return getOrCreateUserRateLimitedExecutorLocked(userHandle,
+                            mPerUserExecutorsLocked, ExecutorManager::createDefaultExecutorService,
+                            mAppSearchConfig.getCachedRateLimitConfig());
+                } else {
+                    return getOrCreateUserExecutorLocked(userHandle, mPerUserExecutorsLocked,
+                            ExecutorManager::createDefaultExecutorService);
+                }
             }
         }
     }
@@ -165,6 +227,16 @@ public class ExecutorManager {
             executor.shutdown();
         }
 
+        ExecutorService readOnlyExecutor = null;
+        if (Flags.enableSeparateReadWriteExecutors()) {
+            synchronized (mPerUserReadOnlyExecutorsLocked) {
+                readOnlyExecutor = mPerUserReadOnlyExecutorsLocked.remove(userHandle);
+            }
+            if (readOnlyExecutor != null) {
+                readOnlyExecutor.shutdown();
+            }
+        }
+
         ScheduledExecutorService scheduleExecutor;
         synchronized (mPerUserScheduledExecutorsLocked) {
             scheduleExecutor = mPerUserScheduledExecutorsLocked.remove(userHandle);
@@ -179,16 +251,20 @@ public class ExecutorManager {
         // user instance, meaning pending tasks may crash when AppSearchImpl closes under
         // them.
         long awaitStartTimeMs = SystemClock.elapsedRealtime();
-        long awaitDurationMs = 30 * 1000;
+        long awaitDurationMs = AWAIT_DURATION_MS;
         if (executor != null) {
             executor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
         }
-        long awaitTimeElapsedMs = SystemClock.elapsedRealtime() - awaitStartTimeMs;
-        if (scheduleExecutor != null) {
-            awaitDurationMs -= awaitTimeElapsedMs;
-            if (awaitDurationMs > 0) {
-                scheduleExecutor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
+        if (Flags.enableSeparateReadWriteExecutors()) {
+            awaitDurationMs =
+                    AWAIT_DURATION_MS - (SystemClock.elapsedRealtime() - awaitStartTimeMs);
+            if (readOnlyExecutor != null && awaitDurationMs > 0) {
+                readOnlyExecutor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
             }
+        }
+        awaitDurationMs = AWAIT_DURATION_MS - (SystemClock.elapsedRealtime() - awaitStartTimeMs);
+        if (scheduleExecutor != null && awaitDurationMs > 0) {
+            scheduleExecutor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -217,24 +293,23 @@ public class ExecutorManager {
         Objects.requireNonNull(callingPackageName);
         Objects.requireNonNull(lambda);
         try {
-            synchronized (mPerUserExecutorsLocked) {
-                Executor executor = getOrCreateUserExecutor(targetUser);
-                if (executor instanceof RateLimitedExecutor) {
-                    boolean callAccepted =
-                            ((RateLimitedExecutor) executor)
-                                    .execute(lambda, callingPackageName, apiType);
-                    if (!callAccepted) {
-                        invokeCallbackOnResult(
-                                errorCallback,
-                                AppSearchResultParcel.fromFailedResult(
-                                        AppSearchResult.newFailedResult(
-                                                RESULT_RATE_LIMITED,
-                                                "AppSearch rate limit reached.")));
-                        return false;
-                    }
-                } else {
-                    executor.execute(lambda);
+            boolean isReadOnly = isReadOnlyCall(apiType);
+            Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly);
+            if (executor instanceof RateLimitedExecutor) {
+                boolean callAccepted =
+                        ((RateLimitedExecutor) executor)
+                                .execute(lambda, callingPackageName, apiType);
+                if (!callAccepted) {
+                    invokeCallbackOnResult(
+                            errorCallback,
+                            AppSearchResultParcel.fromFailedResult(
+                                    AppSearchResult.newFailedResult(
+                                            RESULT_RATE_LIMITED,
+                                            "AppSearch rate limit reached.")));
+                    return false;
                 }
+            } else {
+                executor.execute(lambda);
             }
         } catch (RuntimeException e) {
             AppSearchResult failedResult = throwableToFailedResult(e);
@@ -268,22 +343,21 @@ public class ExecutorManager {
         Objects.requireNonNull(callingPackageName);
         Objects.requireNonNull(lambda);
         try {
-            synchronized (mPerUserExecutorsLocked) {
-                Executor executor = getOrCreateUserExecutor(targetUser);
-                if (executor instanceof RateLimitedExecutor) {
-                    boolean callAccepted =
-                            ((RateLimitedExecutor) executor)
-                                    .execute(lambda, callingPackageName, apiType);
-                    if (!callAccepted) {
-                        invokeCallbackOnError(
-                                errorCallback,
-                                AppSearchResult.newFailedResult(
-                                        RESULT_RATE_LIMITED, "AppSearch rate limit reached."));
-                        return false;
-                    }
-                } else {
-                    executor.execute(lambda);
+            boolean isReadOnly = isReadOnlyCall(apiType);
+            Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly);
+            if (executor instanceof RateLimitedExecutor) {
+                boolean callAccepted =
+                        ((RateLimitedExecutor) executor)
+                                .execute(lambda, callingPackageName, apiType);
+                if (!callAccepted) {
+                    invokeCallbackOnError(
+                            errorCallback,
+                            AppSearchResult.newFailedResult(
+                                    RESULT_RATE_LIMITED, "AppSearch rate limit reached."));
+                    return false;
                 }
+            } else {
+                executor.execute(lambda);
             }
         } catch (RuntimeException e) {
             invokeCallbackOnError(errorCallback, e);
@@ -310,15 +384,13 @@ public class ExecutorManager {
         Objects.requireNonNull(targetUser);
         Objects.requireNonNull(callingPackageName);
         Objects.requireNonNull(lambda);
-        synchronized (mPerUserExecutorsLocked) {
-            Executor executor = getOrCreateUserExecutor(targetUser);
-            if (executor instanceof RateLimitedExecutor) {
-                return ((RateLimitedExecutor) executor)
-                        .execute(lambda, callingPackageName, apiType);
-            } else {
-                executor.execute(lambda);
-                return true;
-            }
+        boolean isReadOnly = isReadOnlyCall(apiType);
+        Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly);
+        if (executor instanceof RateLimitedExecutor) {
+            return ((RateLimitedExecutor) executor).execute(lambda, callingPackageName, apiType);
+        } else {
+            executor.execute(lambda);
+            return true;
         }
     }
 
@@ -327,16 +399,14 @@ public class ExecutorManager {
      * user, without invoking callback for the user.
      *
      * @param targetUser The verified user the call should run as.
+     * @param isReadOnly Whether the given lambda performs only AppSearch read operations.
      * @param lambda The lambda to execute on the user-provided executor.
      */
     public void executeLambdaForUserNoCallbackAsync(
-            @NonNull UserHandle targetUser, @NonNull Runnable lambda) {
+            @NonNull UserHandle targetUser, boolean isReadOnly, @NonNull Runnable lambda) {
         Objects.requireNonNull(targetUser);
         Objects.requireNonNull(lambda);
-
-        synchronized (mPerUserExecutorsLocked) {
-            getOrCreateUserExecutor(targetUser).execute(lambda);
-        }
+        getOrCreateUserExecutor(targetUser, isReadOnly).execute(lambda);
     }
 
     /**
@@ -362,35 +432,69 @@ public class ExecutorManager {
         }
     }
 
-    @GuardedBy("mPerUserExecutorsLocked")
     @NonNull
-    private Executor getOrCreateUserExecutorLocked(@NonNull UserHandle userHandle) {
+    private Executor getOrCreateUserExecutorLocked(@NonNull UserHandle userHandle,
+            @NonNull Map<UserHandle, ExecutorService> userExecutorMap,
+            @NonNull Supplier<ExecutorService> executorSupplier) {
         Objects.requireNonNull(userHandle);
-        ExecutorService executor = mPerUserExecutorsLocked.get(userHandle);
+        Objects.requireNonNull(userExecutorMap);
+        Objects.requireNonNull(executorSupplier);
+        ExecutorService executor = userExecutorMap.get(userHandle);
         if (executor == null) {
-            executor = ExecutorManager.createDefaultExecutorService();
-            mPerUserExecutorsLocked.put(userHandle, executor);
+            executor = executorSupplier.get();
+            userExecutorMap.put(userHandle, executor);
         } else if (executor instanceof RateLimitedExecutor) {
             executor = ((RateLimitedExecutor) executor).getExecutor();
         }
         return executor;
     }
 
-    @GuardedBy("mPerUserExecutorsLocked")
     @NonNull
     private Executor getOrCreateUserRateLimitedExecutorLocked(
-            @NonNull UserHandle userHandle, @NonNull AppSearchRateLimitConfig rateLimitConfig) {
+            @NonNull UserHandle userHandle,
+            @NonNull Map<UserHandle, ExecutorService> userExecutorMap,
+            @NonNull Supplier<ExecutorService> executorSupplier,
+            @NonNull AppSearchRateLimitConfig rateLimitConfig) {
         Objects.requireNonNull(userHandle);
+        Objects.requireNonNull(userExecutorMap);
+        Objects.requireNonNull(executorSupplier);
         Objects.requireNonNull(rateLimitConfig);
-        ExecutorService executor = mPerUserExecutorsLocked.get(userHandle);
+        ExecutorService executor = userExecutorMap.get(userHandle);
         if (executor instanceof RateLimitedExecutor) {
             ((RateLimitedExecutor) executor).setRateLimitConfig(rateLimitConfig);
         } else {
-            executor =
-                    new RateLimitedExecutor(
-                            ExecutorManager.createDefaultExecutorService(), rateLimitConfig);
-            mPerUserExecutorsLocked.put(userHandle, executor);
+            executor = new RateLimitedExecutor(executorSupplier.get(), rateLimitConfig);
+            userExecutorMap.put(userHandle, executor);
         }
         return executor;
+    }
+
+    /** Returns whether or not an API call is a read-only AppSearch operation. */
+    private boolean isReadOnlyCall(@CallStats.CallType int apiType) {
+        switch (apiType) {
+            case CallStats.CALL_TYPE_INITIALIZE: // creates AppSearch user instance which is a
+                // different lock
+            case CallStats.CALL_TYPE_GET_DOCUMENTS:
+            case CallStats.CALL_TYPE_GET_DOCUMENT:
+            case CallStats.CALL_TYPE_SEARCH:
+            case CallStats.CALL_TYPE_GLOBAL_SEARCH:
+            case CallStats.CALL_TYPE_GLOBAL_GET_DOCUMENT_BY_ID:
+            case CallStats.CALL_TYPE_GLOBAL_GET_SCHEMA:
+            case CallStats.CALL_TYPE_GET_SCHEMA:
+            case CallStats.CALL_TYPE_GET_NAMESPACES:
+            case CallStats.CALL_TYPE_GET_NEXT_PAGE:
+            case CallStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN:
+            case CallStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE: // search + write to file
+            case CallStats.CALL_TYPE_SEARCH_SUGGESTION:
+            case CallStats.CALL_TYPE_GET_STORAGE_INFO:
+            case CallStats.CALL_TYPE_REGISTER_OBSERVER_CALLBACK: // doesn't actually use executor
+            case CallStats.CALL_TYPE_UNREGISTER_OBSERVER_CALLBACK: // doesn't actually use executor
+            case CallStats.CALL_TYPE_GLOBAL_GET_NEXT_PAGE:
+            case CallStats.CALL_TYPE_OPEN_READ_BLOB:
+            case CallStats.CALL_TYPE_GLOBAL_OPEN_READ_BLOB:
+                return true;
+            default:
+                return false;
+        }
     }
 }
