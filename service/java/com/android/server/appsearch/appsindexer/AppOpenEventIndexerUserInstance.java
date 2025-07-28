@@ -22,6 +22,8 @@ import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
+import android.provider.DeviceConfig;
+import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import android.util.Log;
 import android.util.Slog;
 
@@ -29,6 +31,7 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import java.io.File;
@@ -64,6 +67,8 @@ public final class AppOpenEventIndexerUserInstance {
     private final Context mContext;
 
     private final AppOpenEventIndexerConfig mAppOpenEventIndexerConfig;
+    private final IndexerForceUpdateConfig mAppOpenEventIndexerForceUpdateConfig;
+    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     private final InternalAppSearchLogger mLogger;
 
@@ -89,11 +94,13 @@ public final class AppOpenEventIndexerUserInstance {
     public static AppOpenEventIndexerUserInstance createInstance(
             @NonNull Context userContext,
             @NonNull File appOpenEventIndexerDir,
-            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig)
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig,
+            @NonNull IndexerForceUpdateConfig appOpenEventIndexerForceUpdateConfig)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(appOpenEventIndexerDir);
         Objects.requireNonNull(appOpenEventIndexerConfig);
+        Objects.requireNonNull(appOpenEventIndexerForceUpdateConfig);
 
         ExecutorService singleThreadedExecutor =
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
@@ -101,6 +108,7 @@ public final class AppOpenEventIndexerUserInstance {
                 userContext,
                 appOpenEventIndexerDir,
                 appOpenEventIndexerConfig,
+                appOpenEventIndexerForceUpdateConfig,
                 singleThreadedExecutor);
     }
 
@@ -110,11 +118,13 @@ public final class AppOpenEventIndexerUserInstance {
             @NonNull Context context,
             @NonNull File appOpenEventIndexerDir,
             @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig,
+            @NonNull IndexerForceUpdateConfig appOpenEventIndexerForceUpdateConfig,
             @NonNull ExecutorService executorService)
             throws AppSearchException {
         Objects.requireNonNull(context);
         Objects.requireNonNull(appOpenEventIndexerDir);
         Objects.requireNonNull(appOpenEventIndexerConfig);
+        Objects.requireNonNull(appOpenEventIndexerForceUpdateConfig);
         Objects.requireNonNull(executorService);
         AppOpenEventIndexerImpl appOpenEventIndexerImpl =
                 new AppOpenEventIndexerImpl(context, appOpenEventIndexerConfig);
@@ -126,7 +136,8 @@ public final class AppOpenEventIndexerUserInstance {
                         context,
                         appOpenEventIndexerImpl,
                         new AppOpenEventIndexerSettings(appOpenEventIndexerDir),
-                        appOpenEventIndexerConfig);
+                        appOpenEventIndexerConfig,
+                        appOpenEventIndexerForceUpdateConfig);
         indexer.loadSettingsAsync();
 
         return indexer;
@@ -145,7 +156,8 @@ public final class AppOpenEventIndexerUserInstance {
             @NonNull Context context,
             @NonNull AppOpenEventIndexerImpl appOpenEventIndexerImpl,
             @NonNull AppOpenEventIndexerSettings appOpenEventIndexerSettings,
-            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig) {
+            @NonNull AppOpenEventIndexerConfig appOpenEventIndexerConfig,
+            @NonNull IndexerForceUpdateConfig appOpenEventIndexerForceUpdateConfig) {
         mDataDir = Objects.requireNonNull(dataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
@@ -157,10 +169,43 @@ public final class AppOpenEventIndexerUserInstance {
         mAppOpenEventIndexerImpl = Objects.requireNonNull(appOpenEventIndexerImpl);
         mAppOpenEventIndexerSettings = Objects.requireNonNull(appOpenEventIndexerSettings);
         mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
+        mAppOpenEventIndexerForceUpdateConfig =
+                Objects.requireNonNull(appOpenEventIndexerForceUpdateConfig);
+    }
+
+    /** Initialize a Device Config Listener */
+    public void startAsync() {
+        startAsync(() -> {});
+    }
+
+    /**
+     * Initializes a listener for {@link AppOpenEventIndexerUserInstance}
+     *
+     * <p>This method sets up a listener for device configuration changes related to force updates
+     * for the indexer. When a relevant configuration change occurs, check if the required
+     * conditions are met to schedule a force update.
+     *
+     * @param callback A {@link Runnable} to be executed when a force update is complete.
+     */
+    @VisibleForTesting
+    void startAsync(@NonNull Runnable callback) {
+       if (Flags.enableIndexerForceUpdate()) {
+            mOnDeviceConfigChangedListener =
+                IndexerForceUpdateConfig.addListener(
+                        mSingleThreadedExecutor,
+                        () -> handleForceUpdateConfigChanged(callback));
+       }
     }
 
     /** Shuts down the AppOpenEventIndexerUserInstance */
     public void shutdown() throws InterruptedException {
+        if (Flags.enableIndexerForceUpdate()) {
+            if (mOnDeviceConfigChangedListener != null) {
+                executeOnSingleThreadedExecutor(
+                        () -> DeviceConfig.removeOnPropertiesChangedListener(
+                                    mOnDeviceConfigChangedListener));
+            }
+        }
         mAppOpenEventIndexerImpl.close();
         IndexerMaintenanceService.cancelUpdateJobIfScheduled(
                 mContext, mContext.getUser(), APP_OPEN_EVENT_INDEXER);
@@ -211,6 +256,15 @@ public final class AppOpenEventIndexerUserInstance {
                         callback.run();
                     }
                 });
+        if (Flags.enableIndexerForceUpdate()) {
+            mAppOpenEventIndexerSettings.setIndexerForceUpdateEmergencyCounter(
+                    mAppOpenEventIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
+            try {
+                mAppOpenEventIndexerSettings.persist();
+            } catch (IOException e) {
+                Log.w(TAG, "Failed to save settings to disk", e);
+            }
+        }
     }
 
     /** Loads the persisted data from disk asynchronously. */
@@ -325,5 +379,35 @@ public final class AppOpenEventIndexerUserInstance {
                 /* periodic= */ true,
                 /* intervalMillis= */ mAppOpenEventIndexerConfig
                         .getAppOpenEventMaintenanceUpdateIntervalMillis());
+    }
+
+    @VisibleForTesting
+    public AppOpenEventIndexerSettings getSettings() {
+        return mAppOpenEventIndexerSettings;
+    }
+
+    /**
+     * Handles the force update logic for the apps open event indexer.
+     *
+     * <p>This method checks if the force update feature is enabled and if the emergency counter
+     * from the Device Configuration has increased compared to the stored setting. If both
+     * conditions are met, it triggers {@link #updateAsync} & updates the settings emergency counter
+     * @param callback A {@link Runnable} to be executed when a force update is complete.
+     */
+    private void handleForceUpdateConfigChanged(@NonNull Runnable callback) {
+        try {
+            if (!mAppOpenEventIndexerForceUpdateConfig.isIndexerForceUpdateEnabled()) {
+                return;
+            }
+            if (mAppOpenEventIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
+                    > mAppOpenEventIndexerSettings.getIndexerForceUpdateEmergencyCounter()) {
+                updateAsync(callback);
+            }
+        } catch (RuntimeException e) {
+            Slog.wtf(
+                    TAG,
+                    "AppOpenEventIndexerUserInstance.handleForceUpdateConfigChanged() failed",
+                    e);
+        }
     }
 }
