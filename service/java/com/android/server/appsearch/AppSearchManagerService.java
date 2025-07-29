@@ -264,9 +264,11 @@ public class AppSearchManagerService extends SystemService {
             Log.i(TAG, "Isolated storage is not enabled, no need to initialize it");
             return;
         }
+        UserHandle userHandle = UserHandle.SYSTEM;
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                UserHandle.SYSTEM,
+                userHandle,
                 /* isReadOnly= */ true,
+                isVMEnabledForUser(userHandle),
                 () -> {
                     Log.i(TAG, "Initializing isolated storage service");
                     try {
@@ -380,6 +382,7 @@ public class AppSearchManagerService extends SystemService {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
                     userHandle,
                     /* isReadOnly= */ false,
+                    isVMEnabledForUser(userHandle),
                     () -> {
                         try {
                             Context userContext =
@@ -420,6 +423,7 @@ public class AppSearchManagerService extends SystemService {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
                     userHandle,
                     /* isReadOnly= */ false,
+                    isVMEnabledForUser(userHandle),
                     () -> {
                         // Try to prune garbage package data, this is to recover if user remove a
                         // package and reboot the device before we prune the package data.
@@ -486,14 +490,13 @@ public class AppSearchManagerService extends SystemService {
                 persistToDiskFuture.cancel(/* mayInterruptIfRunning= */ false);
             }
 
-            if (mIsolatedStorageServiceManager == null
-                    || !IsolatedStorageServiceManager.isUserAllowed(userHandle)
-                    || requiresShutdown) {
+            boolean isVMEnabledForUser = isVMEnabledForUser(userHandle);
+            if (!isVMEnabledForUser || requiresShutdown) {
                 if (LogUtil.INFO) {
                     Log.i(TAG,
                             "Shutting down executor and closing AppSearch for user " + userHandle);
                 }
-                mExecutorManager.shutDownAndRemoveUserExecutor(userHandle);
+                mExecutorManager.shutDownAndRemoveUserExecutor(userHandle, isVMEnabledForUser);
                 mAppSearchUserInstanceManager.closeAndRemoveUserInstance(
                         userHandle, removeUserData);
             } else {
@@ -503,6 +506,7 @@ public class AppSearchManagerService extends SystemService {
                 mExecutorManager.executeLambdaForUserNoCallbackAsync(
                         userHandle,
                         /* isReadOnly= */ false,
+                        isVMEnabledForUser,
                         () -> {
                             if (LogUtil.INFO) {
                                 Log.i(TAG, "Closing AppSearch for user " + userHandle);
@@ -601,6 +605,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(
                     targetUser, callback, callingPackageName, BaseStats.CALL_TYPE_SET_SCHEMA,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
 
@@ -768,7 +773,8 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, callType, () -> {
+                    callback, callingPackageName, callType, isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -864,7 +870,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, BaseStats.CALL_TYPE_GET_NAMESPACES, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_GET_NAMESPACES,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -954,7 +962,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, BaseStats.CALL_TYPE_PUT_DOCUMENTS, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_PUT_DOCUMENTS,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -1260,7 +1270,8 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, callType, () -> {
+                    callback, callingPackageName, callType, isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -1473,7 +1484,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, BaseStats.CALL_TYPE_OPEN_WRITE_BLOB, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_OPEN_WRITE_BLOB,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -1587,7 +1600,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, BaseStats.CALL_TYPE_REMOVE_BLOB, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_REMOVE_BLOB,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -1700,7 +1715,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, BaseStats.CALL_TYPE_COMMIT_BLOB, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_COMMIT_BLOB,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -1817,7 +1834,8 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, callType, () -> {
+                    callingPackageName, callType, isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -1939,7 +1957,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser, callback,
-                    callingPackageName, BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY, () -> {
+                    callingPackageName, BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -2036,7 +2056,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, BaseStats.CALL_TYPE_SEARCH, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_SEARCH,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -2137,7 +2159,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, BaseStats.CALL_TYPE_GLOBAL_SEARCH, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_GLOBAL_SEARCH,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -2249,7 +2273,8 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, callType, () -> {
+                    callback, callingPackageName, callType, isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -2356,7 +2381,9 @@ public class AppSearchManagerService extends SystemService {
                 long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
                         targetUser, callingPackageName,
-                        BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN, () -> {
+                        BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN,
+                        isVMEnabledForUser(targetUser),
+                        () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                     AppSearchUserInstance instance = null;
@@ -2447,6 +2474,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_WRITE_SEARCH_RESULTS_TO_FILE,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
@@ -2554,6 +2582,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
@@ -2717,6 +2746,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_SEARCH_SUGGESTION,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
@@ -2816,6 +2846,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_REPORT_USAGE,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
@@ -2923,6 +2954,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
@@ -3055,6 +3087,7 @@ public class AppSearchManagerService extends SystemService {
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                    isVMEnabledForUser(targetUser),
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
@@ -3166,7 +3199,9 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
-                    callback, callingPackageName, BaseStats.CALL_TYPE_GET_STORAGE_INFO, () -> {
+                    callback, callingPackageName, BaseStats.CALL_TYPE_GET_STORAGE_INFO,
+                    isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = AppSearchResult.RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -3247,7 +3282,9 @@ public class AppSearchManagerService extends SystemService {
                 }
                 long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH, () -> {
+                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH,
+                        isVMEnabledForUser(targetUser),
+                        () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                     AppSearchUserInstance instance = null;
@@ -3376,7 +3413,7 @@ public class AppSearchManagerService extends SystemService {
                             request.getTargetPackageName(),
                             request.getObserverSpec(),
                             mExecutorManager.getOrCreateUserExecutor(targetUser, /* isReadOnly= */
-                                    true),
+                                    true, isVMEnabledForUser(targetUser)),
                             new AppSearchObserverProxy(observerProxyStub));
                     ++operationSuccessCount;
                     return AppSearchResultParcel.fromVoid();
@@ -3510,7 +3547,8 @@ public class AppSearchManagerService extends SystemService {
             }
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             mExecutorManager.executeLambdaForUserAsync(targetUser, callback, callingPackageName,
-                    BaseStats.CALL_TYPE_INITIALIZE, () -> {
+                    BaseStats.CALL_TYPE_INITIALIZE, isVMEnabledForUser(targetUser),
+                    () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
                 AppSearchUserInstance instance = null;
@@ -4023,6 +4061,7 @@ public class AppSearchManagerService extends SystemService {
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
                 /* isReadOnly= */ false,
+                isVMEnabledForUser(targetUser),
                 () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder builder = new OptimizeStats.Builder();
@@ -4067,6 +4106,7 @@ public class AppSearchManagerService extends SystemService {
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
                 /* isReadOnly= */ false,
+                isVMEnabledForUser(targetUser),
                 () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder builder = new OptimizeStats.Builder();
@@ -4308,5 +4348,10 @@ public class AppSearchManagerService extends SystemService {
         if (userStorageInfo != null) {
             userStorageInfo.dropStorageInfoCache();
         }
+    }
+
+    private boolean isVMEnabledForUser(@NonNull UserHandle userHandle) {
+        return mIsolatedStorageServiceManager != null
+                && IsolatedStorageServiceManager.isUserAllowed(userHandle);
     }
 }
