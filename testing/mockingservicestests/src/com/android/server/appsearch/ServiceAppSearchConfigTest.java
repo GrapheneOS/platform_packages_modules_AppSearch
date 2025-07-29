@@ -59,9 +59,9 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_S
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_SAMPLING_INTERVAL_FOR_SEARCH_STATS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_USE_NEW_QUALIFIED_ID_JOIN_INDEX;
-import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_COMPRESSION_THRESHOLD_BYTES;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DISABLED_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FIVE_MINUTE_PERSIST_DELAY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
@@ -110,8 +110,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
-
-import java.util.concurrent.TimeUnit;
 
 public class ServiceAppSearchConfigTest {
     @Rule
@@ -196,8 +194,8 @@ public class ServiceAppSearchConfigTest {
                 DEFAULT_TIME_OPTIMIZE_THRESHOLD_MILLIS);
         assertThat(appSearchConfig.getCachedDocCountOptimizeThreshold()).isEqualTo(
                 DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD);
-        assertThat(appSearchConfig.getCachedApiCallStatsLimit()).isEqualTo(
-                DEFAULT_API_CALL_STATS_LIMIT);
+        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
+                .isEqualTo(DEFAULT_DISABLED_API_CALL_STATS_LIMIT);
         assertThat(appSearchConfig.getCachedDenylist()).isEqualTo(Denylist.EMPTY_INSTANCE);
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(
                 IcingOptionsConfig.DEFAULT_MAX_TOKEN_LENGTH);

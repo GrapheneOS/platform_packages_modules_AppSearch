@@ -61,6 +61,7 @@ public class CallStats extends BaseStats {
     private final long mCallReceivedTimestampMillis;
     @CallType int mLastCallTypeHoldExecutor;
     int mExecutorAcquisitionLatencyMillis;
+    int mOnExecutorLatencyMillis;
 
     CallStats(@NonNull Builder builder) {
         super(builder);
@@ -75,6 +76,7 @@ public class CallStats extends BaseStats {
         mCallReceivedTimestampMillis = builder.mCallReceivedTimestampMillis;
         mLastCallTypeHoldExecutor = builder.mLastCallTypeHoldExecutor;
         mExecutorAcquisitionLatencyMillis = builder.mExecutorAcquisitionLatencyMillis;
+        mOnExecutorLatencyMillis = builder.mOnExecutorLatencyMillis;
     }
 
     /** Returns calling package name. */
@@ -154,6 +156,11 @@ public class CallStats extends BaseStats {
         return mExecutorAcquisitionLatencyMillis;
     }
 
+    /** Gets total latency while the task is running on the user executor. */
+    public int getOnExecutorLatencyMillis() {
+        return mOnExecutorLatencyMillis;
+    }
+
     /** Builder for {@link CallStats}. */
     public static class Builder extends BaseStats.Builder<CallStats.Builder> {
         @Nullable String mPackageName;
@@ -167,6 +174,7 @@ public class CallStats extends BaseStats {
         long mCallReceivedTimestampMillis;
         @CallType int mLastCallTypeHoldExecutor;
         int mExecutorAcquisitionLatencyMillis;
+        int mOnExecutorLatencyMillis;
 
         /** Sets the PackageName used by the session. */
         @CanIgnoreReturnValue
@@ -263,6 +271,13 @@ public class CallStats extends BaseStats {
         public @NonNull Builder setExecutorAcquisitionLatencyMillis(
                 int executorAcquisitionLatencyMillis) {
             mExecutorAcquisitionLatencyMillis = executorAcquisitionLatencyMillis;
+            return this;
+        }
+
+        /** Sets total latency while the task is running on the user executor. */
+        @CanIgnoreReturnValue
+        public @NonNull Builder setOnExecutorLatencyMillis(int onExecutorLatencyMillis) {
+            mOnExecutorLatencyMillis = onExecutorLatencyMillis;
             return this;
         }
 

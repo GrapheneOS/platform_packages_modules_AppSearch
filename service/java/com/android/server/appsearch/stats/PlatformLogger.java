@@ -153,15 +153,17 @@ public class PlatformLogger implements InternalAppSearchLogger {
         synchronized (mLock) {
             if (mLastCallStatsTimestampMillisLocked > 0) {
                 calculatedTimeSincePreviousRequestMillis =
-                        Math.max(currentCallReceivedTimestamp - mLastCallStatsTimestampMillisLocked, -1L);
+                        Math.max(
+                                currentCallReceivedTimestamp - mLastCallStatsTimestampMillisLocked,
+                                -1L);
             }
-
-            if (mConfig.getCachedApiCallStatsLimit() > 0) {
+            if (getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0) {
                 addStatsToQueueLocked(new ApiCallRecord(stats));
             } else {
                 mLastNCalls.clear();
             }
             if (shouldLogForTypeLocked(stats.getCallType())) {
+
                 logStatsImplLocked(stats, calculatedTimeSincePreviousRequestMillis);
             }
             mLastCallStatsTimestampMillisLocked = currentCallReceivedTimestamp;
@@ -223,7 +225,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull OptimizeStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (mConfig.getCachedApiCallStatsLimit() > 0) {
+            if (getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0) {
                 // Unlike most other API calls, Optimize does not produce a CallStats, so we
                 // record OptimizeStats in the queue.
                 addStatsToQueueLocked(new ApiCallRecord(stats));
@@ -363,6 +365,34 @@ public class PlatformLogger implements InternalAppSearchLogger {
             // will be 10*12 + 10*3 = 150 for that device's reported value.
             final int numReportedCalls = 1;
 
+            List<ApiCallRecord> lastNCalls = new ArrayList<>();
+            long callReceivedTimestampMillis = stats.getCallReceivedTimestampMillis();
+            for (ApiCallRecord apiCallRecord : mLastNCalls) {
+                // Only add the previous API calls that finished after the current API call received
+                if (apiCallRecord.getTimeMillis() + apiCallRecord.getTotalLatencyMillis()
+                        > callReceivedTimestampMillis) {
+                    lastNCalls.add(apiCallRecord);
+                }
+            }
+
+            long[] lastNTimeMillis = new long[lastNCalls.size()];
+            int[] lastNCallTypes = new int[lastNCalls.size()];
+            int[] lastNUids = new int[lastNCalls.size()];
+            int[] lastNDatabases = new int[lastNCalls.size()];
+            int[] lastNStatusCodes = new int[lastNCalls.size()];
+            int[] lastNTotalLatencyMillis = new int[lastNCalls.size()];
+            int[] lastNOnExecutorLatencyMillis = new int[lastNCalls.size()];
+            for (int i = 0; i < lastNCalls.size(); i++) {
+                ApiCallRecord apiCallRecord = lastNCalls.get(i);
+                lastNTimeMillis[i] = apiCallRecord.getTimeMillis();
+                lastNCallTypes[i] = apiCallRecord.getCallType();
+                lastNUids[i] = getPackageUidAsUserLocked(apiCallRecord.getPackageName());
+                lastNDatabases[i] = StatsUtil.calculateHashCodeMd5(apiCallRecord.getDatabaseName());
+                lastNStatusCodes[i] = apiCallRecord.getStatusCode();
+                lastNTotalLatencyMillis[i] = apiCallRecord.getTotalLatencyMillis();
+                lastNOnExecutorLatencyMillis[i] = apiCallRecord.getOnExecutorLatencyMillis();
+            }
+
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_CALL_STATS_REPORTED,
@@ -379,7 +409,14 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     numReportedCalls,
                     stats.getEnabledFeatures(),
                     timeSincePreviousRequestMillis,
-                    stats.getExecutorAcquisitionLatencyMillis());
+                    stats.getExecutorAcquisitionLatencyMillis(),
+                    lastNTimeMillis,
+                    lastNCallTypes,
+                    lastNUids,
+                    lastNDatabases,
+                    lastNStatusCodes,
+                    lastNTotalLatencyMillis,
+                    lastNOnExecutorLatencyMillis);
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -907,7 +944,11 @@ public class PlatformLogger implements InternalAppSearchLogger {
      */
     @GuardedBy("mLock")
     private void trimExcessStatsQueueLocked() {
-        final int n = mConfig.getCachedApiCallStatsLimit();
+        if (mLastNCalls.isEmpty()) {
+            return;
+        }
+        final int n =
+                getCachedApiCallStatsLimitForFeatures(mLastNCalls.getLast().getEnabledFeatures());
         if (n <= 0) {
             mLastNCalls.clear();
             return;
@@ -943,10 +984,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     @NonNull
     ExtraStats createExtraStatsLocked(
             @Nullable String packageName, @BaseStats.CallType int callType) {
-        int packageUid = Process.INVALID_UID;
-        if (packageName != null) {
-            packageUid = getPackageUidAsUserLocked(packageName);
-        }
+        int packageUid = getPackageUidAsUserLocked(packageName);
 
         // The sampling ratio here might be different from the one used in
         // shouldLogForTypeLocked if there is a config change in the middle.
@@ -998,7 +1036,10 @@ public class PlatformLogger implements InternalAppSearchLogger {
      * find the UID.
      */
     @GuardedBy("mLock")
-    private int getPackageUidAsUserLocked(@NonNull String packageName) {
+    private int getPackageUidAsUserLocked(@Nullable String packageName) {
+        if (packageName == null) {
+            return Process.INVALID_UID;
+        }
         Integer packageUid = mPackageUidCacheLocked.get(packageName);
         if (packageUid == null) {
             packageUid = PackageUtil.getPackageUid(mUserContext, packageName);
@@ -1067,5 +1108,11 @@ public class PlatformLogger implements InternalAppSearchLogger {
     @GuardedBy("mLock")
     void setLastPushTimeMillisLocked(long lastPushElapsedTimeMillis) {
         mLastPushTimeMillisLocked = lastPushElapsedTimeMillis;
+    }
+
+    private int getCachedApiCallStatsLimitForFeatures(long enabledFeatures) {
+        return BaseStats.areFeaturesOn(enabledFeatures, List.of(BaseStats.LAUNCH_VM))
+                ? mConfig.getCachedApiCallStatsLimitForVm()
+                : mConfig.getCachedApiCallStatsLimit();
     }
 }

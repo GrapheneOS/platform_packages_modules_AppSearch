@@ -240,6 +240,11 @@ public class AppSearchManagerService extends SystemService {
         }
     }
 
+    @VisibleForTesting
+    ExecutorManager getExecutorManager() {
+        return mExecutorManager;
+    }
+
     @Override
     public void onStart() {
         publishBinderService(Context.APP_SEARCH_SERVICE, new Stub());
@@ -261,6 +266,7 @@ public class AppSearchManagerService extends SystemService {
         }
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 UserHandle.SYSTEM,
+                /* isReadOnly= */ true,
                 () -> {
                     Log.i(TAG, "Initializing isolated storage service");
                     try {
@@ -373,6 +379,7 @@ public class AppSearchManagerService extends SystemService {
         if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
                     userHandle,
+                    /* isReadOnly= */ false,
                     () -> {
                         try {
                             Context userContext =
@@ -412,6 +419,7 @@ public class AppSearchManagerService extends SystemService {
         if (mAppSearchEnvironment.getAppSearchDir(mContext, userHandle).exists()) {
             mExecutorManager.executeLambdaForUserNoCallbackAsync(
                     userHandle,
+                    /* isReadOnly= */ false,
                     () -> {
                         // Try to prune garbage package data, this is to recover if user remove a
                         // package and reboot the device before we prune the package data.
@@ -494,6 +502,7 @@ public class AppSearchManagerService extends SystemService {
                 }
                 mExecutorManager.executeLambdaForUserNoCallbackAsync(
                         userHandle,
+                        /* isReadOnly= */ false,
                         () -> {
                             if (LogUtil.INFO) {
                                 Log.i(TAG, "Closing AppSearch for user " + userHandle);
@@ -656,11 +665,14 @@ public class AppSearchManagerService extends SystemService {
                             failedResult));
                 } finally {
                     if (instance != null) {
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
+                        int totalLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
-                        int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -671,6 +683,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -790,8 +803,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -802,6 +818,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -876,8 +893,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -888,6 +908,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1130,8 +1151,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -1142,6 +1166,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1383,8 +1408,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -1395,6 +1423,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1488,9 +1517,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime()
-                                        - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
@@ -1501,6 +1532,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1598,9 +1630,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime()
-                                        - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
@@ -1611,6 +1645,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1709,9 +1744,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime()
-                                        - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
@@ -1722,6 +1759,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1831,9 +1869,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime()
-                                        - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
@@ -1844,6 +1884,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -1926,9 +1967,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime()
-                                        - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getCallingDatabaseName())
@@ -1939,6 +1982,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2021,8 +2065,11 @@ public class AppSearchManagerService extends SystemService {
                     if (instance != null) {
                         int estimatedBinderLatencyMillis = 2 * (int) (totalLatencyStartTimeMillis
                                 - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -2033,6 +2080,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2128,8 +2176,11 @@ public class AppSearchManagerService extends SystemService {
                     if (instance != null) {
                         int estimatedBinderLatencyMillis = 2 * (int) (totalLatencyStartTimeMillis
                                 - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setStatusCode(statusCode)
@@ -2139,6 +2190,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2239,8 +2291,11 @@ public class AppSearchManagerService extends SystemService {
                     if (instance != null) {
                         int estimatedBinderLatencyMillis = 2 * (int) (totalLatencyStartTimeMillis
                                 - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         CallStats.Builder builder = new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -2251,6 +2306,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2322,9 +2378,11 @@ public class AppSearchManagerService extends SystemService {
                             int estimatedBinderLatencyMillis =
                                     2 * (int) (totalLatencyStartTimeMillis
                                             - request.getBinderCallStartTimeMillis());
+                            long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                            int onExecutorLatencyMillis =
+                                    (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                             int totalLatencyMillis =
-                                    (int) (SystemClock.elapsedRealtime()
-                                            - totalLatencyStartTimeMillis);
+                                    (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                             instance.getLogger().logStats(new CallStats.Builder()
                                     .setPackageName(callingPackageName)
                                     .setStatusCode(statusCode)
@@ -2334,6 +2392,7 @@ public class AppSearchManagerService extends SystemService {
                                     .setExecutorAcquisitionLatencyMillis(
                                             (int) (waitExecutorEndTimeMillis
                                                     - waitExecutorStartTimeMillis))
+                                    .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                     // TODO(b/173532925) check the existing binder call latency
                                     //  chart
                                     // is good enough for us:
@@ -2431,8 +2490,11 @@ public class AppSearchManagerService extends SystemService {
                     if (instance != null) {
                         int estimatedBinderLatencyMillis = 2 * (int) (totalLatencyStartTimeMillis
                                 - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -2443,6 +2505,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2569,21 +2632,23 @@ public class AppSearchManagerService extends SystemService {
                 } finally {
                     if (instance != null) {
                         dropStorageInfoCacheForUser(targetUser);
-                        long latencyEndTimeMillis =
-                                SystemClock.elapsedRealtime();
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (callStatsTotalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
                         int callStatsTotalLatencyMillis =
-                                (int) (latencyEndTimeMillis - callStatsTotalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis
+                                        - callStatsTotalLatencyStartTimeMillis);
                         // totalLatencyStartTimeMillis is captured in the SDK side, and
                         // put migrate documents is the last step of migration process.
                         // This should includes whole schema migration process.
                         // Like get old schema, first and second set schema, query old
                         // documents, transform documents and save migrated documents.
-                        int totalLatencyMillis = (int) (latencyEndTimeMillis
+                        int totalLatencyMillis =(int) (totalLatencyEndTimeMillis
                                 - request.getTotalLatencyStartTimeMillis());
-                        int saveDocumentLatencyMillis = (int) (latencyEndTimeMillis
+                        int saveDocumentLatencyMillis = (int) (totalLatencyEndTimeMillis
                                 - request.getBinderCallStartTimeMillis());
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
@@ -2595,6 +2660,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2682,8 +2748,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -2694,6 +2763,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2791,8 +2861,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis -
                                         request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -2803,6 +2876,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -2916,8 +2990,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -2928,6 +3005,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3027,8 +3105,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -3039,6 +3120,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3109,8 +3191,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setDatabase(request.getDatabaseName())
@@ -3121,6 +3206,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3196,9 +3282,11 @@ public class AppSearchManagerService extends SystemService {
                             int estimatedBinderLatencyMillis =
                                     2 * (int) (totalLatencyStartTimeMillis
                                             - request.getBinderCallStartTimeMillis());
+                            long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                            int onExecutorLatencyMillis =
+                                    (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                             int totalLatencyMillis =
-                                    (int) (SystemClock.elapsedRealtime()
-                                            - totalLatencyStartTimeMillis);
+                                    (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                             instance.getLogger().logStats(new CallStats.Builder()
                                     .setPackageName(callingPackageName)
                                     .setStatusCode(statusCode)
@@ -3208,6 +3296,7 @@ public class AppSearchManagerService extends SystemService {
                                     .setExecutorAcquisitionLatencyMillis(
                                             (int) (waitExecutorEndTimeMillis
                                                     - waitExecutorStartTimeMillis))
+                                    .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                     // TODO(b/173532925) check the existing binder call latency
                                     // chart is good enough for us:
                                     // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3286,7 +3375,8 @@ public class AppSearchManagerService extends SystemService {
                                     callerHasSystemAccess, /*isForEnterprise=*/ false),
                             request.getTargetPackageName(),
                             request.getObserverSpec(),
-                            mExecutorManager.getOrCreateUserExecutor(targetUser),
+                            mExecutorManager.getOrCreateUserExecutor(targetUser, /* isReadOnly= */
+                                    true),
                             new AppSearchObserverProxy(observerProxyStub));
                     ++operationSuccessCount;
                     return AppSearchResultParcel.fromVoid();
@@ -3448,8 +3538,11 @@ public class AppSearchManagerService extends SystemService {
                         int estimatedBinderLatencyMillis =
                                 2 * (int) (totalLatencyStartTimeMillis
                                         - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                         int totalLatencyMillis =
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartTimeMillis);
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
                         instance.getLogger().logStats(new CallStats.Builder()
                                 .setPackageName(callingPackageName)
                                 .setStatusCode(statusCode)
@@ -3459,6 +3552,7 @@ public class AppSearchManagerService extends SystemService {
                                 .setExecutorAcquisitionLatencyMillis(
                                         (int) (waitExecutorEndTimeMillis
                                                 - waitExecutorStartTimeMillis))
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 // TODO(b/173532925) check the existing binder call latency chart
                                 // is good enough for us:
                                 // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
@@ -3920,22 +4014,34 @@ public class AppSearchManagerService extends SystemService {
             @NonNull UserHandle targetUser,
             @NonNull AppSearchUserInstance instance,
             int mutateBatchSize) {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         if (mServiceImplHelper.isUserLocked(targetUser)) {
             // We shouldn't schedule any task to locked user.
             return;
         }
+        long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
+                /* isReadOnly= */ false,
                 () -> {
-                    long totalLatencyStartMillis = SystemClock.elapsedRealtime();
+                    long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder builder = new OptimizeStats.Builder();
                     try {
                         instance.getAppSearchImpl().checkForOptimize(mutateBatchSize, builder);
                     } catch (Exception e) {
                         Log.w(TAG, "Error occurred when check for optimize", e);
                     } finally {
-                        OptimizeStats oStats = builder.setTotalLatencyMillis(
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis))
+                        long totalLatencyEndMillis = SystemClock.elapsedRealtime();
+                        int totalLatency = (int) (totalLatencyEndMillis - totalLatencyStartMillis);
+                        int executorAcquisitionLatency =
+                                (int) (waitExecutorEndTimeMillis - totalLatencyStartMillis);
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndMillis - waitExecutorEndTimeMillis);
+
+                        OptimizeStats oStats = builder.setTotalLatencyMillis(totalLatency)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
+                                .setExecutorAcquisitionLatencyMillis(executorAcquisitionLatency)
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 .build();
                         if (oStats.getOriginalDocumentCount() > 0) {
                             if (oStats.getDeletedDocumentCount()
@@ -3952,22 +4058,34 @@ public class AppSearchManagerService extends SystemService {
     private void checkForOptimize(
             @NonNull UserHandle targetUser,
             @NonNull AppSearchUserInstance instance) {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
         if (mServiceImplHelper.isUserLocked(targetUser)) {
             // We shouldn't schedule any task to locked user.
             return;
         }
+        long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
+                /* isReadOnly= */ false,
                 () -> {
-                    long totalLatencyStartMillis = SystemClock.elapsedRealtime();
+                    long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder builder = new OptimizeStats.Builder();
                     try {
                         instance.getAppSearchImpl().checkForOptimize(builder);
                     } catch (Exception e) {
                         Log.w(TAG, "Error occurred when check for optimize", e);
                     } finally {
-                        OptimizeStats oStats = builder.setTotalLatencyMillis(
-                                (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis))
+                        long totalLatencyEndMillis = SystemClock.elapsedRealtime();
+                        int totalLatency = (int) (totalLatencyEndMillis - totalLatencyStartMillis);
+                        int executorAcquisitionLatency =
+                                (int) (waitExecutorEndTimeMillis - totalLatencyStartMillis);
+                        int onExecutorLatencyMillis =
+                                (int) (totalLatencyEndMillis - waitExecutorEndTimeMillis);
+
+                        OptimizeStats oStats = builder.setTotalLatencyMillis(totalLatency)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
+                                .setExecutorAcquisitionLatencyMillis(executorAcquisitionLatency)
+                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
                                 .build();
                         if (oStats.getOriginalDocumentCount() > 0) {
                             // see if optimize has been run by checking originalDocumentCount
