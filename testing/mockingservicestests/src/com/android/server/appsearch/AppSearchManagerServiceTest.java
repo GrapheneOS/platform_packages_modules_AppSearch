@@ -1549,10 +1549,10 @@ public class AppSearchManagerServiceTest {
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
         ExecutorService writeExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false));
+                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
         ExecutorService readExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true));
+                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -1576,10 +1576,10 @@ public class AppSearchManagerServiceTest {
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
         ExecutorService writeExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false));
+                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
         ExecutorService readExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true));
+                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -1601,10 +1601,10 @@ public class AppSearchManagerServiceTest {
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
         ExecutorService writeExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false));
+                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
         ExecutorService readExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true));
+                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -1631,10 +1631,10 @@ public class AppSearchManagerServiceTest {
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
         ExecutorService writeExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false));
+                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
         ExecutorService readExecutorSpy = spy(
                 (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true));
+                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
