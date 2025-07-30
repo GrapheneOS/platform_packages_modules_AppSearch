@@ -296,8 +296,10 @@ public final class AppSearchUserInstanceManager {
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
         IcingSearchEngineInterface icingInstance = null;
-        if (isolatedStorageServiceManager != null
-                && IsolatedStorageServiceManager.isUserAllowed(userHandle)) {
+        boolean isVMEnabledForUser =
+                isolatedStorageServiceManager != null
+                        && IsolatedStorageServiceManager.isUserAllowed(userHandle);
+        if (isVMEnabledForUser) {
             if (LogUtil.INFO) {
                 Log.i(
                         TAG,
@@ -663,6 +665,7 @@ public final class AppSearchUserInstanceManager {
                                     executorManager.executeLambdaForUserNoCallbackAsync(
                                             userHandle,
                                             /* isReadOnly= */ false,
+                                            /* isVMEnabledForUser= */true,
                                             () -> {
                                                 AppSearchUserInstance instance =
                                                         getUserInstanceOrNull(userHandle);
