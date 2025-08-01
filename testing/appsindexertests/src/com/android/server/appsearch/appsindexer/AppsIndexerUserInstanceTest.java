@@ -18,6 +18,8 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
 import static com.android.server.appsearch.appsindexer.AppIndexerVersions.CURR_APP_INDEXER_VERSION;
+import static com.android.server.appsearch.appsindexer.FrameworkAppsIndexerForceUpdateConfig.KEY_APPS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER;
+import static com.android.server.appsearch.appsindexer.FrameworkAppsIndexerForceUpdateConfig.KEY_APPS_INDEXER_FORCE_UPDATE_ENABLED;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakePackageInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeResolveInfos;
 import static com.android.server.appsearch.appsindexer.TestUtils.removeFakePackageDocuments;
@@ -50,11 +52,14 @@ import android.os.PersistableBundle;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.common.collect.ImmutableList;
@@ -66,6 +71,7 @@ import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.time.Duration;
@@ -88,13 +94,18 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
-    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+    @Rule
+    public final RuleChain mRuleChain =
+            AppSearchTestUtils.createCommonTestRules()
+                    .around(new TestableDeviceConfig.TestableDeviceConfigRule());
 
     private ThreadPoolExecutor mSingleThreadedExecutor;
     private File mAppsDir;
     private File mSettingsFile;
     private AppsIndexerUserInstance mInstance;
     private final AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
+    private final IndexerForceUpdateConfig mIndexerForceUpdateConfig =
+            new TestAppsIndexerForceUpdateConfig();
 
     @Before
     @Override
@@ -117,7 +128,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mSettingsFile = new File(mAppsDir, AppsIndexerSettings.SETTINGS_FILE_NAME);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
     }
 
     @After
@@ -149,7 +164,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -173,6 +192,96 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
             assertThat(appsTimestampMap).hasSize(1);
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
         }
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_INDEXER_FORCE_UPDATE)
+    @Test
+    public void testForceUpdate_schedulesJob() throws Exception {
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mTestContext.setJobScheduler(mockJobScheduler);
+        // This semaphore allows us to pause test execution until we're sure the tasks in
+        // AppsIndexerUserInstance are finished.
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+        IndexerForceUpdateConfig indexerForceUpdateConfig =
+                new FrameworkAppsIndexerForceUpdateConfig();
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        indexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
+
+        // Pretend there's one package on device
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Wait for file setup, as file setup uses the same ExecutorService.
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        // Verify no update is scheduled before force update is triggered
+        verify(mockJobScheduler, never()).schedule(any());
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(0);
+
+        mInstance.startAsync(latch::countDown);
+
+        // Modify Settings and Device Configuration values to force an update
+        mInstance.getSettings().setIndexerForceUpdateEmergencyCounter(0);
+
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APPS_INDEXER_FORCE_UPDATE_ENABLED,
+                Boolean.toString(true),
+                false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APPS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER,
+                Integer.toString(1),
+                false);
+
+        assertThat(latch.await(/* timeout */ 1, TimeUnit.SECONDS)).isTrue();
+
+        // The executor is responsible for releasing semaphore permits. It's invoked repeatedly
+        // during listener configuration: once for updates and twice for every configuration change.
+        assertThat(semaphore.tryAcquire(
+                /* permits */ 3,
+                UPDATE_ASYNC_TIMEOUT.toSeconds(),
+                TimeUnit.SECONDS))
+                .isTrue();
+
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        assertThat(mInstance.getSettings()
+                       .getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
+
+        // Assert that force update doesn't schedule a job after persisting to settings
+        Mockito.clearInvocations(mockJobScheduler);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APPS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER,
+                Integer.toString(1),
+                false);
+        verify(mockJobScheduler, never()).schedule(any());
     }
 
     @Test
@@ -204,7 +313,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -253,7 +366,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -303,7 +420,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -349,7 +470,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -395,7 +520,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -470,7 +599,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -532,7 +665,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -588,7 +725,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -650,7 +791,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Pretend there's one package on device
         setupMockPackageManager(
@@ -684,7 +829,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
             throws Exception {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         // Pretend there's one package on device
         setupMockPackageManager(
                 mMockPackageManager,
@@ -702,7 +851,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Create new instance that uses the updated settings.
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Run indexer again
         AppsUpdateStats stats1 = new AppsUpdateStats();
@@ -759,7 +912,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        pauseContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        pauseContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         // Wait for file setup, as file setup uses the same ExecutorService.
         afterSemaphore.acquire();
 
@@ -844,6 +1001,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                                                     mTestContext,
                                                     dataDir,
                                                     mAppsIndexerConfig,
+                                                    mIndexerForceUpdateConfig,
                                                     mSingleThreadedExecutor);
                                     // Data directory shouldn't have been created synchronously in
                                     // createInstance()
@@ -963,7 +1121,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         // Wait for settings initialization
         afterSemaphore.acquire();
 
@@ -1019,7 +1181,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // the update should be zero, and if not it's because of mAppsDir
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         // Wait for file setup, as file setup uses the same ExecutorService.
         semaphore.acquire();
@@ -1082,7 +1248,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         // Wait for settings initialization
         afterSemaphore.acquire();
 
@@ -1137,7 +1307,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mTestContext.setJobScheduler(mockJobScheduler);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         // Wait for file setup, as file setup uses the same ExecutorService.
         semaphore.acquire();
 
@@ -1186,7 +1360,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         // Wait for settings initialization
         afterSemaphore.acquire();
 
@@ -1230,7 +1408,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mTestContext.setJobScheduler(mockJobScheduler);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
-                        mTestContext, mAppsDir, mAppsIndexerConfig, mSingleThreadedExecutor);
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         int docCount = 10;
         CountDownLatch latch = setupLatch(docCount);
