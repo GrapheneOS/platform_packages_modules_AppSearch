@@ -261,6 +261,8 @@ public class AppOpenEventIndexerImplTest {
         assertThat(appOpenEventStats.getTotalLatencyMillis()).isGreaterThan(0L);
         assertThat(appOpenEventStats.getTotalLatencyMillis()).isLessThan(1_000L);
 
+        assertThat(appOpenEventStats.getForceUpdateTriggered()).isFalse();
+
         assertThat(settings.getLastUpdateTimestampMillis()).isAtLeast(currentTimeMillis);
     }
 

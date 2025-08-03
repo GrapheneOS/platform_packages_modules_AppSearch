@@ -190,7 +190,6 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
 
                     // Adds Device Listener to trigger a force update if necessary
                     instance.startAsync();
-
                 } catch (AppSearchException e) {
                     Log.e(
                             TAG,
@@ -218,7 +217,7 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
                             mAppOpenEventIndexersLocked.get(userHandle);
                     if (instance != null) {
                         if (mCallback != null) {
-                            instance.updateAsync(mCallback);
+                            instance.updateAsync(mCallback, /* isForceUpdateTriggered= */ false);
                         } else {
                             instance.updateAsync();
                         }
