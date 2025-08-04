@@ -76,6 +76,9 @@ public class AppsUpdateStats {
 
     long mAppSearchRemoveLatencyMillis;
 
+    // Determines if a Force Update has been triggered
+    boolean mForceUpdateTriggered;
+
     /** Resets the Apps Indexer update stats. */
     public void clear() {
         mUpdateType = UNKNOWN_UPDATE_TYPE;
@@ -101,5 +104,7 @@ public class AppsUpdateStats {
         mNumberOfFunctionsUpdated = 0;
 
         mAppSearchRemoveLatencyMillis = 0;
+
+        mForceUpdateTriggered = false;
     }
 }

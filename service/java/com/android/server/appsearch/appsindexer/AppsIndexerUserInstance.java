@@ -204,7 +204,9 @@ public final class AppsIndexerUserInstance {
             mOnDeviceConfigChangedListener =
                     IndexerForceUpdateConfig.addListener(
                             mSingleThreadedExecutor,
-                            () -> handleForceUpdateConfigChanged(callback));
+                            () -> {
+                                handleForceUpdateConfigChanged(callback);
+                            });
         }
     }
 
@@ -213,8 +215,10 @@ public final class AppsIndexerUserInstance {
         if (Flags.enableIndexerForceUpdate()) {
             if (mOnDeviceConfigChangedListener != null) {
                 executeOnSingleThreadedExecutor(
-                        () -> DeviceConfig.removeOnPropertiesChangedListener(
-                                    mOnDeviceConfigChangedListener));
+                        () -> {
+                            DeviceConfig.removeOnPropertiesChangedListener(
+                                    mOnDeviceConfigChangedListener);
+                        });
             }
         }
         mAppsIndexerImpl.close();
@@ -293,12 +297,15 @@ public final class AppsIndexerUserInstance {
      *
      * @param firstRun boolean indicating if this is a first run and that settings should be checked
      *     for the last update timestamp.
+     * @param isForceUpdateTriggered indicates if a force update is triggered.
      */
-    public void updateAsync(boolean firstRun) {
+    public void updateAsync(boolean firstRun, boolean isForceUpdateTriggered) {
         AppsUpdateStats appsUpdateStats = new AppsUpdateStats();
         long updateLatencyStartTimestampMillis = SystemClock.elapsedRealtime();
         appsUpdateStats.mUpdateStartTimestampMillis = System.currentTimeMillis();
         appsUpdateStats.mUpdateType = AppsUpdateStats.FULL_UPDATE;
+        appsUpdateStats.mForceUpdateTriggered = isForceUpdateTriggered;
+
         // Try to acquire a permit.
         if (!mRunningOrScheduledSemaphore.tryAcquire()) {
             // If there are none available, that means an update is running and we have ALREADY
@@ -325,6 +332,7 @@ public final class AppsIndexerUserInstance {
                             SystemClock.elapsedRealtime() - updateLatencyStartTimestampMillis;
                     logStats(appsUpdateStats);
                 });
+
         if (Flags.enableIndexerForceUpdate()) {
             mSettings.setIndexerForceUpdateEmergencyCounter(
                 mAppsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
@@ -547,7 +555,8 @@ public final class AppsIndexerUserInstance {
                 appsUpdateStats.mApproximateNumberOfFunctionsRemoved,
                 appsUpdateStats.mNumberOfFunctionsUpdated,
                 appsUpdateStats.mApproximateNumberOfFunctionsUnchanged,
-                appsUpdateStats.mAppSearchRemoveLatencyMillis);
+                appsUpdateStats.mAppSearchRemoveLatencyMillis,
+                appsUpdateStats.mForceUpdateTriggered);
     }
 
     /**
@@ -557,7 +566,7 @@ public final class AppsIndexerUserInstance {
      * from the Device Configuration has increased compared to the stored setting. If both
      * conditions are met, it triggers {@link #updateAsync} & updates the settings emergency counter
      *
-     * @param callback A {@link Runnable} to be executed when a force update is complete.
+     * @param callback A {@link Runnable} to be executed when the force update is complete.
      */
     private void handleForceUpdateConfigChanged(@NonNull Runnable callback) {
         try {
@@ -566,7 +575,7 @@ public final class AppsIndexerUserInstance {
             }
             if (mAppsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
                     > mSettings.getIndexerForceUpdateEmergencyCounter()) {
-                updateAsync(/* firstRun= */ true);
+                updateAsync(/* firstRun= */ true, /*isForceUpdateTriggered= */ true);
             }
         } catch (RuntimeException e) {
             Slog.wtf(TAG, "AppsIndexerUserInstance.handleForceUpdateConfigChanged() failed ", e);
