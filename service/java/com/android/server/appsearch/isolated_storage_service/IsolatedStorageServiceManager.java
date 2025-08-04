@@ -183,7 +183,7 @@ public final class IsolatedStorageServiceManager {
     }
 
     /** Checks whether the device supports protect VMs, and new FD->IBinder VM APIs. */
-    private static boolean deviceSupportsVmsAndNewApis(Context context) {
+    public static boolean deviceSupportsVmsAndNewApis(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
             Log.i(
                     TAG,
@@ -203,6 +203,42 @@ public final class IsolatedStorageServiceManager {
         return protectedAppSearchVmEnabled
                 ? ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0)
                 : true;
+    }
+
+    /** Cleans up the isolated storage service related data. */
+    public static void cleanUp(@NonNull Context context) {
+        String packageName = maybeGetPackageName(context);
+        if (packageName == null) {
+            Log.e(TAG, "Unable to get isolated storage service package name");
+            return;
+        }
+        Intent intent = new Intent();
+        intent.setClassName(packageName, ISOLATED_STORAGE_SERVICE_CLASS_NAME);
+        ServiceConnection connection =
+                new ServiceConnection() {
+                    @Override
+                    public void onServiceConnected(ComponentName name, IBinder service) {
+                        try {
+                            IIsolatedStorageService.Stub.asInterface(service).deleteVm();
+                            Log.i(TAG, "Deleted the VM");
+                        } catch (Exception e) {
+                            Log.e(TAG, "Unable to delete VM", e);
+                        }
+                        context.unbindService(this);
+                    }
+
+                    @Override
+                    public void onServiceDisconnected(ComponentName name) {}
+                };
+        try {
+            context.bindServiceAsUser(
+                    intent,
+                    connection,
+                    Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
+                    ISOLATED_STORAGE_USER);
+        } catch (Exception e) {
+            Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+        }
     }
 
     /**
