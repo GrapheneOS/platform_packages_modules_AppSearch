@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.FrameworkAppOpenEventIndexerForceUpdateConfig.KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER;
+import static com.android.server.appsearch.appsindexer.FrameworkAppOpenEventIndexerForceUpdateConfig.KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_ENABLED;
 import static com.android.server.appsearch.appsindexer.TestUtils.createIndividualUsageEvent;
 import static com.android.server.appsearch.appsindexer.TestUtils.createUsageEvents;
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockUsageStatsManager;
@@ -26,6 +28,8 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 
 import android.annotation.Nullable;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -39,11 +43,14 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 
 import org.junit.After;
 import org.junit.Before;
@@ -64,13 +71,19 @@ public class AppOpenEventIndexerUserInstanceTest {
     private final UsageStatsManager mMockUsageStatsManager = mock(UsageStatsManager.class);
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
-    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+
+    @Rule
+    public final RuleChain mRuleChain =
+            AppSearchTestUtils.createCommonTestRules()
+                    .around(new TestableDeviceConfig.TestableDeviceConfigRule());
 
     private ExecutorService mSingleThreadedExecutor;
     private File mAppsDir;
     private AppOpenEventIndexerUserInstance mInstance;
     private AppOpenEventIndexerConfig mAppOpenEventIndexerConfig =
             new TestAppOpenEventIndexerConfig();
+    private IndexerForceUpdateConfig mAppOpenEventIndexerForceUpdateConfig =
+            new TestAppOpenEventIndexerForceUpdateConfig();
 
     class TestContext extends ContextWrapper {
         @Nullable JobScheduler mJobScheduler;
@@ -107,7 +120,11 @@ public class AppOpenEventIndexerUserInstanceTest {
         mAppsDir = new File(mTemporaryFolder.newFolder(), "app-open-events");
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
         TestUtils.removeFakeAppOpenEventDocuments(mContext, mSingleThreadedExecutor);
     }
 
@@ -123,7 +140,11 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -134,7 +155,8 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
+
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
@@ -144,12 +166,68 @@ public class AppOpenEventIndexerUserInstanceTest {
                 .isEqualTo("com.fake.package" + (currentTimeMillis + 1000L));
     }
 
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_INDEXER_FORCE_UPDATE)
+    @Test
+    public void testForceUpdate_schedulesJob() throws Exception {
+        JobScheduler mockJobScheduler = mock(JobScheduler.class);
+        mContext.setJobScheduler(mockJobScheduler);
+        long currentTimeMillis = System.currentTimeMillis();
+        IndexerForceUpdateConfig indexerForceUpdateConfig =
+                new FrameworkAppOpenEventIndexerForceUpdateConfig();
+        mInstance =
+                AppOpenEventIndexerUserInstance.createInstance(
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        indexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
+
+        Event event =
+                createIndividualUsageEvent(
+                        UsageEvents.Event.MOVE_TO_FOREGROUND,
+                        currentTimeMillis + 1000L,
+                        "com.fake.package");
+        UsageEvents events = createUsageEvents(event);
+        CountDownLatch latch = new CountDownLatch(1);
+        setupMockUsageStatsManager(mMockUsageStatsManager, events);
+
+        assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(0);
+
+        // Configure the Device Listener
+        mInstance.startAsync(latch::countDown);
+
+        verify(mockJobScheduler, never()).schedule(any());
+
+        // Modify Settings and Device Configuration values to force an update
+        mInstance.getSettings().setIndexerForceUpdateEmergencyCounter(0);
+
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_ENABLED,
+                Boolean.toString(true),
+                false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER,
+                Integer.toString(1),
+                false);
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
+        assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
+    }
+
     @Test
     public void testSecondRun_noOpOnSecondUpdate() throws Exception {
         long currentTimeMillis = System.currentTimeMillis();
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -163,7 +241,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
-        mInstance.updateAsync(latch1::countDown);
+        mInstance.updateAsync(latch1::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch1.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
@@ -172,7 +250,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         assertThat(appOpenEvent.getId())
                 .isEqualTo("com.fake.package" + (currentTimeMillis + 1000L));
 
-        mInstance.updateAsync(latch2::countDown);
+        mInstance.updateAsync(latch2::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch2.await(1, TimeUnit.SECONDS)).isTrue();
 
         event =
@@ -203,7 +281,11 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -214,7 +296,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -234,7 +316,11 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         mInstance.schedulePeriodicUpdate();
         ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
@@ -258,7 +344,11 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -269,7 +359,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -289,7 +379,11 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -300,7 +394,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -317,7 +411,11 @@ public class AppOpenEventIndexerUserInstanceTest {
         long currentTimeMillis = System.currentTimeMillis();
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -328,7 +426,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -344,7 +442,11 @@ public class AppOpenEventIndexerUserInstanceTest {
         long currentTimeMillis = System.currentTimeMillis();
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
-                        mContext, mAppsDir, mAppOpenEventIndexerConfig, mSingleThreadedExecutor);
+                        mContext,
+                        mAppsDir,
+                        mAppOpenEventIndexerConfig,
+                        mAppOpenEventIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
 
         Event event =
                 createIndividualUsageEvent(
@@ -355,8 +457,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
-
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
@@ -373,7 +474,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         // update runs
         while (secondAttemptedUpdateTimestampMillis == 0) {
             latch = new CountDownLatch(1);
-            mInstance.updateAsync(latch::countDown);
+            mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
             assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 

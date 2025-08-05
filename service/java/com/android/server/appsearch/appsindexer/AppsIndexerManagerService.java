@@ -41,6 +41,7 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerLocalService;
 
 import java.io.File;
@@ -67,6 +68,7 @@ public final class AppsIndexerManagerService extends SystemService {
     private final Map<UserHandle, AppsIndexerUserInstance> mAppsIndexersLocked = new ArrayMap<>();
 
     private final AppsIndexerConfig mAppsIndexerConfig;
+    private final IndexerForceUpdateConfig mAppsIndexerForceUpdateConfig;
 
     /** Constructs a {@link AppsIndexerManagerService}. */
     public AppsIndexerManagerService(
@@ -74,6 +76,7 @@ public final class AppsIndexerManagerService extends SystemService {
         super(context);
         mContext = Objects.requireNonNull(context);
         mAppsIndexerConfig = Objects.requireNonNull(appsIndexerConfig);
+        mAppsIndexerForceUpdateConfig = new FrameworkAppsIndexerForceUpdateConfig();
         mLocalService = new LocalService();
     }
 
@@ -101,14 +104,18 @@ public final class AppsIndexerManagerService extends SystemService {
                     File appsDir = new File(appSearchDir, "apps");
                     instance =
                             AppsIndexerUserInstance.createInstance(
-                                    userContext, appsDir, mAppsIndexerConfig);
+                                    userContext,
+                                    appsDir,
+                                    mAppsIndexerConfig,
+                                    mAppsIndexerForceUpdateConfig);
+                    instance.startAsync();
                     if (LogUtil.DEBUG) {
                         Log.d(TAG, "Created Apps Indexer instance for user " + userHandle);
                     }
                     mAppsIndexersLocked.put(userHandle, instance);
                 }
 
-                instance.updateAsync(/* firstRun= */ true);
+                instance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
             }
         } catch (RuntimeException e) {
             Slog.wtf(TAG, "AppsIndexerManagerService.onUserUnlocking() failed ", e);
@@ -290,7 +297,8 @@ public final class AppsIndexerManagerService extends SystemService {
             synchronized (mAppsIndexersLocked) {
                 AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);
                 if (instance != null) {
-                    instance.updateAsync(/* firstRun= */ false);
+                    instance.updateAsync(
+                            /* firstRun= */ false, /* isForceUpdateTriggered= */ false);
                 }
             }
         }

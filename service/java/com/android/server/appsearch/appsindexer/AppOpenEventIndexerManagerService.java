@@ -34,6 +34,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerLocalService;
 
 import java.io.File;
@@ -58,6 +59,7 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
     @VisibleForTesting @Nullable final Runnable mCallback;
 
     private final AppOpenEventIndexerConfig mAppOpenEventIndexerConfig;
+    private final IndexerForceUpdateConfig mAppOpenEventIndexerForceUpdateConfig;
 
     // Map of AppOpenEventIndexerUserInstances indexed by the UserHandle
     @GuardedBy("mAppOpenEventIndexersLocked")
@@ -83,6 +85,7 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
         super(context);
         mContext = Objects.requireNonNull(context);
         mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
+        mAppOpenEventIndexerForceUpdateConfig = new FrameworkAppOpenEventIndexerForceUpdateConfig();
         mCallback = callback;
         mLocalService = new LocalService();
     }
@@ -179,8 +182,14 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
                     File appOpenEventDir = new File(appSearchDir, "app-open-events");
                     instance =
                             AppOpenEventIndexerUserInstance.createInstance(
-                                    userContext, appOpenEventDir, mAppOpenEventIndexerConfig);
+                                    userContext,
+                                    appOpenEventDir,
+                                    mAppOpenEventIndexerConfig,
+                                    mAppOpenEventIndexerForceUpdateConfig);
                     mAppOpenEventIndexersLocked.put(userHandle, instance);
+
+                    // Adds Device Listener to trigger a force update if necessary
+                    instance.startAsync();
                 } catch (AppSearchException e) {
                     Log.e(
                             TAG,
@@ -208,7 +217,7 @@ public final class AppOpenEventIndexerManagerService extends SystemService {
                             mAppOpenEventIndexersLocked.get(userHandle);
                     if (instance != null) {
                         if (mCallback != null) {
-                            instance.updateAsync(mCallback);
+                            instance.updateAsync(mCallback, /* isForceUpdateTriggered= */ false);
                         } else {
                             instance.updateAsync();
                         }

@@ -839,7 +839,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 appOpenEventStats.getAppSearchSetSchemaLatencyMillis(),
                 appOpenEventStats.getAppSearchPutLatencyMillis(),
                 appOpenEventStats.getUpdateStartTimestampMillis(),
-                appOpenEventStats.getLastAppUpdateTimestampMillis());
+                appOpenEventStats.getLastAppUpdateTimestampMillis(),
+                appOpenEventStats.getForceUpdateTriggered());
     }
 
     @GuardedBy("mLock")

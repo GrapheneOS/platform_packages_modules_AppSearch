@@ -31,6 +31,7 @@ public final class AppOpenEventStats {
     private final long mAppSearchPutLatencyMillis;
     private final long mUpdateStartTimestampMillis;
     private final long mLastAppUpdateTimestampMillis;
+    private final boolean mForceUpdateTriggered;
 
     private AppOpenEventStats(Builder builder) {
         mUpdateStatusCodes =
@@ -42,6 +43,7 @@ public final class AppOpenEventStats {
         mAppSearchPutLatencyMillis = builder.mAppSearchPutLatencyMillis;
         mUpdateStartTimestampMillis = builder.mUpdateStartTimestampMillis;
         mLastAppUpdateTimestampMillis = builder.mLastAppUpdateTimestampMillis;
+        mForceUpdateTriggered = builder.mForceUpdateTriggered;
     }
 
     public Set<Integer> getUpdateStatusCodes() {
@@ -76,6 +78,10 @@ public final class AppOpenEventStats {
         return mLastAppUpdateTimestampMillis;
     }
 
+    public boolean getForceUpdateTriggered() {
+        return mForceUpdateTriggered;
+    }
+
     public static class Builder {
         private Set<Integer> mUpdateStatusCodes = new ArraySet<>();
         private int mNumberOfAppOpenEventsAdded = 0;
@@ -85,6 +91,7 @@ public final class AppOpenEventStats {
         private long mAppSearchPutLatencyMillis = 0;
         private long mUpdateStartTimestampMillis = 0;
         private long mLastAppUpdateTimestampMillis = 0;
+        private boolean mForceUpdateTriggered = false;
 
         public Builder addUpdateStatusCode(int statusCode) {
             mUpdateStatusCodes.add(statusCode);
@@ -129,6 +136,11 @@ public final class AppOpenEventStats {
 
         public Builder setLastAppUpdateTimestampMillis(long lastAppUpdateTimestampMillis) {
             mLastAppUpdateTimestampMillis = lastAppUpdateTimestampMillis;
+            return this;
+        }
+
+        public Builder setForceUpdateTriggered(boolean forceUpdateTriggered) {
+            mForceUpdateTriggered = forceUpdateTriggered;
             return this;
         }
 

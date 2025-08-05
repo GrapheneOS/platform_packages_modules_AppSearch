@@ -26,12 +26,15 @@ import android.app.appsearch.exceptions.AppSearchException;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
+import android.provider.DeviceConfig;
+import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import android.util.Log;
 import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
@@ -94,6 +97,8 @@ public final class AppsIndexerUserInstance {
 
     private final Context mContext;
     private final AppsIndexerConfig mAppsIndexerConfig;
+    private final IndexerForceUpdateConfig mAppsIndexerForceUpdateConfig;
+    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     /**
      * Constructs and initializes a {@link AppsIndexerUserInstance}.
@@ -106,15 +111,22 @@ public final class AppsIndexerUserInstance {
     public static AppsIndexerUserInstance createInstance(
             @NonNull Context userContext,
             @NonNull File appsDir,
-            @NonNull AppsIndexerConfig appsIndexerConfig)
+            @NonNull AppsIndexerConfig appsIndexerConfig,
+            @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(appsDir);
         Objects.requireNonNull(appsIndexerConfig);
+        Objects.requireNonNull(appsIndexerForceUpdateConfig);
 
         ExecutorService singleThreadedExecutor =
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
-        return createInstance(userContext, appsDir, appsIndexerConfig, singleThreadedExecutor);
+        return createInstance(
+                userContext,
+                appsDir,
+                appsIndexerConfig,
+                appsIndexerForceUpdateConfig,
+                singleThreadedExecutor);
     }
 
     @VisibleForTesting
@@ -123,15 +135,22 @@ public final class AppsIndexerUserInstance {
             @NonNull Context context,
             @NonNull File appsDir,
             @NonNull AppsIndexerConfig appsIndexerConfig,
+            @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig,
             @NonNull ExecutorService executorService)
             throws AppSearchException {
         Objects.requireNonNull(context);
         Objects.requireNonNull(appsDir);
         Objects.requireNonNull(appsIndexerConfig);
+        Objects.requireNonNull(appsIndexerForceUpdateConfig);
         Objects.requireNonNull(executorService);
 
         AppsIndexerUserInstance indexer =
-                new AppsIndexerUserInstance(appsDir, executorService, context, appsIndexerConfig);
+                new AppsIndexerUserInstance(
+                        appsDir,
+                        executorService,
+                        context,
+                        appsIndexerConfig,
+                        appsIndexerForceUpdateConfig);
         indexer.loadSettingsAsync();
         indexer.mAppsIndexerImpl = new AppsIndexerImpl(context, appsIndexerConfig);
 
@@ -150,16 +169,58 @@ public final class AppsIndexerUserInstance {
             @NonNull File dataDir,
             @NonNull ExecutorService singleThreadedExecutor,
             @NonNull Context context,
-            @NonNull AppsIndexerConfig appsIndexerConfig) {
+            @NonNull AppsIndexerConfig appsIndexerConfig,
+            @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig) {
         mDataDir = Objects.requireNonNull(dataDir);
         mSettings = new AppsIndexerSettings(mDataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
         mAppsIndexerConfig = Objects.requireNonNull(appsIndexerConfig);
+        mAppsIndexerForceUpdateConfig = Objects.requireNonNull(appsIndexerForceUpdateConfig);
+    }
+
+    @VisibleForTesting
+    public AppsIndexerSettings getSettings() {
+        return mSettings;
+    }
+
+    /** Initialize a Device Config Listener */
+    public void startAsync() {
+        startAsync(() -> {});
+    }
+
+    /**
+     * Initializes a listener for {@link AppsIndexerUserInstance}
+     *
+     * <p>This method sets up a listener for device configuration changes related to force updates
+     * for the indexer. When a relevant configuration change occurs, check if the required
+     * conditions are met to schedule a force update.
+     *
+     * @param callback A {@link Runnable} to be executed when a force update is complete.
+     */
+    @VisibleForTesting
+    public void startAsync(@NonNull Runnable callback) {
+        if (Flags.enableIndexerForceUpdate()) {
+            mOnDeviceConfigChangedListener =
+                    IndexerForceUpdateConfig.addListener(
+                            mSingleThreadedExecutor,
+                            () -> {
+                                handleForceUpdateConfigChanged(callback);
+                            });
+        }
     }
 
     /** Shuts down the AppsIndexerUserInstance */
     public void shutdown() throws InterruptedException {
+        if (Flags.enableIndexerForceUpdate()) {
+            if (mOnDeviceConfigChangedListener != null) {
+                executeOnSingleThreadedExecutor(
+                        () -> {
+                            DeviceConfig.removeOnPropertiesChangedListener(
+                                    mOnDeviceConfigChangedListener);
+                        });
+            }
+        }
         mAppsIndexerImpl.close();
         IndexerMaintenanceService.cancelUpdateJobIfScheduled(
                 mContext, mContext.getUser(), APPS_INDEXER);
@@ -176,7 +237,7 @@ public final class AppsIndexerUserInstance {
 
     /**
      * Dumps the internal state of this {@link AppsIndexerUserInstance}. This will be ran on the
-     * single threaed executor.
+     * single threaded executor.
      */
     private void dumpInternal(@NonNull PrintWriter pw) {
         // Those timestamps are not protected by any lock since in
@@ -236,12 +297,15 @@ public final class AppsIndexerUserInstance {
      *
      * @param firstRun boolean indicating if this is a first run and that settings should be checked
      *     for the last update timestamp.
+     * @param isForceUpdateTriggered indicates if a force update is triggered.
      */
-    public void updateAsync(boolean firstRun) {
+    public void updateAsync(boolean firstRun, boolean isForceUpdateTriggered) {
         AppsUpdateStats appsUpdateStats = new AppsUpdateStats();
         long updateLatencyStartTimestampMillis = SystemClock.elapsedRealtime();
         appsUpdateStats.mUpdateStartTimestampMillis = System.currentTimeMillis();
         appsUpdateStats.mUpdateType = AppsUpdateStats.FULL_UPDATE;
+        appsUpdateStats.mForceUpdateTriggered = isForceUpdateTriggered;
+
         // Try to acquire a permit.
         if (!mRunningOrScheduledSemaphore.tryAcquire()) {
             // If there are none available, that means an update is running and we have ALREADY
@@ -268,6 +332,16 @@ public final class AppsIndexerUserInstance {
                             SystemClock.elapsedRealtime() - updateLatencyStartTimestampMillis;
                     logStats(appsUpdateStats);
                 });
+
+        if (Flags.enableIndexerForceUpdate()) {
+            mSettings.setIndexerForceUpdateEmergencyCounter(
+                mAppsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
+            try {
+                mSettings.persist();
+            } catch (IOException e) {
+                Log.w(TAG, "Failed to save settings to disk", e);
+            }
+        }
     }
 
     /**
@@ -481,6 +555,32 @@ public final class AppsIndexerUserInstance {
                 appsUpdateStats.mApproximateNumberOfFunctionsRemoved,
                 appsUpdateStats.mNumberOfFunctionsUpdated,
                 appsUpdateStats.mApproximateNumberOfFunctionsUnchanged,
-                appsUpdateStats.mAppSearchRemoveLatencyMillis);
+                appsUpdateStats.mAppSearchRemoveLatencyMillis,
+                appsUpdateStats.mForceUpdateTriggered);
+    }
+
+    /**
+     * Handles the force update logic for the apps indexer.
+     *
+     * <p>This method checks if the force update feature is enabled and if the emergency counter
+     * from the Device Configuration has increased compared to the stored setting. If both
+     * conditions are met, it triggers {@link #updateAsync} & updates the settings emergency counter
+     *
+     * @param callback A {@link Runnable} to be executed when the force update is complete.
+     */
+    private void handleForceUpdateConfigChanged(@NonNull Runnable callback) {
+        try {
+            if (!mAppsIndexerForceUpdateConfig.isIndexerForceUpdateEnabled()) {
+                return;
+            }
+            if (mAppsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
+                    > mSettings.getIndexerForceUpdateEmergencyCounter()) {
+                updateAsync(/* firstRun= */ true, /*isForceUpdateTriggered= */ true);
+            }
+        } catch (RuntimeException e) {
+            Slog.wtf(TAG, "AppsIndexerUserInstance.handleForceUpdateConfigChanged() failed ", e);
+        } finally {
+            callback.run();
+        }
     }
 }
