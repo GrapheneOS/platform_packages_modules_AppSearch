@@ -155,7 +155,8 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
+
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
@@ -190,8 +191,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
-        assertThat(mInstance.getSettings()
-                       .getIndexerForceUpdateEmergencyCounter()).isEqualTo(0);
+        assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(0);
 
         // Configure the Device Listener
         mInstance.startAsync(latch::countDown);
@@ -213,11 +213,9 @@ public class AppOpenEventIndexerUserInstanceTest {
                 false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
-
         ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
         verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
-        assertThat(mInstance.getSettings()
-                       .getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
+        assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
     }
 
     @Test
@@ -243,7 +241,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
-        mInstance.updateAsync(latch1::countDown);
+        mInstance.updateAsync(latch1::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch1.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
@@ -252,7 +250,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         assertThat(appOpenEvent.getId())
                 .isEqualTo("com.fake.package" + (currentTimeMillis + 1000L));
 
-        mInstance.updateAsync(latch2::countDown);
+        mInstance.updateAsync(latch2::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch2.await(1, TimeUnit.SECONDS)).isTrue();
 
         event =
@@ -298,7 +296,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -361,7 +359,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -396,7 +394,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -428,7 +426,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
@@ -459,8 +457,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         setupMockUsageStatsManager(mMockUsageStatsManager, events);
 
         CountDownLatch latch = new CountDownLatch(1);
-        mInstance.updateAsync(latch::countDown);
-
+        mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
         AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
@@ -477,7 +474,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         // update runs
         while (secondAttemptedUpdateTimestampMillis == 0) {
             latch = new CountDownLatch(1);
-            mInstance.updateAsync(latch::countDown);
+            mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
             assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 

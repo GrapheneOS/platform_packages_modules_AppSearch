@@ -189,12 +189,13 @@ public final class AppOpenEventIndexerUserInstance {
      */
     @VisibleForTesting
     void startAsync(@NonNull Runnable callback) {
-       if (Flags.enableIndexerForceUpdate()) {
+        if (Flags.enableIndexerForceUpdate()) {
             mOnDeviceConfigChangedListener =
-                IndexerForceUpdateConfig.addListener(
-                        mSingleThreadedExecutor,
-                        () -> handleForceUpdateConfigChanged(callback));
-       }
+                    IndexerForceUpdateConfig.addListener(
+                            mSingleThreadedExecutor,
+                            () ->
+                                handleForceUpdateConfigChanged(callback));
+        }
     }
 
     /** Shuts down the AppOpenEventIndexerUserInstance */
@@ -202,8 +203,10 @@ public final class AppOpenEventIndexerUserInstance {
         if (Flags.enableIndexerForceUpdate()) {
             if (mOnDeviceConfigChangedListener != null) {
                 executeOnSingleThreadedExecutor(
-                        () -> DeviceConfig.removeOnPropertiesChangedListener(
-                                    mOnDeviceConfigChangedListener));
+                        () ->
+                            DeviceConfig.removeOnPropertiesChangedListener(
+                                    mOnDeviceConfigChangedListener)
+                        );
             }
         }
         mAppOpenEventIndexerImpl.close();
@@ -228,7 +231,7 @@ public final class AppOpenEventIndexerUserInstance {
 
     /** Schedule an update on single threaded executor. */
     public void updateAsync() {
-        updateAsync(() -> {});
+        updateAsync(() -> {}, /* isForceUpdateTriggered= */ false);
     }
 
     /**
@@ -236,10 +239,13 @@ public final class AppOpenEventIndexerUserInstance {
      * callback is used to wait for the update to complete.
      *
      * @param callback A callback to be invoked after the update is complete.
+     * @param isForceUpdateTriggered indicates if force update has been triggered
      */
-    void updateAsync(@NonNull Runnable callback) {
+    @VisibleForTesting
+    void updateAsync(@NonNull Runnable callback, boolean isForceUpdateTriggered){
         AppOpenEventStats.Builder appOpenEventStatsBuilder = new AppOpenEventStats.Builder();
         appOpenEventStatsBuilder.setUpdateStartTimestampMillis(System.currentTimeMillis());
+        appOpenEventStatsBuilder.setForceUpdateTriggered(isForceUpdateTriggered);
         long startTimeMillis = System.currentTimeMillis();
         executeOnSingleThreadedExecutor(
                 () -> {
@@ -401,7 +407,7 @@ public final class AppOpenEventIndexerUserInstance {
             }
             if (mAppOpenEventIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
                     > mAppOpenEventIndexerSettings.getIndexerForceUpdateEmergencyCounter()) {
-                updateAsync(callback);
+                updateAsync(callback, /* isForceUpdateTriggered= */ true);
             }
         } catch (RuntimeException e) {
             Slog.wtf(
