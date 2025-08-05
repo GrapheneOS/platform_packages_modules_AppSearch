@@ -739,3 +739,10 @@ flag {
     description: "the number of the last API calls appsearch is tracking."
     bug: "246778338"
 }
+
+flag {
+    name: "enable_passing_filter_to_children"
+    namespace: "appsearch"
+    description: "Enables passing down filters to child iterators for optimized DocHitInfo retrieval"
+    bug: "395156795"
+}

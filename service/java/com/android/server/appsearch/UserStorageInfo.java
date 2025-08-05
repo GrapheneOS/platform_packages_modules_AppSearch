@@ -76,7 +76,8 @@ public final class UserStorageInfo {
         Objects.requireNonNull(appSearchImpl);
         mReadWriteLock.writeLock().lock();
         try {
-            StorageInfoProto storageInfo = appSearchImpl.getRawStorageInfoProto();
+            StorageInfoProto storageInfo =
+                    appSearchImpl.getRawStorageInfoProto(/* callStatsBuilder= */ null);
             updateStorageInfoCacheLocked(storageInfo);
             updateFileLocked(storageInfo);
         } catch (AppSearchException e) {

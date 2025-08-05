@@ -94,6 +94,7 @@ public class VisibilityStoreMigrationFromV2Test {
                         mFile,
                         mConfig,
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -109,7 +110,8 @@ public class VisibilityStoreMigrationFromV2Test {
                         /* prefixedVisibilityBundles= */ Collections.emptyList(),
                         /* forceOverride= */ true, // force push the old version into disk
                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetAndroidVSchemaResponse.isSuccess()).isTrue();
 
         GetSchemaResponse getSchemaResponse =
@@ -117,7 +119,8 @@ public class VisibilityStoreMigrationFromV2Test {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         new CallerAccess(
-                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME));
+                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME),
+                        /* callStatsBuilder= */ null);
         assertThat(getSchemaResponse.getSchemas())
                 .containsExactly(
                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
@@ -127,7 +130,8 @@ public class VisibilityStoreMigrationFromV2Test {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.DOCUMENT_ANDROID_V_OVERLAY_DATABASE_NAME,
                         new CallerAccess(
-                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME));
+                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME),
+                        /* callStatsBuilder= */ null);
         assertThat(getAndroidVOverlaySchemaResponse.getSchemas()).isEmpty();
 
         // Build deprecated visibility documents in version 2
@@ -158,7 +162,8 @@ public class VisibilityStoreMigrationFromV2Test {
                         /* visibilityDocuments= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* schemaVersion= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Put deprecated visibility documents in version 2 to AppSearchImpl
@@ -167,7 +172,8 @@ public class VisibilityStoreMigrationFromV2Test {
                 VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                 visibilityDocumentV2,
                 /* sendChangeNotifications= */ false,
-                /* logger= */ null);
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
 
         // Persist to disk and re-open the AppSearchImpl
         appSearchImplInV2.close();
@@ -176,6 +182,7 @@ public class VisibilityStoreMigrationFromV2Test {
                         mFile,
                         mConfig,
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -188,7 +195,8 @@ public class VisibilityStoreMigrationFromV2Test {
                                 VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                                 VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                                 /* id= */ prefix + "Schema",
-                                /* typePropertyPaths= */ Collections.emptyMap()),
+                                /* typePropertyPaths= */ Collections.emptyMap(),
+                                /* callStatsBuilder= */ null),
                         /* androidVOverlayDocument= */ null);
 
         assertThat(actualConfig.isNotDisplayedBySystem()).isTrue();
@@ -208,7 +216,8 @@ public class VisibilityStoreMigrationFromV2Test {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         new CallerAccess(
-                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME));
+                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME),
+                        /* callStatsBuilder= */ null);
         assertThat(getSchemaResponse.getSchemas())
                 .containsExactly(
                         VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
@@ -218,7 +227,8 @@ public class VisibilityStoreMigrationFromV2Test {
                         VisibilityStore.VISIBILITY_PACKAGE_NAME,
                         VisibilityStore.DOCUMENT_ANDROID_V_OVERLAY_DATABASE_NAME,
                         new CallerAccess(
-                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME));
+                                /* callingPackageName= */ VisibilityStore.VISIBILITY_PACKAGE_NAME),
+                        /* callStatsBuilder= */ null);
         assertThat(getAndroidVOverlaySchemaResponse.getSchemas())
                 .containsExactly(VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA);
 
@@ -232,7 +242,8 @@ public class VisibilityStoreMigrationFromV2Test {
                                         VisibilityStore.DOCUMENT_ANDROID_V_OVERLAY_DATABASE_NAME,
                                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE,
                                         /* id= */ prefix + "Schema",
-                                        /* typePropertyPaths= */ Collections.emptyMap()));
+                                        /* typePropertyPaths= */ Collections.emptyMap(),
+                                        /* callStatsBuilder= */ null));
         assertThat(e).hasMessageThat().contains("not found");
 
         appSearchImpl.close();
