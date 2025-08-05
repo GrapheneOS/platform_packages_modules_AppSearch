@@ -69,10 +69,6 @@ public class DataMigrationUtil {
 
     public static final String DATA_MIGRATION_STATUS_FILE = "data_migration_status";
 
-    // We try at max 3 times to do the migration if there is some failures for putDocument.
-    // For other kinds of failures, we don't respect this limit and will retry until it succeeds.
-    public static final int MAX_RETRY_TIMES_FOR_FAILED_PUTS = 3;
-
     /** Checks if data migration is needed from AppSearch to Isolated Storage. */
     // TODO(b/407815165) Right now just check if the icing/version on host exists
     //  We can persist a file to save the migration status, so dir deletion could happen later.
@@ -191,7 +187,7 @@ public class DataMigrationUtil {
             @NonNull IcingSearchEngineInterface destination,
             boolean resetDestination,
             boolean forceOverride,
-            @NonNull DataMigrationStats migrationStats) {
+            @NonNull DataMigrationStats migrationStatsOut) {
         // TODO(b/407815165): Either remove this limit or make it configurable in future.
         int maxBytesPerPage =
                 IsolatedStorageServiceManager.DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE;
@@ -199,7 +195,7 @@ public class DataMigrationUtil {
         if (resetDestination) {
             // Clear all current data from icing instance and reinitialize it.
             ResetResultProto resetResult = destination.reset();
-            migrationStats.setResetStatus(resetResult.getStatus().getCode().getNumber());
+            migrationStatsOut.setResetStatus(resetResult.getStatus().getCode().getNumber());
             if (resetResult.getStatus().getCode() != StatusProto.Code.OK) {
                 return resetResult.getStatus();
             }
@@ -213,7 +209,7 @@ public class DataMigrationUtil {
             rawSchema = getSchemaProtoWithDatabase(rawSchema);
         }
         SetSchemaResultProto setSchemaResult = destination.setSchema(rawSchema, forceOverride);
-        migrationStats.setSetSchemaStatus(setSchemaResult.getStatus().getCode().getNumber());
+        migrationStatsOut.setSetSchemaStatus(setSchemaResult.getStatus().getCode().getNumber());
         if (setSchemaResult.getStatus().getCode() != StatusProto.Code.OK) {
             return setSchemaResult.getStatus();
         }
@@ -242,7 +238,7 @@ public class DataMigrationUtil {
                                 .setNumPerPage(95)
                                 .setNumToScore(Integer.MAX_VALUE)
                                 .build());
-        migrationStats.setQueryStatus(searchResult.getStatus().getCode().getNumber());
+        migrationStatsOut.setQueryStatus(searchResult.getStatus().getCode().getNumber());
         if (searchResult.getStatus().getCode() != StatusProto.Code.OK) {
             return searchResult.getStatus();
         }
@@ -256,7 +252,6 @@ public class DataMigrationUtil {
         ArraySet<Integer> putStatusCodes = new ArraySet<>();
         long totalDocsSucceeded = 0L;
         long totalDocsFailed = 0L;
-        StatusProto.Code lastFailedPutCode = StatusProto.Code.OK;
         while (searchResult != null && searchResult.getResultsCount() > 0) {
             PutDocumentRequest.Builder requestBuilder = PutDocumentRequest.newBuilder();
             for (int i = 0; i < searchResult.getResultsCount(); ++i) {
@@ -266,8 +261,6 @@ public class DataMigrationUtil {
             // TODO(b/407815165) Either return error if some put fails (if we cannot tolerate data
             //  loss) or save IDs for documents that failed to index in order to retry / log.
             if (batchPutResult.getStatus().getCode() != StatusProto.Code.OK) {
-                lastFailedPutCode = batchPutResult.getStatus().getCode();
-                putStatusCodes.add(lastFailedPutCode.getNumber());
                 Log.w(
                         TAG,
                         "Error calling batchPut during data migration "
@@ -278,7 +271,6 @@ public class DataMigrationUtil {
                 StatusProto putResult = batchPutResult.getPutResultProtos(i).getStatus();
                 putStatusCodes.add(putResult.getCode().getNumber());
                 if (putResult.getCode() != StatusProto.Code.OK) {
-                    lastFailedPutCode = putResult.getCode();
                     ++totalDocsFailed;
                 } else {
                     ++totalDocsSucceeded;
@@ -294,28 +286,21 @@ public class DataMigrationUtil {
             for (Integer code : putStatusCodes) {
                 statusCodes[i++] = code;
             }
-            migrationStats.setPutStatus(statusCodes);
+            migrationStatsOut.setPutStatus(statusCodes);
         }
-        migrationStats.setNumberOfDocsSucceeded(totalDocsSucceeded);
-        migrationStats.setNumberOfDocsFailed(totalDocsFailed);
-
-        // Check if we want to retry for failed puts
-        int totalTriedTimes = migrationStats.getDataMigrationRunCounter();
-        if (lastFailedPutCode != StatusProto.Code.OK
-                && totalTriedTimes < MAX_RETRY_TIMES_FOR_FAILED_PUTS) {
-            return StatusProto.newBuilder().setCode(lastFailedPutCode).build();
-        }
+        migrationStatsOut.setNumberOfDocsSucceeded(totalDocsSucceeded);
+        migrationStatsOut.setNumberOfDocsFailed(totalDocsFailed);
 
         // Step-4 Persist the change to disk.
         PersistToDiskResultProto persistResultProto = destination.persistToDisk(
                 PersistType.Code.FULL);
-        migrationStats.setFlushStatus(persistResultProto.getStatus().getCode().getNumber());
+        migrationStatsOut.setFlushStatus(persistResultProto.getStatus().getCode().getNumber());
         if (persistResultProto.getStatus().getCode() != StatusProto.Code.OK) {
             Log.w(TAG, "PersistToDisk Full failed");
             return persistResultProto.getStatus();
         }
 
-        migrationStats.setDataMigrationStatus(StatusProto.Code.OK.getNumber());
+        migrationStatsOut.setDataMigrationStatus(StatusProto.Code.OK.getNumber());
         return StatusProto.newBuilder().setCode(StatusProto.Code.OK).build();
     }
 
@@ -480,7 +465,6 @@ public class DataMigrationUtil {
                         /* resetDestination= */ true,
                         /* forceOverride= */ true,
                         migrationStats);
-        migrationStats.setDataMigrationStatus(status.getCode().getNumber());
 
         // TODO(b/407815165) Rework those logging and put useful information in the marker file, so
         //  dumpsys can read and print those information.
