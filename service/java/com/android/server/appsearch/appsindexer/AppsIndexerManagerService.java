@@ -115,7 +115,7 @@ public final class AppsIndexerManagerService extends SystemService {
                     mAppsIndexersLocked.put(userHandle, instance);
                 }
 
-                instance.updateAsync(/* firstRun= */ true);
+                instance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
             }
         } catch (RuntimeException e) {
             Slog.wtf(TAG, "AppsIndexerManagerService.onUserUnlocking() failed ", e);
@@ -297,7 +297,8 @@ public final class AppsIndexerManagerService extends SystemService {
             synchronized (mAppsIndexersLocked) {
                 AppsIndexerUserInstance instance = mAppsIndexersLocked.get(userHandle);
                 if (instance != null) {
-                    instance.updateAsync(/* firstRun= */ false);
+                    instance.updateAsync(
+                            /* firstRun= */ false, /* isForceUpdateTriggered= */ false);
                 }
             }
         }

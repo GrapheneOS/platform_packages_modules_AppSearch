@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.annotation.NonNull;
@@ -181,7 +182,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
@@ -236,7 +237,6 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        // Verify no update is scheduled before force update is triggered
         verify(mockJobScheduler, never()).schedule(any());
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -263,16 +263,16 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // The executor is responsible for releasing semaphore permits. It's invoked repeatedly
         // during listener configuration: once for updates and twice for every configuration change.
-        assertThat(semaphore.tryAcquire(
-                /* permits */ 3,
-                UPDATE_ASYNC_TIMEOUT.toSeconds(),
-                TimeUnit.SECONDS))
+        assertThat(
+                semaphore.tryAcquire(
+                        /* permits */ 3,
+                        UPDATE_ASYNC_TIMEOUT.toSeconds(),
+                        TimeUnit.SECONDS))
                 .isTrue();
 
+        assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
         ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-        verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
-        assertThat(mInstance.getSettings()
-                       .getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
+        verify(mockJobScheduler, times(1)).schedule(jobInfoArgumentCaptor.capture());
 
         // Assert that force update doesn't schedule a job after persisting to settings
         Mockito.clearInvocations(mockJobScheduler);
@@ -330,7 +330,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
@@ -383,7 +383,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
@@ -437,7 +437,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
@@ -487,7 +487,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
@@ -537,7 +537,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
@@ -554,7 +554,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // Request a bunch of updates and check timestamp after each
         while (secondAttemptedUpdateTimestampMillis == firstAttemptedUpdateTimestampMillis) {
-            mInstance.updateAsync(true);
+            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
             assertTrue(semaphore.tryAcquire(100L, TimeUnit.MILLISECONDS));
             settings.load();
             secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
@@ -616,7 +616,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
@@ -682,7 +682,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
@@ -742,7 +742,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
@@ -808,7 +808,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for the task to finish
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
@@ -930,7 +930,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Schedule a bunch of tasks. However, only one will run, and one other will be scheduled
         for (int i = 0; i < numOfNotifications / 2; i++) {
             // This will pretend to add apps repeatedly
-            mInstance.updateAsync(/* firstRun= */ false);
+            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         }
 
         // Now, we wait for getPackageManager to be called
@@ -952,7 +952,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(numOfNotifications),
                 /* appFunctionServices= */ ImmutableList.of());
         for (int i = numOfNotifications / 2; i < numOfNotifications; i++) {
-            mInstance.updateAsync(/* firstRun= */ false);
+            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         }
 
         // Now we allow syncing to continue
@@ -1137,7 +1137,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for all async tasks to complete
         afterSemaphore.acquire();
@@ -1198,7 +1198,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
 
-        mInstance.updateAsync(/* firstRun= */ false);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
 
         // Wait for all async tasks to complete
         semaphore.acquire();
@@ -1256,7 +1256,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Wait for settings initialization
         afterSemaphore.acquire();
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         afterSemaphore.acquire();
 
         ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
@@ -1321,7 +1321,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
 
-        mInstance.updateAsync(/* firstRun= */ true);
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         // Wait for all async tasks to complete
         semaphore.acquire();
 
@@ -1423,8 +1423,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
-        mInstance.updateAsync(/* firstRun= */ false);
-
+        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
         // Wait for all async tasks to complete
         latch.await(10L, TimeUnit.SECONDS);
 
