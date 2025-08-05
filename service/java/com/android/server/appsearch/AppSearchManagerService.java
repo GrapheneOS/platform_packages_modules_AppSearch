@@ -647,9 +647,34 @@ public class AppSearchManagerService extends SystemService {
                     // schemas which are not included in the request will be deleted if we force
                     // override incompatible schemas. And all documents of these types will be
                     // deleted as well. We should checkForOptimize for these deletion.
-                    long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
-                    checkForOptimize(targetUser, instance);
-                    long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                    SetSchemaResponse setSchemaResponse =
+                            internalSetSchemaResponse.getSetSchemaResponse();
+                    if (Flags.enableReduceCheckOptimizeForSetSchema() || instance.isVMEnabled()) {
+                        if (request.isForceOverride() &&
+                                (!setSchemaResponse.getDeletedTypes().isEmpty()
+                                        || !setSchemaResponse.getIncompatibleTypes().isEmpty())) {
+                            // We have deleted and/or incompatible schemas with forceOverride true.
+                            // So we might have documents deleted in this setSchema call, and we
+                            // need to check optimize here.
+                            long checkForOptimizeLatencyStartTimeMillis =
+                                    SystemClock.elapsedRealtime();
+                            checkForOptimize(targetUser, instance);
+                            long checkForOptimizeLatencyEndTimeMillis =
+                                    SystemClock.elapsedRealtime();
+                            setSchemaStatsBuilder
+                                    .setOptimizeLatencyMillis(
+                                            (int) (checkForOptimizeLatencyEndTimeMillis
+                                                    - checkForOptimizeLatencyStartTimeMillis));
+                        }
+                    } else {
+                        long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
+                        checkForOptimize(targetUser, instance);
+                        long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        setSchemaStatsBuilder
+                                .setOptimizeLatencyMillis(
+                                        (int) (checkForOptimizeLatencyEndTimeMillis
+                                                - checkForOptimizeLatencyStartTimeMillis));
+                    }
 
                     setSchemaStatsBuilder
                             .setVerifyIncomingCallLatencyMillis(
@@ -662,10 +687,7 @@ public class AppSearchManagerService extends SystemService {
                             .setRebuildFromBundleLatencyMillis(0)
                             .setDispatchChangeNotificationsLatencyMillis(
                                     (int) (dispatchNotificationLatencyEndTimeMillis
-                                            - dispatchNotificationLatencyStartTimeMillis))
-                            .setOptimizeLatencyMillis(
-                                    (int) (checkForOptimizeLatencyEndTimeMillis
-                                            - checkForOptimizeLatencyStartTimeMillis));
+                                            - dispatchNotificationLatencyStartTimeMillis));
                 } catch (AppSearchException
                          | RuntimeException
                          | InterruptedException
