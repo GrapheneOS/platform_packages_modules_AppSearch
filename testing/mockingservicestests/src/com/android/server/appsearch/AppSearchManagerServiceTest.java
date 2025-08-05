@@ -142,9 +142,9 @@ import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServ
 import com.android.server.appsearch.util.ExecutorManager;
 import com.android.server.usage.StorageStatsManagerLocal;
 
-import com.google.common.util.concurrent.SettableFuture;
-
 import libcore.io.IoBridge;
+
+import com.google.common.util.concurrent.SettableFuture;
 
 import org.junit.After;
 import org.junit.Before;
@@ -418,7 +418,8 @@ public class AppSearchManagerServiceTest {
                                 /* visibilityDocuments= */ Collections.emptyList(),
                                 /* forceOverride= */ false,
                                 /* version= */ 0,
-                                /* setSchemaStatsBuilder= */ null);
+                                /* setSchemaStatsBuilder= */ null,
+                                /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Prepare search action and click action generic documents.
@@ -2045,11 +2046,17 @@ public class AppSearchManagerServiceTest {
         List<AppSearchSchema> schemas = Collections.singletonList(
                 new AppSearchSchema.Builder("type").build());
         InternalSetSchemaResponse internalSetSchemaResponse =
-                mUserInstance.getAppSearchImpl().setSchema(packageName, databaseName, schemas,
-                        /* visibilityDocuments= */ Collections.emptyList(),
-                        /* forceOverride= */ false,
-                        /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                mUserInstance
+                        .getAppSearchImpl()
+                        .setSchema(
+                                packageName,
+                                databaseName,
+                                schemas,
+                                /* visibilityDocuments= */ Collections.emptyList(),
+                                /* forceOverride= */ false,
+                                /* version= */ 0,
+                                /* setSchemaStatsBuilder= */ null,
+                                /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
     }
 
@@ -2057,19 +2064,30 @@ public class AppSearchManagerServiceTest {
             String id) throws Exception {
         // Insert a document
         GenericDocument document = new GenericDocument.Builder<>(namespace, id, "type").build();
-        mUserInstance.getAppSearchImpl().putDocument(packageName, databaseName, document,
-                /* sendChangeNotifications= */ false,
-                /* logger= */ null);
+        mUserInstance
+                .getAppSearchImpl()
+                .putDocument(
+                        packageName,
+                        databaseName,
+                        document,
+                        /* sendChangeNotifications= */ false,
+                        /* logger= */ null,
+                        /* callStatsBuilder= */ null);
     }
 
     private void removeTestSchema(String packageName, String databaseName) throws Exception {
         InternalSetSchemaResponse internalSetSchemaResponse =
-                mUserInstance.getAppSearchImpl().setSchema(packageName, databaseName,
-                        /* schemas= */ Collections.emptyList(),
-                        /* visibilityDocuments= */ Collections.emptyList(),
-                        /* forceOverride= */ true,
-                        /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                mUserInstance
+                        .getAppSearchImpl()
+                        .setSchema(
+                                packageName,
+                                databaseName,
+                                /* schemas= */ Collections.emptyList(),
+                                /* visibilityDocuments= */ Collections.emptyList(),
+                                /* forceOverride= */ true,
+                                /* version= */ 0,
+                                /* setSchemaStatsBuilder= */ null,
+                                /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
     }
 

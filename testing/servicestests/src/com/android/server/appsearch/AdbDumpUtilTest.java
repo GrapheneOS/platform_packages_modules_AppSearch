@@ -133,6 +133,7 @@ public class AdbDumpUtilTest {
                         mTemporaryFolder.newFolder(),
                         new FakeAppSearchConfig(),
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -142,16 +143,25 @@ public class AdbDumpUtilTest {
                 "name").setIndexingType(
                 AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES).setTokenizerType(
                 AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN).build()).build());
-        appSearchImpl.setSchema("adbdump_package", "adbdump_database", schemas,
-                /*visibilityDocuments=*/ Collections.emptyList(),
-                /*forceOverride=*/ false,
-                /*version=*/ 0,
-                /* setSchemaStatsBuilder= */ null);
+        appSearchImpl.setSchema(
+                "adbdump_package",
+                "adbdump_database",
+                schemas,
+                /* visibilityDocuments= */ Collections.emptyList(),
+                /* forceOverride= */ false,
+                /* version= */ 0,
+                /* setSchemaStatsBuilder= */ null,
+                /* callStatsBuilder= */ null);
         GenericDocument person = new GenericDocument.Builder<>("adbdump_namespace",
                 "adbdump_doc_id", PERSON_TYPE).setPropertyString("name",
                 "adbdump test person").build();
-        appSearchImpl.putDocument("adbdump_package", "adbdump_database", person,
-                /*sendChangeNotifications=*/ false, /*logger=*/ null);
+        appSearchImpl.putDocument(
+                "adbdump_package",
+                "adbdump_database",
+                person,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
 
         DebugInfoProto originalDebugInfoProto = appSearchImpl.getRawDebugInfoProto(
                 DebugInfoVerbosity.Code.DETAILED);

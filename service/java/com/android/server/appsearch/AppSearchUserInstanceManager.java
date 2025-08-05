@@ -339,6 +339,7 @@ public final class AppSearchUserInstanceManager {
                             icingDir,
                             config,
                             initStatsBuilder,
+                            /* callStatsBuilder= */ null,
                             visibilityCheckerImpl,
                             frameworkRevocableFileDescriptorStore,
                             icingInstance,

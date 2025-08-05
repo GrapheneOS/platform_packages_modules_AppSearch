@@ -431,7 +431,8 @@ public final class SearchSpecToProtoConverter {
      * @param isVMEnabled Whether or not icing is running in a pVM.
      */
     public @NonNull ResultSpecProto toResultSpecProto(
-            @NonNull NamespaceCache namespaceCache, @NonNull SchemaCache schemaCache,
+            @NonNull NamespaceCache namespaceCache,
+            @NonNull SchemaCache schemaCache,
             boolean isVMEnabled) {
         ResultSpecProto.Builder resultSpecBuilder =
                 ResultSpecProto.newBuilder()
