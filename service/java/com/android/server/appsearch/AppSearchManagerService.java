@@ -3346,11 +3346,30 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(request);
             final long callReceivedTimestampMillis = System.currentTimeMillis();
 
+            UserHandle targetUser =
+                    mServiceImplHelper.verifyIncomingCall(
+                            request.getCallerAttributionSource(), request.getUserHandle());
+            String callingPackageName = request.getCallerAttributionSource().getPackageName();
+            boolean isVmEnabled = isVMEnabledForUser(targetUser);
+
+            // If the vm is enabled or the flag is on, then schedule a persistToDisk job and let it
+            // fire in the background later instead of waiting it.
+            if (isVmEnabled || Flags.enableNoOpManualPersist()) {
+                Log.w(
+                        TAG,
+                        "Received persistToDisk call. Use AppSearchManagerService persistence "
+                                + "schedule.");
+                schedulePersistToDisk(
+                        callingPackageName,
+                        BaseStats.CALL_TYPE_FLUSH,
+                        targetUser,
+                        mAppSearchConfig.getLightweightPersistType(),
+                        mAppSearchConfig.getCachedPersistDelayMillis());
+                return;
+            }
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             try {
-                UserHandle targetUser = mServiceImplHelper.verifyIncomingCall(
-                        request.getCallerAttributionSource(), request.getUserHandle());
-                String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
                         BaseStats.CALL_TYPE_FLUSH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
@@ -3359,8 +3378,7 @@ public class AppSearchManagerService extends SystemService {
                 }
                 long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH,
-                        isVMEnabledForUser(targetUser),
+                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH, isVmEnabled,
                         () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = RESULT_OK;
@@ -3368,20 +3386,13 @@ public class AppSearchManagerService extends SystemService {
                     int operationSuccessCount = 0;
                     int operationFailureCount = 0;
                     try {
-                        if (Flags.enableNoOpManualPersist()) {
-                            Log.w(TAG,
-                                    "Received persistToDisk call. Skipping since "
-                                            + "AppSearchManagerService manages its own "
-                                            + "persistence schedule");
-                        } else {
-                            instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                            instance.getAppSearchImpl().persistToDisk(
-                                    callingPackageName,
-                                    BaseStats.CALL_TYPE_FLUSH,
-                                    PersistType.Code.FULL,
-                                    instance.getLogger(),
-                                    /*callStatsBuilder=*/null);
-                        }
+                        instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                        instance.getAppSearchImpl().persistToDisk(
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_FLUSH,
+                                PersistType.Code.FULL,
+                                instance.getLogger(),
+                                /*callStatsBuilder=*/null);
                         ++operationSuccessCount;
                     } catch (AppSearchException | RuntimeException | InterruptedException
                              | ExecutionException e) {
