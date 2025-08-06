@@ -83,6 +83,8 @@ public class BaseStats {
                 INTERNAL_CALL_TYPE_PRUNE_PACKAGE_DATA,
                 INTERNAL_CALL_TYPE_CLOSE,
                 INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
+                INTERNAL_CALL_TYPE_ON_USER_UNLOCKING,
+                INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CallType {}
@@ -132,6 +134,8 @@ public class BaseStats {
     public static final int INTERNAL_CALL_TYPE_PRUNE_PACKAGE_DATA = 40;
     public static final int INTERNAL_CALL_TYPE_CLOSE = 41;
     public static final int INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB = 42;
+    public static final int INTERNAL_CALL_TYPE_ON_USER_UNLOCKING = 43;
+    public static final int INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED = 44;
 
     // These strings are for the subset of call types that correspond to an AppSearchManager API
     public static final String CALL_TYPE_STRING_INITIALIZE = "initialize";
@@ -177,6 +181,9 @@ public class BaseStats {
     public static final String INTERNAL_CALL_TYPE_STRING_PRUNE_PACKAGE_DATA = "prunePackageData";
     public static final String INTERNAL_CALL_TYPE_STRING_CLOSE = "close";
     public static final String INTERNAL_CALL_TYPE_STRING_PERSIST_TO_DISK_JOB = "persistToDiskJob";
+    public static final String INTERNAL_CALL_TYPE_STRING_ON_USER_UNLOCKING = "onUserUnlocking";
+    public static final String INTERNAL_CALL_TYPE_STRING_HANDLE_PACKAGE_REMOVED =
+            "handlePackageRemoved";
 
     // Enabled features bitmask with all features disabled.
     public static final long NO_FEATURES_ENABLED_BITMASK = 0;

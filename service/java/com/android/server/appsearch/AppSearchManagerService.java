@@ -397,6 +397,17 @@ public class AppSearchManagerService extends SystemService {
                                             mExecutorManager,
                                             mIsolatedStorageServiceManager);
                             instance.getAppSearchImpl().clearPackageData(packageName);
+
+                            if (Flags.enableDelayedPersistToDisk()) {
+                                maybeSchedulePersistToDisk(
+                                        /* callingPackageName= */ null,
+                                        BaseStats.INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED,
+                                        userHandle,
+                                        mAppSearchConfig.getLightweightPersistType(),
+                                        mAppSearchConfig.getCachedPersistDelayMillis(),
+                                        /* forceSchedule= */ false);
+                            }
+
                             dispatchChangeNotifications(instance);
                             instance.getLogger().removeCacheForPackage(packageName);
                         } catch (AppSearchException | RuntimeException | IOException e) {
@@ -448,12 +459,24 @@ public class AppSearchManagerService extends SystemService {
                             }
                             packagesToKeep.add(VisibilityStore.VISIBILITY_PACKAGE_NAME);
                             instance.getAppSearchImpl().prunePackageData(packagesToKeep);
+
+                            // Note: this is different from the "daily fully persist job" scheduled
+                            //   in the next section.
+                            if (Flags.enableDelayedPersistToDisk()) {
+                                maybeSchedulePersistToDisk(
+                                        /* callingPackageName= */ null,
+                                        BaseStats.INTERNAL_CALL_TYPE_ON_USER_UNLOCKING,
+                                        userHandle,
+                                        mAppSearchConfig.getLightweightPersistType(),
+                                        mAppSearchConfig.getCachedPersistDelayMillis(),
+                                        /* forceSchedule= */ false);
+                            }
                         } catch (AppSearchException | RuntimeException e) {
                             Log.e(TAG, "Unable to prune packages for " + user, e);
                             ExceptionUtil.handleException(e);
                         }
 
-                        // Try to schedule fully persist job.
+                        // Try to schedule (daily) fully persist job.
                         try {
                             AppSearchMaintenanceService.scheduleFullyPersistJob(mContext,
                                     userHandle.getIdentifier(),
@@ -635,6 +658,16 @@ public class AppSearchManagerService extends SystemService {
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromInternalSetSchemaResponse(internalSetSchemaResponse));
+
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        maybeSchedulePersistToDisk(
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_SET_SCHEMA,
+                                targetUser,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis(),
+                                /* forceSchedule= */ false);
+                    }
 
                     // Schedule a task to dispatch change notifications. See requirements for where
                     // the method is called documented in the method description.
@@ -1071,12 +1104,13 @@ public class AppSearchManagerService extends SystemService {
 
                         // Now that the batch has been written, persist the newly written data.
                         if (Flags.enableDelayedPersistToDisk()) {
-                            schedulePersistToDisk(
+                            maybeSchedulePersistToDisk(
                                     callingPackageName,
                                     BaseStats.CALL_TYPE_PUT_DOCUMENTS,
                                     targetUser,
                                     mAppSearchConfig.getLightweightPersistType(),
-                                    mAppSearchConfig.getCachedPersistDelayMillis());
+                                    mAppSearchConfig.getCachedPersistDelayMillis(),
+                                    /* forceSchedule= */ false);
                         } else {
                             instance.getAppSearchImpl().persistToDisk(
                                     callingPackageName,
@@ -1163,12 +1197,16 @@ public class AppSearchManagerService extends SystemService {
                                         /*callStatsBuilder=*/null);
                             }
 
-                            schedulePersistToDisk(
+                            // BatchPut + schedule persistToDisk were ramped together by
+                            // Flags.enableBatchPut(), so no need to check
+                            // Flags.enableDelayedPersistToDisk().
+                            maybeSchedulePersistToDisk(
                                     callingPackageName,
                                     BaseStats.CALL_TYPE_PUT_DOCUMENTS,
                                     targetUser,
                                     mAppSearchConfig.getLightweightPersistType(),
-                                    mAppSearchConfig.getCachedPersistDelayMillis());
+                                    mAppSearchConfig.getCachedPersistDelayMillis(),
+                                    /* forceSchedule= */ false);
                         }
                     }
 
@@ -2039,6 +2077,17 @@ public class AppSearchManagerService extends SystemService {
                             callingDatabaseName,
                             visibilityConfigs,
                             /*callStatsBuilder=*/null);
+
+                    if (Flags.enableDelayedPersistToDisk()) {
+                        maybeSchedulePersistToDisk(
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY,
+                                targetUser,
+                                mAppSearchConfig.getLightweightPersistType(),
+                                mAppSearchConfig.getCachedPersistDelayMillis(),
+                                /* forceSchedule= */ false);
+                    }
+
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcelV2.fromVoid());
                 } catch (AppSearchException | RuntimeException | InterruptedException
@@ -2702,12 +2751,13 @@ public class AppSearchManagerService extends SystemService {
                     }
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(
+                        maybeSchedulePersistToDisk(
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
                                 targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
-                                mAppSearchConfig.getCachedPersistDelayMillis());
+                                mAppSearchConfig.getCachedPersistDelayMillis(),
+                                /* forceSchedule= */ false);
                     } else {
                         instance.getAppSearchImpl().persistToDisk(
                                 callingPackageName,
@@ -3103,11 +3153,12 @@ public class AppSearchManagerService extends SystemService {
                     }
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(callingPackageName,
+                        maybeSchedulePersistToDisk(callingPackageName,
                                 BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
                                 targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
-                                mAppSearchConfig.getCachedPersistDelayMillis());
+                                mAppSearchConfig.getCachedPersistDelayMillis(),
+                                /* forceSchedule= */ false);
                     } else {
                         instance.getAppSearchImpl().persistToDisk(
                                 callingPackageName,
@@ -3221,11 +3272,12 @@ public class AppSearchManagerService extends SystemService {
                             /*callStatsBuilder=*/null);
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
-                        schedulePersistToDisk(callingPackageName,
+                        maybeSchedulePersistToDisk(callingPackageName,
                                 BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
                                 targetUser,
                                 mAppSearchConfig.getLightweightPersistType(),
-                                mAppSearchConfig.getCachedPersistDelayMillis());
+                                mAppSearchConfig.getCachedPersistDelayMillis(),
+                                /* forceSchedule= */ false);
                     } else {
                         instance.getAppSearchImpl().persistToDisk(
                                 callingPackageName,
@@ -3388,36 +3440,36 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(request);
             final long callReceivedTimestampMillis = System.currentTimeMillis();
 
-            UserHandle targetUser =
-                    mServiceImplHelper.verifyIncomingCall(
-                            request.getCallerAttributionSource(), request.getUserHandle());
-            String callingPackageName = request.getCallerAttributionSource().getPackageName();
-            boolean isVmEnabled = isVmEnabledForUser(targetUser);
-
-            // If the vm is enabled or the flag is on, then schedule a persistToDisk job and let it
-            // fire in the background later instead of waiting it.
-            if (isVmEnabled || Flags.enableNoOpManualPersist()) {
-                Log.w(
-                        TAG,
-                        "Received persistToDisk call. Use AppSearchManagerService persistence "
-                                + "schedule.");
-                schedulePersistToDisk(
-                        callingPackageName,
-                        BaseStats.CALL_TYPE_FLUSH,
-                        targetUser,
-                        mAppSearchConfig.getLightweightPersistType(),
-                        mAppSearchConfig.getCachedPersistDelayMillis());
-                return;
-            }
-
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             try {
+                UserHandle targetUser = mServiceImplHelper.verifyIncomingCall(
+                        request.getCallerAttributionSource(), request.getUserHandle());
+                String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
                         BaseStats.CALL_TYPE_FLUSH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
                         /* numOperations= */ 1)) {
                     return;
                 }
+
+                boolean isVmEnabled = isVmEnabledForUser(targetUser);
+                // If the vm is enabled or the flag is on, then schedule a persistToDisk job and let
+                // it fire in the background later instead of waiting it.
+                if (isVmEnabled || Flags.enableNoOpManualPersist()) {
+                    Log.w(
+                            TAG,
+                            "Received persistToDisk call. Use AppSearchManagerService persistence "
+                                    + "schedule.");
+                    maybeSchedulePersistToDisk(
+                            callingPackageName,
+                            BaseStats.CALL_TYPE_FLUSH,
+                            targetUser,
+                            mAppSearchConfig.getLightweightPersistType(),
+                            mAppSearchConfig.getCachedPersistDelayMillis(),
+                            /* forceSchedule= */ true);
+                    return;
+                }
+
                 long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
                         targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH,
@@ -4279,17 +4331,35 @@ public class AppSearchManagerService extends SystemService {
                 });
     }
 
+    /**
+     * Checks if the given user's AppSearchImpl (Icing) needs persistToDisk, and schedules one if
+     * there is no pending persistToDisk job, and it is needed or {@code forceSchedule} is true.
+     */
     @WorkerThread
-    private void schedulePersistToDisk(
-            @NonNull String callingPackageName,
+    private void maybeSchedulePersistToDisk(
+            @Nullable String callingPackageName,
             @BaseStats.CallType int callType,
             @NonNull UserHandle targetUser,
             @NonNull PersistType.Code persistType,
-            long delayMs) {
+            long delayMs,
+            boolean forceSchedule) {
         if (mServiceImplHelper.isUserLocked(targetUser)) {
             // We shouldn't schedule any task to locked user.
             return;
         }
+
+        // Check if persistToDisk is needed.
+        try {
+            AppSearchUserInstance instance =
+                    mAppSearchUserInstanceManager.getUserInstance(targetUser);
+            if (!instance.getAppSearchImpl().getAndResetNeedPersistToDisk() && !forceSchedule) {
+                return;
+            }
+        } catch (InterruptedException | ExecutionException | RuntimeException e) {
+            Log.w(TAG, "Unable to check if persistToDisk is needed or not: ", e);
+            return;
+        }
+
         synchronized (mPerUserPersistToDiskFutureLocked) {
             ScheduledFuture<?> persistToDiskFuture =
                     mPerUserPersistToDiskFutureLocked.get(targetUser);
