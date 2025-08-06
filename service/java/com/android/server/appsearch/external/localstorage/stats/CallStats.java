@@ -259,14 +259,14 @@ public class CallStats extends BaseStats {
             return this;
         }
 
-        /** Sets the last call type that hold the executor */
+        /** Sets total latency for creating or waiting the user executor. */
         @CanIgnoreReturnValue
         public @NonNull Builder setLastCallTypeHoldExecutor(@CallType int callType) {
             mLastCallTypeHoldExecutor = callType;
             return this;
         }
 
-        /** Sets total latency for creating or waiting the user executor. */
+        /** Sets the last call type that hold the executor */
         @CanIgnoreReturnValue
         public @NonNull Builder setExecutorAcquisitionLatencyMillis(
                 int executorAcquisitionLatencyMillis) {

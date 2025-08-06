@@ -34,8 +34,7 @@ public final class LogUtil {
     //  for eng builds.
     public static final boolean DEBUG = false;
 
-    public static final boolean INFO =
-            AppSearchEnvironmentFactory.getEnvironmentInstance().isInfoLoggingEnabled();
+    public static final boolean INFO = true;
 
     /**
      * The {@link #piiTrace} logs are intended for sensitive data that can't be enabled in
@@ -49,7 +48,7 @@ public final class LogUtil {
      *   <li>2: full tracing (complete messages)
      * </ul>
      */
-    private static final int PII_TRACE_LEVEL = 0;
+    private static final int PII_TRACE_LEVEL = 2;
 
     private LogUtil() {}
 

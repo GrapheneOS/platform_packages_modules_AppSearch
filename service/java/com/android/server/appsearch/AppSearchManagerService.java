@@ -577,7 +577,8 @@ public class AppSearchManagerService extends SystemService {
                     /*callingPackageName=*/ null,
                     BaseStats.INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
                     PersistType.Code.FULL,
-                    instance.getLogger()
+                    instance.getLogger(),
+                    /*callStatsBuilder=*/null
             );
         }
     }
@@ -632,7 +633,8 @@ public class AppSearchManagerService extends SystemService {
                                     request.getVisibilityConfigs(),
                                     request.isForceOverride(),
                                     request.getSchemaVersion(),
-                                    setSchemaStatsBuilder);
+                                    setSchemaStatsBuilder,
+                                    /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromInternalSetSchemaResponse(internalSetSchemaResponse));
@@ -647,9 +649,34 @@ public class AppSearchManagerService extends SystemService {
                     // schemas which are not included in the request will be deleted if we force
                     // override incompatible schemas. And all documents of these types will be
                     // deleted as well. We should checkForOptimize for these deletion.
-                    long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
-                    checkForOptimize(targetUser, instance);
-                    long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                    SetSchemaResponse setSchemaResponse =
+                            internalSetSchemaResponse.getSetSchemaResponse();
+                    if (Flags.enableReduceCheckOptimizeForSetSchema() || instance.isVMEnabled()) {
+                        if (request.isForceOverride() &&
+                                (!setSchemaResponse.getDeletedTypes().isEmpty()
+                                        || !setSchemaResponse.getIncompatibleTypes().isEmpty())) {
+                            // We have deleted and/or incompatible schemas with forceOverride true.
+                            // So we might have documents deleted in this setSchema call, and we
+                            // need to check optimize here.
+                            long checkForOptimizeLatencyStartTimeMillis =
+                                    SystemClock.elapsedRealtime();
+                            checkForOptimize(targetUser, instance);
+                            long checkForOptimizeLatencyEndTimeMillis =
+                                    SystemClock.elapsedRealtime();
+                            setSchemaStatsBuilder
+                                    .setOptimizeLatencyMillis(
+                                            (int) (checkForOptimizeLatencyEndTimeMillis
+                                                    - checkForOptimizeLatencyStartTimeMillis));
+                        }
+                    } else {
+                        long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
+                        checkForOptimize(targetUser, instance);
+                        long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        setSchemaStatsBuilder
+                                .setOptimizeLatencyMillis(
+                                        (int) (checkForOptimizeLatencyEndTimeMillis
+                                                - checkForOptimizeLatencyStartTimeMillis));
+                    }
 
                     setSchemaStatsBuilder
                             .setVerifyIncomingCallLatencyMillis(
@@ -662,10 +689,7 @@ public class AppSearchManagerService extends SystemService {
                             .setRebuildFromBundleLatencyMillis(0)
                             .setDispatchChangeNotificationsLatencyMillis(
                                     (int) (dispatchNotificationLatencyEndTimeMillis
-                                            - dispatchNotificationLatencyStartTimeMillis))
-                            .setOptimizeLatencyMillis(
-                                    (int) (checkForOptimizeLatencyEndTimeMillis
-                                            - checkForOptimizeLatencyStartTimeMillis));
+                                            - dispatchNotificationLatencyStartTimeMillis));
                 } catch (AppSearchException
                          | RuntimeException
                          | InterruptedException
@@ -797,7 +821,8 @@ public class AppSearchManagerService extends SystemService {
                                     request.getTargetPackageName(),
                                     request.getDatabaseName(),
                                     new FrameworkCallerAccess(request.getCallerAttributionSource(),
-                                            callerHasSystemAccess, request.isForEnterprise()));
+                                            callerHasSystemAccess, request.isForEnterprise()),
+                                    /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromGetSchemaResponse(response)
@@ -889,7 +914,9 @@ public class AppSearchManagerService extends SystemService {
                     instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
                     List<String> namespaces =
                             instance.getAppSearchImpl().getNamespaces(
-                                    callingPackageName, request.getDatabaseName());
+                                    callingPackageName,
+                                    request.getDatabaseName(),
+                                    /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromStringList(namespaces)
@@ -1005,7 +1032,8 @@ public class AppSearchManagerService extends SystemService {
                                         request.getDatabaseName(),
                                         document,
                                         /* sendChangeNotifications= */ true,
-                                        instance.getLogger());
+                                        instance.getLogger(),
+                                        /*callStatsBuilder=*/null);
                                 resultBuilder.setSuccess(document.getId(), /* value= */ null);
                                 ++operationSuccessCount;
                             } catch (AppSearchException | RuntimeException e) {
@@ -1030,7 +1058,8 @@ public class AppSearchManagerService extends SystemService {
                                         request.getDatabaseName(),
                                         document,
                                         /* sendChangeNotifications= */ true,
-                                        instance.getLogger());
+                                        instance.getLogger(),
+                                        /*callStatsBuilder=*/null);
                                 resultBuilder.setSuccess(document.getId(), /* value= */ null);
                                 ++operationSuccessCount;
                             } catch (AppSearchException | RuntimeException e) {
@@ -1058,59 +1087,87 @@ public class AppSearchManagerService extends SystemService {
                                     callingPackageName,
                                     BaseStats.CALL_TYPE_PUT_DOCUMENTS,
                                     mAppSearchConfig.getLightweightPersistType(),
-                                    instance.getLogger());
+                                    instance.getLogger(),
+                                    /*callStatsBuilder=*/null);
                         }
                     } else {
                         if (!documentParcels.isEmpty() || !takenActionDocumentParcels.isEmpty()) {
-                            // List to hold the current batch.
-                            List<GenericDocument> currentBatch = new ArrayList<>();
-                            // The lock is held in AppSearchImpl.batchPutDocuments. To avoid holding
-                            // it for too long, we divide the documents into smaller batches. We
-                            // flush whenever we reach MAX_NUMBER_OF_DOCS_BUFFERED.
-                            // We also need to limit the # of bytes we send to the
-                            // isolated_storage_service, and it is currently done in AppSearchImpl
-                            // as it is easier to get the byte size from the proto directly.
-                            for (int i = 0; i < documentParcels.size(); i++) {
-                                if (currentBatch.size() >= MAX_NUMBER_OF_DOCS_BUFFERED) {
-                                    instance.getAppSearchImpl().batchPutDocuments(
-                                            callingPackageName,
-                                            request.getDatabaseName(),
-                                            currentBatch,
-                                            resultBuilder,
-                                            /* sendChangeNotifications=*/ true,
-                                            instance.getLogger(),
-                                            PersistType.Code.UNKNOWN);
-                                    currentBatch.clear();
+                            if (Flags.enableRemoveDocCountBatchingForBatchPut()
+                                    || instance.isVMEnabled()) {
+                                List<GenericDocument> docs = new ArrayList<>();
+                                for (int i = 0; i < documentParcels.size(); i++) {
+                                    docs.add(new GenericDocument(documentParcels.get(i)));
                                 }
-                                currentBatch.add(new GenericDocument(documentParcels.get(i)));
-                            }
-                            for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
-                                if (currentBatch.size() >= MAX_NUMBER_OF_DOCS_BUFFERED) {
-                                    instance.getAppSearchImpl().batchPutDocuments(
-                                            callingPackageName,
-                                            request.getDatabaseName(),
-                                            currentBatch,
-                                            resultBuilder,
-                                            /* sendChangeNotifications=*/ true,
-                                            instance.getLogger(),
-                                            PersistType.Code.UNKNOWN);
-                                    currentBatch.clear();
+                                for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
+                                    docs.add(
+                                            new GenericDocument(takenActionDocumentParcels.get(i)));
                                 }
-                                GenericDocument document = new GenericDocument(
-                                        takenActionDocumentParcels.get(i));
-                                takenActionGenericDocuments.add(document);
-                                currentBatch.add(document);
+                                instance.getAppSearchImpl().batchPutDocuments(
+                                        callingPackageName,
+                                        request.getDatabaseName(),
+                                        docs,
+                                        resultBuilder,
+                                        /* sendChangeNotifications=*/ true,
+                                        instance.getLogger(),
+                                        PersistType.Code.UNKNOWN,
+                                        /*callStatsBuilder=*/null);
+                            } else {
+                                // List to hold the current batch.
+                                List<GenericDocument> currentBatch = new ArrayList<>();
+                                // The lock is held in AppSearchImpl.batchPutDocuments. To
+                                // avoid holding it for too long, we divide the documents
+                                // into smaller batches. We flush whenever we
+                                // reach MAX_NUMBER_OF_DOCS_BUFFERED.
+                                // We also need to limit the # of bytes we send to the
+                                // isolated_storage_service, and it is currently done in
+                                // AppSearchImpl as it is easier to get the byte size
+                                // from the proto directly.
+                                for (int i = 0; i < documentParcels.size(); i++) {
+                                    if (currentBatch.size() >= MAX_NUMBER_OF_DOCS_BUFFERED) {
+                                        instance.getAppSearchImpl().batchPutDocuments(
+                                                callingPackageName,
+                                                request.getDatabaseName(),
+                                                currentBatch,
+                                                resultBuilder,
+                                                /* sendChangeNotifications=*/ true,
+                                                instance.getLogger(),
+                                                PersistType.Code.UNKNOWN,
+                                                /*callStatsBuilder=*/null);
+                                        currentBatch.clear();
+                                    }
+                                    currentBatch.add(new GenericDocument(documentParcels.get(i)));
+                                }
+                                for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
+                                    if (currentBatch.size() >= MAX_NUMBER_OF_DOCS_BUFFERED) {
+                                        instance.getAppSearchImpl().batchPutDocuments(
+                                                callingPackageName,
+                                                request.getDatabaseName(),
+                                                currentBatch,
+                                                resultBuilder,
+                                                /* sendChangeNotifications=*/ true,
+                                                instance.getLogger(),
+                                                PersistType.Code.UNKNOWN,
+                                                /*callStatsBuilder=*/null);
+                                        currentBatch.clear();
+                                    }
+                                    GenericDocument document = new GenericDocument(
+                                            takenActionDocumentParcels.get(i));
+                                    takenActionGenericDocuments.add(document);
+                                    currentBatch.add(document);
+                                }
+                                // flush the last batch with
+                                // mAppSearchConfig.getLightweightPersistType().
+                                instance.getAppSearchImpl().batchPutDocuments(
+                                        callingPackageName,
+                                        request.getDatabaseName(),
+                                        currentBatch,
+                                        resultBuilder,
+                                        /* sendChangeNotifications=*/ true,
+                                        instance.getLogger(),
+                                        PersistType.Code.UNKNOWN,
+                                        /*callStatsBuilder=*/null);
                             }
-                            // flush the last batch with
-                            // mAppSearchConfig.getLightweightPersistType().
-                            instance.getAppSearchImpl().batchPutDocuments(
-                                    callingPackageName,
-                                    request.getDatabaseName(),
-                                    currentBatch,
-                                    resultBuilder,
-                                    /* sendChangeNotifications=*/ true,
-                                    instance.getLogger(),
-                                    PersistType.Code.UNKNOWN);
+
                             schedulePersistToDisk(
                                     callingPackageName,
                                     BaseStats.CALL_TYPE_PUT_DOCUMENTS,
@@ -1313,7 +1370,8 @@ public class AppSearchManagerService extends SystemService {
                                             new FrameworkCallerAccess(
                                                     request.getCallerAttributionSource(),
                                                     callerHasSystemAccess,
-                                                    request.isForEnterprise()));
+                                                    request.isForEnterprise()),
+                                            /*callStatsBuilder=*/null);
                                     if (request.isForEnterprise()) {
                                         document =
                                                 EnterpriseSearchResultPageTransformer
@@ -1328,7 +1386,8 @@ public class AppSearchManagerService extends SystemService {
                                             request.getDatabaseName(),
                                             request.getGetByDocumentIdRequest().getNamespace(),
                                             id,
-                                            request.getGetByDocumentIdRequest().getProjections());
+                                            request.getGetByDocumentIdRequest().getProjections(),
+                                            /*callStatsBuilder=*/null);
                                 }
                                 ++operationSuccessCount;
                                 resultBuilder.setSuccess(id, document.getDocumentParcel());
@@ -1377,13 +1436,15 @@ public class AppSearchManagerService extends SystemService {
                                     new FrameworkCallerAccess(
                                             request.getCallerAttributionSource(),
                                             callerHasSystemAccess,
-                                            request.isForEnterprise()));
+                                            request.isForEnterprise()),
+                                    /*callStatsBuilder=*/null);
                         } else {
                             getDocumentsResult = instance.getAppSearchImpl().batchGetDocuments(
                                     request.getTargetPackageName(),
                                     request.getDatabaseName(),
                                     request.getGetByDocumentIdRequest(),
-                                    /*callerAccess=*/ null);
+                                    /*callerAccess=*/ null,
+                                    /*callStatsBuilder=*/null);
                         }
 
                         // Build the result to be returned.
@@ -1511,7 +1572,8 @@ public class AppSearchManagerService extends SystemService {
                                     .openWriteBlob(
                                             callingPackageName,
                                             callingDatabaseName,
-                                            blobHandle);
+                                            blobHandle,
+                                            /*callStatsBuilder=*/null);
                             resultBuilder.setSuccess(blobHandle, pfd);
                         } catch (AppSearchException | IOException e) {
                             AppSearchResult<ParcelFileDescriptor> result =
@@ -1627,7 +1689,8 @@ public class AppSearchManagerService extends SystemService {
                                     .removeBlob(
                                             callingPackageName,
                                             callingDatabaseName,
-                                            blobHandle);
+                                            blobHandle,
+                                            /*callStatsBuilder=*/null);
                             resultBuilder.setSuccess(blobHandle, null);
                         } catch (AppSearchException | IOException e) {
                             AppSearchResult<Void> result =
@@ -1742,7 +1805,8 @@ public class AppSearchManagerService extends SystemService {
                                     .commitBlob(
                                             callingPackageName,
                                             callingDatabaseName,
-                                            blobHandle);
+                                            blobHandle,
+                                            /*callStatsBuilder=*/null);
                             resultBuilder.setSuccess(blobHandle, null);
                         } catch (AppSearchException | IOException e) {
                             AppSearchResult<Void> result =
@@ -1865,10 +1929,13 @@ public class AppSearchManagerService extends SystemService {
                                         callerHasSystemAccess,
                                         /*isForEnterprise=*/ false);
                                 pfd = instance.getAppSearchImpl().globalOpenReadBlob(
-                                        blobHandle, callerAccess);
+                                        blobHandle, callerAccess, /*callStatsBuilder=*/null);
                             } else {
-                                pfd = instance.getAppSearchImpl().openReadBlob(callingPackageName,
-                                        callingDatabaseName, blobHandle);
+                                pfd = instance.getAppSearchImpl().openReadBlob(
+                                        callingPackageName,
+                                        callingDatabaseName,
+                                        blobHandle,
+                                        /*callStatsBuilder=*/null);
                             }
                             resultBuilder.setSuccess(blobHandle, pfd);
                         } catch (AppSearchException | IOException e) {
@@ -1979,7 +2046,8 @@ public class AppSearchManagerService extends SystemService {
                     instance.getAppSearchImpl().setBlobNamespaceVisibility(
                             callingPackageName,
                             callingDatabaseName,
-                            visibilityConfigs);
+                            visibilityConfigs,
+                            /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcelV2.fromVoid());
                 } catch (AppSearchException | RuntimeException | InterruptedException
@@ -2078,7 +2146,8 @@ public class AppSearchManagerService extends SystemService {
                             request.getDatabaseName(),
                             request.getSearchExpression(),
                             request.getSearchSpec(),
-                            instance.getLogger());
+                            instance.getLogger(),
+                            /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(
                             callback,
@@ -2186,7 +2255,8 @@ public class AppSearchManagerService extends SystemService {
                             querySearchSpec,
                             new FrameworkCallerAccess(request.getCallerAttributionSource(),
                                     callerHasSystemAccess, request.isForEnterprise()),
-                            instance.getLogger());
+                            instance.getLogger(),
+                            /*callStatsBuilder=*/null);
                     if (request.isForEnterprise()) {
                         searchResultPage =
                                 EnterpriseSearchResultPageTransformer.transformSearchResultPage(
@@ -2301,8 +2371,11 @@ public class AppSearchManagerService extends SystemService {
                 try {
                     instance = mAppSearchUserInstanceManager.getUserInstance(userToQuery);
                     SearchResultPage searchResultPage =
-                            instance.getAppSearchImpl().getNextPage(callingPackageName,
-                                    request.getNextPageToken(), statsBuilder);
+                            instance.getAppSearchImpl().getNextPage(
+                                    callingPackageName,
+                                    request.getNextPageToken(),
+                                    statsBuilder,
+                                    /*callStatsBuilder=*/null);
                     if (request.isForEnterprise()) {
                         searchResultPage =
                                 EnterpriseSearchResultPageTransformer.transformSearchResultPage(
@@ -2498,7 +2571,8 @@ public class AppSearchManagerService extends SystemService {
                                 request.getDatabaseName(),
                                 request.getSearchExpression(),
                                 request.getSearchSpec(),
-                                /* logger= */ null);
+                                /* logger= */ null,
+                                /*callStatsBuilder=*/null);
                         while (!searchResultPage.getResults().isEmpty()) {
                             for (int i = 0; i < searchResultPage.getResults().size(); i++) {
                                 AppSearchMigrationHelper.writeDocumentToOutputStream(
@@ -2510,7 +2584,8 @@ public class AppSearchManagerService extends SystemService {
                             searchResultPage = instance.getAppSearchImpl().getNextPage(
                                     callingPackageName,
                                     searchResultPage.getNextPageToken(),
-                                    /* sStatsBuilder= */ null);
+                                    /* queryStatsBuilder= */ null,
+                                    /*callStatsBuilder=*/null);
                         }
                     }
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
@@ -2621,7 +2696,8 @@ public class AppSearchManagerService extends SystemService {
                                         request.getDatabaseName(),
                                         document,
                                         /* sendChangeNotifications= */ false,
-                                        /* logger= */ null);
+                                        /* logger= */ null,
+                                        /*callStatsBuilder=*/null);
                                 ++operationSuccessCount;
                             } catch (AppSearchException | RuntimeException e) {
                                 // We don't rethrow here, so we can still keep going with the
@@ -2650,7 +2726,8 @@ public class AppSearchManagerService extends SystemService {
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
                                 mAppSearchConfig.getLightweightPersistType(),
-                                instance.getLogger());
+                                instance.getLogger(),
+                                /*callStatsBuilder=*/null);
                     }
 
                     schemaMigrationStatsBuilder
@@ -2768,7 +2845,8 @@ public class AppSearchManagerService extends SystemService {
                                     callingPackageName,
                                     request.getDatabaseName(),
                                     request.getSuggestionQueryExpression(),
-                                    request.getSearchSuggestionSpec());
+                                    request.getSearchSuggestionSpec(),
+                                    /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(
                             callback, AppSearchResultParcel
@@ -2878,12 +2956,14 @@ public class AppSearchManagerService extends SystemService {
                         }
                     }
 
-                    instance.getAppSearchImpl().reportUsage(request.getTargetPackageName(),
+                    instance.getAppSearchImpl().reportUsage(
+                            request.getTargetPackageName(),
                             request.getDatabaseName(),
                             request.getReportUsageRequest().getNamespace(),
                             request.getReportUsageRequest().getDocumentId(),
                             request.getReportUsageRequest().getUsageTimestampMillis(),
-                            request.isSystemUsage());
+                            request.isSystemUsage(),
+                            /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
                 } catch (AppSearchException | RuntimeException | InterruptedException
@@ -2979,7 +3059,8 @@ public class AppSearchManagerService extends SystemService {
                                     request.getDatabaseName(),
                                     request.getRemoveByDocumentIdRequest().getNamespace(),
                                     id,
-                                    /* removeStatsBuilder= */ null);
+                                    /* removeStatsBuilder= */ null,
+                                    /*callStatsBuilder=*/null);
                             ++operationSuccessCount;
                             resultBuilder.setSuccess(id, /*result= */ null);
                         } catch (AppSearchException | RuntimeException e) {
@@ -3005,7 +3086,8 @@ public class AppSearchManagerService extends SystemService {
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
                                 mAppSearchConfig.getLightweightPersistType(),
-                                instance.getLogger());
+                                instance.getLogger(),
+                                /*callStatsBuilder=*/null);
                     }
                     invokeCallbackOnResult(callback, AppSearchBatchResultParcel.fromStringToVoid(
                             resultBuilder.build()));
@@ -3108,7 +3190,9 @@ public class AppSearchManagerService extends SystemService {
                             request.getDatabaseName(),
                             request.getQueryExpression(),
                             request.getSearchSpec(),
-                            /* removeStatsBuilder= */ null);
+                            /*deletedIds=*/null,
+                            /* removeStatsBuilder= */ null,
+                            /*callStatsBuilder=*/null);
                     // Now that the batch has been written, persist the newly written data.
                     if (Flags.enableDelayedPersistToDisk()) {
                         schedulePersistToDisk(callingPackageName,
@@ -3121,7 +3205,8 @@ public class AppSearchManagerService extends SystemService {
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
                                 mAppSearchConfig.getLightweightPersistType(),
-                                instance.getLogger());
+                                instance.getLogger(),
+                                /*callStatsBuilder=*/null);
                     }
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
@@ -3217,7 +3302,9 @@ public class AppSearchManagerService extends SystemService {
                 try {
                     instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
                     StorageInfo storageInfo = instance.getAppSearchImpl().getStorageInfoForDatabase(
-                            callingPackageName, request.getDatabaseName());
+                            callingPackageName,
+                            request.getDatabaseName(),
+                            /*callStatsBuilder=*/null);
                     ++operationSuccessCount;
                     invokeCallbackOnResult(
                             callback, AppSearchResultParcel.fromStorageInfo(storageInfo));
@@ -3276,11 +3363,30 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(request);
             final long callReceivedTimestampMillis = System.currentTimeMillis();
 
+            UserHandle targetUser =
+                    mServiceImplHelper.verifyIncomingCall(
+                            request.getCallerAttributionSource(), request.getUserHandle());
+            String callingPackageName = request.getCallerAttributionSource().getPackageName();
+            boolean isVmEnabled = isVMEnabledForUser(targetUser);
+
+            // If the vm is enabled or the flag is on, then schedule a persistToDisk job and let it
+            // fire in the background later instead of waiting it.
+            if (isVmEnabled || Flags.enableNoOpManualPersist()) {
+                Log.w(
+                        TAG,
+                        "Received persistToDisk call. Use AppSearchManagerService persistence "
+                                + "schedule.");
+                schedulePersistToDisk(
+                        callingPackageName,
+                        BaseStats.CALL_TYPE_FLUSH,
+                        targetUser,
+                        mAppSearchConfig.getLightweightPersistType(),
+                        mAppSearchConfig.getCachedPersistDelayMillis());
+                return;
+            }
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             try {
-                UserHandle targetUser = mServiceImplHelper.verifyIncomingCall(
-                        request.getCallerAttributionSource(), request.getUserHandle());
-                String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
                         BaseStats.CALL_TYPE_FLUSH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
@@ -3289,8 +3395,7 @@ public class AppSearchManagerService extends SystemService {
                 }
                 long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH,
-                        isVMEnabledForUser(targetUser),
+                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH, isVmEnabled,
                         () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = RESULT_OK;
@@ -3298,19 +3403,13 @@ public class AppSearchManagerService extends SystemService {
                     int operationSuccessCount = 0;
                     int operationFailureCount = 0;
                     try {
-                        if (Flags.enableNoOpManualPersist()) {
-                            Log.w(TAG,
-                                    "Received persistToDisk call. Skipping since "
-                                            + "AppSearchManagerService manages its own "
-                                            + "persistence schedule");
-                        } else {
-                            instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                            instance.getAppSearchImpl().persistToDisk(
-                                    callingPackageName,
-                                    BaseStats.CALL_TYPE_FLUSH,
-                                    PersistType.Code.FULL,
-                                    instance.getLogger());
-                        }
+                        instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                        instance.getAppSearchImpl().persistToDisk(
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_FLUSH,
+                                PersistType.Code.FULL,
+                                instance.getLogger(),
+                                /*callStatsBuilder=*/null);
                         ++operationSuccessCount;
                     } catch (AppSearchException | RuntimeException | InterruptedException
                              | ExecutionException e) {
@@ -3819,7 +3918,8 @@ public class AppSearchManagerService extends SystemService {
                                                     Process.myPid()),
                                             /* callerHasSystemAccess= */ true,
                                             /* sForEnterprise= */ false),
-                                    logger);
+                                    logger,
+                                    /*callStatsBuilder=*/null);
             while (!searchResultPage.getResults().isEmpty()) {
                 printResultPage(pw, searchResultPage);
                 QueryStats.Builder statsBuilder =
@@ -3829,7 +3929,8 @@ public class AppSearchManagerService extends SystemService {
                                 .getNextPage(
                                         mContext.getPackageName(),
                                         searchResultPage.getNextPageToken(),
-                                        statsBuilder);
+                                        statsBuilder,
+                                        /*callStatsBuilder=*/null);
                 statsList.add(statsBuilder.build());
             }
             printStats(pw, statsList);
@@ -3897,9 +3998,10 @@ public class AppSearchManagerService extends SystemService {
                 } else {
                     stats.dataSize +=
                             instance.getAppSearchImpl()
-                                .getStorageInfoForPackages(
-                                    new ArraySet<>(Collections.singleton(packageName)))
-                                .getSizeBytes();
+                                    .getStorageInfoForPackages(
+                                            new ArraySet<>(Collections.singleton(packageName)),
+                                            /*callStatsBuilder=*/null)
+                                    .getSizeBytes();
                 }
             } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(
@@ -3947,7 +4049,7 @@ public class AppSearchManagerService extends SystemService {
                     Set<String> packageNames = new ArraySet<>(packagesForUid);
                     stats.dataSize +=
                             instance.getAppSearchImpl()
-                                .getStorageInfoForPackages(packageNames)
+                                .getStorageInfoForPackages(packageNames, /*callStatsBuilder=*/null)
                                 .getSizeBytes();
                 }
             } catch (AppSearchException | InterruptedException | RuntimeException e) {
@@ -3994,7 +4096,8 @@ public class AppSearchManagerService extends SystemService {
                         }
                         stats.dataSize +=
                                 instance.getAppSearchImpl()
-                                        .getStorageInfoForPackages(packageNames)
+                                        .getStorageInfoForPackages(
+                                                packageNames, /*callStatsBuilder=*/null)
                                         .getSizeBytes();
                     }
                 }
@@ -4026,7 +4129,8 @@ public class AppSearchManagerService extends SystemService {
                     // ensure that we really do need to retrieve storage info from AppSearch.
                     if (userStorageInfo.isCacheEmpty()) {
                         StorageInfoProto storageInfo =
-                                instance.getAppSearchImpl().getRawStorageInfoProto();
+                                instance.getAppSearchImpl()
+                                        .getRawStorageInfoProto(/*callStatsBuilder=*/null);
                         userStorageInfo.updateStorageInfoCache(storageInfo);
                     }
                 } else {
@@ -4170,8 +4274,12 @@ public class AppSearchManagerService extends SystemService {
                             try {
                                 AppSearchUserInstance instance =
                                         mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                                instance.getAppSearchImpl().persistToDisk(callingPackageName,
-                                        callType, persistType, instance.getLogger());
+                                instance.getAppSearchImpl().persistToDisk(
+                                        callingPackageName,
+                                        callType,
+                                        persistType,
+                                        instance.getLogger(),
+                                        /*callStatsBuilder=*/null);
                             } catch (Exception e) {
                                 Log.w(TAG, "Unable to persist the data to disk", e);
                             }
