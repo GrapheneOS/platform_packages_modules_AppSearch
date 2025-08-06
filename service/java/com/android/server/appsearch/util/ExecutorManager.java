@@ -93,8 +93,8 @@ public class ExecutorManager {
     public static ExecutorService createReadOnlyExecutorService() {
         return AppSearchEnvironmentFactory.getEnvironmentInstance()
                 .createExecutorService(
-                        /* corePoolSize= */ 2,
-                        /* maxConcurrency= */ 2,
+                        /* corePoolSize= */ 3,
+                        /* maxConcurrency= */ 3,
                         /* keepAliveTime= */ 0L,
                         /* unit= */ TimeUnit.SECONDS,
                         /* workQueue= */ new LinkedBlockingQueue<>(),
