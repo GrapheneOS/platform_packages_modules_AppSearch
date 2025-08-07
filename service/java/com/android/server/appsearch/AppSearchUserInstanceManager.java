@@ -173,6 +173,47 @@ public final class AppSearchUserInstanceManager {
     }
 
     /**
+     * Cancels {@link AppSearchUserInstance} creation for the given user.
+     *
+     * <p>This will NOT remove the future from the map of futures instance. Use {@link
+     * AppSearchUserInstanceManager#closeAndRemoveUserInstanceFuture(UserHandle, boolean)} to remove
+     * futures instances.
+     *
+     * @param userHandle The user whose instance creation should be cancelled.
+     */
+    public void cancelUserCreation(UserHandle userHandle) {
+        Objects.requireNonNull(userHandle);
+        Future<AppSearchUserInstance> instanceFuture;
+        mFutureInstanceMapLock.lock();
+        try {
+            instanceFuture = mFutureInstancesLocked.get(userHandle);
+        } finally {
+            mFutureInstanceMapLock.unlock();
+        }
+        if (instanceFuture == null) {
+            Log.w(
+                    TAG,
+                    "Unable to cancel user instance creation for: "
+                            + userHandle
+                            + ". Instance does not exist.");
+            return;
+        }
+        if (!instanceFuture.cancel(/* mayInterruptIfRunning= */ true)) {
+            if (instanceFuture.isDone()) {
+                if (LogUtil.INFO) {
+                    Log.i(
+                            TAG,
+                            "Unable to cancel user instance creation for: "
+                                    + userHandle
+                                    + ". Future creation has already been stopped.");
+                }
+            } else {
+                Log.e(TAG, "Unable to cancel user instance creation for: " + userHandle);
+            }
+        }
+    }
+
+    /**
      * Gets an {@link AppSearchUserInstance} for the given user.
      *
      * <p>This method should only be called by an initialized SearchSession, which has already

@@ -43,6 +43,7 @@ import android.util.Log;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.isolated_storage_service.IIcingSearchEngine;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
@@ -64,7 +65,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** Manages the isolated storage service and provides related services. */
-public final class IsolatedStorageServiceManager {
+public class IsolatedStorageServiceManager {
     private static final String TAG = "IsolatedStorageServiceM";
 
     // TODO: b/389105038 - remove the temporary workaround for binder transaction limit.
@@ -876,6 +877,41 @@ public final class IsolatedStorageServiceManager {
                 Log.e(TAG, "onUserUnlocking VM notify failure", e);
                 ExceptionUtil.handleRemoteException(e);
             }
+        }
+    }
+
+    /**
+     * Manually set the isolated storage service implemented by the apk to manage VM and pass VM
+     * connections.
+     *
+     * <p>This API is exposed for testing purposes only. Not to be used in production settings.
+     *
+     * @param isolatedStorageService A mock isolated storage service that manages VM and pass VM
+     *     connections.
+     */
+    @VisibleForTesting
+    public void setIsolatedStorageServiceForTest(
+            @NonNull IIsolatedStorageService isolatedStorageService) {
+        mIsolatedStorageService = isolatedStorageService;
+    }
+
+    /**
+     * Manually set the isolated storage service implemented by the VM to access icing.
+     *
+     * <p>This API is exposed for testing purposes only. Not to be used in production settings.
+     *
+     * @param vmIsolatedStorageService A mock isolated storage service that accesses icing.
+     */
+    @VisibleForTesting
+    public void setVmIsolatedStorageServiceForTest(
+            @NonNull
+                    com.android.isolated_storage_service.IIsolatedStorageService
+                            vmIsolatedStorageService) {
+        mLock.lock();
+        try {
+            mVmIsolatedStorageServiceLocked = vmIsolatedStorageService;
+        } finally {
+            mLock.unlock();
         }
     }
 }
