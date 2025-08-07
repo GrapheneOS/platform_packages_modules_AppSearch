@@ -497,6 +497,11 @@ public class AppSearchManagerService extends SystemService {
                 persistToDiskFuture.cancel(/* mayInterruptIfRunning= */ false);
             }
 
+            if (Flags.enableUserInstanceFutures()) {
+                // Cancel any ongoing user instance creation.
+                mAppSearchUserInstanceManager.cancelUserCreation(userHandle);
+            }
+
             boolean isVMEnabledForUser = isVMEnabledForUser(userHandle);
             if (!isVMEnabledForUser || requiresShutdown) {
                 if (LogUtil.INFO) {
