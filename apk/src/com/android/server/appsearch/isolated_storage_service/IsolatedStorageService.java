@@ -229,7 +229,7 @@ public class IsolatedStorageService extends Service {
                         TAG,
                         "expected config is not compatible with the running config. Recreating"
                                 + " VM");
-                deleteVmByName(vmm, VM_NAME);
+                deleteVm(vmm, VM_NAME);
                 return vmm.getOrCreate(VM_NAME, config);
             }
             return vm;
@@ -277,7 +277,13 @@ public class IsolatedStorageService extends Service {
     @GuardedBy("mLock")
     private void deleteCurrentVmLocked(@Nullable String vmErrorMessage) {
         Log.i(TAG, "Deleting current VM...");
-        if (deleteVmByName(VM_NAME)) {
+        Context context = createDeviceProtectedStorageContext();
+        VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
+        if (vmm == null) {
+            Log.e(TAG, "Unable to get VirtualMachineManager");
+            return;
+        }
+        if (deleteVm(vmm, VM_NAME)) {
             if (vmErrorMessage != null) {
                 Log.wtf(TAG, vmErrorMessage);
             } else {
@@ -290,30 +296,17 @@ public class IsolatedStorageService extends Service {
         }
     }
 
-    /** Delete old CE VMs. */
     private void deleteOldVms() {
         VirtualMachineManager vmm = getSystemService(VirtualMachineManager.class);
         if (vmm == null) {
             Log.e(TAG, "Unable to get VirtualMachineManager");
             return;
         }
-        deleteVmByName(vmm, "isolated_storage_service_vm");
-        deleteVmByName(vmm, "isolated_storage_service2_vm");
+        deleteVm(vmm, "isolated_storage_service_vm");
+        deleteVm(vmm, "isolated_storage_service2_vm");
     }
 
-    /** Deletes DE VM by name. */
-    private boolean deleteVmByName(String name) {
-        Context context = createDeviceProtectedStorageContext();
-        VirtualMachineManager vmm = context.getSystemService(VirtualMachineManager.class);
-        if (vmm == null) {
-            Log.e(TAG, "Unable to get VirtualMachineManager");
-            return false;
-        }
-        return deleteVmByName(vmm, name);
-    }
-
-    /** Deletes VM by name. */
-    private boolean deleteVmByName(VirtualMachineManager vmm, String name) {
+    private boolean deleteVm(VirtualMachineManager vmm, String name) {
         try {
             vmm.delete(name);
         } catch (VirtualMachineException e) {
@@ -543,11 +536,6 @@ public class IsolatedStorageService extends Service {
                 throw new RemoteException(e.getMessage());
             }
             return VM_START_STATUS_SUCCESS;
-        }
-
-        @Override
-        public void deleteVm() {
-            deleteVmByName(VM_NAME);
         }
 
         @Override
