@@ -26,9 +26,11 @@ import android.util.ArrayMap;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
+import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -129,7 +131,9 @@ public class VisibilityStoreMigrationHelperFromV0 {
 
     /** Reads all stored deprecated Visibility Document in version 0 from icing. */
     static List<GenericDocument> getVisibilityDocumentsInVersion0(
-            @NonNull GetSchemaResponse getSchemaResponse, @NonNull AppSearchImpl appSearchImpl)
+            @NonNull GetSchemaResponse getSchemaResponse,
+            @NonNull AppSearchImpl appSearchImpl,
+            CallStats.@Nullable Builder callStatsBuilder)
             throws AppSearchException {
         if (!hasDeprecatedType(getSchemaResponse)) {
             return new ArrayList<>();
@@ -150,7 +154,8 @@ public class VisibilityStoreMigrationHelperFromV0 {
                                     VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                                     VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE,
                                     getDeprecatedVisibilityDocumentId(packageName, databaseName),
-                                    /* typePropertyPaths= */ Collections.emptyMap()));
+                                    /* typePropertyPaths= */ Collections.emptyMap(),
+                                    callStatsBuilder));
                 } catch (AppSearchException e) {
                     if (e.getResultCode() == AppSearchResult.RESULT_NOT_FOUND) {
                         // TODO(b/172068212): This indicates some desync error. We were expecting a

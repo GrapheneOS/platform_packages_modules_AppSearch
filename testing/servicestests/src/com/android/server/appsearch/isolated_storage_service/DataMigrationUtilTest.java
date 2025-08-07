@@ -126,7 +126,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
         // Insert 10 documents
         List<GenericDocument> docs = new ArrayList<>();
@@ -144,10 +145,11 @@ public class DataMigrationUtilTest {
                 packageName,
                 databaseName,
                 docs,
-                /*batchResultBuilder=*/ null,
+                /* batchResultBuilder= */ null,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null,
-                PersistType.Code.LITE);
+                PersistType.Code.LITE,
+                /* callStatsBuilder= */ null);
     }
 
 
@@ -161,6 +163,7 @@ public class DataMigrationUtilTest {
                         mAppSearchDir,
                         mUnlimitedConfig,
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -200,6 +203,7 @@ public class DataMigrationUtilTest {
                 icingDir,
                 mUnlimitedConfig,
                 /* initStatsBuilder= */ null,
+                /* callStatsBuilder= */ null,
                 /* visibilityChecker= */ null,
                 /* revocableFileDescriptorStore= */ null,
                 /* icingSearchEngine= */ null,
@@ -227,6 +231,7 @@ public class DataMigrationUtilTest {
                 icingDir,
                 mUnlimitedConfig,
                 /* initStatsBuilder= */ null,
+                /* callStatsBuilder= */ null,
                 /* visibilityChecker= */ null,
                 /* revocableFileDescriptorStore= */ null,
                 /* icingSearchEngine= */ null,
@@ -277,14 +282,16 @@ public class DataMigrationUtilTest {
                     }
                 });
         // This should create appsearchDir/icing/version file
-        AppSearchImpl appSearchImpl = AppSearchImpl.create(
-                icingDir,
-                mUnlimitedConfig,
-                /* initStatsBuilder= */ null,
-                /* visibilityChecker= */ null,
-                /* revocableFileDescriptorStore= */ null,
-                /* icingSearchEngine= */ null,
-                ALWAYS_OPTIMIZE);
+        AppSearchImpl appSearchImpl =
+                AppSearchImpl.create(
+                        icingDir,
+                        mUnlimitedConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
         int docCount = 100;
         populateEmailsInAppSearchImpl(appSearchImpl, "package1",
                 "database1", "id", docCount);
@@ -368,14 +375,16 @@ public class DataMigrationUtilTest {
                     }
                 });
         // This should create appsearchDir/icing/version file
-        AppSearchImpl appSearchImpl = AppSearchImpl.create(
-                icingDir,
-                mUnlimitedConfig,
-                /* initStatsBuilder= */ null,
-                /* visibilityChecker= */ null,
-                /* revocableFileDescriptorStore= */ null,
-                /* icingSearchEngine= */ null,
-                ALWAYS_OPTIMIZE);
+        AppSearchImpl appSearchImpl =
+                AppSearchImpl.create(
+                        icingDir,
+                        mUnlimitedConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
 
         int docCount = 100;
         populateEmailsInAppSearchImpl(appSearchImpl, "package1",
@@ -495,14 +504,16 @@ public class DataMigrationUtilTest {
         File appSearchDir = mTemporaryFolder.newFolder("appsearch");
         File icingDir = new File(appSearchDir, "icing");
         // This should create appsearchDir/icing/version file
-        AppSearchImpl appSearchImpl = AppSearchImpl.create(
-                icingDir,
-                mUnlimitedConfig,
-                /* initStatsBuilder= */ null,
-                /* visibilityChecker= */ null,
-                /* revocableFileDescriptorStore= */ null,
-                /* icingSearchEngine= */ null,
-                ALWAYS_OPTIMIZE);
+        AppSearchImpl appSearchImpl =
+                AppSearchImpl.create(
+                        icingDir,
+                        mUnlimitedConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
         int newDocCount = docCount / 2;
         populateEmailsInAppSearchImpl(appSearchImpl, "package1",
                 "database1", "id", newDocCount);
@@ -544,14 +555,16 @@ public class DataMigrationUtilTest {
                     }
                 });
         // This should create appsearchDir/icing/version file
-        AppSearchImpl appSearchImpl = AppSearchImpl.create(
-                icingDir,
-                mUnlimitedConfig,
-                /* initStatsBuilder= */ null,
-                /* visibilityChecker= */ null,
-                /* revocableFileDescriptorStore= */ null,
-                /* icingSearchEngine= */ null,
-                ALWAYS_OPTIMIZE);
+        AppSearchImpl appSearchImpl =
+                AppSearchImpl.create(
+                        icingDir,
+                        mUnlimitedConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
 
         // migration status file doesn't exist before migration.
         assertThat(dataMigrationStatusFile.exists()).isFalse();
@@ -584,6 +597,7 @@ public class DataMigrationUtilTest {
                         mAppSearchDir,
                         mAppSearchConfigWithDatabaseSchemaDisabled,
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -604,7 +618,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Sanity check Email schema should not contain database name before migration.
@@ -634,6 +649,7 @@ public class DataMigrationUtilTest {
                         mAppSearchDir,
                         mAppSearchConfigWithDatabaseSchemaDisabled,
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -654,7 +670,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
 
         // Sanity check Email schema should not contain database name before migration.
@@ -682,7 +699,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
 
         Map<String, SchemaTypeConfigProto> schemaTypesAfterMigration =
@@ -702,6 +720,7 @@ public class DataMigrationUtilTest {
                         mAppSearchDir,
                         mAppSearchConfigWithDatabaseSchemaDisabled,
                         /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
                         /* revocableFileDescriptorStore= */ null,
                         /* icingSearchEngine= */ null,
@@ -722,7 +741,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
 
         // Sanity check Email schema should not contain database name before migration.
@@ -746,7 +766,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
 
         Map<String, SchemaTypeConfigProto> schemaTypesAfterMigration =
@@ -843,7 +864,8 @@ public class DataMigrationUtilTest {
                         /* visibilityConfigs= */ Collections.emptyList(),
                         /* forceOverride= */ false,
                         /* version= */ 0,
-                        /* setSchemaStatsBuilder= */ null);
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
 
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
@@ -860,10 +882,11 @@ public class DataMigrationUtilTest {
                 mContext.getPackageName(),
                 "database1",
                 docs,
-                /*batchResultBuilder=*/ null,
+                /* batchResultBuilder= */ null,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null,
-                PersistType.Code.LITE);
+                PersistType.Code.LITE,
+                /* callStatsBuilder= */ null);
     }
 
     /**

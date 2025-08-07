@@ -82,7 +82,7 @@ public class BaseStats {
                 INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION,
                 INTERNAL_CALL_TYPE_PRUNE_PACKAGE_DATA,
                 INTERNAL_CALL_TYPE_CLOSE,
-                INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB
+                INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CallType {}
@@ -262,7 +262,7 @@ public class BaseStats {
         // The latency of the last mutation call holds the write lock in AppSearch.
         int mLastWriteOperationLatencyMillis;
         // The latency of get the VM instance.
-        int mGetVmLatencyMillis;
+        int mGetVmLatencyMillis = 0;
 
         /** Creates a new {@link BaseStats.Builder}. */
         @SuppressWarnings("unchecked")
@@ -304,10 +304,10 @@ public class BaseStats {
             return mBuilderTypeInstance;
         }
 
-        /** Sets latency for last write operation which hold the write lock in milliseconds. */
+        /** Adds latency for last write operation which hold the write lock in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull BuilderType setGetVmLatencyMillis(int getVmLatencyMillis) {
-            mGetVmLatencyMillis = getVmLatencyMillis;
+        public @NonNull BuilderType addGetVmLatencyMillis(int getVmLatencyMillis) {
+            mGetVmLatencyMillis += getVmLatencyMillis;
             return mBuilderTypeInstance;
         }
 

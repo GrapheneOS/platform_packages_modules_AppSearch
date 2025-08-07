@@ -122,7 +122,9 @@ public final class StatsCollector implements StatsManager.StatsPullAtomCallback 
                                 .build()
                                 .getEnabledFeatures();
                 StorageInfoProto storageInfoProto =
-                        userInstance.getAppSearchImpl().getRawStorageInfoProto();
+                        userInstance
+                                .getAppSearchImpl()
+                                .getRawStorageInfoProto(/* callStatsBuilder= */ null);
                 data.add(
                         buildStatsEvent(
                                 userHandle.getIdentifier(), storageInfoProto, enabledFeatures));
