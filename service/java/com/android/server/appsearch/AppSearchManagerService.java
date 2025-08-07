@@ -260,18 +260,11 @@ public class AppSearchManagerService extends SystemService {
     }
 
     private void initializeIsolatedStorageIfNeeded() {
-        UserHandle userHandle = UserHandle.SYSTEM;
         if (mIsolatedStorageServiceManager == null) {
             Log.i(TAG, "Isolated storage is not enabled, no need to initialize it");
-            if (IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext)) {
-                mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        userHandle,
-                        /* isReadOnly= */ true,
-                        isVMEnabledForUser(userHandle),
-                        () -> IsolatedStorageServiceManager.cleanUp(mContext));
-            }
             return;
         }
+        UserHandle userHandle = UserHandle.SYSTEM;
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 userHandle,
                 /* isReadOnly= */ true,
