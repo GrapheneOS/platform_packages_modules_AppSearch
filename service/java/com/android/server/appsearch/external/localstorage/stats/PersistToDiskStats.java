@@ -325,6 +325,7 @@ public class PersistToDiskStats extends BaseStats {
          * Builds the {@link
          * com.android.server.appsearch.external.localstorage.stats.PersistToDiskStats} instance.
          */
+        @Override
         @NonNull
         public PersistToDiskStats build() {
             return new PersistToDiskStats(this);

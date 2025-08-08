@@ -760,3 +760,17 @@ flag {
     description: "Only check optimize if we have deleted or incompatible types for setSchema, and forceOverride is true."
     bug: "435251329"
 }
+
+flag {
+    name: "enable_remove_by_id_uses_query"
+    namespace: "appsearch"
+    description: "Enable using removeByQuery to implement removeById."
+    bug: "401245772"
+}
+
+flag {
+    name: "enable_proto_log_new_header_format"
+    namespace: "appsearch"
+    description: "Enable the new header format in PortableFileBackedProtoLog."
+    bug: "429259809"
+}

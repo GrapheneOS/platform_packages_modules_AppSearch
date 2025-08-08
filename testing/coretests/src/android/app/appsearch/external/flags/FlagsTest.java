@@ -309,4 +309,16 @@ public class FlagsTest {
         assertThat(Flags.FLAG_ENABLE_PASSING_FILTER_TO_CHILDREN)
                 .isEqualTo("com.android.appsearch.flags.enable_passing_filter_to_children");
     }
+
+    @Test
+    public void testFlagValue_enableRemoveByIdUsesQuery() {
+        assertThat(Flags.FLAG_ENABLE_REMOVE_BY_ID_USES_QUERY)
+                .isEqualTo("com.android.appsearch.flags.enable_remove_by_id_uses_query");
+    }
+
+    @Test
+    public void testFlagValue_enableProtoLogNewHeaderFormat() {
+        assertThat(Flags.FLAG_ENABLE_PROTO_LOG_NEW_HEADER_FORMAT)
+                .isEqualTo("com.android.appsearch.flags.enable_proto_log_new_header_format");
+    }
 }

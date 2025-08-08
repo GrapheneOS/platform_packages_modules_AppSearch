@@ -4565,6 +4565,8 @@ public class AppSearchImplTest {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
     public void testRevokeFileDescriptor() throws Exception {
+        mAppSearchImpl.close();
+        // Initialize AppSearch with revocable file descriptor store.
         mAppSearchImpl =
                 AppSearchImpl.create(
                         mAppSearchDir,
@@ -4600,8 +4602,8 @@ public class AppSearchImplTest {
         try (ParcelFileDescriptor writePfd2 =
                 mAppSearchImpl.openWriteBlob(
                         "package", "db1", handle, /* callStatsBuilder= */ null)) {
-            try (OutputStream outputStream =
-                    new ParcelFileDescriptor.AutoCloseOutputStream(writePfd2)) {
+            try (FileOutputStream outputStream =
+                    new FileOutputStream(writePfd2.getFileDescriptor())) {
                 outputStream.write(data);
             }
             // close the AppSearchImpl will revoke all sent fds.
@@ -4609,8 +4611,8 @@ public class AppSearchImplTest {
             assertThrows(
                     IOException.class,
                     () -> {
-                        try (OutputStream outputStream =
-                                new ParcelFileDescriptor.AutoCloseOutputStream(writePfd2)) {
+                        try (FileOutputStream outputStream =
+                                new FileOutputStream(writePfd2.getFileDescriptor())) {
                             outputStream.write(data);
                         }
                     });
@@ -12853,6 +12855,48 @@ public class AppSearchImplTest {
                                         /* logger= */ null,
                                         /* callStatsBuilder= */ null));
         assertThat(e).hasMessageThat().contains("Trying to use a closed AppSearchImpl instance");
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testClearAndDestroy_shouldRevokeFileDescriptor() throws Exception {
+        mAppSearchImpl.close();
+        // Initialize AppSearch with revocable file descriptor store.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+        byte[] data = generateRandomBytes(20 * 1024); // 20 KiB
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+
+        try (ParcelFileDescriptor writePfd =
+                mAppSearchImpl.openWriteBlob(
+                        "package", "db1", handle, /* callStatsBuilder= */ null)) {
+            // Can write data.
+            try (FileOutputStream outputStream =
+                    new FileOutputStream(writePfd.getFileDescriptor())) {
+                outputStream.write(data);
+            }
+            // clearAndDestroy will revoke all sent fds.
+            mAppSearchImpl.clearAndDestroy();
+            assertThrows(
+                    IOException.class,
+                    () -> {
+                        try (FileOutputStream outputStream =
+                                new FileOutputStream(writePfd.getFileDescriptor())) {
+                            outputStream.write(data);
+                        }
+                    });
+        }
     }
 
     private SchemaProto getSchemaProtoWithDatabase(SchemaProto schema) throws AppSearchException {
