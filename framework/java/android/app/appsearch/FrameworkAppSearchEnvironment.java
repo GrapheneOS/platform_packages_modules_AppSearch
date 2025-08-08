@@ -106,4 +106,10 @@ public class FrameworkAppSearchEnvironment implements AppSearchEnvironment {
     public int getEnvironment() {
         return FRAMEWORK_ENVIRONMENT;
     }
+
+    @Override
+    public File getStorageInfoFile(
+            @NonNull File fileParentPath, @NonNull String storageInfoFileName) {
+        return new File(fileParentPath, storageInfoFileName);
+    }
 }

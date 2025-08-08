@@ -927,7 +927,7 @@ public class AppSearchManagerService extends SystemService {
                                 new ArrayList<>(takenActionDocumentParcels.size());
                     }
 
-                    // Write GenericDocument of general documents
+                    // Write GenericDocument for document parcels.
                     if (!Flags.enableBatchPut()) {
                         for (int i = 0; i < documentParcels.size(); i++) {
                             GenericDocument document = new GenericDocument(documentParcels.get(i));

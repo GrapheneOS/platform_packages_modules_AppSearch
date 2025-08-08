@@ -237,7 +237,7 @@ public class ExecutorManager {
                 }
             }
         } catch (RuntimeException e) {
-            AppSearchResult failedResult = throwableToFailedResult(e);
+            AppSearchResult<?> failedResult = throwableToFailedResult(e);
             invokeCallbackOnResult(
                     errorCallback, AppSearchResultParcel.fromFailedResult(failedResult));
         }

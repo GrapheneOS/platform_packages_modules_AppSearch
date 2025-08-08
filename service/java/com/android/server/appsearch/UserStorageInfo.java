@@ -19,6 +19,7 @@ package com.android.server.appsearch;
 import static com.android.server.appsearch.external.localstorage.util.PrefixUtil.getPackageName;
 
 import android.annotation.NonNull;
+import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.checker.initialization.qual.UnderInitialization;
 import android.app.appsearch.checker.initialization.qual.UnknownInitialization;
 import android.app.appsearch.checker.nullness.qual.RequiresNonNull;
@@ -65,7 +66,8 @@ public final class UserStorageInfo {
 
     public UserStorageInfo(@NonNull File fileParentPath) {
         Objects.requireNonNull(fileParentPath);
-        mStorageInfoFile = new File(fileParentPath, STORAGE_INFO_FILE);
+        mStorageInfoFile = AppSearchEnvironmentFactory.getEnvironmentInstance()
+                .getStorageInfoFile(fileParentPath, STORAGE_INFO_FILE);
         readStorageInfoFromFile();
     }
 
