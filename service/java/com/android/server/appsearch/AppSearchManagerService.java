@@ -260,18 +260,11 @@ public class AppSearchManagerService extends SystemService {
     }
 
     private void initializeIsolatedStorageIfNeeded() {
-        UserHandle userHandle = UserHandle.SYSTEM;
         if (mIsolatedStorageServiceManager == null) {
             Log.i(TAG, "Isolated storage is not enabled, no need to initialize it");
-            if (IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext)) {
-                mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        userHandle,
-                        /* isReadOnly= */ true,
-                        isVMEnabledForUser(userHandle),
-                        () -> IsolatedStorageServiceManager.cleanUp(mContext));
-            }
             return;
         }
+        UserHandle userHandle = UserHandle.SYSTEM;
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 userHandle,
                 /* isReadOnly= */ true,
@@ -654,9 +647,34 @@ public class AppSearchManagerService extends SystemService {
                     // schemas which are not included in the request will be deleted if we force
                     // override incompatible schemas. And all documents of these types will be
                     // deleted as well. We should checkForOptimize for these deletion.
-                    long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
-                    checkForOptimize(targetUser, instance);
-                    long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                    SetSchemaResponse setSchemaResponse =
+                            internalSetSchemaResponse.getSetSchemaResponse();
+                    if (Flags.enableReduceCheckOptimizeForSetSchema() || instance.isVMEnabled()) {
+                        if (request.isForceOverride() &&
+                                (!setSchemaResponse.getDeletedTypes().isEmpty()
+                                        || !setSchemaResponse.getIncompatibleTypes().isEmpty())) {
+                            // We have deleted and/or incompatible schemas with forceOverride true.
+                            // So we might have documents deleted in this setSchema call, and we
+                            // need to check optimize here.
+                            long checkForOptimizeLatencyStartTimeMillis =
+                                    SystemClock.elapsedRealtime();
+                            checkForOptimize(targetUser, instance);
+                            long checkForOptimizeLatencyEndTimeMillis =
+                                    SystemClock.elapsedRealtime();
+                            setSchemaStatsBuilder
+                                    .setOptimizeLatencyMillis(
+                                            (int) (checkForOptimizeLatencyEndTimeMillis
+                                                    - checkForOptimizeLatencyStartTimeMillis));
+                        }
+                    } else {
+                        long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
+                        checkForOptimize(targetUser, instance);
+                        long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        setSchemaStatsBuilder
+                                .setOptimizeLatencyMillis(
+                                        (int) (checkForOptimizeLatencyEndTimeMillis
+                                                - checkForOptimizeLatencyStartTimeMillis));
+                    }
 
                     setSchemaStatsBuilder
                             .setVerifyIncomingCallLatencyMillis(
@@ -669,10 +687,7 @@ public class AppSearchManagerService extends SystemService {
                             .setRebuildFromBundleLatencyMillis(0)
                             .setDispatchChangeNotificationsLatencyMillis(
                                     (int) (dispatchNotificationLatencyEndTimeMillis
-                                            - dispatchNotificationLatencyStartTimeMillis))
-                            .setOptimizeLatencyMillis(
-                                    (int) (checkForOptimizeLatencyEndTimeMillis
-                                            - checkForOptimizeLatencyStartTimeMillis));
+                                            - dispatchNotificationLatencyStartTimeMillis));
                 } catch (AppSearchException
                          | RuntimeException
                          | InterruptedException
@@ -3346,11 +3361,30 @@ public class AppSearchManagerService extends SystemService {
             Objects.requireNonNull(request);
             final long callReceivedTimestampMillis = System.currentTimeMillis();
 
+            UserHandle targetUser =
+                    mServiceImplHelper.verifyIncomingCall(
+                            request.getCallerAttributionSource(), request.getUserHandle());
+            String callingPackageName = request.getCallerAttributionSource().getPackageName();
+            boolean isVmEnabled = isVMEnabledForUser(targetUser);
+
+            // If the vm is enabled or the flag is on, then schedule a persistToDisk job and let it
+            // fire in the background later instead of waiting it.
+            if (isVmEnabled || Flags.enableNoOpManualPersist()) {
+                Log.w(
+                        TAG,
+                        "Received persistToDisk call. Use AppSearchManagerService persistence "
+                                + "schedule.");
+                schedulePersistToDisk(
+                        callingPackageName,
+                        BaseStats.CALL_TYPE_FLUSH,
+                        targetUser,
+                        mAppSearchConfig.getLightweightPersistType(),
+                        mAppSearchConfig.getCachedPersistDelayMillis());
+                return;
+            }
+
             long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
             try {
-                UserHandle targetUser = mServiceImplHelper.verifyIncomingCall(
-                        request.getCallerAttributionSource(), request.getUserHandle());
-                String callingPackageName = request.getCallerAttributionSource().getPackageName();
                 if (checkCallDenied(callingPackageName, /* callingDatabaseName= */ null,
                         BaseStats.CALL_TYPE_FLUSH, targetUser,
                         request.getBinderCallStartTimeMillis(), totalLatencyStartTimeMillis,
@@ -3359,8 +3393,7 @@ public class AppSearchManagerService extends SystemService {
                 }
                 long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
                 boolean callAccepted = mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH,
-                        isVMEnabledForUser(targetUser),
+                        targetUser, callingPackageName, BaseStats.CALL_TYPE_FLUSH, isVmEnabled,
                         () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     @AppSearchResult.ResultCode int statusCode = RESULT_OK;
@@ -3368,20 +3401,13 @@ public class AppSearchManagerService extends SystemService {
                     int operationSuccessCount = 0;
                     int operationFailureCount = 0;
                     try {
-                        if (Flags.enableNoOpManualPersist()) {
-                            Log.w(TAG,
-                                    "Received persistToDisk call. Skipping since "
-                                            + "AppSearchManagerService manages its own "
-                                            + "persistence schedule");
-                        } else {
-                            instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                            instance.getAppSearchImpl().persistToDisk(
-                                    callingPackageName,
-                                    BaseStats.CALL_TYPE_FLUSH,
-                                    PersistType.Code.FULL,
-                                    instance.getLogger(),
-                                    /*callStatsBuilder=*/null);
-                        }
+                        instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                        instance.getAppSearchImpl().persistToDisk(
+                                callingPackageName,
+                                BaseStats.CALL_TYPE_FLUSH,
+                                PersistType.Code.FULL,
+                                instance.getLogger(),
+                                /*callStatsBuilder=*/null);
                         ++operationSuccessCount;
                     } catch (AppSearchException | RuntimeException | InterruptedException
                              | ExecutionException e) {
