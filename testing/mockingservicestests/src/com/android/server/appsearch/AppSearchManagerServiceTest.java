@@ -816,6 +816,7 @@ public class AppSearchManagerServiceTest {
                 mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_GET_STORAGE_INFO, callReceivedTimestampMillis);
     }
 
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_NO_OP_MANUAL_PERSIST)
     @Test
     public void testPersistToDiskStatsLogging() throws Exception {
         final long callReceivedTimestampMillis = System.currentTimeMillis();
@@ -1953,12 +1954,14 @@ public class AppSearchManagerServiceTest {
     }
 
     private void verifyPersistToDiskResult(int resultCode) throws Exception {
-        mAppSearchManagerServiceStub.persistToDisk(
-                new PersistToDiskAidlRequest(
-                        AppSearchAttributionSource.createAttributionSource(mContext,
-                                mCallingPid), mUserHandle,
-                        BINDER_CALL_START_TIME));
-        verifyCallResult(resultCode, CallStats.CALL_TYPE_FLUSH, /* result= */ null);
+        if (!Flags.enableNoOpManualPersist()) {
+            mAppSearchManagerServiceStub.persistToDisk(
+                    new PersistToDiskAidlRequest(
+                            AppSearchAttributionSource.createAttributionSource(mContext,
+                                    mCallingPid), mUserHandle,
+                            BINDER_CALL_START_TIME));
+            verifyCallResult(resultCode, CallStats.CALL_TYPE_FLUSH, /* result= */ null);
+        }
     }
 
     private void verifyRegisterObserverCallbackResult(int resultCode) throws Exception {
