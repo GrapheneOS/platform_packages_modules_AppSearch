@@ -162,7 +162,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
             } else {
                 mLastNCalls.clear();
             }
-            if (shouldLogForTypeLocked(stats.getCallType(), stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(stats.getCallType())) {
 
                 logStatsImplLocked(stats, calculatedTimeSincePreviousRequestMillis);
             }
@@ -175,7 +175,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull PutDocumentStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_PUT_DOCUMENT, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_PUT_DOCUMENT)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -185,7 +185,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull InitializeStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_INITIALIZE, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_INITIALIZE)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -195,7 +195,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull AppOpenEventStats appOpenEventStats) {
         Objects.requireNonNull(appOpenEventStats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER)) {
                 logStatsImplLocked(appOpenEventStats);
             }
         }
@@ -205,7 +205,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull QueryStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SEARCH, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SEARCH)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -215,7 +215,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull RemoveStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -232,7 +232,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
             } else {
                 mLastNCalls.clear();
             }
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_OPTIMIZE, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_OPTIMIZE)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -242,7 +242,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull SetSchemaStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SET_SCHEMA, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SET_SCHEMA)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -252,7 +252,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull SchemaMigrationStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SCHEMA_MIGRATION, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SCHEMA_MIGRATION)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -287,7 +287,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull PersistToDiskStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
-            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_FLUSH, stats.getEnabledFeatures())) {
+            if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_FLUSH)) {
                 logStatsImplLocked(stats);
             }
         }
@@ -351,7 +351,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(
             @NonNull CallStats stats, long timeSincePreviousRequestMillis) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
-        ExtraStats extraStats = createExtraStatsLocked(stats.getPackageName(), stats.getCallType(), stats.getEnabledFeatures());
+        ExtraStats extraStats = createExtraStatsLocked(stats.getPackageName(), stats.getCallType());
         String database = stats.getDatabase();
         try {
             // The num_reported_calls field in AppSearchPutDocumentStatsReported is always set to 1.
@@ -434,7 +434,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull SetSchemaStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(stats.getPackageName(), BaseStats.CALL_TYPE_SET_SCHEMA, stats.getEnabledFeatures());
+                createExtraStatsLocked(stats.getPackageName(), BaseStats.CALL_TYPE_SET_SCHEMA);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -488,7 +488,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
                 createExtraStatsLocked(
-                        stats.getPackageName(), BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, stats.getEnabledFeatures());
+                        stats.getPackageName(), BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -533,7 +533,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
                 createExtraStatsLocked(
-                        stats.getPackageName(), BaseStats.CALL_TYPE_SCHEMA_MIGRATION, stats.getEnabledFeatures());
+                        stats.getPackageName(), BaseStats.CALL_TYPE_SCHEMA_MIGRATION);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -572,7 +572,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull PutDocumentStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(stats.getPackageName(), BaseStats.CALL_TYPE_PUT_DOCUMENT, stats.getEnabledFeatures());
+                createExtraStatsLocked(stats.getPackageName(), BaseStats.CALL_TYPE_PUT_DOCUMENT);
         String database = stats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -617,7 +617,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull QueryStats queryStats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(queryStats.getPackageName(), BaseStats.CALL_TYPE_SEARCH, stats.getEnabledFeatures());
+                createExtraStatsLocked(queryStats.getPackageName(), BaseStats.CALL_TYPE_SEARCH);
         String database = queryStats.getDatabase();
         try {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
@@ -723,7 +723,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull InitializeStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_INITIALIZE, stats.getEnabledFeatures());
+                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_INITIALIZE);
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_INITIALIZE_STATS_REPORTED,
                 extraStats.mSamplingInterval,
@@ -761,7 +761,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull OptimizeStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_OPTIMIZE, stats.getEnabledFeatures());
+                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_OPTIMIZE);
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_OPTIMIZE_STATS_REPORTED,
                 extraStats.mSamplingInterval,
@@ -791,10 +791,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     private void logStatsImplLocked(@NonNull PersistToDiskStats stats) {
         mLastPushTimeMillisLocked = SystemClock.elapsedRealtime();
         ExtraStats extraStats =
-                createExtraStatsLocked(
-                        /* packageName= */ null,
-                        BaseStats.CALL_TYPE_OPTIMIZE,
-                        stats.getEnabledFeatures());
+                createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_OPTIMIZE);
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_PERSIST_TO_DISK_STATS_REPORTED,
                 extraStats.mSamplingInterval,
@@ -991,7 +988,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     @GuardedBy("mLock")
     @NonNull
     ExtraStats createExtraStatsLocked(
-            @Nullable String packageName, @BaseStats.CallType int callType, int features) {
+            @Nullable String packageName, @BaseStats.CallType int callType) {
         int packageUid = getPackageUidAsUserLocked(packageName);
 
         // The sampling ratio here might be different from the one used in
@@ -999,7 +996,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
         // Since it is only one sample, we can just ignore this difference.
         // Or we can retrieve samplingRatio at beginning and pass along
         // as function parameter, but it will make code less cleaner with some duplication.
-        int samplingInterval = getSamplingInterval(callType, features);
+        int samplingInterval = getSamplingIntervalFromConfig(callType);
         int skippedSampleCount =
                 mSkippedSampleCountLocked.get(callType, /* valueOfKeyIfNotFound= */ 0);
         mSkippedSampleCountLocked.put(callType, 0);
@@ -1018,8 +1015,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
     // remove this @VisibleForTesting and directly use PlatformLogger.logStats to test sampling and
     // rate limiting.
     @VisibleForTesting
-    boolean shouldLogForTypeLocked(@BaseStats.CallType int callType, int features) {
-        int samplingInterval = getSamplingInterval(callType, features);
+    boolean shouldLogForTypeLocked(@BaseStats.CallType int callType) {
+        int samplingInterval = getSamplingIntervalFromConfig(callType);
         // Sampling
         if (!StatsUtil.shouldSample(samplingInterval)) {
             return false;
@@ -1056,20 +1053,6 @@ public class PlatformLogger implements InternalAppSearchLogger {
             }
         }
         return packageUid;
-    }
-
-    /**
-     * Returns sampling ratio for stats type specified form {@link ServiceAppSearchConfig} or the
-     * default Trunkfooder value if LAUNCH_VM is enabled.
-     **/
-    private int getSamplingInterval(@BaseStats.CallType int statsType, long enabledFeatures) {
-        if (("eng".equals(Build.TYPE) || "userdebug".equals(Build.TYPE))
-                && BaseStats.areFeaturesOn(enabledFeatures, List.of(BaseStats.LAUNCH_VM))) {
-            // Opt any eng or userdebug device with vm-enabled in for higher sampling.
-            // TODO(b/) Remove this once the flag is rolled out to trunkfood.
-            return ServiceAppSearchConfig.TRUNKFOODER_SAMPLING_INTERVAL;
-        }
-        return getSamplingIntervalFromConfig(statsType);
     }
 
     /** Returns sampling ratio for stats type specified form {@link ServiceAppSearchConfig}. */

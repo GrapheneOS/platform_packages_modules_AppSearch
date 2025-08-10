@@ -760,9 +760,3 @@ flag {
     description: "Only check optimize if we have deleted or incompatible types for setSchema, and forceOverride is true."
     bug: "435251329"
 }
-flag {
-    name: "enable_higher_sampling_for_trunkfooders"
-    namespace: "appsearch"
-    description: "Enables a higher sampling rate on logs. This flag should never rollout past trunkfood FULL."
-    bug: "437386925"
-}
