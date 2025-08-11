@@ -794,30 +794,30 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 createExtraStatsLocked(/* packageName= */ null, BaseStats.CALL_TYPE_OPTIMIZE);
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_PERSIST_TO_DISK_STATS_REPORTED,
-                extraStats.mSamplingInterval,
-                extraStats.mSkippedSampleCount,
-                extraStats.mPackageUid,
-                stats.getStatusCode(),
-                stats.getEnabledFeatures(),
-                stats.getTriggerCallType(),
-                stats.getLastWriteOperation(),
-                stats.getLastWriteOperationLatencyMillis(),
-                stats.getJavaLockAcquisitionLatencyMillis(),
-                stats.getGetVmLatencyMillis(),
-                stats.getPersistType().getNumber(),
-                stats.getTotalLatencyMillis(),
-                stats.getNativeLatencyMillis(),
-                stats.getBlobStorePersistLatencyMillis(),
-                stats.getDocumentStoreTotalPersistLatencyMillis(),
-                stats.getDocumentStoreComponentsPersistLatencyMillis(),
-                stats.getDocumentStoreChecksumUpdateLatencyMillis(),
-                stats.getDocumentLogChecksumUpdateLatencyMillis(),
-                stats.getDocumentLogDataSyncLatencyMillis(),
-                stats.getSchemaStorePersistLatencyMillis(),
-                stats.getIndexPersistLatencyMillis(),
-                stats.getIntegerIndexPersistLatencyMillis(),
-                stats.getQualifiedIdJoinIndexPersistLatencyMillis(),
-                stats.getEmbeddingIndexPersistLatencyMillis());
+                extraStats.mSamplingInterval, // 1
+                extraStats.mSkippedSampleCount, // 2
+                extraStats.mPackageUid, // 3
+                stats.getStatusCode(), // 4
+                stats.getEnabledFeatures(), // 5
+                stats.getTriggerCallType(), // 6
+                stats.getLastWriteOperation(), // 7
+                stats.getLastWriteOperationLatencyMillis(), // 8
+                stats.getJavaLockAcquisitionLatencyMillis(), // 9
+                stats.getGetVmLatencyMillis(), // 10
+                stats.getTotalLatencyMillis(), // 11
+                stats.getPersistType().getNumber(), // 12
+                stats.getNativeLatencyMillis(), // 13
+                stats.getBlobStorePersistLatencyMillis(), // 14
+                stats.getDocumentStoreTotalPersistLatencyMillis(), // 15
+                stats.getDocumentStoreComponentsPersistLatencyMillis(), // 16
+                stats.getDocumentStoreChecksumUpdateLatencyMillis(), // 17
+                stats.getDocumentLogChecksumUpdateLatencyMillis(), // 18
+                stats.getDocumentLogDataSyncLatencyMillis(), // 19
+                stats.getSchemaStorePersistLatencyMillis(), // 20
+                stats.getIndexPersistLatencyMillis(), // 21
+                stats.getIntegerIndexPersistLatencyMillis(), // 22
+                stats.getQualifiedIdJoinIndexPersistLatencyMillis(), // 23
+                stats.getEmbeddingIndexPersistLatencyMillis()); // 24
     }
 
     @GuardedBy("mLock")
