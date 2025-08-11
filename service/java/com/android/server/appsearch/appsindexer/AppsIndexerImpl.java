@@ -211,7 +211,8 @@ public final class AppsIndexerImpl implements Closeable {
 
         // Get all currently indexed AppFunctionStaticMetadata docs for the necessary packages.
         Map<String, Map<String, AppFunctionDocument>> appFunctionsFromAppSearch =
-                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(updatedPackageIds);
+                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
+                        updatedPackageIds, mAppsIndexerConfig);
 
         AppFunctionDiffCalculator.AppFunctionDiff appFunctionDiff =
                 AppFunctionDiffCalculator.calculate(
