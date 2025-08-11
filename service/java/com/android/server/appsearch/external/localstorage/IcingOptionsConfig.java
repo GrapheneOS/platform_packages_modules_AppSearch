@@ -339,6 +339,8 @@ public interface IcingOptionsConfig {
                 .setEnableEigenEmbeddingScoring(Flags.enableEigenEmbeddingScoring() || isVMEnabled)
                 .setEnablePassingFilterToChildren(
                         Flags.enablePassingFilterToChildren() || isVMEnabled)
+                .setEnableProtoLogNewHeaderFormat(
+                        Flags.enableProtoLogNewHeaderFormat() || isVMEnabled)
                 .build();
     }
 }

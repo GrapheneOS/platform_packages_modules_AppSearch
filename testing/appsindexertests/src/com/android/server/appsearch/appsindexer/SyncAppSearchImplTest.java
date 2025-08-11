@@ -40,6 +40,12 @@ import android.content.Context;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.server.appsearch.sync.SyncAppSearchSession;
+import com.android.server.appsearch.sync.SyncAppSearchSessionImpl;
+import com.android.server.appsearch.sync.SyncGlobalSearchSession;
+import com.android.server.appsearch.sync.SyncGlobalSearchSessionImpl;
+import com.android.server.appsearch.sync.SyncSearchResults;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

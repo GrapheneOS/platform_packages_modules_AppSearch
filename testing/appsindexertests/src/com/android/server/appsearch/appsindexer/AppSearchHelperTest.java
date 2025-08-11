@@ -66,6 +66,10 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocume
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.sync.SyncAppSearchSession;
+import com.android.server.appsearch.sync.SyncGlobalSearchSession;
+import com.android.server.appsearch.sync.SyncGlobalSearchSessionImpl;
+import com.android.server.appsearch.sync.SyncSearchResults;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;

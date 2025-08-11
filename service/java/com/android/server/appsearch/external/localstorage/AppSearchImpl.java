@@ -740,8 +740,13 @@ public final class AppSearchImpl implements Closeable {
         mReadWriteLock.writeLock().lock();
         try {
             throwIfClosedLocked();
+            if (mRevocableFileDescriptorStore != null) {
+                mRevocableFileDescriptorStore.revokeAll();
+            }
             mIcingSearchEngineLocked.clearAndDestroy();
             mClosedLocked = true;
+        } catch (IOException e) {
+            Log.w(TAG, "Error when clearAndDestroy AppSearchImpl.", e);
         } finally {
             mReadWriteLock.writeLock().unlock();
         }

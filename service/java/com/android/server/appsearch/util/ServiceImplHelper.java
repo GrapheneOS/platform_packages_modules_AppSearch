@@ -154,7 +154,7 @@ public class ServiceImplHelper {
         try {
             return verifyIncomingCall(callerAttributionSource, userHandle);
         } catch (Throwable t) {
-            AppSearchResult failedResult = throwableToFailedResult(t);
+            AppSearchResult<?> failedResult = throwableToFailedResult(t);
             invokeCallbackOnResult(
                     errorCallback, AppSearchResultParcel.fromFailedResult(failedResult));
             return null;

@@ -449,7 +449,7 @@ public final class AppsUtil {
         }
         String applicationDisplayName =
                 launchActivityResolveInfo.loadLabel(packageManager).toString();
-        if (TextUtils.isEmpty(applicationDisplayName)) {
+        if (TextUtils.isEmpty(applicationDisplayName) && packageInfo.applicationInfo != null) {
             applicationDisplayName = packageInfo.applicationInfo.className;
         }
         builder.setDisplayName(applicationDisplayName);
@@ -458,11 +458,13 @@ public final class AppsUtil {
         if (iconUri != null) {
             builder.setIconUri(iconUri);
         }
-        String applicationLabel =
-                packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
-        if (!applicationDisplayName.equals(applicationLabel)) {
-            // This can be different from applicationDisplayName, and should be indexed
-            builder.setAlternateNames(applicationLabel);
+        if (packageInfo.applicationInfo != null) {
+            String applicationLabel =
+                    packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
+            if (!applicationDisplayName.equals(applicationLabel)) {
+                // This can be different from applicationDisplayName, and should be indexed
+                builder.setAlternateNames(applicationLabel);
+            }
         }
         if (launchActivityResolveInfo.activityInfo.name != null) {
             builder.setClassName(launchActivityResolveInfo.activityInfo.name);

@@ -28,8 +28,8 @@ import java.util.Objects;
  * @hide
  */
 public class ResolveInfos {
-    @Nullable private ResolveInfo mAppFunctionServiceInfo;
-    @Nullable private ResolveInfo mLaunchActivityResolveInfo;
+    @Nullable private final ResolveInfo mAppFunctionServiceInfo;
+    @Nullable private final ResolveInfo mLaunchActivityResolveInfo;
 
     public ResolveInfos(
             @Nullable ResolveInfo appFunctionServiceInfo,
@@ -56,6 +56,7 @@ public class ResolveInfos {
         return mLaunchActivityResolveInfo;
     }
 
+    /** Builder for {@link ResolveInfos}. */
     public static class Builder {
         @Nullable private ResolveInfo mAppFunctionServiceInfo;
         @Nullable private ResolveInfo mLaunchActivityResolveInfo;
