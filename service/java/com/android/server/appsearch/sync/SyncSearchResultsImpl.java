@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.server.appsearch.appsindexer;
+package com.android.server.appsearch.sync;
 
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
@@ -21,22 +21,29 @@ import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResults;
 import android.app.appsearch.exceptions.AppSearchException;
 
-import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.Executor;
 
-/**
- * A synchronous wrapper for {@link SearchResults}. This allows us to call getNextPage in a loop if
- * needed.
- *
- * @see SearchResults
- */
-public interface SyncSearchResults extends Closeable {
-    /**
-     * Synchronously returns a list of {@link SearchResult}s.
-     *
-     * @see SearchResults#getNextPage
-     */
+public class SyncSearchResultsImpl extends SyncAppSearchBase implements SyncSearchResults {
+    private final SearchResults mSearchResults;
+
+    public SyncSearchResultsImpl(SearchResults searchResults, @NonNull Executor executor) {
+        super(executor);
+        mSearchResults = Objects.requireNonNull(searchResults);
+    }
+
     @NonNull
+    @Override
     @WorkerThread
-    List<SearchResult> getNextPage() throws AppSearchException;
+    public List<SearchResult> getNextPage() throws AppSearchException {
+        return executeAppSearchResultOperation(
+                resultHandler -> mSearchResults.getNextPage(mExecutor, resultHandler));
+    }
+
+    @Override
+    public void close() throws IOException {
+        mSearchResults.close();
+    }
 }

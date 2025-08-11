@@ -49,6 +49,9 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.appsearch.flags.Flags;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.sync.SyncGlobalSearchSession;
+import com.android.server.appsearch.sync.SyncGlobalSearchSessionImpl;
+import com.android.server.appsearch.sync.SyncSearchResults;
 
 import org.junit.After;
 import org.junit.Test;

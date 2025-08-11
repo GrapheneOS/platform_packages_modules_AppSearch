@@ -182,7 +182,7 @@ public class MobileApplication extends GenericDocument {
     /** Returns the SHA-256 certificate of the application. */
     @NonNull
     public byte[] getSha256Certificate() {
-        return getPropertyBytes(APP_PROPERTY_SHA256_CERTIFICATE);
+        return Objects.requireNonNull(getPropertyBytes(APP_PROPERTY_SHA256_CERTIFICATE));
     }
 
     /** Returns the last time the app was installed or updated on the device. */
@@ -218,6 +218,7 @@ public class MobileApplication extends GenericDocument {
         return getPropertyBoolean(APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED);
     }
 
+    /** Builder for {@link MobileApplication}. */
     public static final class Builder extends GenericDocument.Builder<Builder> {
         public Builder(@NonNull String packageName, @NonNull byte[] sha256Certificate) {
             // Changing the schema type dynamically so that we can use separate schemas

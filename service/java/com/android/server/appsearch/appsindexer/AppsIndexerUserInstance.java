@@ -69,7 +69,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class AppsIndexerUserInstance {
 
-    private static final String TAG = "AppSearchAppsIndexerUserInst";
+    private static final String TAG = "AppSearchAppIndxrUsrInst";
 
     private final File mDataDir;
     // While AppsIndexerSettings is not thread safe, it is only accessed through a single-threaded
