@@ -178,6 +178,9 @@ public class BaseStats {
     public static final String INTERNAL_CALL_TYPE_STRING_CLOSE = "close";
     public static final String INTERNAL_CALL_TYPE_STRING_PERSIST_TO_DISK_JOB = "persistToDiskJob";
 
+    // Enabled features bitmask with all features disabled.
+    public static final long NO_FEATURES_ENABLED_BITMASK = 0;
+    // Bit representing whether icing is running in a VM or not within the enabled features bitmask.
     public static final int LAUNCH_VM = 0;
     private final long mEnabledFeatures;
 

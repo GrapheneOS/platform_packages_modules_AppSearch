@@ -20,6 +20,7 @@ import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.appsearch.stats.BaseStats;
 import android.content.Context;
 import android.os.SystemClock;
 import android.provider.DeviceConfig;
@@ -81,18 +82,30 @@ public class MockingPlatformLoggerTest {
                 false);
 
         // Make sure default sampling interval is used if there is no config set.
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_UNKNOWN).mSamplingInterval).isEqualTo(
-                TEST_DEFAULT_SAMPLING_INTERVAL);
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_INITIALIZE).mSamplingInterval).isEqualTo(
-                TEST_DEFAULT_SAMPLING_INTERVAL);
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_SEARCH).mSamplingInterval).isEqualTo(
-                TEST_DEFAULT_SAMPLING_INTERVAL);
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_FLUSH).mSamplingInterval).isEqualTo(
-                TEST_DEFAULT_SAMPLING_INTERVAL);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_UNKNOWN,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        TEST_DEFAULT_SAMPLING_INTERVAL);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_INITIALIZE,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        TEST_DEFAULT_SAMPLING_INTERVAL);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_SEARCH,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        TEST_DEFAULT_SAMPLING_INTERVAL);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_FLUSH,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        TEST_DEFAULT_SAMPLING_INTERVAL);
     }
 
 
@@ -126,24 +139,39 @@ public class MockingPlatformLoggerTest {
 
         // The default sampling interval should be used if no sampling interval is
         // provided for certain call type.
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_INITIALIZE).mSamplingInterval).isEqualTo(
-                TEST_DEFAULT_SAMPLING_INTERVAL);
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_FLUSH).mSamplingInterval).isEqualTo(
-                TEST_DEFAULT_SAMPLING_INTERVAL);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_INITIALIZE,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        TEST_DEFAULT_SAMPLING_INTERVAL);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_FLUSH,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        TEST_DEFAULT_SAMPLING_INTERVAL);
 
         // The configured sampling interval is used if sampling interval is available
         // for certain call type.
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_PUT_DOCUMENT).mSamplingInterval).isEqualTo(
-                putDocumentSamplingInterval);
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_PUT_DOCUMENTS).mSamplingInterval).isEqualTo(
-                batchCallSamplingInterval);
-        assertThat(logger.createExtraStatsLocked(TEST_PACKAGE_NAME,
-                CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH).mSamplingInterval).isEqualTo(
-                batchCallSamplingInterval);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        putDocumentSamplingInterval);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_PUT_DOCUMENTS,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        batchCallSamplingInterval);
+        assertThat(logger.createExtraStatsLocked(
+                TEST_PACKAGE_NAME,
+                CallStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSamplingInterval)
+                .isEqualTo(
+                        batchCallSamplingInterval);
     }
 
     @Test
@@ -160,9 +188,12 @@ public class MockingPlatformLoggerTest {
                 false);
 
         // Sample should always be logged for the first time if sampling is disabled(value is one).
-        assertThat(logger.shouldLogForTypeLocked(CallStats.CALL_TYPE_PUT_DOCUMENT)).isTrue();
-        assertThat(logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT).mSkippedSampleCount).isEqualTo(0);
+        assertThat(logger.shouldLogForTypeLocked(
+                CallStats.CALL_TYPE_PUT_DOCUMENT, BaseStats.NO_FEATURES_ENABLED_BITMASK)).isTrue();
+        assertThat(logger.createExtraStatsLocked(
+                testPackageName,
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSkippedSampleCount).isEqualTo(0);
     }
 
     @Test
@@ -179,10 +210,14 @@ public class MockingPlatformLoggerTest {
                 false);
 
         // Makes sure sample will be excluded due to sampling if sample interval is negative.
-        assertThat(logger.shouldLogForTypeLocked(CallStats.CALL_TYPE_PUT_DOCUMENT)).isFalse();
+        assertThat(logger.shouldLogForTypeLocked(
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK)).isFalse();
         // Skipped count should be 0 since it doesn't pass the sampling.
-        assertThat(logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT).mSkippedSampleCount).isEqualTo(0);
+        assertThat(logger.createExtraStatsLocked(
+                testPackageName,
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSkippedSampleCount).isEqualTo(0);
     }
 
     @Test
@@ -209,9 +244,13 @@ public class MockingPlatformLoggerTest {
         logger.setLastPushTimeMillisLocked(SystemClock.elapsedRealtime());
 
         // Makes sure sample will be excluded due to rate limiting if samples are too close.
-        assertThat(logger.shouldLogForTypeLocked(CallStats.CALL_TYPE_PUT_DOCUMENT)).isFalse();
-        assertThat(logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT).mSkippedSampleCount).isEqualTo(1);
+        assertThat(logger.shouldLogForTypeLocked(
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK)).isFalse();
+        assertThat(logger.createExtraStatsLocked(
+                testPackageName,
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSkippedSampleCount).isEqualTo(1);
     }
 
     @Test
@@ -238,9 +277,13 @@ public class MockingPlatformLoggerTest {
         logger.setLastPushTimeMillisLocked(SystemClock.elapsedRealtime());
 
         // Makes sure sample will be logged if it is not too close to previous sample.
-        assertThat(logger.shouldLogForTypeLocked(CallStats.CALL_TYPE_PUT_DOCUMENT)).isTrue();
-        assertThat(logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT).mSkippedSampleCount).isEqualTo(0);
+        assertThat(logger.shouldLogForTypeLocked(
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK)).isTrue();
+        assertThat(logger.createExtraStatsLocked(
+                testPackageName,
+                CallStats.CALL_TYPE_PUT_DOCUMENT,
+                BaseStats.NO_FEATURES_ENABLED_BITMASK).mSkippedSampleCount).isEqualTo(0);
     }
 
     @Test
