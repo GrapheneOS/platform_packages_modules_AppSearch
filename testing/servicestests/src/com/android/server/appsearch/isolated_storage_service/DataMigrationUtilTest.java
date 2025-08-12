@@ -1000,33 +1000,58 @@ public class DataMigrationUtilTest {
 
     @Test
     public void verifyVMResetBeforeMigration() throws Exception {
-        int docNumInVM = 100;
-        int docNumInHost = 1;
+        int docNumInDest = 100;
+        int docNumInSrc = 1;
         int okStatus = StatusProto.Code.OK.getNumber();
-        insertTestDocsToAppSearchImpl(docNumInVM);
-        // After that, mVmIcingSearchEngine contains data, and mAppSearchImpl is empty.
-        mVmIcingSearchEngine = mAppSearchImpl.swapIcingSearchEngineLocked(
-                mVmIcingSearchEngine,
-                /*isVMEnabled=*/ true);
-        insertTestDocsToAppSearchImpl(docNumInHost);
+        // 1. Insert documents. AppSearchImpl is using destIcing and will insert docs there.
+        insertTestDocsToAppSearchImpl(docNumInDest);
+        IcingSearchEngineInterface sourceIcing = mVmIcingSearchEngine;
 
+        // 2. Swap icing instances so that we have a reference to the icing instance that we just
+        // populated.
+        IcingSearchEngineInterface destIcing = mAppSearchImpl.swapIcingSearchEngineLocked(
+                sourceIcing,
+                /*isVMEnabled=*/ true);
+
+        // 3. Recreate AppSearchImpl with destIcing. This is a weird workaround - AppSearch caches
+        // info including schema information. Swapping Icing instances with different schemas (as we
+        // do above) makes this cache invalid. So recreating AppSearchImpl will fix the cache
+        // mismatch.
+        // NOTE: This is not a real issue for migration because migration ensures that the schema in
+        // dest is exactly what is cached in AppSearch.
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        mUnlimitedConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ sourceIcing,
+                        ALWAYS_OPTIMIZE);
+
+        // 4. Add documents. AppSearchImpl is using srcIcing and will insert docs there.
+        insertTestDocsToAppSearchImpl(docNumInSrc);
+
+        // 5. Confirm that destIcing has the expected number of documents.
         SearchSpecProto searchSpec =
                 SearchSpecProto.newBuilder()
                         .setQuery("")
                         .setTermMatchType(TermMatchType.Code.PREFIX)
                         .build();
         SearchResultProto searchResultProto =
-                mVmIcingSearchEngine.search(
+                destIcing.search(
                         searchSpec,
                         ScoringSpecProto.getDefaultInstance(),
                         ResultSpecProto.newBuilder().setNumPerPage(
-                                docNumInVM + docNumInHost).build());
-        assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInVM);
+                                docNumInSrc + docNumInDest).build());
+        assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInDest);
 
+        // 6. Run migration from AppSearchImpl to destIcing.
         DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(mContext,
                 mUserHandle,
                 mAppSearchImpl,
-                mVmIcingSearchEngine,
+                destIcing,
                 /*logger=*/ null);
 
         assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
@@ -1036,17 +1061,18 @@ public class DataMigrationUtilTest {
         assertThat(stats.getFlushStatus()).isEqualTo(okStatus);
         assertThat(stats.getQueryStatus()).isEqualTo(okStatus);
         assertThat(stats.getPutStatus()).asList().containsExactly(okStatus);
-        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docNumInHost);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(docNumInSrc);
         assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
 
+        // 7. Verify that destIcing now only contains the documents that were previous in srcIcing.
         searchResultProto =
-                mVmIcingSearchEngine.search(
+                destIcing.search(
                         searchSpec,
                         ScoringSpecProto.getDefaultInstance(),
                         ResultSpecProto.newBuilder().setNumPerPage(
-                                docNumInVM + docNumInHost).build());
+                                docNumInDest + docNumInSrc).build());
         // icing has been reset.
-        assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInHost);
+        assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInSrc);
     }
 
     private void insertTestDocsToAppSearchImpl(int docNum) throws AppSearchException {
