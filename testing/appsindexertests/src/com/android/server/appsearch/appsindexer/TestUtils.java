@@ -271,6 +271,7 @@ class TestUtils {
         mockResolveInfo.activityInfo.applicationInfo = new ApplicationInfo();
         mockResolveInfo.activityInfo.applicationInfo.packageName = pkgName;
         mockResolveInfo.activityInfo.applicationInfo.name = "Fake Application Name"; // Optional
+        mockResolveInfo.activityInfo.applicationInfo.nonLocalizedLabel = "Fake Application Name";
         return mockResolveInfo;
     }
 
