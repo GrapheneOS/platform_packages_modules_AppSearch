@@ -3036,10 +3036,11 @@ public class AppSearchManagerService extends SystemService {
                     /* numOperations= */ request.getRemoveByDocumentIdRequest().getIds().size())) {
                 return;
             }
+            boolean isVMEnabledForUser = isVMEnabledForUser(targetUser);
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
             boolean callAccepted = mExecutorManager.executeLambdaForUserAsync(targetUser,
                     callback, callingPackageName, BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
-                    isVMEnabledForUser(targetUser),
+                    isVMEnabledForUser,
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                 @AppSearchResult.ResultCode int statusCode = RESULT_OK;
@@ -3050,26 +3051,68 @@ public class AppSearchManagerService extends SystemService {
                     AppSearchBatchResult.Builder<String, Void> resultBuilder =
                             new AppSearchBatchResult.Builder<>();
                     instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
-                    for (String id : request.getRemoveByDocumentIdRequest().getIds()) {
+                    if (Flags.enableRemoveByIdUsesQuery() || isVMEnabledForUser) {
+                        if (request.getRemoveByDocumentIdRequest().getIds().isEmpty()) {
+                            if (LogUtil.DEBUG) {
+                                Log.d(TAG, "Request to delete items in namespace "
+                                        + request.getRemoveByDocumentIdRequest().getNamespace()
+                                        + " specified no ids!");
+                            }
+                            invokeCallbackOnResult(callback, AppSearchBatchResultParcel.fromStringToVoid(
+                                    resultBuilder.build()));
+                            return;
+                        }
                         try {
-                            instance.getAppSearchImpl().remove(
-                                    callingPackageName,
-                                    request.getDatabaseName(),
-                                    request.getRemoveByDocumentIdRequest().getNamespace(),
-                                    id,
-                                    /* removeStatsBuilder= */ null,
-                                    /*callStatsBuilder=*/null);
-                            ++operationSuccessCount;
-                            resultBuilder.setSuccess(id, /*result= */ null);
+                            Map<String, Set<String>> deletedIds = new ArrayMap<>();
+                            SearchSpec searchSpec =
+                                    new SearchSpec.Builder()
+                                            .addFilterDocumentIds(request.getRemoveByDocumentIdRequest().getIds())
+                                            .addFilterNamespaces(request.getRemoveByDocumentIdRequest().getNamespace())
+                                            .addFilterPackageNames(callingPackageName)
+                                            .build();
+                            instance.getAppSearchImpl().removeByQuery(callingPackageName,
+                                    request.getDatabaseName(), /* queryExpression= */"",
+                                    searchSpec, deletedIds, /*removeStatsBuilder=*/null,
+                                    /* callStatsBuilder= */null);
+                            Set<String> deletionSet = deletedIds.get(request.getRemoveByDocumentIdRequest().getNamespace());
+                            for (String id : request.getRemoveByDocumentIdRequest().getIds()) {
+                                if (deletionSet != null && deletionSet.contains(id)) {
+                                    resultBuilder.setSuccess(id, /*value=*/null);
+                                } else {
+                                    resultBuilder.setResult(id, AppSearchResult.newFailedResult(
+                                            AppSearchResult.RESULT_NOT_FOUND, /*errorMessage=*/null));
+                                }
+                            }
                         } catch (AppSearchException | RuntimeException e) {
-                            // We don't rethrow here, so we can still keep trying for the following
-                            // ones.
-                            AppSearchResult<Void> result = throwableToFailedResult(e);
-                            resultBuilder.setResult(id, result);
-                            // Since we can only include one status code in the atom,
-                            // for failures, we would just save the one for the last failure
-                            statusCode = result.getResultCode();
-                            ++operationFailureCount;
+                            AppSearchResult<Void> failure = throwableToFailedResult(e);
+                            for (String id : request.getRemoveByDocumentIdRequest().getIds()) {
+                                resultBuilder.setResult(id, failure);
+                            }
+                            statusCode = failure.getResultCode();
+                            operationFailureCount = request.getRemoveByDocumentIdRequest().getIds().size();
+                        }
+                    } else {
+                        for (String id : request.getRemoveByDocumentIdRequest().getIds()) {
+                            try {
+                                instance.getAppSearchImpl().remove(
+                                        callingPackageName,
+                                        request.getDatabaseName(),
+                                        request.getRemoveByDocumentIdRequest().getNamespace(),
+                                        id,
+                                        /* removeStatsBuilder= */ null,
+                                        /* callStatsBuilder= */ null);
+                                ++operationSuccessCount;
+                                resultBuilder.setSuccess(id, /*result= */ null);
+                            } catch (AppSearchException | RuntimeException e) {
+                                // We don't rethrow here, so we can still keep trying for the following
+                                // ones.
+                                AppSearchResult<Void> result = throwableToFailedResult(e);
+                                resultBuilder.setResult(id, result);
+                                // Since we can only include one status code in the atom,
+                                // for failures, we would just save the one for the last failure
+                                statusCode = result.getResultCode();
+                                ++operationFailureCount;
+                            }
                         }
                     }
                     // Now that the batch has been written, persist the newly written data.

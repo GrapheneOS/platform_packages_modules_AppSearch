@@ -685,6 +685,15 @@ public final class AppSearchUserInstanceManager {
             Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
+        // We always create the migration file if vm is created. It will be empty until data
+        // migration actually runs. With this file created, it can help us to remove the vm if it
+        // gets disabled. During startup, we can check if this file exists, and call vm removal if
+        // it does.
+        final File appSearchDir =
+                AppSearchEnvironmentFactory.getEnvironmentInstance()
+                        .getAppSearchDir(userContext, userHandle);
+        DataMigrationUtil.writeMigrationStatus(appSearchDir, /* migrationStats= */ null);
+
         if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
             Log.i(TAG, "Data migration is not needed.");
             return isolatedIcingInterface;

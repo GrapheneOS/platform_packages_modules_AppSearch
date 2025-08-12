@@ -21,6 +21,7 @@ import static android.app.appsearch.AppSearchResult.RESULT_IO_ERROR;
 
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchEnvironmentFactory;
@@ -486,21 +487,47 @@ public class AppSearchHelper implements Closeable {
      * objects in {@link AppFunctionStaticMetadata#APP_FUNCTION_NAMESPACE}. This is useful for
      * determining what has changed during an update.
      *
+     * <p>This method is used for testing purposes only.
+     *
      * @param appPackageIds a set of package ids for which to retrieve functions from AppSearch.
      */
     @NonNull
     @WorkerThread
-    public Map<String, Map<String, AppFunctionDocument>> getAppFunctionDocumentsFromAppSearch(
+    @VisibleForTesting
+    Map<String, Map<String, AppFunctionDocument>> getAppFunctionDocumentsFromAppSearch(
             Set<String> appPackageIds) throws AppSearchException {
+        return getAppFunctionDocumentsFromAppSearch(appPackageIds, /* appsIndexerConfig= */ null);
+    }
+
+    /**
+     * Returns a mapping of packages to a mapping of document ids to {@link AppFunctionDocument}
+     * objects in {@link AppFunctionStaticMetadata#APP_FUNCTION_NAMESPACE}. This is useful for
+     * determining what has changed during an update.
+     *
+     * @param appPackageIds a set of package ids for which to retrieve functions from AppSearch.
+     * @param config the {@link AppsIndexerConfig} to use for number of results per app. If null,
+     *     the defaults for spec will be used.
+     */
+    @NonNull
+    @WorkerThread
+    public Map<String, Map<String, AppFunctionDocument>> getAppFunctionDocumentsFromAppSearch(
+            Set<String> appPackageIds, @Nullable AppsIndexerConfig appsIndexerConfig)
+            throws AppSearchException {
         SearchSpec allAppFunctionsSpec =
                 new SearchSpec.Builder()
                         .addFilterNamespaces(AppFunctionStaticMetadata.APP_FUNCTION_NAMESPACE)
                         .build();
 
-        JoinSpec appFunctionJoinSpec =
+        JoinSpec.Builder appFunctionJoinSpecBuilder =
                 new JoinSpec.Builder(AppFunctionDocument.PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID)
-                        .setNestedSearch("", allAppFunctionsSpec)
-                        .build();
+                        .setNestedSearch("", allAppFunctionsSpec);
+
+        if (appsIndexerConfig != null) {
+            appFunctionJoinSpecBuilder.setMaxJoinedResultCount(
+                    appsIndexerConfig.getMaxAppFunctionsPerPackage());
+        } else {
+            appFunctionJoinSpecBuilder.setMaxJoinedResultCount(Integer.MAX_VALUE);
+        }
 
         SearchSpec mobileApplicationSearchSpec =
                 new SearchSpec.Builder()
@@ -508,7 +535,7 @@ public class AppSearchHelper implements Closeable {
                         .addProjection(
                                 SearchSpec.SCHEMA_TYPE_WILDCARD,
                                 List.of(MobileApplication.APP_PROPERTY_PACKAGE_NAME))
-                        .setJoinSpec(appFunctionJoinSpec)
+                        .setJoinSpec(appFunctionJoinSpecBuilder.build())
                         .build();
 
         try (SyncSearchResults results =

@@ -103,7 +103,7 @@ public final class AppsIndexerImpl implements Closeable {
         long beforePackageManagerTimestamp = SystemClock.elapsedRealtime();
         PackageManager packageManager = mContext.getPackageManager();
         Map<PackageInfo, ResolveInfos> packagesToIndex =
-                AppsUtil.getPackagesToIndex(packageManager);
+                AppsUtil.getPackagesToIndex(mContext, packageManager);
         appsUpdateStats.mPackageManagerLatencyMillis =
                 SystemClock.elapsedRealtime() - beforePackageManagerTimestamp;
 
@@ -211,7 +211,8 @@ public final class AppsIndexerImpl implements Closeable {
 
         // Get all currently indexed AppFunctionStaticMetadata docs for the necessary packages.
         Map<String, Map<String, AppFunctionDocument>> appFunctionsFromAppSearch =
-                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(updatedPackageIds);
+                mAppSearchHelper.getAppFunctionDocumentsFromAppSearch(
+                        updatedPackageIds, mAppsIndexerConfig);
 
         AppFunctionDiffCalculator.AppFunctionDiff appFunctionDiff =
                 AppFunctionDiffCalculator.calculate(
