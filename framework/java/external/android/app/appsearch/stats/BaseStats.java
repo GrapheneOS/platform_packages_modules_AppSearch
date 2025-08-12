@@ -187,18 +187,22 @@ public class BaseStats {
     /** Time passed while waiting to acquire the lock during Java function calls. */
     protected final int mJavaLockAcquisitionLatencyMillis;
 
-    @CallType private final int mLastWriteOperation;
-    private final int mLastWriteOperationLatencyMillis;
+    @CallType private final int mLastBlockingOperation;
+    private final int mLastBlockingOperationLatencyMillis;
     // The latency of get the VM instance.
-    int mGetVmLatencyMillis;
+    private final int mGetVmLatencyMillis;
+    private final int mUnblockedAppSearchLatencyMillis;
+    private final int mNumIcingCalls;
 
     protected BaseStats(@NonNull Builder<?> builder) {
         Objects.requireNonNull(builder);
         mEnabledFeatures = builder.mEnabledFeatures;
         mJavaLockAcquisitionLatencyMillis = builder.mJavaLockAcquisitionLatencyMillis;
-        mLastWriteOperation = builder.mLastWriteOperation;
-        mLastWriteOperationLatencyMillis = builder.mLastWriteOperationLatencyMillis;
+        mLastBlockingOperation = builder.mLastBlockingOperation;
+        mLastBlockingOperationLatencyMillis = builder.mLastBlockingOperationLatencyMillis;
         mGetVmLatencyMillis = builder.mGetVmLatencyMillis;
+        mUnblockedAppSearchLatencyMillis = builder.mUnblockedAppSearchLatencyMillis;
+        mNumIcingCalls = builder.mNumIcingCalls;
     }
 
     /** Returns the bitmask representing the enabled features. */
@@ -206,15 +210,15 @@ public class BaseStats {
         return mEnabledFeatures;
     }
 
-    /** Returns the last write operation call type. */
+    /** Returns the last blocking operation call type. */
     @CallType
-    public int getLastWriteOperation() {
-        return mLastWriteOperation;
+    public int getLastBlockingOperation() {
+        return mLastBlockingOperation;
     }
 
-    /** Returns latency for last write operation which hold the write lock in milliseconds. */
-    public int getLastWriteOperationLatencyMillis() {
-        return mLastWriteOperationLatencyMillis;
+    /** Returns latency for last blocking operation which hold the write lock in milliseconds. */
+    public int getLastBlockingOperationLatencyMillis() {
+        return mLastBlockingOperationLatencyMillis;
     }
 
     /** Returns time passed while waiting to acquire the lock during Java function calls */
@@ -236,6 +240,16 @@ public class BaseStats {
             }
         }
         return true;
+    }
+
+    /** Returns time passed while the task is running in AppSearch without any waiting time. */
+    public int getUnblockedAppSearchLatencyMillis() {
+        return mUnblockedAppSearchLatencyMillis;
+    }
+
+    /** Returns the number we called Icing. */
+    public int getNumIcingCalls() {
+        return mNumIcingCalls;
     }
 
     /**
@@ -261,11 +275,15 @@ public class BaseStats {
         int mJavaLockAcquisitionLatencyMillis = -1;
 
         // The call type of the last mutation call that hold the write lock.
-        @CallType int mLastWriteOperation;
+        @CallType int mLastBlockingOperation = CALL_TYPE_UNKNOWN;
         // The latency of the last mutation call holds the write lock in AppSearch.
-        int mLastWriteOperationLatencyMillis;
+        int mLastBlockingOperationLatencyMillis = -1;
         // The latency of get the VM instance.
         int mGetVmLatencyMillis = 0;
+        // The amount of time that the task is running after the AppSearch RW lock.
+        int mUnblockedAppSearchLatencyMillis;
+        // The number of times that we called icing
+        int mNumIcingCalls = 0;
 
         /** Creates a new {@link BaseStats.Builder}. */
         @SuppressWarnings("unchecked")
@@ -292,25 +310,41 @@ public class BaseStats {
             return mBuilderTypeInstance;
         }
 
-        /** Sets the last write operation call type. */
+        /** Sets the last blocking operation call type. */
         @CanIgnoreReturnValue
-        public @NonNull BuilderType setLastWriteOperation(@CallType int lastWriteOperation) {
-            mLastWriteOperation = lastWriteOperation;
+        public @NonNull BuilderType setLastBlockingOperation(@CallType int lastBlockingOperation) {
+            if (mLastBlockingOperation == CALL_TYPE_UNKNOWN) {
+                mLastBlockingOperation = lastBlockingOperation;
+            }
             return mBuilderTypeInstance;
         }
 
-        /** Sets latency for last write operation which hold the write lock in milliseconds. */
+        /** Sets latency for last blocking operation which hold the write lock in milliseconds. */
         @CanIgnoreReturnValue
-        public @NonNull BuilderType setLastWriteOperationLatencyMillis(
-                int lastWriteOperationLatencyMillis) {
-            mLastWriteOperationLatencyMillis = lastWriteOperationLatencyMillis;
+        public @NonNull BuilderType setLastBlockingOperationLatencyMillis(
+                int lastBlockingOperationLatencyMillis) {
+            if (mLastBlockingOperationLatencyMillis < 0) {
+                mLastBlockingOperationLatencyMillis = lastBlockingOperationLatencyMillis;
+            }
             return mBuilderTypeInstance;
         }
 
-        /** Adds latency for last write operation which hold the write lock in milliseconds. */
+        /**
+         * Adds the latency required to get a connection to the vm. Also increments the count of
+         * Icing calls.
+         */
         @CanIgnoreReturnValue
         public @NonNull BuilderType addGetVmLatencyMillis(int getVmLatencyMillis) {
             mGetVmLatencyMillis += getVmLatencyMillis;
+            mNumIcingCalls++;
+            return mBuilderTypeInstance;
+        }
+
+        /** Sets the time passed while the task is running in AppSearch without any waiting time. */
+        @CanIgnoreReturnValue
+        public @NonNull BuilderType setUnblockedAppSearchLatencyMillis(
+                int unblockedAppSearchLatencyMillis) {
+            mUnblockedAppSearchLatencyMillis = unblockedAppSearchLatencyMillis;
             return mBuilderTypeInstance;
         }
 

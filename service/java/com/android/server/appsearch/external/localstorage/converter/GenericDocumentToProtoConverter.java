@@ -266,8 +266,7 @@ public final class GenericDocumentToProtoConverter {
         for (int i = 0; i < embedding.getValues().length; i++) {
             builder.addValues(embedding.getValues()[i]);
         }
-        builder.setModelSignature(embedding.getModelSignature());
-        return builder.build();
+        return builder.setModelSignature(embedding.getModelSignature()).build();
     }
 
     private static void setEmptyProperty(

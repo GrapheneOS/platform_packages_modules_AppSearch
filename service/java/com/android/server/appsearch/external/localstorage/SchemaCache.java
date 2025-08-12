@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.app.appsearch.checker.initialization.qual.UnknownInitialization;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -124,7 +125,7 @@ public class SchemaCache {
         Set<String> visited = new ArraySet<>();
         Queue<String> prefixedSchemaQueue = new ArrayDeque<>(prefixedSchemaTypes);
         while (!prefixedSchemaQueue.isEmpty()) {
-            String currentPrefixedSchema = prefixedSchemaQueue.poll();
+            String currentPrefixedSchema = Objects.requireNonNull(prefixedSchemaQueue.poll());
             if (visited.contains(currentPrefixedSchema)) {
                 continue;
             }
@@ -174,12 +175,15 @@ public class SchemaCache {
      * {@link #getSchemaTypesWithDescendants} and {@link #getTransitiveUnprefixedParentSchemaTypes}
      * would be stale.
      */
-    public void rebuildCacheForPrefix(@NonNull String prefix) throws AppSearchException {
+    public void rebuildCacheForPrefix(
+            @UnknownInitialization SchemaCache this, @NonNull String prefix)
+            throws AppSearchException {
         Objects.requireNonNull(prefix);
 
-        mSchemaParentToChildrenMap.remove(prefix);
-        mSchemaChildToTransitiveUnprefixedParentsMap.remove(prefix);
-        Map<String, SchemaTypeConfigProto> prefixedSchemaMap = mSchemaMap.get(prefix);
+        Objects.requireNonNull(mSchemaParentToChildrenMap).remove(prefix);
+        Objects.requireNonNull(mSchemaChildToTransitiveUnprefixedParentsMap).remove(prefix);
+        Map<String, SchemaTypeConfigProto> prefixedSchemaMap =
+                Objects.requireNonNull(mSchemaMap).get(prefix);
         if (prefixedSchemaMap == null) {
             return;
         }
@@ -199,7 +203,7 @@ public class SchemaCache {
         }
         // Record the map for the current prefix.
         if (!parentToChildrenMap.isEmpty()) {
-            mSchemaParentToChildrenMap.put(prefix, parentToChildrenMap);
+            Objects.requireNonNull(mSchemaParentToChildrenMap).put(prefix, parentToChildrenMap);
         }
 
         // If the flag is on, build the child-to-parent maps as caches. Otherwise, this
@@ -232,10 +236,10 @@ public class SchemaCache {
      * {@link #getSchemaTypesWithDescendants} and {@link #getTransitiveUnprefixedParentSchemaTypes}
      * would be stale.
      */
-    public void rebuildCache() throws AppSearchException {
-        mSchemaParentToChildrenMap.clear();
-        mSchemaChildToTransitiveUnprefixedParentsMap.clear();
-        for (String prefix : mSchemaMap.keySet()) {
+    public void rebuildCache(@UnknownInitialization SchemaCache this) throws AppSearchException {
+        Objects.requireNonNull(mSchemaParentToChildrenMap).clear();
+        Objects.requireNonNull(mSchemaChildToTransitiveUnprefixedParentsMap).clear();
+        for (String prefix : Objects.requireNonNull(mSchemaMap).keySet()) {
             rebuildCacheForPrefix(prefix);
         }
     }

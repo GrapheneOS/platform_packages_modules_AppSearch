@@ -355,27 +355,29 @@ public final class SearchSpecToProtoConverter {
         protoBuilder.setEmbeddingQueryMetricType(embeddingSearchMetricTypeProto);
 
         if (mNestedConverter != null && !mNestedConverter.hasNothingToSearch()) {
+            SearchSpecToProtoConverter nestedConverter = mNestedConverter;
             JoinSpecProto.NestedSpecProto nestedSpec =
                     JoinSpecProto.NestedSpecProto.newBuilder()
                             .setResultSpec(
-                                    mNestedConverter.toResultSpecProto(
+                                    nestedConverter.toResultSpecProto(
                                             mNamespaceCache, mSchemaCache, isVMEnabled))
-                            .setScoringSpec(mNestedConverter.toScoringSpecProto())
-                            .setSearchSpec(mNestedConverter.toSearchSpecProto(isVMEnabled))
+                            .setScoringSpec(nestedConverter.toScoringSpecProto())
+                            .setSearchSpec(nestedConverter.toSearchSpecProto(isVMEnabled))
                             .build();
 
             // This cannot be null, otherwise mNestedConverter would be null as well.
             JoinSpec joinSpec = mSearchSpec.getJoinSpec();
-            JoinSpecProto.Builder joinSpecProtoBuilder =
+            JoinSpecProto joinSpecProto =
                     JoinSpecProto.newBuilder()
                             .setNestedSpec(nestedSpec)
                             .setParentPropertyExpression(JoinSpec.QUALIFIED_ID)
                             .setChildPropertyExpression(joinSpec.getChildPropertyExpression())
                             .setAggregationScoringStrategy(
                                     toAggregationScoringStrategy(
-                                            joinSpec.getAggregationScoringStrategy()));
+                                            joinSpec.getAggregationScoringStrategy()))
+                            .build();
 
-            protoBuilder.setJoinSpec(joinSpecProtoBuilder);
+            protoBuilder.setJoinSpec(joinSpecProto);
         }
 
         if (mSearchSpec.isListFilterHasPropertyFunctionEnabled()
@@ -931,7 +933,7 @@ public final class SearchSpecToProtoConverter {
                         }
                     }
                 }
-                if (entries.size() > 0) {
+                if (!entries.isEmpty()) {
                     resultSpecBuilder.addResultGroupings(
                             ResultSpecProto.ResultGrouping.newBuilder()
                                     .addAllEntryGroupings(entries)
@@ -1100,7 +1102,7 @@ public final class SearchSpecToProtoConverter {
                         }
                     }
                 }
-                if (entries.size() > 0) {
+                if (!entries.isEmpty()) {
                     resultSpecBuilder.addResultGroupings(
                             ResultSpecProto.ResultGrouping.newBuilder()
                                     .addAllEntryGroupings(entries)

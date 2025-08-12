@@ -321,4 +321,10 @@ public class FlagsTest {
         assertThat(Flags.FLAG_ENABLE_PROTO_LOG_NEW_HEADER_FORMAT)
                 .isEqualTo("com.android.appsearch.flags.enable_proto_log_new_header_format");
     }
+
+    @Test
+    public void testFlagValue_enableEarlySetSchemaExit() {
+        assertThat(Flags.FLAG_ENABLE_EARLY_SET_SCHEMA_EXIT)
+                .isEqualTo("com.android.appsearch.flags.enable_early_set_schema_exit");
+    }
 }
