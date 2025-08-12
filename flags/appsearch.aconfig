@@ -781,3 +781,10 @@ flag {
     description: "Enables a higher sampling rate on logs. This flag should never rollout past trunkfood FULL."
     bug: "437386925"
 }
+
+flag {
+    name: "enable_early_set_schema_exit"
+    namespace: "appsearch"
+    description: "whether to skip interacting with icing if the set schema call is a noop."
+    bug: "436813583"
+}
