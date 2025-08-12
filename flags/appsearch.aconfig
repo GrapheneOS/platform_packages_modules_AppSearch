@@ -815,3 +815,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+ flag {
+    name: "enable_schema_migration_executor_dead_lock_fix"
+    namespace: "appsearch"
+    description: "Enable the executor dead lock fix for the get schema call in schema migration job."
+    bug: "436282573"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
