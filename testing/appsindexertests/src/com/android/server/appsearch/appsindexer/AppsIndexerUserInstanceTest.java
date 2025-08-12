@@ -35,11 +35,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSessionShim;
+import android.app.appsearch.SearchResult;
+import android.app.appsearch.SearchResultsShim;
+import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
 import android.app.appsearch.testutil.AppSearchTestUtils;
@@ -48,6 +52,8 @@ import android.app.job.JobScheduler;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.os.Build;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
@@ -77,6 +83,8 @@ import org.mockito.Mockito;
 import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -824,6 +832,111 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     }
 
     @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_LOCALE_CHANGE_FULL_UPDATE)
+    public void testLocaleChange_triggersFullUpdate() throws Exception {
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+
+        // Set initial locale in settings
+        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        settings.setPreviousLocaleCode("en");
+        settings.persist();
+
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext,
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
+
+        // Wait for file setup
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        // Setup package manager with 1 app
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Initial index run
+        mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        AppSearchManager.SearchContext searchContext =
+                new AppSearchManager.SearchContext.Builder(AppSearchHelper.APP_DATABASE).build();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
+
+        SearchResultsShim sr = db.search("", new SearchSpec.Builder().build());
+        List<SearchResult> results = sr.getNextPageAsync().get();
+        assertThat(results.size()).isEqualTo(1);
+
+        String originalDisplayName =
+                results.get(0)
+                        .getGenericDocument()
+                        .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES);
+
+        // Update the display name of the package
+        String updatedDisplayName = "Le label";
+        when(mMockPackageManager.getApplicationLabel(any())).thenReturn(updatedDisplayName);
+
+        // Run updateAsync again. This should not re-index the app.
+        mInstance.updateAsync(false, false);
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+        sr = db.search("", new SearchSpec.Builder().build());
+        results = sr.getNextPageAsync().get();
+        assertThat(results.size()).isEqualTo(1);
+
+        // Display name did not change
+        assertThat(
+                        results.get(0)
+                                .getGenericDocument()
+                                .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES))
+                .isEqualTo(originalDisplayName);
+
+        // Simulate Locale Change to fr-FR
+        mTestContext.setLocale(new Locale("fr", "FR"));
+
+        // Now it will update if we run updateAsync
+        mInstance.updateAsync(false, false);
+
+        // Wait for the update
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        // Verify the app is re-indexed due to locale change forced update
+        sr = db.search("", new SearchSpec.Builder().build());
+        results = sr.getNextPageAsync().get();
+        assertThat(results.size()).isEqualTo(1);
+        assertThat(
+                        results.get(0)
+                                .getGenericDocument()
+                                .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES))
+                .isEqualTo(updatedDisplayName);
+
+        // Verify settings are updated with the new locale
+        settings.load();
+        assertThat(settings.getPreviousLocaleCode()).isEqualTo("fr");
+    }
+
+    @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
     public void testSubsequentRun_withIndexerUpdate_previouslyIndexedAppIsReIndexed()
             throws Exception {
@@ -1432,6 +1545,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
     class TestContext extends ContextWrapper {
         @Nullable JobScheduler mJobScheduler;
+        private Locale mLocale = null;
 
         TestContext(Context base) {
             super(base);
@@ -1453,6 +1567,22 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         public void setJobScheduler(@Nullable JobScheduler jobScheduler) {
             mJobScheduler = jobScheduler;
+        }
+
+        public void setLocale(Locale locale) {
+            mLocale = locale;
+        }
+
+        @Override
+        public Resources getResources() {
+            if (mLocale == null) {
+                return super.getResources();
+            }
+            Configuration overrideConfig =
+                    new Configuration(super.getResources().getConfiguration());
+            overrideConfig.setLocale(mLocale);
+            Context configContext = createConfigurationContext(overrideConfig);
+            return configContext.getResources();
         }
 
         @Override

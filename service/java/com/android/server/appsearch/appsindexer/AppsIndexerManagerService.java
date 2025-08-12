@@ -224,6 +224,13 @@ public final class AppsIndexerManagerService extends SystemService {
                     case Intent.ACTION_PACKAGE_ADDED:
                     case Intent.ACTION_PACKAGE_REPLACED:
                     case Intent.ACTION_PACKAGE_FULLY_REMOVED:
+                    case Intent.ACTION_LOCALE_CHANGED:
+                        // TODO(b/437400460): Remove if statement once flag is rolled out.
+                        if (intent.getAction().equals(Intent.ACTION_LOCALE_CHANGED)
+                                && !Flags.enableAppsIndexerLocaleChangeFullUpdate()) {
+                            // Skip if flag is not enabled
+                            break;
+                        }
                         // TODO(b/275592563): handle more efficiently based on package event type
                         // TODO(b/275592563): determine if batching is necessary in the case of
                         //  rapid updates
