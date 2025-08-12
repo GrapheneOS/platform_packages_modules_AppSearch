@@ -39,6 +39,11 @@ interface IIsolatedStorageService {
     VmStartResult startVm(in ServiceConfig config, in long timeoutSeconds, in boolean forceRestart);
 
     /**
+     * Deletes the pVM.
+     */
+    boolean deleteVm();
+
+    /**
      * Gets the connection to the pVM.
      */
     ParcelFileDescriptor getVmConnection();

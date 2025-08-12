@@ -361,9 +361,21 @@ public final class AppSearchUserInstanceManager {
                         TAG,
                         "Creating new AppSearch instance for " + userHandle + " at: " + icingDir);
             }
-            // Data is stored in host. We need to delete the migration status file
-            // so next migration can run.
-            DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir);
+            // When isolated storage is enabled, the migration file is always created even if the
+            // migration doesn't need to run, so it can be used to check whether isolated storage
+            // was used before. We need to clean up isolated storage if it was used before but is
+            // turned off now.
+            if (isolatedStorageServiceManager == null
+                    && IsolatedStorageServiceManager.isUserAllowed(userHandle)
+                    && IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(userContext)
+                    && DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir)) {
+                IsolatedStorageServiceManager.cleanUp(
+                        userContext,
+                        unused ->
+                                DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir));
+            } else {
+                DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir);
+            }
         }
         VisibilityChecker visibilityCheckerImpl =
                 AppSearchComponentFactory.createVisibilityCheckerInstance(userContext);
