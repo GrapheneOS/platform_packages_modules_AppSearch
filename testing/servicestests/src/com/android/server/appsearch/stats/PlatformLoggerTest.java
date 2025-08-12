@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
+import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.testutil.FakeAppSearchConfig;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -75,14 +76,14 @@ public class PlatformLoggerTest {
 
         // First time, no cache
         PlatformLogger.ExtraStats extraStats = logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT);
+                CallStats.CALL_TYPE_PUT_DOCUMENT, BaseStats.NO_FEATURES_ENABLED_BITMASK);
         verify(mockPackageManager, times(1))
                 .getPackageUid(eq(testPackageName), /*flags=*/ anyInt());
         assertThat(extraStats.mPackageUid).isEqualTo(testUid);
 
         // Second time, we have cache
         extraStats = logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT);
+                CallStats.CALL_TYPE_PUT_DOCUMENT, BaseStats.NO_FEATURES_ENABLED_BITMASK);
 
         // Count is still one since we will use the cache
         verify(mockPackageManager, times(1))
@@ -92,7 +93,7 @@ public class PlatformLoggerTest {
         // Remove the cache and try again
         assertThat(logger.removeCachedUidForPackage(testPackageName)).isEqualTo(testUid);
         extraStats = logger.createExtraStatsLocked(testPackageName,
-                CallStats.CALL_TYPE_PUT_DOCUMENT);
+                CallStats.CALL_TYPE_PUT_DOCUMENT, BaseStats.NO_FEATURES_ENABLED_BITMASK);
 
         // count increased by 1 since cache is cleared
         verify(mockPackageManager, times(2))

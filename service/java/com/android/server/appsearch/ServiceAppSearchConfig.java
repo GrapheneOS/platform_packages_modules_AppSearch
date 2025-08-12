@@ -54,6 +54,12 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      */
     int DEFAULT_SAMPLING_INTERVAL = 10;
 
+    /**
+     * Sampling interval to use for trunkfood users. This will sample 25% of logs rather than the
+     * production default of 10%.
+     */
+    int TRUNKFOODER_SAMPLING_INTERVAL = 4;
+
     int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES = 512 * 1024; // 512KiB
     int DEFAULT_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT = 80_000;
     int DEFAULT_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD = 2_000_000;
@@ -298,6 +304,13 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return Flags.enableApiCallStatsTracking()
                 ? DEFAULT_ENABLED_API_CALL_STATS_LIMIT
                 : DEFAULT_DISABLED_API_CALL_STATS_LIMIT;
+    }
+
+    /** Default number of API call stats appsearch is tracking. */
+    default int defaultSamplingInterval() {
+        return Flags.enableHigherSamplingForTrunkfooders()
+                ? TRUNKFOODER_SAMPLING_INTERVAL
+                : DEFAULT_SAMPLING_INTERVAL;
     }
 
     /**
