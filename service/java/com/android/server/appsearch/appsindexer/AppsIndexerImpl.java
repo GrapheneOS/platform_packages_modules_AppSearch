@@ -103,7 +103,7 @@ public final class AppsIndexerImpl implements Closeable {
         long beforePackageManagerTimestamp = SystemClock.elapsedRealtime();
         PackageManager packageManager = mContext.getPackageManager();
         Map<PackageInfo, ResolveInfos> packagesToIndex =
-                AppsUtil.getPackagesToIndex(packageManager);
+                AppsUtil.getPackagesToIndex(mContext, packageManager);
         appsUpdateStats.mPackageManagerLatencyMillis =
                 SystemClock.elapsedRealtime() - beforePackageManagerTimestamp;
 

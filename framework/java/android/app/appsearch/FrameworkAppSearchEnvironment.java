@@ -19,6 +19,8 @@ package android.app.appsearch;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Environment;
 import android.os.UserHandle;
 
@@ -111,5 +113,11 @@ public class FrameworkAppSearchEnvironment implements AppSearchEnvironment {
     public File getStorageInfoFile(
             @NonNull File fileParentPath, @NonNull String storageInfoFileName) {
         return new File(fileParentPath, storageInfoFileName);
+    }
+
+    @Override
+    public void populateSignatures(@NonNull Context context, @NonNull PackageInfo packageInfo)
+            throws PackageManager.NameNotFoundException {
+        // no-op for Platform.
     }
 }

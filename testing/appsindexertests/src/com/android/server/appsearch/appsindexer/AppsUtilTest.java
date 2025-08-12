@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -99,7 +100,7 @@ public class AppsUtilTest {
         // This shouldn't crash, and shouldn't be an empty list
         Context context = ApplicationProvider.getApplicationContext();
         Map<PackageInfo, ResolveInfos> packageActivityMapping =
-                AppsUtil.getPackagesToIndex(context.getPackageManager());
+                AppsUtil.getPackagesToIndex(context, context.getPackageManager());
         List<MobileApplication> resultApps =
                 AppsUtil.buildAppsFromPackageInfos(
                         context.getPackageManager(), packageActivityMapping);
@@ -145,6 +146,13 @@ public class AppsUtilTest {
     public void testRetrieveAppFunctionResolveInfo() throws Exception {
         // Set up fake PackageManager with 10 Packages and 10 AppFunctions
         PackageManager pm = Mockito.mock(PackageManager.class);
+        Context mockContext =
+                new ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm;
+                    }
+                };
         List<PackageInfo> fakePackages = new ArrayList<>();
         List<ResolveInfo> fakeActivities = new ArrayList<>();
         List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
@@ -157,7 +165,8 @@ public class AppsUtilTest {
 
         setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
 
-        Map<PackageInfo, ResolveInfos> packageActivityMapping = AppsUtil.getPackagesToIndex(pm);
+        Map<PackageInfo, ResolveInfos> packageActivityMapping =
+                AppsUtil.getPackagesToIndex(mockContext, pm);
 
         // Make assertions
         assertThat(packageActivityMapping).hasSize(10);
