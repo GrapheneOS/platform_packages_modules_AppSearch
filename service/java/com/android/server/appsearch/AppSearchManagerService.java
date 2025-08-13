@@ -2467,10 +2467,11 @@ public class AppSearchManagerService extends SystemService {
                     AppSearchUserInstance instance = null;
                     int operationSuccessCount = 0;
                     int operationFailureCount = 0;
+                    CallStats.Builder callStatsBuilder = new CallStats.Builder();
                     try {
                         instance = mAppSearchUserInstanceManager.getUserInstance(userToQuery);
                         instance.getAppSearchImpl().invalidateNextPageToken(
-                                callingPackageName, request.getNextPageToken());
+                                callingPackageName, request.getNextPageToken(), callStatsBuilder);
                         operationSuccessCount++;
                     } catch (AppSearchException | RuntimeException | InterruptedException
                              | ExecutionException e) {
@@ -2488,7 +2489,7 @@ public class AppSearchManagerService extends SystemService {
                                     (int) (totalLatencyEndTimeMillis - waitExecutorEndTimeMillis);
                             int totalLatencyMillis =
                                     (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
-                            instance.getLogger().logStats(new CallStats.Builder()
+                            instance.getLogger().logStats(callStatsBuilder
                                     .setPackageName(callingPackageName)
                                     .setStatusCode(statusCode)
                                     .setTotalLatencyMillis(totalLatencyMillis)
@@ -4216,9 +4217,11 @@ public class AppSearchManagerService extends SystemService {
                 isVMEnabledForUser(targetUser),
                 () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
-                    OptimizeStats.Builder builder = new OptimizeStats.Builder();
+                    OptimizeStats.Builder optimizeStatsBuilder = new OptimizeStats.Builder();
+                    CallStats.Builder callStatsBuilder = new CallStats.Builder();
                     try {
-                        instance.getAppSearchImpl().checkForOptimize(mutateBatchSize, builder);
+                        instance.getAppSearchImpl().checkForOptimize(mutateBatchSize,
+                                optimizeStatsBuilder, callStatsBuilder);
                     } catch (Exception e) {
                         Log.w(TAG, "Error occurred when check for optimize", e);
                     } finally {
@@ -4229,7 +4232,8 @@ public class AppSearchManagerService extends SystemService {
                         int onExecutorLatencyMillis =
                                 (int) (totalLatencyEndMillis - waitExecutorEndTimeMillis);
 
-                        OptimizeStats oStats = builder.setTotalLatencyMillis(totalLatency)
+                        OptimizeStats oStats = optimizeStatsBuilder.setTotalLatencyMillis(
+                                        totalLatency)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setExecutorAcquisitionLatencyMillis(executorAcquisitionLatency)
                                 .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
@@ -4261,9 +4265,11 @@ public class AppSearchManagerService extends SystemService {
                 isVMEnabledForUser(targetUser),
                 () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
-                    OptimizeStats.Builder builder = new OptimizeStats.Builder();
+                    OptimizeStats.Builder optimizeStatsBuilder = new OptimizeStats.Builder();
+                    CallStats.Builder callStatsBuilder = new CallStats.Builder();
                     try {
-                        instance.getAppSearchImpl().checkForOptimize(builder);
+                        instance.getAppSearchImpl().checkForOptimize(optimizeStatsBuilder,
+                                callStatsBuilder);
                     } catch (Exception e) {
                         Log.w(TAG, "Error occurred when check for optimize", e);
                     } finally {
@@ -4274,7 +4280,8 @@ public class AppSearchManagerService extends SystemService {
                         int onExecutorLatencyMillis =
                                 (int) (totalLatencyEndMillis - waitExecutorEndTimeMillis);
 
-                        OptimizeStats oStats = builder.setTotalLatencyMillis(totalLatency)
+                        OptimizeStats oStats = optimizeStatsBuilder.setTotalLatencyMillis(
+                                        totalLatency)
                                 .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
                                 .setExecutorAcquisitionLatencyMillis(executorAcquisitionLatency)
                                 .setOnExecutorLatencyMillis(onExecutorLatencyMillis)

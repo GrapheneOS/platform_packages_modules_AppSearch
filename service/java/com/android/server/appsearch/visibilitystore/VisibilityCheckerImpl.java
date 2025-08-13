@@ -28,6 +28,7 @@ import static android.permission.PermissionManager.PERMISSION_GRANTED;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appfunctions.AppFunctionManager;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.SchemaVisibilityConfig;
@@ -36,6 +37,7 @@ import android.app.appsearch.aidl.AppSearchAttributionSource;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.UserHandle;
 import android.permission.PermissionManager;
 
@@ -62,6 +64,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
     private final PermissionManager mPermissionManager;
     private final PolicyChecker mPolicyChecker;
 
+    @Nullable private final AppFunctionManager mAppFunctionManager;
+
     public VisibilityCheckerImpl(@NonNull Context userContext) {
         this(userContext, new PolicyCheckerImpl(userContext));
     }
@@ -71,6 +75,11 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         mUserContext = Objects.requireNonNull(userContext);
         mPermissionManager = userContext.getSystemService(PermissionManager.class);
         mPolicyChecker = policyChecker;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            mAppFunctionManager = userContext.getSystemService(AppFunctionManager.class);
+        } else {
+            mAppFunctionManager = null;
+        }
     }
 
     @Override
@@ -342,13 +351,24 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 case SetSchemaRequest.READ_EXTERNAL_STORAGE:
                 case SetSchemaRequest.READ_HOME_APP_SEARCH_DATA:
                 case SetSchemaRequest.READ_ASSISTANT_APP_SEARCH_DATA:
-                case SetSchemaRequest.EXECUTE_APP_FUNCTIONS:
-                case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
                 case SetSchemaRequest.PACKAGE_USAGE_STATS:
                     if (!doesCallerHavePermissionForDataDelivery(
                             requiredPermission, callerAttributionSource)) {
                         // The calling package doesn't have this required permission, return false.
                         return false;
+                    }
+                    break;
+                case SetSchemaRequest.EXECUTE_APP_FUNCTIONS:
+                case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
+                    if (!doesCallerHavePermissionForDataDelivery(
+                            requiredPermission, callerAttributionSource)) {
+                        // The calling package doesn't have this required permission, return false.
+                        return false;
+                    }
+                    if (Flags.enableAppFunctionAgentAllowlistCheck()) {
+                        if (!isValidAppFunctionAgent(callerAttributionSource.getPackageName())) {
+                            return false;
+                        }
                     }
                     break;
                 case SetSchemaRequest.MANAGED_PROFILE_CONTACTS_ACCESS:
@@ -455,5 +475,23 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                         .getPackageManager()
                         .checkPermission(READ_GLOBAL_APP_SEARCH_DATA, callerPackageName)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Checks whether the given package is a valid agent.
+     *
+     * @param callerPackageName Package name of the caller.
+     */
+    @VisibleForTesting
+    public boolean isValidAppFunctionAgent(@NonNull String callerPackageName) {
+        if (mAppFunctionManager == null
+                || !android.permission.flags.Flags.appFunctionAccessApiEnabled()) {
+            // Running on SDK without AppFunction access service, no access check required.
+            return true;
+        }
+
+        Objects.requireNonNull(callerPackageName);
+        final List<String> validAgents = mAppFunctionManager.getValidAgents();
+        return validAgents.contains(callerPackageName);
     }
 }
