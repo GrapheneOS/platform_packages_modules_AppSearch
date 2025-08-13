@@ -171,7 +171,12 @@ public final class AppsUtil {
         Map<String, ResolveInfo> packageNameToLauncher = new ArrayMap<>();
         for (int i = 0; i < activities.size(); i++) {
             ResolveInfo resolveInfo = activities.get(i);
-            packageNameToLauncher.put(resolveInfo.activityInfo.packageName, resolveInfo);
+            String packageName = resolveInfo.activityInfo.packageName;
+            if (!Flags.enableAppsIndexerUseFirstResolveInfo()
+                    || !packageNameToLauncher.containsKey(packageName)) {
+                // Only put if we haven't found one previously, or flag isn't enabled
+                packageNameToLauncher.put(packageName, resolveInfo);
+            }
         }
 
         // This is to workaround the android lint check.
@@ -488,14 +493,39 @@ public final class AppsUtil {
         if (iconUri != null) {
             builder.setIconUri(iconUri);
         }
-        if (packageInfo.applicationInfo != null) {
-            String applicationLabel =
-                    packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
+
+        String applicationLabel =
+                packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
+        if (Flags.enableAppsIndexerUseFirstResolveInfo()) {
+            // A package may have multiple ResolveInfos, and these can have different labels. All of
+            // these labels should be added to alternate names if they are different from the
+            // display name to better support matching.
+            List<String> alternateNames = new ArrayList<>();
+
+            Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
+            launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            launchIntent.setPackage(packageInfo.packageName);
+            List<ResolveInfo> activities = packageManager.queryIntentActivities(launchIntent, 0);
+            for (int i = 0; i < activities.size(); i++) {
+                ResolveInfo resolveInfo = activities.get(i);
+                String alternateLabel = resolveInfo.loadLabel(packageManager).toString();
+                if (!applicationDisplayName.equals(alternateLabel)) {
+                    alternateNames.add(alternateLabel);
+                }
+            }
+
+            if (!applicationDisplayName.equals(applicationLabel)) {
+                // This can be different from applicationDisplayName, and should be indexed
+                alternateNames.add(applicationLabel);
+            }
+            builder.setAlternateNames(alternateNames.toArray(new String[0]));
+        } else {
             if (!applicationDisplayName.equals(applicationLabel)) {
                 // This can be different from applicationDisplayName, and should be indexed
                 builder.setAlternateNames(applicationLabel);
             }
         }
+
         if (launchActivityResolveInfo.activityInfo.name != null) {
             builder.setClassName(launchActivityResolveInfo.activityInfo.name);
         }
