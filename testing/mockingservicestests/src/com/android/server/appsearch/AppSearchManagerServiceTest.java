@@ -201,8 +201,10 @@ public class AppSearchManagerServiceTest {
         Context context = ApplicationProvider.getApplicationContext();
         mUserHandle = context.getUser();
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        final boolean useIsolatedStorage = false;
-        mContext = new TestContext(context, mRoleManager, mDevicePolicyManager, useIsolatedStorage);
+        final boolean isIsolatedStorageAvailable = false;
+        mContext =
+                new TestContext(
+                        context, mRoleManager, mDevicePolicyManager, isIsolatedStorageAvailable);
 
         // Set a test environment that provides a temporary folder for AppSearch
         File mAppSearchDir = mTemporaryFolder.newFolder();
@@ -227,7 +229,8 @@ public class AppSearchManagerServiceTest {
         // Note, SimpleTestLogger does not suffice for our tests since CallStats logging in
         // AppSearchManagerService occurs in a separate thread. With a spy, we can verify with a
         // timeout to catch asynchronous calls.
-        mExecutorManager = new ExecutorManager(appSearchConfig);
+        mExecutorManager =
+                new ExecutorManager(appSearchConfig, /* isIsolatedStorageAvailable= */ true);
         mUserInstance =
                 AppSearchUserInstanceManager.getInstance()
                         .getOrCreateUserInstance(
@@ -1518,7 +1521,8 @@ public class AppSearchManagerServiceTest {
                 KEY_ISOLATED_STORAGE_DISABLED,
                 Boolean.toString(false),
                 false);
-        assumeTrue(IsolatedStorageServiceManager.useIsolatedStorage(context, appSearchConfig));
+        assumeTrue(
+                IsolatedStorageServiceManager.isIsolatedStorageAvailable(context, appSearchConfig));
         // The original user0 was created to not use isolated storage, and that result was
         // cached. Clear the cache so that our new settings take effect.
         AppSearchUserInstanceManager.getInstance()
@@ -1530,31 +1534,37 @@ public class AppSearchManagerServiceTest {
                         ExecutorManager.createDefaultScheduledExecutorService());
         // Ensure that AppSearch fails if the isolated storage service fails
         TestContext testContext =
-                new TestContext(context, mRoleManager, mDevicePolicyManager,
-                        /*useIsolatedStorage=*/true);
+                new TestContext(
+                        context,
+                        mRoleManager,
+                        mDevicePolicyManager,
+                        /* isIsolatedStorageAvailable= */ true);
         assertThrows(
                 AppSearchException.class,
-                () -> {
-                    AppSearchUserInstanceManager.getInstance()
-                            .getOrCreateUserInstance(
-                                    testContext,
-                                    mUserHandle,
-                                    appSearchConfig,
-                                    mExecutorManager,
-                                    isolatedStorageServiceManager);
-                });
+                () ->
+                        AppSearchUserInstanceManager.getInstance()
+                                .getOrCreateUserInstance(
+                                        testContext,
+                                        mUserHandle,
+                                        appSearchConfig,
+                                        mExecutorManager,
+                                        isolatedStorageServiceManager));
     }
 
     @Test
     public void testPutDocuments_usesWriteExecutor() throws Exception {
         // Set up executor spies
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
-        ExecutorService writeExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
-        ExecutorService readExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
+        ExecutorService writeExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -1576,12 +1586,16 @@ public class AppSearchManagerServiceTest {
     public void testSearch_usesReadOnlyExecutor() throws Exception {
         // Set up executor spies
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
-        ExecutorService writeExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
-        ExecutorService readExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
+        ExecutorService writeExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -1601,12 +1615,16 @@ public class AppSearchManagerServiceTest {
     public void testSetSchema_usesWriteExecutor() throws Exception {
         // Set up executor spies
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
-        ExecutorService writeExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
-        ExecutorService readExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
+        ExecutorService writeExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -1631,12 +1649,16 @@ public class AppSearchManagerServiceTest {
     public void testGetSchema_usesReadOnlyExecutor() throws Exception {
         // Set up executor spies
         ExecutorManager executorManager = mAppSearchManagerService.getExecutorManager();
-        ExecutorService writeExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ false, /* isVMEnabledForUser= */true));
-        ExecutorService readExecutorSpy = spy(
-                (ExecutorService) executorManager.getOrCreateUserExecutor(
-                        mUserHandle, /* isReadOnly= */ true, /* isVMEnabledForUser= */true));
+        ExecutorService writeExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ false));
+        ExecutorService readExecutorSpy =
+                spy(
+                        (ExecutorService)
+                                executorManager.getOrCreateUserExecutor(
+                                        mUserHandle, /* isReadOnly= */ true));
         executorManager.setUserExecutorForTest(mUserHandle, writeExecutorSpy);
         executorManager.setReadOnlyUserExecutorForTest(mUserHandle, readExecutorSpy);
 
@@ -2123,7 +2145,7 @@ public class AppSearchManagerServiceTest {
     private static final class TestContext extends ContextWrapper {
         private final RoleManager mRoleManager;
         private final DevicePolicyManager mDevicePolicyManager;
-        private final boolean mUseIsolatedStorage;
+        private final boolean isIsolatedStorageAvailable;
 
         @Nullable private PackageManager mPackageManager;
         @Nullable private String mPackageName;
@@ -2132,11 +2154,11 @@ public class AppSearchManagerServiceTest {
                 Context base,
                 RoleManager roleManager,
                 DevicePolicyManager devicePolicyManager,
-                boolean useIsolatedStorage) {
+                boolean isIsolatedStorageAvailable) {
             super(base);
             mRoleManager = roleManager;
             mDevicePolicyManager = devicePolicyManager;
-            mUseIsolatedStorage = useIsolatedStorage;
+            this.isIsolatedStorageAvailable = isIsolatedStorageAvailable;
         }
 
         @Override
@@ -2189,7 +2211,7 @@ public class AppSearchManagerServiceTest {
              * Force use of native icing for AppSearchManagerServiceTests, which mocks
              * servives and does have the isolated storage service
              */
-            if (Context.VIRTUALIZATION_SERVICE.equals(name) && !mUseIsolatedStorage) {
+            if (Context.VIRTUALIZATION_SERVICE.equals(name) && !isIsolatedStorageAvailable) {
                 return null;
             }
             return super.getSystemService(name);

@@ -41,6 +41,7 @@ import com.android.server.appsearch.AppSearchRateLimitConfig;
 import com.android.server.appsearch.FrameworkServiceAppSearchConfig;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
+import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 
 import java.util.Map;
 import java.util.Objects;
@@ -111,6 +112,7 @@ public class ExecutorManager {
     }
 
     private final ServiceAppSearchConfig mAppSearchConfig;
+    private final boolean mIsIsolatedStorageAvailable;
 
     /**
      * A map of per-user executors for queued work. These can be started or shut down via this
@@ -136,8 +138,17 @@ public class ExecutorManager {
     private final Map<UserHandle, ScheduledExecutorService> mPerUserScheduledExecutorsLocked =
             new ArrayMap<>();
 
-    public ExecutorManager(@NonNull ServiceAppSearchConfig appSearchConfig) {
+    /**
+     * Constructs a new ExecutorManager.
+     *
+     * @param appSearchConfig Configuration to use for configuring executors
+     * @param isIsolatedStorageAvailable Whether Isolated Storage is enabled, which overrides some
+     *     settings which otherwise come from the config.
+     */
+    public ExecutorManager(
+            @NonNull ServiceAppSearchConfig appSearchConfig, boolean isIsolatedStorageAvailable) {
         mAppSearchConfig = Objects.requireNonNull(appSearchConfig);
+        mIsIsolatedStorageAvailable = isIsolatedStorageAvailable;
     }
 
     /** Sets the user executor for a given {@link UserHandle} for testing. */
@@ -168,10 +179,9 @@ public class ExecutorManager {
      * be created without problems but most operations on locked users will fail.
      */
     @NonNull
-    public Executor getOrCreateUserExecutor(
-            @NonNull UserHandle userHandle, boolean isReadOnly, boolean isVMEnabledForUser) {
+    public Executor getOrCreateUserExecutor(@NonNull UserHandle userHandle, boolean isReadOnly) {
         Objects.requireNonNull(userHandle);
-        if (areSeparateReadWriteExecutorsEnabled(isVMEnabledForUser) && isReadOnly) {
+        if (areSeparateReadWriteExecutorsEnabled(userHandle) && isReadOnly) {
             synchronized (mPerUserReadOnlyExecutorsLocked) {
                 if (mAppSearchConfig.getCachedRateLimitEnabled()) {
                     return getOrCreateUserRateLimitedExecutorLocked(userHandle,
@@ -217,8 +227,7 @@ public class ExecutorManager {
      * Gracefully shuts down the executor for the given user if there is one, waiting up to 30
      * seconds for jobs to finish.
      */
-    public void shutDownAndRemoveUserExecutor(
-            @NonNull UserHandle userHandle, boolean isVMEnabledForUser)
+    public void shutDownAndRemoveUserExecutor(@NonNull UserHandle userHandle)
             throws InterruptedException {
         Objects.requireNonNull(userHandle);
         ExecutorService executor;
@@ -230,7 +239,7 @@ public class ExecutorManager {
         }
 
         ExecutorService readOnlyExecutor = null;
-        if (areSeparateReadWriteExecutorsEnabled(isVMEnabledForUser)) {
+        if (areSeparateReadWriteExecutorsEnabled(userHandle)) {
             synchronized (mPerUserReadOnlyExecutorsLocked) {
                 readOnlyExecutor = mPerUserReadOnlyExecutorsLocked.remove(userHandle);
             }
@@ -257,7 +266,7 @@ public class ExecutorManager {
         if (executor != null) {
             executor.awaitTermination(awaitDurationMs, TimeUnit.MILLISECONDS);
         }
-        if (areSeparateReadWriteExecutorsEnabled(isVMEnabledForUser)) {
+        if (areSeparateReadWriteExecutorsEnabled(userHandle)) {
             awaitDurationMs =
                     AWAIT_DURATION_MS - (SystemClock.elapsedRealtime() - awaitStartTimeMs);
             if (readOnlyExecutor != null && awaitDurationMs > 0) {
@@ -289,7 +298,6 @@ public class ExecutorManager {
             @NonNull IAppSearchResultCallback errorCallback,
             @NonNull String callingPackageName,
             @CallStats.CallType int apiType,
-            boolean isVMEnabledForUser,
             @NonNull Runnable lambda) {
         Objects.requireNonNull(targetUser);
         Objects.requireNonNull(errorCallback);
@@ -297,7 +305,7 @@ public class ExecutorManager {
         Objects.requireNonNull(lambda);
         try {
             boolean isReadOnly = isReadOnlyCall(apiType);
-            Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly, isVMEnabledForUser);
+            Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly);
             if (executor instanceof RateLimitedExecutor) {
                 boolean callAccepted =
                         ((RateLimitedExecutor) executor)
@@ -340,7 +348,6 @@ public class ExecutorManager {
             @NonNull IAppSearchBatchResultCallback errorCallback,
             @NonNull String callingPackageName,
             @CallStats.CallType int apiType,
-            boolean isVMEnabledForUser,
             @NonNull Runnable lambda) {
         Objects.requireNonNull(targetUser);
         Objects.requireNonNull(errorCallback);
@@ -348,7 +355,7 @@ public class ExecutorManager {
         Objects.requireNonNull(lambda);
         try {
             boolean isReadOnly = isReadOnlyCall(apiType);
-            Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly, isVMEnabledForUser);
+            Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly);
             if (executor instanceof RateLimitedExecutor) {
                 boolean callAccepted =
                         ((RateLimitedExecutor) executor)
@@ -384,13 +391,12 @@ public class ExecutorManager {
             @NonNull UserHandle targetUser,
             @NonNull String callingPackageName,
             @CallStats.CallType int apiType,
-            boolean isVMEnabledForUser,
             @NonNull Runnable lambda) {
         Objects.requireNonNull(targetUser);
         Objects.requireNonNull(callingPackageName);
         Objects.requireNonNull(lambda);
         boolean isReadOnly = isReadOnlyCall(apiType);
-        Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly, isVMEnabledForUser);
+        Executor executor = getOrCreateUserExecutor(targetUser, isReadOnly);
         if (executor instanceof RateLimitedExecutor) {
             return ((RateLimitedExecutor) executor).execute(lambda, callingPackageName, apiType);
         } else {
@@ -408,11 +414,10 @@ public class ExecutorManager {
      * @param lambda The lambda to execute on the user-provided executor.
      */
     public void executeLambdaForUserNoCallbackAsync(
-            @NonNull UserHandle targetUser, boolean isReadOnly, boolean isVMEnabledForUser,
-            @NonNull Runnable lambda) {
+            @NonNull UserHandle targetUser, boolean isReadOnly, @NonNull Runnable lambda) {
         Objects.requireNonNull(targetUser);
         Objects.requireNonNull(lambda);
-        getOrCreateUserExecutor(targetUser, isReadOnly, isVMEnabledForUser).execute(lambda);
+        getOrCreateUserExecutor(targetUser, isReadOnly).execute(lambda);
     }
 
     /**
@@ -504,7 +509,16 @@ public class ExecutorManager {
         }
     }
 
-    private static boolean areSeparateReadWriteExecutorsEnabled(boolean isVMEnabledForUser) {
-        return Flags.enableSeparateReadWriteExecutors() || isVMEnabledForUser;
+    private boolean areSeparateReadWriteExecutorsEnabled(@NonNull UserHandle userHandle) {
+        if (Flags.enableSeparateReadWriteExecutors()) {
+            return true;
+        }
+        // Even without the manual flag, separate executors are always used for isolated storage.
+        if (mIsIsolatedStorageAvailable
+                && IsolatedStorageServiceManager.isUserAllowed(userHandle)) {
+            return true;
+        }
+
+        return false;
     }
 }

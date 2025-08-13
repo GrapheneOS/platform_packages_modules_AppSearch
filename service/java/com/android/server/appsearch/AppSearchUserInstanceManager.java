@@ -716,7 +716,6 @@ public final class AppSearchUserInstanceManager {
                                     executorManager.executeLambdaForUserNoCallbackAsync(
                                             userHandle,
                                             /* isReadOnly= */ false,
-                                            /* isVMEnabledForUser= */true,
                                             () -> {
                                                 AppSearchUserInstance instance =
                                                         getUserInstanceOrNull(userHandle);

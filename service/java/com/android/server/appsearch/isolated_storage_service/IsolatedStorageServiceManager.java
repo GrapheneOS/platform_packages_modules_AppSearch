@@ -167,7 +167,7 @@ public class IsolatedStorageServiceManager {
     }
 
     /** Gets whether isolated storage should be used. */
-    public static boolean useIsolatedStorage(
+    public static boolean isIsolatedStorageAvailable(
             @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(appSearchConfig);
