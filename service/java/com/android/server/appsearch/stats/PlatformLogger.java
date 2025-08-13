@@ -478,8 +478,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getPreparingChangeNotificationLatencyMillis(),
                     stats.getSchemaMigrationCallType(),
                     stats.getEnabledFeatures(),
-                    stats.getLastWriteOperation(),
-                    stats.getLastWriteOperationLatencyMillis(),
+                    stats.getLastBlockingOperation(),
+                    stats.getLastBlockingOperationLatencyMillis(),
                     stats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
@@ -524,8 +524,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getNumSchemaTypesFiltered(),
                     stats.getParseQueryLatencyMillis(),
                     stats.getDocumentRemovalLatencyMillis(),
-                    stats.getLastWriteOperation(),
-                    stats.getLastWriteOperationLatencyMillis(),
+                    stats.getLastBlockingOperation(),
+                    stats.getLastBlockingOperationLatencyMillis(),
                     stats.getJavaLockAcquisitionLatencyMillis(),
                     stats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
@@ -614,8 +614,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getEnabledFeatures(),
                     stats.getMetadataTermIndexLatencyMillis(),
                     stats.getEmbeddingIndexLatencyMillis(),
-                    stats.getLastWriteOperation(),
-                    stats.getLastWriteOperationLatencyMillis(),
+                    stats.getLastBlockingOperation(),
+                    stats.getLastBlockingOperationLatencyMillis(),
                     stats.getJavaLockAcquisitionLatencyMillis(),
                     stats.getGetVmLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
@@ -720,8 +720,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     queryStats.getLiteIndexHitBufferUnsortedByteSize(),
                     queryStats.getPageTokenType(),
                     queryStats.getNumResultStatesEvicted(),
-                    queryStats.getLastWriteOperation(),
-                    queryStats.getLastWriteOperationLatencyMillis(),
+                    queryStats.getLastBlockingOperation(),
+                    queryStats.getLastBlockingOperationLatencyMillis(),
                     queryStats.getGetVmLatencyMillis(),
                     queryStats.getFirstNativeCallLatencyMillis(),
                     queryStats.getAdditionalPagesReturnedResultCount(),
@@ -808,8 +808,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getIndexRestorationMode(),
                 stats.getNumOriginalNamespaces(),
                 stats.getNumDeletedNamespaces(),
-                stats.getLastWriteOperation(),
-                stats.getLastWriteOperationLatencyMillis(),
+                stats.getLastBlockingOperation(),
+                stats.getLastBlockingOperationLatencyMillis(),
                 stats.getJavaLockAcquisitionLatencyMillis(),
                 stats.getGetVmLatencyMillis());
     }
@@ -830,8 +830,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getStatusCode(), // 4
                 stats.getEnabledFeatures(), // 5
                 stats.getTriggerCallType(), // 6
-                stats.getLastWriteOperation(), // 7
-                stats.getLastWriteOperationLatencyMillis(), // 8
+                stats.getLastBlockingOperation(), // 7
+                stats.getLastBlockingOperationLatencyMillis(), // 8
                 stats.getJavaLockAcquisitionLatencyMillis(), // 9
                 stats.getGetVmLatencyMillis(), // 10
                 stats.getTotalLatencyMillis(), // 11
