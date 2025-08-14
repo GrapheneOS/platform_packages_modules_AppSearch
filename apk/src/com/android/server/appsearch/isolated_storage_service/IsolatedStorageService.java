@@ -234,12 +234,14 @@ public class IsolatedStorageService extends Service {
             }
             return vm;
         } catch (VirtualMachineException e) {
-            Log.e(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
             // TODO(b/437160991): remove once VirtualMachineManager.getOrCreate is properly
             //  handling creation failures.
-            if (e.getMessage().contains("Failed to read VM config from file")) {
-                Log.i(TAG, "deleting the vm to recover from config read failure");
+            if (e.getMessage().contains("Failed to read VM config from file")
+                    || e.getMessage().contains("Persisted VM config is invalid")) {
+                Log.wtf(TAG, "Deleting the vm to recover from vm config failures", e);
                 deleteVmByName(vmm, VM_NAME);
+            } else {
+                Log.wtf(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
             }
             return null;
         } catch (IllegalArgumentException
