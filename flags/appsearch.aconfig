@@ -795,3 +795,13 @@ flag {
     description: "Enable checking the app is in agent allowlist when deciding document visibility"
     bug: "420892441"
 }
+
+flag {
+    name: "enable_apps_indexer_use_first_resolve_info"
+    namespace: "appsearch"
+    description: "Uses the first resolve info per package instead of the last"
+    bug: "437400697"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.stats;
 
 import android.annotation.NonNull;
@@ -480,7 +480,21 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getEnabledFeatures(),
                     stats.getLastBlockingOperation(),
                     stats.getLastBlockingOperationLatencyMillis(),
-                    stats.getGetVmLatencyMillis());
+                    stats.getGetVmLatencyMillis(),
+                    stats.getUnblockedAppSearchLatencyMillis(),
+                    stats.getJoinIndexIncompatibleTypeChangeCount(),
+                    stats.getScorablePropertyIncompatibleTypeChangeCount(),
+                    stats.getDeletedDocumentCount(),
+                    stats.isTermIndexRestored(),
+                    stats.isIntegerIndexRestored(),
+                    stats.isEmbeddingIndexRestored(),
+                    stats.isQualifiedIdJoinIndexRestored(),
+                    stats.getNativeSchemaStoreSetSchemaLatencyMillis(),
+                    stats.getNativeDocumentStoreUpdateSchemaLatencyMillis(),
+                    stats.getNativeDocumentStoreOptimizedUpdateSchemaLatencyMillis(),
+                    stats.getNativeIndexRestorationLatencyMillis(),
+                    stats.getNativeScorablePropertyCacheRegenerationLatencyMillis(),
+                    stats.getSkippedIcingInteraction());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -527,7 +541,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getLastBlockingOperation(),
                     stats.getLastBlockingOperationLatencyMillis(),
                     stats.getJavaLockAcquisitionLatencyMillis(),
-                    stats.getGetVmLatencyMillis());
+                    stats.getGetVmLatencyMillis(),
+                    stats.getUnblockedAppSearchLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -617,7 +632,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getLastBlockingOperation(),
                     stats.getLastBlockingOperationLatencyMillis(),
                     stats.getJavaLockAcquisitionLatencyMillis(),
-                    stats.getGetVmLatencyMillis());
+                    stats.getGetVmLatencyMillis(),
+                    stats.getUnblockedAppSearchLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -726,7 +742,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     queryStats.getFirstNativeCallLatencyMillis(),
                     queryStats.getAdditionalPagesReturnedResultCount(),
                     queryStats.getAdditionalPageCount(),
-                    queryStats.getAdditionalPageRetrievalLatencyMillis());
+                    queryStats.getAdditionalPageRetrievalLatencyMillis(),
+                    queryStats.getUnblockedAppSearchLatencyMillis());
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -811,7 +828,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getLastBlockingOperation(),
                 stats.getLastBlockingOperationLatencyMillis(),
                 stats.getJavaLockAcquisitionLatencyMillis(),
-                stats.getGetVmLatencyMillis());
+                stats.getGetVmLatencyMillis(),
+                stats.getUnblockedAppSearchLatencyMillis());
     }
 
     @GuardedBy("mLock")
@@ -847,7 +865,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getIndexPersistLatencyMillis(), // 21
                 stats.getIntegerIndexPersistLatencyMillis(), // 22
                 stats.getQualifiedIdJoinIndexPersistLatencyMillis(), // 23
-                stats.getEmbeddingIndexPersistLatencyMillis()); // 24
+                stats.getEmbeddingIndexPersistLatencyMillis(),
+                stats.getUnblockedAppSearchLatencyMillis()); // 24
     }
 
     @GuardedBy("mLock")

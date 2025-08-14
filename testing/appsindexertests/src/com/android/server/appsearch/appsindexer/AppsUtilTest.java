@@ -28,6 +28,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
@@ -35,16 +36,20 @@ import android.content.ContextWrapper;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -54,6 +59,7 @@ import java.util.Map;
 
 /** This tests that we can convert what comes from PackageManager to a MobileApplication */
 public class AppsUtilTest {
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     @Test
     public void testBuildAppsFromPackageInfos_ReturnsNonNullList() throws Exception {
@@ -185,6 +191,71 @@ public class AppsUtilTest {
                             targetedResolveInfo.getLaunchActivityResolveInfo()
                                     .activityInfo
                                     .packageName);
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_USE_FIRST_RESOLVE_INFO)
+    public void testMultipleResolveInfosForApp() throws Exception {
+        Context context = ApplicationProvider.getApplicationContext();
+        PackageManager pm = Mockito.mock(PackageManager.class);
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+
+        // Define values to be used in the test explicitly
+        final String primaryActivitySuffix = ".PrimaryActivity";
+        final String primaryAppName = "Primary Application Name";
+        final int primaryIcon = 123;
+        final String alternateAppName = "Alternate Application Name";
+        final int alternateIcon = 456;
+
+        for (int i = 0; i < 10; i++) {
+            PackageInfo packageInfo = createFakePackageInfo(i);
+            fakePackages.add(packageInfo);
+            String packageName = packageInfo.packageName;
+
+            // Create the first ResolveInfo (will be treated as primary)
+            ResolveInfo fakeResolveInfo1 = createFakeLaunchResolveInfo(i);
+            // Explicitly set the fields this test will assert against.
+            fakeResolveInfo1.activityInfo.name = packageName + primaryActivitySuffix;
+            fakeResolveInfo1.activityInfo.applicationInfo.name = primaryAppName;
+            fakeResolveInfo1.activityInfo.applicationInfo.nonLocalizedLabel = primaryAppName;
+            fakeResolveInfo1.activityInfo.icon = primaryIcon;
+            fakeActivities.add(fakeResolveInfo1);
+
+            // Create the second ResolveInfo (will contribute to alternate names)
+            ResolveInfo fakeResolveInfo2 = createFakeLaunchResolveInfo(i);
+            fakeResolveInfo2.activityInfo.name = packageName + ".SomeOtherActivity";
+            fakeResolveInfo2.activityInfo.applicationInfo.name = alternateAppName;
+            fakeResolveInfo2.activityInfo.applicationInfo.nonLocalizedLabel = alternateAppName;
+            fakeResolveInfo2.activityInfo.icon = alternateIcon;
+            fakeActivities.add(fakeResolveInfo2);
+        }
+
+        setupMockPackageManager(
+                pm, fakePackages, fakeActivities, /* appFunctionServices= */ ImmutableList.of());
+        Map<PackageInfo, ResolveInfos> packageLaunchActivityMapping =
+                AppsUtil.getPackagesToIndex(context, pm);
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(pm, packageLaunchActivityMapping);
+
+        // We just indexed 10 apps with 2 resolve infos each. In the first resolve info for each,
+        // the name is "Fake Application Name". In the second resolve info for each, we set the name
+        // to "Legacy Application Name".
+        // With the fix, the displayName should be "Fake Application Name" while "Legacy Application
+        // Name" is added to alternateNames
+        assertThat(resultApps).hasSize(10);
+        for (int i = 0; i < resultApps.size(); i++) {
+            MobileApplication app = resultApps.get(i);
+            String expectedPackageName = "com.fake.package";
+
+            assertThat(app.getPackageName()).startsWith(expectedPackageName);
+            // Assertions based on values explicitly set on fakeResolveInfo1
+            assertThat(app.getClassName()).endsWith(primaryActivitySuffix);
+            assertThat(app.getDisplayName()).isEqualTo(primaryAppName);
+            assertThat(app.getIconUri().toString()).endsWith(String.valueOf(primaryIcon));
+            // Assertion based on values explicitly set on fakeResolveInfo2
+            assertThat(app.getAlternateNames()).asList().contains(alternateAppName);
         }
     }
 }

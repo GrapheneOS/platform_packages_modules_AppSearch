@@ -18,6 +18,7 @@ package android.app.appsearch.util;
 
 import android.annotation.NonNull;
 import android.os.RemoteException;
+import android.util.Log;
 
 /**
  * Utilities for handling exceptions.
@@ -25,6 +26,8 @@ import android.os.RemoteException;
  * @hide
  */
 public final class ExceptionUtil {
+
+    private static final String TAG = "AppSearchExceptionUtil";
 
     /**
      * {@link RuntimeException} will be rethrown if {@link #isItOkayToRethrowException()} returns
@@ -38,12 +41,20 @@ public final class ExceptionUtil {
 
     /** Returns whether it is OK to rethrow exceptions from this entrypoint. */
     private static boolean isItOkayToRethrowException() {
+        // <!--@exportToGMSCore:ifFramework()-->
         return false;
+        // <!--@exportToGMSCore:else()
+        //   return true;
+        // -->
     }
 
-    /** Rethrow exception from SystemServer in Framework code. */
+    /** Log and only rethrow exception from SystemServer in Framework code. */
     public static void handleRemoteException(@NonNull RemoteException e) {
+        Log.w(TAG, "Unable to make a call to AppSearchManagerService!", e);
+        // <!--@exportToGMSCore:ifFramework()-->
         e.rethrowFromSystemServer();
+        // <!--@exportToGMSCore:else()
+        // -->
     }
 
     /**

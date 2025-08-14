@@ -86,6 +86,21 @@ public class DataMigrationUtil {
         return icingVersion.exists();
     }
 
+    /** Checks if the migration status file exists. */
+    public static boolean migrationStatusFileExists(
+            @NonNull UserHandle userHandle, @NonNull File appSearchDir) {
+        try {
+            File icingMigrationStatus = new File(appSearchDir, DATA_MIGRATION_STATUS_FILE);
+            return icingMigrationStatus.exists();
+        } catch (Exception e) {
+            Log.e(
+                    TAG,
+                    "Exception thrown while checking migration status " + "file for " + userHandle,
+                    e);
+        }
+        return false;
+    }
+
     /** deletes the migration status file if it exists. */
     public static void deleteMigrationStatus(
             @NonNull UserHandle userHandle,
