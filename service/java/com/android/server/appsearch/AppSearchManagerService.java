@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch;
 
 import static android.app.appsearch.AppSearchResult.RESULT_DENIED;
