@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Apps indexer settings backed by a PersistableBundle.
@@ -54,6 +55,8 @@ public class AppsIndexerSettings extends IndexerSettings {
     private static final String LOG_LINES_KEY = "log_lines";
     private static final int MAX_LOG_LINES = 15;
     private static final int MAX_LOG_LENGTH = 10_000;
+
+    private static final String PREVIOUS_LOCALE_CODE = "previous_locale_code";
 
     private final Deque<String> mLogLines;
 
@@ -116,6 +119,16 @@ public class AppsIndexerSettings extends IndexerSettings {
             fingerprints[i] = fingerprintedPartitions.get(i).getFingerprint();
         }
         mBundle.putStringArray(LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME, fingerprints);
+    }
+
+    /** Get the locale code of the previous apps indexer run. */
+    public String getPreviousLocaleCode() {
+        return mBundle.getString(PREVIOUS_LOCALE_CODE);
+    }
+
+    /** Sets the locale code of the most recent apps indexer run. */
+    public void setPreviousLocaleCode(@NonNull String localeCode) {
+        mBundle.putString(PREVIOUS_LOCALE_CODE, Objects.requireNonNull(localeCode));
     }
 
     /** Appends a log message to the settings log. */

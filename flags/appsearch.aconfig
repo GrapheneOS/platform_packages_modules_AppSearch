@@ -805,3 +805,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_apps_indexer_locale_change_full_update"
+    namespace: "appsearch"
+    description: "Triggers a full update when the locale changes"
+    bug: "437400460"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
