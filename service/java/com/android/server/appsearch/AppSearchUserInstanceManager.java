@@ -36,6 +36,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
+import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IcingSearchEngine;
@@ -697,16 +698,42 @@ public final class AppSearchUserInstanceManager {
             Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
-        // We always create the migration file if vm is created. It will be empty until data
-        // migration actually runs. With this file created, it can help us to remove the vm if it
-        // gets disabled. During startup, we can check if this file exists, and call vm removal if
-        // it does.
         final File appSearchDir =
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
-        DataMigrationUtil.writeMigrationStatus(appSearchDir, /* migrationStats= */ null);
+        // Check whether this is the first time VM is booted after the feature is enabled.
+        boolean vmFirstRun = true;
+        if (DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir)) {
+            vmFirstRun = false;
+        } else {
+            // We always create the migration file if vm is created. It will be empty until data
+            // migration actually runs(migration might not needed so it will remain empty). With
+            // this file created, it can help us to remove the vm if
+            // it gets disabled. During startup, we can check if this file exists, and call vm
+            // removal if it does.
+            DataMigrationUtil.writeMigrationStatus(appSearchDir, /* migrationStats= */ null);
+        }
 
         if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
+            // Data migration is not needed. But we still want to log an entry to
+            // indicate that data migration is correctly skipped.
+            AppSearchUserInstance instance = getUserInstanceOrNull(userHandle);
+            if (vmFirstRun && instance != null && instance.getLogger() != null) {
+                // Skipped is effectively doing migration with 0 data.
+                CallStats.Builder callStatsBuilder =
+                        new CallStats.Builder()
+                                .setStatusCode(AppSearchResult.RESULT_OK)
+                                // We re-purpose this to be the counter for previous runs.
+                                .setTotalLatencyMillis(0)
+                                .setEstimatedBinderLatencyMillis(0)
+                                .setCallType(
+                                        CallStats
+                                                .INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
+                                .setLaunchVMEnabled(true)
+                                .setNumOperationsSucceeded(0)
+                                .setNumOperationsFailed(0);
+                instance.getLogger().logStats(callStatsBuilder.build());
+            }
             Log.i(TAG, "Data migration is not needed.");
             return isolatedIcingInterface;
         }
