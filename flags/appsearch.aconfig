@@ -805,3 +805,23 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_apps_indexer_locale_change_full_update"
+    namespace: "appsearch"
+    description: "Triggers a full update when the locale changes"
+    bug: "437400460"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+ flag {
+    name: "enable_schema_migration_executor_dead_lock_fix"
+    namespace: "appsearch"
+    description: "Enable the executor dead lock fix for the get schema call in schema migration job."
+    bug: "436282573"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
