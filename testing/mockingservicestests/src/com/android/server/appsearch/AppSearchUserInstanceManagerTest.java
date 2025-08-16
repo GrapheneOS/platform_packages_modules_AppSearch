@@ -103,7 +103,8 @@ public class AppSearchUserInstanceManagerTest {
                 });
 
         mServiceConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, mContext);
-        mExecutorManager = new ExecutorManager(mServiceConfig);
+        mExecutorManager =
+                new ExecutorManager(mServiceConfig, /* isIsolatedStorageAvailable= */ true);
     }
 
     @After
