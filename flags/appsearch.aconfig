@@ -825,3 +825,17 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_embedding_iterator_v2"
+    namespace: "appsearch"
+    description: "Enable new version of the embedding iterator which has a more efficient access pattern."
+    bug: "435005853"
+}
+
+flag {
+    name: "enable_reusable_decompression_buffer"
+    namespace: "appsearch"
+    description: "Enable portable-file-backed-proto-log maintaining a buffer for decompression rather than allocating new ones."
+    bug: "435754056"
+}

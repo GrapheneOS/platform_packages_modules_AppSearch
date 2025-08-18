@@ -797,6 +797,21 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 status -> BlobProto.newBuilder().setStatus(status).build());
     }
 
+
+    @NonNull
+    @Override
+    public BlobProto getAllBlobInfos() {
+        // TODO(b/434206770): Implement this with isolated_storage.
+        return BlobProto.getDefaultInstance();
+    }
+
+    @NonNull
+    @Override
+    public BlobProto putBlobInfos(BlobProto blobProto) {
+        // TODO(b/434206770): Implement this with isolated_storage.
+        return BlobProto.getDefaultInstance();
+    }
+
     @NonNull
     @Override
     public DeleteResultProto delete(@NonNull String namespace, @NonNull String uri) {

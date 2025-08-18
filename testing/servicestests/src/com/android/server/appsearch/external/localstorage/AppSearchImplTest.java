@@ -13212,6 +13212,599 @@ public class AppSearchImplTest {
         }
     }
 
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueForNewSetSchema() throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueForDeletedSetSchema() throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse1 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Delete the schema by calling SetSchema with empty list. Need persistToDisk.
+        InternalSetSchemaResponse internalSetSchemaResponse2 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        /* schemas= */ Collections.emptyList(),
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ true,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
+        assertThat(internalSetSchemaResponse2.getSetSchemaResponse().getDeletedTypes()).hasSize(1);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueForIncompatibleSetSchema()
+            throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas1 =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse1 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Set schema again with incompatible changes (property cardinality OPTIONAL -> REQUIRED).
+        // Need persistToDisk.
+        List<AppSearchSchema> schemas2 =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_REQUIRED)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse2 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas2,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ true,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
+        assertThat(internalSetSchemaResponse2.getSetSchemaResponse().getIncompatibleTypes())
+                .hasSize(1);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueForIndexIncompatibleSetSchema()
+            throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas1 =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse1 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas1,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
+
+        // Put 1 document to trigger index rebuild for the next setSchema call.
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id", "Type")
+                        .setPropertyString("body", "foo bar baz")
+                        .build();
+        mAppSearchImpl.putDocument(
+                "package",
+                "database",
+                document,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
+
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Set schema again with index incompatible changes. Need persistToDisk.
+        List<AppSearchSchema> schemas2 =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_PREFIXES)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_PLAIN)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse2 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas2,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsFalseForSameSetSchema() throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse1 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Set the same schema again. No need persistToDisk.
+        InternalSetSchemaResponse internalSetSchemaResponse2 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueForSameSetSchemaWithVisibilityChange()
+            throws Exception {
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder("Type")
+                        .setNotDisplayedBySystem(true)
+                        .addVisibleToPackage(new PackageIdentifier("pkgBar", new byte[32]))
+                        .build();
+
+        // Set schema without visibility config.
+        InternalSetSchemaResponse internalSetSchemaResponse1 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* schemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse1.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Set the same schema again with different visibility settings. Need persistToDisk.
+        InternalSetSchemaResponse internalSetSchemaResponse2 =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        Collections.singletonList(visibilityConfig),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* schemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse2.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueAfterPut() throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Put a document. Need persistToDisk.
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id", "Type")
+                        .setPropertyString("body", "foo bar baz")
+                        .build();
+        mAppSearchImpl.putDocument(
+                "package",
+                "database",
+                document,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueAfterRemove() throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_NONE)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_NONE)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Put a document. Need persistToDisk.
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id", "Type")
+                        .setPropertyString("body", "foo bar baz")
+                        .build();
+        mAppSearchImpl.putDocument(
+                "package",
+                "database",
+                document,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Remove a document. Need persistToDisk.
+        mAppSearchImpl.remove(
+                "package",
+                "database",
+                "namespace",
+                "id",
+                /* removeStatsBuilder= */ null,
+                /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    public void testGetAndResetNeedPersistToDisk_returnsTrueAfterRemoveByQuery() throws Exception {
+        // Set schema
+        List<AppSearchSchema> schemas =
+                Collections.singletonList(
+                        new AppSearchSchema.Builder("Type")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder("body")
+                                                .setCardinality(
+                                                        AppSearchSchema.PropertyConfig
+                                                                .CARDINALITY_OPTIONAL)
+                                                .setIndexingType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .INDEXING_TYPE_PREFIXES)
+                                                .setTokenizerType(
+                                                        AppSearchSchema.StringPropertyConfig
+                                                                .TOKENIZER_TYPE_PLAIN)
+                                                .build())
+                                .build());
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        schemas,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Put a document. Need persistToDisk.
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id", "Type")
+                        .setPropertyString("body", "foo bar baz")
+                        .build();
+        mAppSearchImpl.putDocument(
+                "package",
+                "database",
+                document,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Remove by query. Need persistToDisk.
+        mAppSearchImpl.removeByQuery(
+                "package",
+                "database",
+                /* queryExpression= */ "foo",
+                new SearchSpec.Builder()
+                        .addFilterNamespaces("namespace")
+                        .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
+                        .build(),
+                /* deletedIds= */ null,
+                /* statsBuilder= */ null,
+                /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testGetAndResetNeedPersistToDisk_returnsTrueAfterOpenWriteAndCommitBlob()
+            throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+        byte[] data = generateRandomBytes(20 * 1024); // 20 KiB
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+        try (ParcelFileDescriptor writePfd =
+                        mAppSearchImpl.openWriteBlob(
+                                "package", "db1", handle, /* callStatsBuilder= */ null);
+                OutputStream outputStream =
+                        new ParcelFileDescriptor.AutoCloseOutputStream(writePfd)) {
+            outputStream.write(data);
+            outputStream.flush();
+        }
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Sanity check that the flag is reset.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Commit blob. Need persistToDisk.
+        mAppSearchImpl.commitBlob("package", "db1", handle, /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testGetAndResetNeedPersistToDisk_returnsTrueAfterSetBlobVisibility()
+            throws Exception {
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        new AppSearchConfigImpl(
+                                new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()),
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        SchemaVisibilityConfig visibleToConfig =
+                new SchemaVisibilityConfig.Builder()
+                        .addAllowedPackage(new PackageIdentifier("pkgBar", new byte[32]))
+                        .addRequiredPermissions(ImmutableSet.of(1, 2))
+                        .setPubliclyVisibleTargetPackage(
+                                new PackageIdentifier("pkgFoo", new byte[32]))
+                        .build();
+        InternalVisibilityConfig config =
+                new InternalVisibilityConfig.Builder("namespace")
+                        .setNotDisplayedBySystem(false)
+                        .addVisibleToConfig(visibleToConfig)
+                        .build();
+
+        mAppSearchImpl.setBlobNamespaceVisibility(
+                "package", "db1", ImmutableList.of(config), /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
     private SchemaProto getSchemaProtoWithDatabase(SchemaProto schema) throws AppSearchException {
         SchemaProto.Builder schemaBuilder = SchemaProto.newBuilder();
         for (int i = 0; i < schema.getTypesList().size(); i++) {

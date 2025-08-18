@@ -92,11 +92,11 @@ public interface AppSearchEnvironment {
     int getEnvironment();
 
     /**
-     * Returns a file used to persist storage usage information for a specific user,
-     * as managed by {@link com.android.server.appsearch.UserStorageInfo}.
+     * Returns a file used to persist storage usage information for a specific user, as managed by
+     * {@link com.android.server.appsearch.UserStorageInfo}.
      */
-    @NonNull
-    File getStorageInfoFile(@NonNull File fileParentPath, @NonNull String storageInfoFileName);
+    @NonNull File getStorageInfoFile(
+            @NonNull File fileParentPath, @NonNull String storageInfoFileName);
 
     /**
      * Populates the {@link PackageInfo#signatures} field for P- devices.

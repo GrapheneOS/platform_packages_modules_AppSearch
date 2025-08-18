@@ -155,6 +155,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -314,6 +315,17 @@ public final class AppSearchImpl implements Closeable {
     private boolean mClosedLocked = false;
 
     /**
+     * Whether AppSearchImpl has mutated the database and needs to call {@link #persistToDisk}.
+     *
+     * <p>Since there are some internal logic (e.g. visibility document changes) here which
+     * potentially mutates the database, {@link AppSearchImpl} has to provide a public method for
+     * the upper level caller to check whether flush ({@link #persistToDisk} is needed or not.
+     */
+    // TODO(b/417463182): this is a temporary solution. In the future we might want to consider
+    //   some other better implementations, e.g. listener or return value.
+    private final AtomicReference<Boolean> mNeedsPersistToDisk = new AtomicReference<>();
+
+    /**
      * Creates and initializes an instance of {@link AppSearchImpl} which writes data to the given
      * folder.
      *
@@ -376,6 +388,7 @@ public final class AppSearchImpl implements Closeable {
         mOptimizeStrategy = Objects.requireNonNull(optimizeStrategy);
         mVisibilityCheckerLocked = visibilityChecker;
         mRevocableFileDescriptorStore = revocableFileDescriptorStore;
+        mNeedsPersistToDisk.set(false);
 
         // By default, we don't perform any retries.
         int maxInitRetries = 0;
@@ -760,6 +773,16 @@ public final class AppSearchImpl implements Closeable {
     }
 
     /**
+     * Gets whether AppSearch data needs to be flushed, and resets the flag to false atomically.
+     *
+     * <p>The caller should call this method after any write APIs, and invoke {@link #persistToDisk}
+     * or schedule a background job for it if this method returns true.
+     */
+    public boolean getAndResetNeedPersistToDisk() {
+        return mNeedsPersistToDisk.getAndSet(false);
+    }
+
+    /**
      * Clears all data from the current icing instance and close this AppSearchImpl instance. The
      * caller must not use this AppSearchImpl instance anymore.
      *
@@ -779,6 +802,7 @@ public final class AppSearchImpl implements Closeable {
                 mRevocableFileDescriptorStore.revokeAll();
             }
             mIcingSearchEngineLocked.clearAndDestroy();
+            mNeedsPersistToDisk.set(false);
             mClosedLocked = true;
         } catch (IOException e) {
             Log.w(TAG, "Error when clearAndDestroy AppSearchImpl.", e);
@@ -1429,6 +1453,21 @@ public final class AppSearchImpl implements Closeable {
         // Determine whether it succeeded.
         try {
             checkSuccess(setSchemaResultProto.getStatus());
+            // TODO(b/417463182): add boolean field(s) into SetSchemaResultProto indicating whether
+            //   ground truths and derived files have changed or not, and we can have a simpler way
+            //   here to decide if persistToDisk is needed or not.
+            if (setSchemaResultProto.getNewSchemaTypesCount() > 0
+                    || setSchemaResultProto.getDeletedSchemaTypesCount() > 0
+                    || setSchemaResultProto.getIncompatibleSchemaTypesCount() > 0
+                    || setSchemaResultProto.getDeletedDocumentCount() > 0
+                    || setSchemaResultProto.getScorablePropertyIncompatibleChangedSchemaTypesCount()
+                            > 0
+                    || setSchemaResultProto.getHasTermIndexRestored()
+                    || setSchemaResultProto.getHasIntegerIndexRestored()
+                    || setSchemaResultProto.getHasQualifiedIdJoinIndexRestored()
+                    || setSchemaResultProto.getHasEmbeddingIndexRestored()) {
+                mNeedsPersistToDisk.set(true);
+            }
         } catch (AppSearchException e) {
             // Swallow the exception for the incompatible change case. We will generate a failed
             // InternalSetSchemaResponse for this case.
@@ -1931,6 +1970,11 @@ public final class AppSearchImpl implements Closeable {
                     requestProto);
             BatchPutResultProto batchPutResultProto =
                     mIcingSearchEngineLocked.batchPut(requestProto);
+            // Put API may fail, but Icing has internal logic to delete the proto or rebuild index
+            // after failure so we need PersistToDisk regardless of the result.
+            // TODO(b/417463182): add boolean field(s) into BatchPutResultProto indicating whether
+            //   ground truths and derived files have changed or not.
+            mNeedsPersistToDisk.set(true);
             if (callStatsBuilder != null) {
                 callStatsBuilder.addGetVmLatencyMillis(batchPutResultProto.getGetVmLatencyMs());
             }
@@ -2112,6 +2156,11 @@ public final class AppSearchImpl implements Closeable {
             // Insert document
             LogUtil.piiTrace(TAG, "putDocument, request", finalDocument.getUri(), finalDocument);
             PutResultProto putResultProto = mIcingSearchEngineLocked.put(finalDocument);
+            // Put API may fail, but Icing has internal logic to delete the proto or rebuild index
+            // after failure so we need PersistToDisk regardless of the result.
+            // TODO(b/417463182): add boolean field(s) into PutResultProto indicating whether
+            //   ground truths and derived files have changed or not.
+            mNeedsPersistToDisk.set(true);
             LogUtil.piiTrace(
                     TAG, "putDocument, response", putResultProto.getStatus(), putResultProto);
 
@@ -2237,6 +2286,7 @@ public final class AppSearchImpl implements Closeable {
             PropertyProto.BlobHandleProto blobHandleProto =
                     BlobHandleToProtoConverter.toBlobHandleProto(handle);
             BlobProto result = mIcingSearchEngineLocked.openWriteBlob(blobHandleProto);
+            mNeedsPersistToDisk.set(true);
             if (callStatsBuilder != null) {
                 callStatsBuilder.addGetVmLatencyMillis(result.getGetVmLatencyMs());
             }
@@ -2302,6 +2352,7 @@ public final class AppSearchImpl implements Closeable {
                 callStatsBuilder.addGetVmLatencyMillis(result.getGetVmLatencyMs());
             }
             checkSuccess(result.getStatus());
+            mNeedsPersistToDisk.set(true);
             if (Flags.enableAppSearchManageBlobFiles()) {
                 File blobFileToRemove = new File(mBlobFilesDir, result.getFileName());
                 if (!blobFileToRemove.delete()) {
@@ -2346,6 +2397,7 @@ public final class AppSearchImpl implements Closeable {
                 mIcingSearchEngineLocked.openWriteBlob(
                         BlobHandleToProtoConverter.toBlobHandleProto(handle));
         checkSuccess(result.getStatus());
+        mNeedsPersistToDisk.set(true);
         File blobFile = new File(mBlobFilesDir, result.getFileName());
         boolean fileExists = blobFile.exists();
         boolean digestMatches = false;
@@ -2380,6 +2432,7 @@ public final class AppSearchImpl implements Closeable {
                     mIcingSearchEngineLocked.removeBlob(
                             BlobHandleToProtoConverter.toBlobHandleProto(handle));
             checkSuccess(removeResult.getStatus());
+            mNeedsPersistToDisk.set(true);
 
             if (!fileExists) {
                 throw new AppSearchException(
@@ -2446,6 +2499,7 @@ public final class AppSearchImpl implements Closeable {
                 callStatsBuilder.addGetVmLatencyMillis(result.getGetVmLatencyMs());
             }
             checkSuccess(result.getStatus());
+            mNeedsPersistToDisk.set(true);
             // The blob is committed and sealed, revoke the sent pfd for writing.
             mRevocableFileDescriptorStore.revokeFdForWrite(packageName, handle);
         } finally {
@@ -3911,6 +3965,9 @@ public final class AppSearchImpl implements Closeable {
             }
             LogUtil.piiTrace(TAG, "reportUsage, response", result.getStatus(), result);
             checkSuccess(result.getStatus());
+
+            // Report usage changes document store derived files, so persistToDisk is needed.
+            mNeedsPersistToDisk.set(true);
         } finally {
             logWriteOperationLatencyLocked(
                     totalLatencyStartMillis,
@@ -4001,6 +4058,7 @@ public final class AppSearchImpl implements Closeable {
                         deleteResultProto.getDeleteStats(), removeStatsBuilder);
             }
             checkSuccess(deleteResultProto.getStatus());
+            mNeedsPersistToDisk.set(true);
 
             // Update derived maps
             mDocumentLimiterLocked.reportDocumentsRemoved(
@@ -4197,6 +4255,7 @@ public final class AppSearchImpl implements Closeable {
         // not in the DB because it was not there or was successfully deleted.
         checkCodeOneOf(
                 deleteResultProto.getStatus(), StatusProto.Code.OK, StatusProto.Code.NOT_FOUND);
+        mNeedsPersistToDisk.set(true);
 
         // Update derived maps
         int numDocumentsDeleted =
@@ -4640,6 +4699,7 @@ public final class AppSearchImpl implements Closeable {
                                 (int) (SystemClock.elapsedRealtime() - totalLatencyStartMillis));
             }
             checkSuccess(persistToDiskResultProto.getStatus());
+            mNeedsPersistToDisk.set(false);
         } finally {
             logWriteOperationLatencyLocked(
                     totalLatencyStartMillis,
@@ -4754,6 +4814,7 @@ public final class AppSearchImpl implements Closeable {
 
                         // Determine whether it succeeded.
                         checkSuccess(setSchemaResultProto.getStatus());
+                        mNeedsPersistToDisk.set(true);
                     }
                     successfullyDeletedData = true;
                 }
@@ -4834,6 +4895,7 @@ public final class AppSearchImpl implements Closeable {
 
         // Determine whether it succeeded.
         checkSuccess(setSchemaResultProto.getStatus());
+        mNeedsPersistToDisk.set(true);
     }
 
     /**
@@ -4917,6 +4979,7 @@ public final class AppSearchImpl implements Closeable {
         }
 
         checkSuccess(resetResultProto.getStatus());
+        mNeedsPersistToDisk.set(true);
 
         // Delete all blob files if AppSearch manages them.
         deleteBlobFilesLocked();
@@ -5366,6 +5429,7 @@ public final class AppSearchImpl implements Closeable {
                     (int) (javaLockAcquisitionEndTimeMillis - totalLatencyStartMillis);
             LogUtil.piiTrace(TAG, "optimize, request");
             OptimizeResultProto optimizeResultProto = mIcingSearchEngineLocked.optimize();
+            // Optimize flushes data internally, so persistToDisk is not needed for the caller.
             LogUtil.piiTrace(
                     TAG,
                     "optimize, response",
