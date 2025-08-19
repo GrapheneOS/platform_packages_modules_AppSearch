@@ -85,6 +85,7 @@ public class BaseStats {
                 INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
                 INTERNAL_CALL_TYPE_ON_USER_UNLOCKING,
                 INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED,
+                INTERNAL_CALL_TYPE_SCHEDULED_FLUSH,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CallType {}
@@ -136,6 +137,7 @@ public class BaseStats {
     public static final int INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB = 42;
     public static final int INTERNAL_CALL_TYPE_ON_USER_UNLOCKING = 43;
     public static final int INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED = 44;
+    public static final int INTERNAL_CALL_TYPE_SCHEDULED_FLUSH = 45;
 
     // These strings are for the subset of call types that correspond to an AppSearchManager API
     public static final String CALL_TYPE_STRING_INITIALIZE = "initialize";
@@ -184,6 +186,7 @@ public class BaseStats {
     public static final String INTERNAL_CALL_TYPE_STRING_ON_USER_UNLOCKING = "onUserUnlocking";
     public static final String INTERNAL_CALL_TYPE_STRING_HANDLE_PACKAGE_REMOVED =
             "handlePackageRemoved";
+    public static final String INTERNAL_CALL_TYPE_STRING_SCHEDULED_FLUSH = "scheduledFlush";
 
     // Enabled features bitmask with all features disabled.
     public static final long NO_FEATURES_ENABLED_BITMASK = 0;

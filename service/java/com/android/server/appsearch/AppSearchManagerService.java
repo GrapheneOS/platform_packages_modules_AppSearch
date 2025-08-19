@@ -4343,6 +4343,9 @@ public class AppSearchManagerService extends SystemService {
             @NonNull PersistType.Code persistType,
             long delayMs,
             boolean forceSchedule) {
+        long totalLatencyStartTimeMillis = SystemClock.elapsedRealtime();
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
+
         if (mServiceImplHelper.isUserLocked(targetUser)) {
             // We shouldn't schedule any task to locked user.
             return;
@@ -4364,14 +4367,22 @@ public class AppSearchManagerService extends SystemService {
             ScheduledFuture<?> persistToDiskFuture =
                     mPerUserPersistToDiskFutureLocked.get(targetUser);
             if (persistToDiskFuture == null || persistToDiskFuture.isDone()) {
+                long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
+
                 persistToDiskFuture = mExecutorManager.scheduleLambdaForUserNoCallbackAsync(
                         targetUser, () -> {
+                            long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
+
                             if (mServiceImplHelper.isUserLocked(targetUser)) {
                                 // Skip the persistToDisk call if the user is locked.
                                 return;
                             }
+                            @AppSearchResult.ResultCode int statusCode = RESULT_OK;
+                            AppSearchUserInstance instance = null;
+                            int operationSuccessCount = 0;
+                            int operationFailureCount = 0;
                             try {
-                                AppSearchUserInstance instance =
+                                instance =
                                         mAppSearchUserInstanceManager.getUserInstance(targetUser);
                                 instance.getAppSearchImpl().persistToDisk(
                                         callingPackageName,
@@ -4379,8 +4390,40 @@ public class AppSearchManagerService extends SystemService {
                                         persistType,
                                         instance.getLogger(),
                                         /*callStatsBuilder=*/null);
-                            } catch (Exception e) {
-                                Log.w(TAG, "Unable to persist the data to disk", e);
+                                ++operationSuccessCount;
+                            } catch (AppSearchException | RuntimeException | InterruptedException
+                                    | ExecutionException e) {
+                                ++operationFailureCount;
+                                statusCode = throwableToFailedResult(e).getResultCode();
+                                Log.e(TAG, "Unable to persist the data to disk", e);
+                            } finally {
+                                if (instance != null) {
+                                    long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                                    int onExecutorLatencyMillis =
+                                            (int) (totalLatencyEndTimeMillis
+                                                    - waitExecutorEndTimeMillis);
+                                    int totalLatencyMillis =
+                                            (int) (totalLatencyEndTimeMillis
+                                                    - totalLatencyStartTimeMillis);
+
+                                    instance.getLogger().logStats(new CallStats.Builder()
+                                            // The package name that scheduled persistToDisk job.
+                                            .setPackageName(callingPackageName)
+                                            .setStatusCode(statusCode)
+                                            .setTotalLatencyMillis(totalLatencyMillis)
+                                            .setCallReceivedTimestampMillis(
+                                                    callReceivedTimestampMillis)
+                                            .setCallType(
+                                                    BaseStats.INTERNAL_CALL_TYPE_SCHEDULED_FLUSH)
+                                            .setExecutorAcquisitionLatencyMillis(
+                                                    (int) (waitExecutorEndTimeMillis
+                                                            - waitExecutorStartTimeMillis))
+                                            .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
+                                            .setNumOperationsSucceeded(operationSuccessCount)
+                                            .setNumOperationsFailed(operationFailureCount)
+                                            .setLaunchVMEnabled(instance.isVMEnabled())
+                                            .build());
+                                }
                             }
                         }, delayMs, TimeUnit.MILLISECONDS);
                 mPerUserPersistToDiskFutureLocked.put(targetUser, persistToDiskFuture);
