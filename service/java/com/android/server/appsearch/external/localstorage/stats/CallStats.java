@@ -373,6 +373,8 @@ public class CallStats extends BaseStats {
                 return INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED;
             case INTERNAL_CALL_TYPE_STRING_SCHEDULED_FLUSH:
                 return INTERNAL_CALL_TYPE_SCHEDULED_FLUSH;
+            case INTERNAL_CALL_TYPE_STRING_MANUALLY_SCHEDULE_FLUSH:
+                return CALL_TYPE_MANUALLY_SCHEDULE_FLUSH;
             default:
                 return CALL_TYPE_UNKNOWN;
         }

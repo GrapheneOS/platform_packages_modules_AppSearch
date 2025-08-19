@@ -3467,6 +3467,35 @@ public class AppSearchManagerService extends SystemService {
                             mAppSearchConfig.getLightweightPersistType(),
                             mAppSearchConfig.getCachedPersistDelayMillis(),
                             /* forceSchedule= */ true);
+
+                    // Report stats.
+                    try {
+                        AppSearchUserInstance instance =
+                                mAppSearchUserInstanceManager.getUserInstance(targetUser);
+
+                        int estimatedBinderLatencyMillis =
+                                2 * (int) (totalLatencyStartTimeMillis
+                                        - request.getBinderCallStartTimeMillis());
+                        long totalLatencyEndTimeMillis = SystemClock.elapsedRealtime();
+                        int totalLatencyMillis =
+                                (int) (totalLatencyEndTimeMillis - totalLatencyStartTimeMillis);
+                        instance.getLogger().logStats(new CallStats.Builder()
+                                .setPackageName(callingPackageName)
+                                .setStatusCode(RESULT_OK)
+                                .setTotalLatencyMillis(totalLatencyMillis)
+                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
+                                .setCallType(BaseStats.CALL_TYPE_MANUALLY_SCHEDULE_FLUSH)
+                                // TODO(b/173532925) check the existing binder call latency
+                                // chart is good enough for us:
+                                // http://dashboards/view/_72c98f9a_91d9_41d4_ab9a_bc14f79742b4
+                                .setEstimatedBinderLatencyMillis(estimatedBinderLatencyMillis)
+                                .setNumOperationsSucceeded(1)
+                                .setNumOperationsFailed(0)
+                                .setLaunchVMEnabled(instance.isVMEnabled())
+                                .build());
+                    } catch (CancellationException | InterruptedException | ExecutionException e) {
+                        Log.w(TAG, "Unable to report CallStats for manually schedule flush", e);
+                    }
                     return;
                 }
 
