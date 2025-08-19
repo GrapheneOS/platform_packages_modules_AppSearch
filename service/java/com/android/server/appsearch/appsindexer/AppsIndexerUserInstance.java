@@ -374,18 +374,27 @@ public final class AppsIndexerUserInstance {
 
             boolean isFullUpdateRequired = isAppIndexerUpdated || isOtaUpdate;
 
-            boolean isLocaleUpdate = false;
-            String currentLocaleCode = null;
             if (Flags.enableAppsIndexerLocaleChangeFullUpdate()) {
                 LocaleList localeList = mContext.getResources().getConfiguration().getLocales();
                 if (!localeList.isEmpty()) {
-                    currentLocaleCode = localeList.get(0).getLanguage();
+                    // https://developer.android.com/reference/android/content/res/Configuration:
+                    // If only the primary locale is needed, getLocales().get(0) is now the
+                    // preferred accessor
+                    String currentLocaleCode = localeList.get(0).getLanguage();
+                    String previousLocaleCode = mSettings.getPreviousLocaleCode();
+                    if (previousLocaleCode != null
+                            && !previousLocaleCode.equals(currentLocaleCode)) {
+                        // Only if previousLocaleCode is not empty will we initiate a locale change
+                        // triggered update
+                        isFullUpdateRequired = true;
+                    }
 
-                    // Only if it's not empty will we initiate a locale change triggered update
-                    isLocaleUpdate = !mSettings.getPreviousLocaleCode().equals(currentLocaleCode);
+                    if (currentLocaleCode != null) {
+                        // Always save locale to settings if current locale is not null, as it is
+                        // similar in nature to timestamp
+                        mSettings.setPreviousLocaleCode(currentLocaleCode);
+                    }
                 }
-
-                isFullUpdateRequired |= isLocaleUpdate;
             }
 
             if (firstRun) {
@@ -420,12 +429,6 @@ public final class AppsIndexerUserInstance {
             if (isOtaUpdate) {
                 mSettings.setLastPartitionFingerprintsSortedByPartitionName(
                         sortedFingerprintedPartitions);
-            }
-
-            if (Flags.enableAppsIndexerLocaleChangeFullUpdate()) {
-                if (isLocaleUpdate && currentLocaleCode != null) {
-                    mSettings.setPreviousLocaleCode(currentLocaleCode);
-                }
             }
 
             mSettings.persist();

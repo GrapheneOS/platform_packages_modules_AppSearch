@@ -157,6 +157,7 @@ public class AppsIndexerSettings extends IndexerSettings {
         super.reset();
         setLastAppUpdateTimestampMillis(0);
         setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
+        mBundle.remove(PREVIOUS_LOCALE_CODE);
         mLogLines.clear();
         mBundle.remove(LOG_LINES_KEY);
     }
