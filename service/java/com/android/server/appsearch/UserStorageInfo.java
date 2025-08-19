@@ -66,8 +66,9 @@ public final class UserStorageInfo {
 
     public UserStorageInfo(@NonNull File fileParentPath) {
         Objects.requireNonNull(fileParentPath);
-        mStorageInfoFile = AppSearchEnvironmentFactory.getEnvironmentInstance()
-                .getStorageInfoFile(fileParentPath, STORAGE_INFO_FILE);
+        mStorageInfoFile =
+                AppSearchEnvironmentFactory.getEnvironmentInstance()
+                        .getFile(fileParentPath, STORAGE_INFO_FILE);
         readStorageInfoFromFile();
     }
 

@@ -19,6 +19,7 @@ package com.android.server.appsearch.indexer;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
+import android.os.Build;
 import android.os.PersistableBundle;
 import android.util.AtomicFile;
 
@@ -114,6 +115,11 @@ public abstract class IndexerSettings {
     @NonNull
     @WorkerThread
     public static PersistableBundle readBundle(@NonNull File src) throws IOException {
+        // TODO: b/413737868 - Add support for R- devices.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            throw new UnsupportedOperationException("readBundle is not supported below API 30.");
+        }
+
         AtomicFile atomicFile = new AtomicFile(src);
         try (FileInputStream fis = atomicFile.openRead()) {
             return PersistableBundle.readFromStream(fis);
@@ -124,6 +130,11 @@ public abstract class IndexerSettings {
     @WorkerThread
     public static void writeBundle(@NonNull File dest, @NonNull PersistableBundle bundle)
             throws IOException {
+        // TODO: b/413737868 - Add support for R- devices.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            throw new UnsupportedOperationException("writeBundle is not supported below API 30.");
+        }
+
         AtomicFile atomicFile = new AtomicFile(dest);
         FileOutputStream fos = null;
         try {
