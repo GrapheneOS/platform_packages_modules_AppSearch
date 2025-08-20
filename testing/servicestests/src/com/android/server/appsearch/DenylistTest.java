@@ -53,7 +53,7 @@ public class DenylistTest {
                             + "openWriteBlob,commitBlob,openReadBlob,removeBlob,globalOpenReadBlob,"
                             + "setBlobVisibility,appOpenEventIndexer,isolatedStorageDataMigration,"
                             + "prunePackageData,close,persistToDiskJob,onUserUnlocking,"
-                            + "handlePackageRemoved");
+                            + "handlePackageRemoved,scheduledFlush,manuallyScheduleFlush");
         for (Integer apiType : CallStats.getAllApiCallTypes()) {
             assertThat(denylist.checkDeniedPackageDatabase("foo", "bar", apiType)).isTrue();
             assertThat(denylist.checkDeniedPackageDatabase("bar", "foo", apiType)).isFalse();
