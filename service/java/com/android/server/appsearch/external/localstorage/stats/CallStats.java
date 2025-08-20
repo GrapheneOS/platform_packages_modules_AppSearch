@@ -371,6 +371,10 @@ public class CallStats extends BaseStats {
                 return INTERNAL_CALL_TYPE_ON_USER_UNLOCKING;
             case INTERNAL_CALL_TYPE_STRING_HANDLE_PACKAGE_REMOVED:
                 return INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED;
+            case INTERNAL_CALL_TYPE_STRING_SCHEDULED_FLUSH:
+                return INTERNAL_CALL_TYPE_SCHEDULED_FLUSH;
+            case INTERNAL_CALL_TYPE_STRING_MANUALLY_SCHEDULE_FLUSH:
+                return CALL_TYPE_MANUALLY_SCHEDULE_FLUSH;
             default:
                 return CALL_TYPE_UNKNOWN;
         }
@@ -418,6 +422,7 @@ public class CallStats extends BaseStats {
                         INTERNAL_CALL_TYPE_CLOSE,
                         INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
                         INTERNAL_CALL_TYPE_ON_USER_UNLOCKING,
-                        INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED));
+                        INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED,
+                        INTERNAL_CALL_TYPE_SCHEDULED_FLUSH));
     }
 }
