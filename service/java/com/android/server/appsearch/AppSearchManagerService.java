@@ -1128,8 +1128,10 @@ public class AppSearchManagerService extends SystemService {
                                     docs.add(new GenericDocument(documentParcels.get(i)));
                                 }
                                 for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
-                                    docs.add(
-                                            new GenericDocument(takenActionDocumentParcels.get(i)));
+                                    GenericDocument document = new GenericDocument(
+                                        takenActionDocumentParcels.get(i));
+                                    docs.add(document);
+                                    takenActionGenericDocuments.add(document);
                                 }
                                 instance.getAppSearchImpl().batchPutDocuments(
                                         callingPackageName,
