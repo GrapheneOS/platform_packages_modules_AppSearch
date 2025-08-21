@@ -39,6 +39,7 @@ import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchPutResultProto;
+import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.PersistToDiskResultProto;
 import com.google.android.icing.proto.PersistType;
@@ -271,13 +272,12 @@ public class DataMigrationUtil {
         Log.i(TAG, "Querying documents from source for data migration successful");
 
         // Step-3 Put all documents in searchResult in destination using a batchPut call.
-        //
-        // TODO(b/407815165) Add exception handling for any exceptions during put.
         long nextPageToken = searchResult.getNextPageToken();
         ArraySet<Integer> putStatusCodes = new ArraySet<>();
         long totalDocsSucceeded = 0L;
         long totalDocsFailed = 0L;
         StatusProto.Code lastFailedPutCode = StatusProto.Code.OK;
+        // Migrate docs
         while (searchResult != null && searchResult.getResultsCount() > 0) {
             PutDocumentRequest.Builder requestBuilder = PutDocumentRequest.newBuilder();
             for (int i = 0; i < searchResult.getResultsCount(); ++i) {
@@ -319,6 +319,11 @@ public class DataMigrationUtil {
         }
         migrationStats.setNumberOfDocsSucceeded(totalDocsSucceeded);
         migrationStats.setNumberOfDocsFailed(totalDocsFailed);
+
+        // Migrate blobs
+        // As blob API is introduced in B, we don't anticipate it is being widely used, so we
+        // will go ahead switch to the VM even if blob migration fails.
+        destination.putBlobInfos(source.rawGetAllBlobInfos());
 
         // Check if we want to retry for failed puts
         int totalTriedTimes = migrationStats.getDataMigrationRunCounter();
