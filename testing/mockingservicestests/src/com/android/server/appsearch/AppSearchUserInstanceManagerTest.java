@@ -17,6 +17,7 @@ package com.android.server.appsearch;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
+import static com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats.VM_START_STATUS_ERROR;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -54,6 +55,7 @@ import com.android.isolated_storage_service.IIsolatedStorageService;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
+import com.android.server.appsearch.isolated_storage_service.VmStartResult;
 import com.android.server.appsearch.util.ExecutorManager;
 
 import org.junit.After;
@@ -71,6 +73,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class AppSearchUserInstanceManagerTest {
     @Rule
@@ -255,7 +258,8 @@ public class AppSearchUserInstanceManagerTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
-    public void cancelUserCreation_beforeISSConnection_cancelsCreation() {
+    public void cancelUserCreation_beforeISSConnection_cancelsCreation()
+            throws InterruptedException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         ContextWrapper blockingContext =
                 new ContextWrapper(mContext) {
@@ -284,26 +288,30 @@ public class AppSearchUserInstanceManagerTest {
         doReturn(List.of(dummyResolveInfo))
                 .when(blockingContext.getPackageManager())
                 .queryIntentServices(any(), any());
-
-        assertThrows(
-                CancellationException.class,
-                () ->
-                        manager.getOrCreateUserInstance(
-                                blockingContext,
-                                mUserHandle,
-                                mServiceConfig,
-                                mExecutorManager,
-                                new IsolatedStorageServiceManager(
-                                        blockingContext,
-                                        mServiceConfig,
-                                        mExecutorManager.getOrCreateUserScheduledExecutor(
-                                                mUserHandle))));
-        assertThat(manager.getAllUserHandles()).containsExactly(mUserHandle);
+        try {
+            assertThrows(
+                    CancellationException.class,
+                    () ->
+                            manager.getOrCreateUserInstance(
+                                    blockingContext,
+                                    mUserHandle,
+                                    mServiceConfig,
+                                    mExecutorManager,
+                                    new IsolatedStorageServiceManager(
+                                            blockingContext,
+                                            mServiceConfig,
+                                            mExecutorManager.getOrCreateUserScheduledExecutor(
+                                                    mUserHandle))));
+            assertThat(manager.getAllUserHandles()).containsExactly(mUserHandle);
+        } finally {
+            cleanUpUserExecutor(mUserHandle);
+        }
     }
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
-    public void cancelUserCreation_duringVMConnection_cancelsCreation() throws RemoteException {
+    public void cancelUserCreation_duringVMConnection_cancelsCreation()
+            throws RemoteException, InterruptedException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         com.android.server.appsearch.isolated_storage_service.IIsolatedStorageService
                 isolatedStorageService =
@@ -316,7 +324,10 @@ public class AppSearchUserInstanceManagerTest {
                 .thenAnswer(
                         invocation -> {
                             manager.cancelUserCreation(mUserHandle);
-                            return false;
+                            VmStartResult result = new VmStartResult();
+                            result.pStatusCode = VM_START_STATUS_ERROR;
+                            result.pTotalLatencyMillis = 0;
+                            return result;
                         });
 
         IsolatedStorageServiceManager issManager =
@@ -325,22 +336,25 @@ public class AppSearchUserInstanceManagerTest {
                         mServiceConfig,
                         mExecutorManager.getOrCreateUserScheduledExecutor(mUserHandle));
         issManager.setIsolatedStorageServiceForTest(isolatedStorageService);
-
-        assertThrows(
-                CancellationException.class,
-                () ->
-                        manager.getOrCreateUserInstance(
-                                mContext,
-                                mUserHandle,
-                                mServiceConfig,
-                                mExecutorManager,
-                                issManager));
+        try {
+            assertThrows(
+                    CancellationException.class,
+                    () ->
+                            manager.getOrCreateUserInstance(
+                                    mContext,
+                                    mUserHandle,
+                                    mServiceConfig,
+                                    mExecutorManager,
+                                    issManager));
+        } finally {
+            cleanUpUserExecutor(mUserHandle);
+        }
     }
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_afterVMConnection_cancelsCreation()
-            throws AppSearchException, RemoteException {
+            throws AppSearchException, RemoteException, InterruptedException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
 
         IsolatedStorageServiceManager isolatedStorageServiceManager =
@@ -376,15 +390,30 @@ public class AppSearchUserInstanceManagerTest {
                         })
                 .when(spyIsolatedStorageServiceManager)
                 .initialize();
+        try {
+            assertThrows(
+                    CancellationException.class,
+                    () ->
+                            manager.getOrCreateUserInstance(
+                                    mContext,
+                                    mUserHandle,
+                                    mServiceConfig,
+                                    mExecutorManager,
+                                    spyIsolatedStorageServiceManager));
+        } finally {
+            cleanUpUserExecutor(mUserHandle);
+        }
+    }
 
-        assertThrows(
-                CancellationException.class,
-                () ->
-                        manager.getOrCreateUserInstance(
-                                mContext,
-                                mUserHandle,
-                                mServiceConfig,
-                                mExecutorManager,
-                                spyIsolatedStorageServiceManager));
+    /** Shuts down running tasks and waits on running tasks for the given user handle's executor. */
+    private void cleanUpUserExecutor(UserHandle userHandle) throws InterruptedException {
+        mExecutorManager.getOrCreateUserScheduledExecutor(userHandle).shutdown();
+        // shutdownNow() only attempts to terminate running tasks. Do an awaitTermination() here
+        // to ensure that there are no remaining running tasks.
+        assertThat(
+                        mExecutorManager
+                                .getOrCreateUserScheduledExecutor(mUserHandle)
+                                .awaitTermination(/* timeout= */ 1, TimeUnit.SECONDS))
+                .isTrue();
     }
 }
