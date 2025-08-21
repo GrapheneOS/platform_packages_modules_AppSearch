@@ -65,8 +65,6 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
     private final PermissionManager mPermissionManager;
     private final PolicyChecker mPolicyChecker;
 
-    @Nullable private final AppFunctionManager mAppFunctionManager;
-
     public VisibilityCheckerImpl(@NonNull Context userContext) {
         this(userContext, new PolicyCheckerImpl(userContext));
     }
@@ -76,11 +74,6 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         mUserContext = Objects.requireNonNull(userContext);
         mPermissionManager = userContext.getSystemService(PermissionManager.class);
         mPolicyChecker = policyChecker;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-            mAppFunctionManager = userContext.getSystemService(AppFunctionManager.class);
-        } else {
-            mAppFunctionManager = null;
-        }
     }
 
     @Override
@@ -485,14 +478,20 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
      */
     @VisibleForTesting
     public boolean isValidAppFunctionAgent(@NonNull String callerPackageName) {
-        if (mAppFunctionManager == null
-                || !android.permission.flags.Flags.appFunctionAccessApiEnabled()) {
-            // Running on SDK without AppFunction access service, no access check required.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+            // The AppFunction feature might still get backported with sidecar. In this case, any
+            // app with EXECUTE_APP_FUNCTIONS permission is a valid agent.
+            return true;
+        }
+        final AppFunctionManager manager = mUserContext.getSystemService(AppFunctionManager.class);
+        if (manager == null || !android.permission.flags.Flags.appFunctionAccessApiEnabled()) {
+            // Running on SDK without AppFunction access service, any app with EXECUTE_APP_FUNCTIONS
+            // permission is a valid agent.
             return true;
         }
 
         Objects.requireNonNull(callerPackageName);
-        final List<String> validAgents = mAppFunctionManager.getValidAgents();
+        final List<String> validAgents = manager.getValidAgents();
         return validAgents.contains(callerPackageName);
     }
 }

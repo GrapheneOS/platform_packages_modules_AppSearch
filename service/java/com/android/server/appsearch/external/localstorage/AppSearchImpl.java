@@ -635,7 +635,7 @@ public final class AppSearchImpl implements Closeable {
                 LogUtil.piiTrace(TAG, "Init completed successfully");
             } catch (AppSearchException e) {
                 // Some error. Reset and see if it fixes it.
-                Log.e(TAG, "Error initializing, attempting to reset IcingSearchEngine.", e);
+                Log.wtf(TAG, "Error initializing, attempting to reset IcingSearchEngine.", e);
                 if (initStatsBuilder != null) {
                     initStatsBuilder.setStatusCode(e.getResultCode());
                 }
