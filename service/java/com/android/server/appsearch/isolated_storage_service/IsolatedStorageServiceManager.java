@@ -425,6 +425,9 @@ public class IsolatedStorageServiceManager {
                             () -> {
                                 try {
                                     ParcelFileDescriptor pfd = getVmConnectionLocked();
+                                    if (pfd == null) {
+                                        throw new NullPointerException("Null PFD VM connection");
+                                    }
                                     return pfd;
                                 } catch (Exception e) {
                                     Log.e(TAG, "Unable to get vm connection", e);
