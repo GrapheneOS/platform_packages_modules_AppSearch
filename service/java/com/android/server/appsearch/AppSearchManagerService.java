@@ -398,7 +398,7 @@ public class AppSearchManagerService extends SystemService {
                                             mIsolatedStorageServiceManager);
                             instance.getAppSearchImpl().clearPackageData(packageName);
 
-                            if (Flags.enableDelayedPersistToDisk()) {
+                            if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                                 maybeSchedulePersistToDisk(
                                         /* callingPackageName= */ null,
                                         BaseStats.INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED,
@@ -462,7 +462,7 @@ public class AppSearchManagerService extends SystemService {
 
                             // Note: this is different from the "daily fully persist job" scheduled
                             //   in the next section.
-                            if (Flags.enableDelayedPersistToDisk()) {
+                            if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                                 maybeSchedulePersistToDisk(
                                         /* callingPackageName= */ null,
                                         BaseStats.INTERNAL_CALL_TYPE_ON_USER_UNLOCKING,
@@ -660,7 +660,7 @@ public class AppSearchManagerService extends SystemService {
                     invokeCallbackOnResult(callback, AppSearchResultParcel
                             .fromInternalSetSchemaResponse(internalSetSchemaResponse));
 
-                    if (Flags.enableDelayedPersistToDisk()) {
+                    if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                         maybeSchedulePersistToDisk(
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_SET_SCHEMA,
@@ -1107,7 +1107,7 @@ public class AppSearchManagerService extends SystemService {
                         }
 
                         // Now that the batch has been written, persist the newly written data.
-                        if (Flags.enableDelayedPersistToDisk()) {
+                        if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                             maybeSchedulePersistToDisk(
                                     callingPackageName,
                                     BaseStats.CALL_TYPE_PUT_DOCUMENTS,
@@ -2089,7 +2089,8 @@ public class AppSearchManagerService extends SystemService {
                             callingDatabaseName,
                             visibilityConfigs,
                             callStatsBuilder);
-                    if (Flags.enableDelayedPersistToDisk()) {
+
+                    if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                         maybeSchedulePersistToDisk(
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_SET_BLOB_VISIBILITY,
@@ -2765,8 +2766,8 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
                     }
-                    // Now that the batch has been written, persist the newly written data.
-                    if (Flags.enableDelayedPersistToDisk()) {
+
+                    if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                         maybeSchedulePersistToDisk(
                                 callingPackageName,
                                 BaseStats.CALL_TYPE_PUT_DOCUMENTS_FROM_FILE,
@@ -3170,8 +3171,8 @@ public class AppSearchManagerService extends SystemService {
                             }
                         }
                     }
-                    // Now that the batch has been written, persist the newly written data.
-                    if (Flags.enableDelayedPersistToDisk()) {
+
+                    if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                         maybeSchedulePersistToDisk(callingPackageName,
                                 BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID,
                                 targetUser,
@@ -3290,8 +3291,8 @@ public class AppSearchManagerService extends SystemService {
                             /*deletedIds=*/null,
                             /* removeStatsBuilder= */ null,
                             callStatsBuilder);
-                    // Now that the batch has been written, persist the newly written data.
-                    if (Flags.enableDelayedPersistToDisk()) {
+
+                    if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
                         maybeSchedulePersistToDisk(callingPackageName,
                                 BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_SEARCH,
                                 targetUser,
