@@ -16,26 +16,40 @@
 
 package com.android.server.appsearch.isolated_storage_service;
 
+import static android.app.appsearch.testutil.AppSearchTestUtils.calculateDigest;
+import static android.app.appsearch.testutil.AppSearchTestUtils.generateRandomBytes;
+
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.appsearch.AppSearchBlobHandle;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchSchema;
+import android.app.appsearch.AppSearchSchema.EmbeddingPropertyConfig;
+import android.app.appsearch.AppSearchSchema.PropertyConfig;
+import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
+import android.app.appsearch.EmbeddingVector;
 import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.InternalSetSchemaResponse;
+import android.app.appsearch.SearchResultPage;
+import android.app.appsearch.SearchSpec;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.testutil.AppSearchEmail;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.content.Context;
+import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.external.localstorage.AppSearchConfigImpl;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
+import com.android.server.appsearch.external.localstorage.JetpackRevocableFileDescriptorStore;
 import com.android.server.appsearch.external.localstorage.LocalStorageIcingOptionsConfig;
 import com.android.server.appsearch.external.localstorage.OptimizeStrategy;
 import com.android.server.appsearch.external.localstorage.UnlimitedLimitConfig;
@@ -69,6 +83,8 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -178,6 +194,91 @@ public class DataMigrationUtilTest {
                 /* callStatsBuilder= */ null);
     }
 
+    private static void populateEmailsWithEmbeddingsInAppSearchImpl(
+            @NonNull AppSearchImpl appSearchImpl,
+            @NonNull String packageName,
+            @NonNull String databaseName)
+            throws Exception {
+        // Schema registration
+        AppSearchSchema emailSchema =
+                new AppSearchSchema.Builder("Email")
+                        .addProperty(
+                                new StringPropertyConfig.Builder("body")
+                                        .setCardinality(PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setTokenizerType(StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                        .setIndexingType(
+                                                StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                        .build())
+                        .addProperty(
+                                new EmbeddingPropertyConfig.Builder("embedding1")
+                                        .setCardinality(PropertyConfig.CARDINALITY_REPEATED)
+                                        .setIndexingType(
+                                                EmbeddingPropertyConfig.INDEXING_TYPE_SIMILARITY)
+                                        .build())
+                        .addProperty(
+                                new EmbeddingPropertyConfig.Builder("embedding2")
+                                        .setCardinality(PropertyConfig.CARDINALITY_REPEATED)
+                                        .setIndexingType(
+                                                EmbeddingPropertyConfig.INDEXING_TYPE_SIMILARITY)
+                                        .build())
+                        .build();
+        List<AppSearchSchema> schema = ImmutableList.of(emailSchema);
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                appSearchImpl.setSchema(
+                        packageName,
+                        databaseName,
+                        schema,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder=*/ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Index documents
+        GenericDocument doc0 =
+                new GenericDocument.Builder<>("namespace", "id0", "Email")
+                        .setPropertyString("body", "foo")
+                        .setCreationTimestampMillis(1000)
+                        .setPropertyEmbedding(
+                                "embedding1",
+                                new EmbeddingVector(
+                                        new float[] {0.1f, 0.2f, 0.3f, 0.4f, 0.5f}, "my_model_v1"))
+                        .setPropertyEmbedding(
+                                "embedding2",
+                                new EmbeddingVector(
+                                        new float[] {-0.1f, -0.2f, -0.3f, 0.4f, 0.5f},
+                                        "my_model_v1"),
+                                new EmbeddingVector(new float[] {0.6f, 0.7f, 0.8f}, "my_model_v2"))
+                        .build();
+        GenericDocument doc1 =
+                new GenericDocument.Builder<>("namespace", "id1", "Email")
+                        .setPropertyString("body", "bar")
+                        .setCreationTimestampMillis(1000)
+                        .setPropertyEmbedding(
+                                "embedding1",
+                                new EmbeddingVector(
+                                        new float[] {-0.1f, 0.2f, -0.3f, -0.4f, 0.5f},
+                                        "my_model_v1"))
+                        .setPropertyEmbedding(
+                                "embedding2",
+                                new EmbeddingVector(new float[] {0.6f, 0.7f, -0.8f}, "my_model_v2"))
+                        .build();
+
+        List<GenericDocument> docs = new ArrayList<>();
+        docs.add(doc0);
+        docs.add(doc1);
+        appSearchImpl.batchPutDocuments(
+                packageName,
+                databaseName,
+                docs,
+                /* batchResultBuilder= */ null,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                PersistType.Code.LITE,
+                /* callStatsBuilder= */ null);
+    }
+
 
     @Before
     public void setUp() throws Exception {
@@ -191,7 +292,7 @@ public class DataMigrationUtilTest {
                         /* initStatsBuilder= */ null,
                         /* callStatsBuilder= */ null,
                         /* visibilityChecker= */ null,
-                        /* revocableFileDescriptorStore= */ null,
+                        new JetpackRevocableFileDescriptorStore(mUnlimitedConfig),
                         /* icingSearchEngine= */ null,
                         ALWAYS_OPTIMIZE);
         mVmIcingSearchEngineDir = mTemporaryFolder.newFolder("vm");
@@ -1174,6 +1275,189 @@ public class DataMigrationUtilTest {
                                 docNumInDest + docNumInSrc).build());
         // icing has been reset.
         assertThat(searchResultProto.getResultsCount()).isEqualTo(docNumInSrc);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testDataMigrationWithBlob() throws Exception {
+        byte[] data = generateRandomBytes(20 * 1024); // 20 KiB
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+        try (ParcelFileDescriptor writePfd =
+                     mAppSearchImpl.openWriteBlob(
+                             "package",
+                             "db1",
+                             handle,
+                             /* callStatsbuilder=*/ null);
+             OutputStream outputStream =
+                     new ParcelFileDescriptor.AutoCloseOutputStream(writePfd)) {
+            outputStream.write(data);
+            outputStream.flush();
+        }
+        // commit the change and read the blob.
+        mAppSearchImpl.commitBlob(
+                "package",
+                "db1",
+                handle,
+                /* callStatsBuilder= */ null);
+
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
+
+        // check stats
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).isNull();
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(0);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
+
+        byte[] readBytes = new byte[20 * 1024];
+        try (ParcelFileDescriptor readPfd =
+                     mAppSearchImpl.openReadBlob(
+                             "package",
+                             "db1",
+                             handle,
+                             /* callStatsBuilder= */ null);
+             InputStream inputStream =
+                     new ParcelFileDescriptor.AutoCloseInputStream(readPfd)) {
+            inputStream.read(readBytes);
+        }
+
+        assertThat(readBytes).isEqualTo(data);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_BLOB_STORE)
+    public void testDataMigrationWithDocHasBlob() throws Exception {
+        AppSearchSchema blobSchema =
+                new AppSearchSchema.Builder("Type")
+                        .addProperty(
+                                new AppSearchSchema.BlobHandlePropertyConfig.Builder("blob")
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setDescription("this is a blob.")
+                                        .build())
+                        .build();
+        List<AppSearchSchema> schema = ImmutableList.of(blobSchema);
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "db1",
+                        schema,
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder=*/ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        byte[] data = generateRandomBytes(20 * 1024); // 20 KiB
+        byte[] digest = calculateDigest(data);
+        AppSearchBlobHandle handle =
+                AppSearchBlobHandle.createWithSha256(digest, "package", "db1", "ns");
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id", "Type")
+                        .setPropertyBlobHandle("blob", handle)
+                        .build();
+        List<GenericDocument> docs = new ArrayList<>();
+        docs.add(document);
+        mAppSearchImpl.batchPutDocuments(
+                "package",
+                "db1",
+                docs,
+                /* batchResultBuilder= */ null,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                PersistType.Code.LITE,
+                /* callStatsBuilder= */ null);
+
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
+
+        // check stats
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(1);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
+
+        SearchSpecProto searchSpec =
+                SearchSpecProto.newBuilder()
+                        .setQuery("")
+                        .setTermMatchType(TermMatchType.Code.PREFIX)
+                        .build();
+        SearchResultProto searchResultProto =
+                mVmIcingSearchEngine.search(
+                        searchSpec,
+                        ScoringSpecProto.getDefaultInstance(),
+                        ResultSpecProto.newBuilder().setNumPerPage(10).build());
+        assertThat(searchResultProto.getResultsCount()).isEqualTo(1);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
+    public void testDataMigrationEmbeddings() throws Exception {
+        populateEmailsWithEmbeddingsInAppSearchImpl(
+                mAppSearchImpl,
+                "package1",
+                "database1");
+
+        // Do data migration.
+        DataMigrationStats stats = DataMigrationUtil.runDataMigrationForUser(
+                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /*logger=*/ null);
+        assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
+
+        // check stats
+        int okStatusCode = StatusProto.Code.OK.getNumber();
+        assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getVMInitStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getResetStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getSetSchemaStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getFlushStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getQueryStatus()).isEqualTo(okStatusCode);
+        assertThat(stats.getPutStatus()).asList().containsExactly(okStatusCode);
+        assertThat(stats.getNumberOfDocsSucceeded()).isEqualTo(2);
+        assertThat(stats.getNumberOfDocsFailed()).isEqualTo(0);
+        assertThat(stats.getDataMigrationRunCounter()).isEqualTo(1);
+
+        // Add an embedding search with dot product semantic scores:
+        // - document 0: -0.5 (embedding1), 0.3 (embedding2)
+        // - document 1: -0.9 (embedding1)
+        EmbeddingVector searchEmbedding =
+                new EmbeddingVector(new float[] {1, -1, -1, 1, -1}, "my_model_v1");
+        SearchSpec searchSpec =
+                new SearchSpec.Builder()
+                        .setDefaultEmbeddingSearchMetricType(
+                                SearchSpec.EMBEDDING_SEARCH_METRIC_TYPE_DOT_PRODUCT)
+                        .addEmbeddingParameters(searchEmbedding)
+                        .setRankingStrategy(
+                                "sum(this.matchedSemanticScores(getEmbeddingParameter(0)))")
+                        .setListFilterQueryLanguageEnabled(true)
+                        .setResultCountPerPage(10)
+                        .build();
+        SearchResultPage resultPage = mAppSearchImpl.query(
+                "package1",
+                "database1",
+                "semanticSearch(getEmbeddingParameter(0), -1, 1)",
+                searchSpec,
+                /*logger=*/ null,
+                /*callStatsBuilder=*/ null);
+        assertThat(resultPage.getResults()).hasSize(2);
     }
 
     private void insertTestDocsToAppSearchImpl(int docNum) throws AppSearchException {
