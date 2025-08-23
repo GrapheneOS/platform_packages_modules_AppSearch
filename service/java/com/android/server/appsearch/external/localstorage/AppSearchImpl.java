@@ -5622,6 +5622,20 @@ public final class AppSearchImpl implements Closeable {
     }
 
     /**
+     * Calls getAllBlobInfos in a thread safe manner.
+     *
+     * <p>Currently this is only used and tested in PlatformStorage.
+     */
+    public @NonNull BlobProto rawGetAllBlobInfos() {
+        mReadWriteLock.readLock().lock();
+        try {
+            return mIcingSearchEngineLocked.getAllBlobInfos();
+        } finally {
+            mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
      * Logs the operation latency of a write operation. This method is guarded by {@code
      * mReadWriteLock}.
      */
