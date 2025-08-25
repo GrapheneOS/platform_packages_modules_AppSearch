@@ -135,6 +135,9 @@ public final class AppsIndexerManagerService extends SystemService {
         appChangedFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
         appChangedFilter.addAction(Intent.ACTION_PACKAGE_REPLACED);
         appChangedFilter.addAction(Intent.ACTION_PACKAGE_FULLY_REMOVED);
+        if (Flags.enableAppsIndexerLocaleChangeFullUpdate()) {
+            appChangedFilter.addAction(Intent.ACTION_LOCALE_CHANGED);
+        }
         appChangedFilter.addDataScheme("package");
 
         mContext.registerReceiverForAllUsers(
