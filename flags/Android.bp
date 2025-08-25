@@ -35,6 +35,7 @@ java_aconfig_library {
     name: "appsearch_flags_java_lib",
     aconfig_declarations: "appsearch_aconfig_flags",
     visibility: [
+        "//cts/hostsidetests/appsearch:__subpackages__",
         "//cts/tests/appsearch:__subpackages__",
         "//packages/modules/AppSearch:__subpackages__",
     ],
