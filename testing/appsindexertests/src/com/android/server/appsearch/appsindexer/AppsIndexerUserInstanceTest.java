@@ -67,6 +67,8 @@ import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
+import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
+import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.common.collect.ImmutableList;
@@ -1169,7 +1171,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Schedule a bunch of tasks. However, only one will run, and one other will be scheduled
         for (int i = 0; i < numOfNotifications / 2; i++) {
             // This will pretend to add apps repeatedly
-            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+            mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         }
 
         // Now, we wait for getPackageManager to be called
@@ -1191,7 +1193,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(numOfNotifications),
                 /* appFunctionServices= */ ImmutableList.of());
         for (int i = numOfNotifications / 2; i < numOfNotifications; i++) {
-            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+            mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         }
 
         // Now we allow syncing to continue
@@ -1376,7 +1378,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
 
-        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+        mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
 
         // Wait for all async tasks to complete
         afterSemaphore.acquire();
@@ -1636,10 +1638,19 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
-        JobInfo mockJobInfo = mock(JobInfo.class);
+
+        // The JobInfo has to match exactly
+        JobInfo scheduled =
+                IndexerMaintenanceService.createJobInfo(
+                        mTestContext,
+                        mTestContext.getUser(),
+                        IndexerMaintenanceConfig.APPS_INDEXER,
+                        /* isPeriodic= */ true,
+                        mAppsIndexerConfig.getAppsMaintenanceUpdateIntervalMillis());
+
         // getPendingJob() should return a non-null value to simulate the scenario where a
         // background job is already scheduled.
-        doReturn(mockJobInfo)
+        doReturn(scheduled)
                 .when(mockJobScheduler)
                 .getPendingJob(
                         AppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
@@ -1654,15 +1665,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                         mSingleThreadedExecutor);
 
         int docCount = 10;
-        CountDownLatch latch = setupLatch(docCount);
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
-        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
-        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+        CountDownLatch latch = setupLatch(docCount);
+        mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         // Wait for all async tasks to complete
         latch.await(10L, TimeUnit.SECONDS);
 
