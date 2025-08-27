@@ -16,7 +16,7 @@
 
 package com.android.server.appsearch.appsindexer;
 
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APP_OPEN_EVENT_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.APP_OPEN_EVENT_INDEXER;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchEnvironmentFactory;
@@ -32,7 +32,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -212,8 +211,8 @@ public final class AppOpenEventIndexerUserInstance {
             }
         }
         mAppOpenEventIndexerImpl.close();
-        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
-                mContext, mContext.getUser(), APP_OPEN_EVENT_INDEXER);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .cancelUpdateJobIfScheduled(mContext, mContext.getUser(), APP_OPEN_EVENT_INDEXER);
         synchronized (mSingleThreadedExecutor) {
             mSingleThreadedExecutor.shutdown();
         }
@@ -375,18 +374,19 @@ public final class AppOpenEventIndexerUserInstance {
     }
 
     /**
-     * Schedules the next indexer update job. The {@link IndexerMaintenanceService} deduplicates
-     * this by checking the job info (which includes job ID). This ensures only 1 scheduled periodic
-     * task per indexer type per user.
+     * Schedules the next indexer update job. The environment-specific indexer maintenance service
+     * deduplicates this by checking the job info (which includes job ID). This ensures only 1
+     * scheduled periodic task per indexer type per user.
      */
     public void schedulePeriodicUpdate() {
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContext,
-                mContext.getUser(),
-                APP_OPEN_EVENT_INDEXER,
-                /* periodic= */ true,
-                /* intervalMillis= */ mAppOpenEventIndexerConfig
-                        .getAppOpenEventMaintenanceUpdateIntervalMillis());
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContext,
+                        mContext.getUser(),
+                        APP_OPEN_EVENT_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ mAppOpenEventIndexerConfig
+                                .getAppOpenEventMaintenanceUpdateIntervalMillis());
     }
 
     @VisibleForTesting

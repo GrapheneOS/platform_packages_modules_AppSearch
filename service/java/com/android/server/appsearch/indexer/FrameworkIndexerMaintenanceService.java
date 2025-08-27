@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 // @exportToGMSCore:skipFile()
+// Uses Framework-specific JobService. GmsIndexerMaintenanceService relies on GmsTaskBoundService.
 package com.android.server.appsearch.indexer;
 
 import android.annotation.NonNull;
@@ -38,7 +39,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService;
-import com.android.server.appsearch.indexer.IndexerMaintenanceConfig.IndexerType;
+import com.android.server.appsearch.indexer.IndexerJobHandler.IndexerType;
 
 import java.util.Map;
 import java.util.Objects;
@@ -47,14 +48,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /** Dispatches maintenance tasks for various indexers. */
-public class IndexerMaintenanceService extends JobService {
+public class FrameworkIndexerMaintenanceService extends JobService {
     private static final String TAG = "AppSearchIndexerMainten";
 
-    @VisibleForTesting
-    public static final String EXTRA_USER_ID = "user_id";
+    @VisibleForTesting public static final String EXTRA_USER_ID = "user_id";
 
-    @VisibleForTesting
-    public static final String INDEXER_TYPE = "indexer_type";
+    @VisibleForTesting public static final String INDEXER_TYPE = "indexer_type";
 
     /**
      * A mapping of userHandle-to-CancellationSignal. Since we schedule a separate job for each
@@ -104,9 +103,7 @@ public class IndexerMaintenanceService extends JobService {
         }
     }
 
-    /**
-     * Creates a {@link JobInfo} with the given parameters.
-     */
+    /** Creates a {@link JobInfo} with the given parameters. */
     @VisibleForTesting
     public static JobInfo createJobInfo(
             @NonNull Context context,
@@ -117,8 +114,8 @@ public class IndexerMaintenanceService extends JobService {
         int jobId = getJobIdForUser(userHandle, indexerType);
         // For devices U and below, we have to schedule using ContactsIndexerMaintenanceService
         // as it has the proper permissions in core/res/AndroidManifest.xml.
-        // IndexerMaintenanceService does not have the proper permissions on U. For simplicity, we
-        // can also use the same component for scheduling maintenance on U+.
+        // FrameworkIndexerMaintenanceService does not have the proper permissions on U.
+        // For simplicity, we can also use the same component for scheduling maintenance on U+.
         ComponentName component =
                 new ComponentName(context, ContactsIndexerMaintenanceService.class);
         final PersistableBundle extras = new PersistableBundle();
@@ -195,10 +192,16 @@ public class IndexerMaintenanceService extends JobService {
         if (jobInfo == null) {
             return false;
         }
-        JobInfo periodicJobInfo = createJobInfo(context, userHandle, indexerType, /* periodic= */
-                true, intervalMillis);
-        JobInfo immediateJobInfo = createJobInfo(context, userHandle, indexerType, /* periodic= */
-                false, /* intervalMillis= */ -1);
+        JobInfo periodicJobInfo =
+                createJobInfo(
+                        context, userHandle, indexerType, /* periodic= */ true, intervalMillis);
+        JobInfo immediateJobInfo =
+                createJobInfo(
+                        context,
+                        userHandle,
+                        indexerType,
+                        /* periodic= */ false,
+                        /* intervalMillis= */ -1);
         return jobInfo.equals(periodicJobInfo) || jobInfo.equals(immediateJobInfo);
     }
 
@@ -231,7 +234,8 @@ public class IndexerMaintenanceService extends JobService {
     private static int getJobIdForUser(
             @NonNull UserHandle userHandle, @IndexerType int indexerType) {
         Objects.requireNonNull(userHandle);
-        int baseJobId = IndexerMaintenanceConfig.getConfigForIndexer(indexerType).getMinJobId();
+        int baseJobId =
+                FrameworkIndexerMaintenanceConfig.getConfigForIndexer(indexerType).getMinJobId();
         return baseJobId + userHandle.getIdentifier();
     }
 
@@ -247,11 +251,18 @@ public class IndexerMaintenanceService extends JobService {
                 // If the job parameters is missing INDEXER_TYPE, then this job was scheduled on
                 // a previous version before INDEXER_TYPE was introduced, and therefore the job
                 // must be for contacts indexer.
-                @IndexerType int indexerType = params.getExtras().getInt(
-                        INDEXER_TYPE, /* defaultValue= */
-                        IndexerMaintenanceConfig.CONTACTS_INDEXER);
-                Log.v(TAG, "Update job started for user " + userId + " and indexer type "
-                        + indexerType);
+                @IndexerType
+                int indexerType =
+                        params.getExtras()
+                                .getInt(
+                                        INDEXER_TYPE,
+                                        /* defaultValue= */ IndexerJobHandler.CONTACTS_INDEXER);
+                Log.v(
+                        TAG,
+                        "Update job started for user "
+                                + userId
+                                + " and indexer type "
+                                + indexerType);
             }
 
             UserHandle userHandle = UserHandle.getUserHandleForUid(userId);
@@ -302,10 +313,12 @@ public class IndexerMaintenanceService extends JobService {
             // If the job parameters is missing INDEXER_TYPE, then this job was scheduled on a
             // previous version before INDEXER_TYPE was introduced, and therefore the job must be
             // for contacts indexer.
-            @IndexerType int indexerType = params.getExtras().getInt(INDEXER_TYPE,
-                    IndexerMaintenanceConfig.CONTACTS_INDEXER);
+            @IndexerType
+            int indexerType =
+                    params.getExtras().getInt(INDEXER_TYPE, IndexerJobHandler.CONTACTS_INDEXER);
             Class<? extends IndexerLocalService> indexerLocalService =
-                    IndexerMaintenanceConfig.getConfigForIndexer(indexerType).getLocalService();
+                    FrameworkIndexerMaintenanceConfig.getConfigForIndexer(indexerType)
+                            .getLocalService();
             IndexerLocalService service = LocalManagerRegistry.getManager(indexerLocalService);
             if (service == null) {
                 Log.e(

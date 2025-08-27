@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,47 +16,33 @@
 // @exportToGMSCore:skipFile()
 package com.android.server.appsearch.indexer;
 
-import android.annotation.IntDef;
 import android.annotation.NonNull;
 
 import com.android.server.LocalManagerRegistry;
-import com.android.server.appsearch.appsindexer.AppOpenEventIndexerMaintenanceConfig;
-import com.android.server.appsearch.appsindexer.AppsIndexerMaintenanceConfig;
-import com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceConfig;
+import com.android.server.appsearch.appsindexer.FrameworkAppOpenEventIndexerMaintenanceConfig;
+import com.android.server.appsearch.appsindexer.FrameworkAppsIndexerMaintenanceConfig;
+import com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerMaintenanceConfig;
+import com.android.server.appsearch.indexer.IndexerJobHandler.IndexerType;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+/** Contains Framework-specific information needed to dispatch a maintenance job for an indexer. */
+public interface FrameworkIndexerMaintenanceConfig {
 
-/** Contains information needed to dispatch a maintenance job for an indexer. */
-public interface IndexerMaintenanceConfig {
-    int APPS_INDEXER = 0;
-    int CONTACTS_INDEXER = 1;
-    int APP_OPEN_EVENT_INDEXER = 2;
-
+    // Platform-specific minimum job ids.
     int MIN_CONTACTS_INDEXER_JOB_ID = 16942831; // corresponds to ag/16942831
 
     int MIN_APPS_INDEXER_JOB_ID = 16964307; // Contacts Indexer Max Job Id + 1
 
     int MIN_APP_OPEN_EVENT_INDEXER_JOB_ID = 16985783; // Apps Indexer Max Job Id + 1
 
-    @IntDef(
-            value = {
-                APPS_INDEXER,
-                CONTACTS_INDEXER,
-                APP_OPEN_EVENT_INDEXER,
-            })
-    @Retention(RetentionPolicy.SOURCE)
-    @interface IndexerType {}
-
     /** Returns the {@link IndexerMaintenanceConfig} for the requested indexer type. */
     @NonNull
-    static IndexerMaintenanceConfig getConfigForIndexer(@IndexerType int indexerType) {
-        if (indexerType == APPS_INDEXER) {
-            return AppsIndexerMaintenanceConfig.INSTANCE;
-        } else if (indexerType == CONTACTS_INDEXER) {
-            return ContactsIndexerMaintenanceConfig.INSTANCE;
-        } else if (indexerType == APP_OPEN_EVENT_INDEXER) {
-            return AppOpenEventIndexerMaintenanceConfig.INSTANCE;
+    static FrameworkIndexerMaintenanceConfig getConfigForIndexer(@IndexerType int indexerType) {
+        if (indexerType == IndexerJobHandler.APPS_INDEXER) {
+            return FrameworkAppsIndexerMaintenanceConfig.INSTANCE;
+        } else if (indexerType == IndexerJobHandler.CONTACTS_INDEXER) {
+            return FrameworkContactsIndexerMaintenanceConfig.INSTANCE;
+        } else if (indexerType == IndexerJobHandler.APP_OPEN_EVENT_INDEXER) {
+            return FrameworkAppOpenEventIndexerMaintenanceConfig.INSTANCE;
         } else {
             throw new IllegalArgumentException(
                     "Attempted to get config for invalid indexer type: " + indexerType);

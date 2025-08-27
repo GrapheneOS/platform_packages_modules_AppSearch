@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// TODO: b/413737868 - Remove annotation and move JobInfo-related tests to a Platform-specific test.
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
@@ -56,6 +57,7 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.PersistableBundle;
+import android.os.Process;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
@@ -66,9 +68,9 @@ import androidx.test.core.app.ApplicationProvider;
 import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.indexer.IndexerJobHandler;
 import com.android.server.appsearch.indexer.IndexerSettings;
 
 import com.google.common.collect.ImmutableList;
@@ -142,6 +144,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -178,6 +181,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -233,6 +237,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         indexerForceUpdateConfig,
@@ -328,6 +333,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -381,6 +387,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -435,6 +442,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -485,6 +493,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -535,6 +544,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -614,6 +624,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -682,6 +693,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -742,6 +754,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -810,6 +823,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -867,6 +881,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -970,6 +985,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1024,6 +1040,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1079,6 +1096,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1101,6 +1119,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1162,6 +1181,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         pauseContext,
+                        ((TestContext) pauseContext).getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1248,6 +1268,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                                     AppsIndexerUserInstance unused =
                                             AppsIndexerUserInstance.createInstance(
                                                     mTestContext,
+                                                    mTestContext.getTestUser(),
                                                     dataDir,
                                                     mAppsIndexerConfig,
                                                     mIndexerForceUpdateConfig,
@@ -1371,6 +1392,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1431,6 +1453,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1498,6 +1521,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1557,6 +1581,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1610,6 +1635,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1649,10 +1675,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
         // The JobInfo has to match exactly
         JobInfo scheduled =
-                IndexerMaintenanceService.createJobInfo(
+                FrameworkIndexerMaintenanceService.createJobInfo(
                         mTestContext,
                         mTestContext.getUser(),
-                        IndexerMaintenanceConfig.APPS_INDEXER,
+                        IndexerJobHandler.APPS_INDEXER,
                         /* isPeriodic= */ true,
                         mAppsIndexerConfig.getAppsMaintenanceUpdateIntervalMillis());
 
@@ -1661,12 +1687,13 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         doReturn(scheduled)
                 .when(mockJobScheduler)
                 .getPendingJob(
-                        AppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
+                        FrameworkAppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
                                 + mTestContext.getUser().getIdentifier());
         mTestContext.setJobScheduler(mockJobScheduler);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1738,6 +1765,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         @NonNull
         public Context createContextAsUser(UserHandle user, int flags) {
             return this;
+        }
+
+        @NonNull
+        public UserHandle getTestUser() {
+            return Process.myUserHandle();
         }
     }
 }

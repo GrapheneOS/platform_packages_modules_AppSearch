@@ -17,7 +17,9 @@
 package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppIndexerVersions.CURR_APP_INDEXER_VERSION;
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APPS_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.APPS_INDEXER;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import android.annotation.NonNull;
 import android.annotation.WorkerThread;
@@ -27,6 +29,7 @@ import android.content.Context;
 import android.os.Build;
 import android.os.LocaleList;
 import android.os.SystemClock;
+import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import android.util.Log;
@@ -38,7 +41,6 @@ import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import java.io.File;
@@ -58,7 +60,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Apps Indexer for a single user.
@@ -97,6 +98,7 @@ public final class AppsIndexerUserInstance {
     private final ExecutorService mSingleThreadedExecutor;
 
     private final Context mContext;
+    private final UserHandle mUserHandle;
     private final AppsIndexerConfig mAppsIndexerConfig;
     private final IndexerForceUpdateConfig mAppsIndexerForceUpdateConfig;
     private final InternalAppSearchLogger mLogger;
@@ -114,11 +116,13 @@ public final class AppsIndexerUserInstance {
     @NonNull
     public static AppsIndexerUserInstance createInstance(
             @NonNull Context userContext,
+            @NonNull UserHandle userHandle,
             @NonNull File appsDir,
             @NonNull AppsIndexerConfig appsIndexerConfig,
             @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
+        Objects.requireNonNull(userHandle);
         Objects.requireNonNull(appsDir);
         Objects.requireNonNull(appsIndexerConfig);
         Objects.requireNonNull(appsIndexerForceUpdateConfig);
@@ -127,6 +131,7 @@ public final class AppsIndexerUserInstance {
                 AppSearchEnvironmentFactory.getEnvironmentInstance().createSingleThreadExecutor();
         return createInstance(
                 userContext,
+                userHandle,
                 appsDir,
                 appsIndexerConfig,
                 appsIndexerForceUpdateConfig,
@@ -137,12 +142,14 @@ public final class AppsIndexerUserInstance {
     @NonNull
     static AppsIndexerUserInstance createInstance(
             @NonNull Context context,
+            @NonNull UserHandle userHandle,
             @NonNull File appsDir,
             @NonNull AppsIndexerConfig appsIndexerConfig,
             @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig,
             @NonNull ExecutorService executorService)
             throws AppSearchException {
         Objects.requireNonNull(context);
+        Objects.requireNonNull(userHandle);
         Objects.requireNonNull(appsDir);
         Objects.requireNonNull(appsIndexerConfig);
         Objects.requireNonNull(appsIndexerForceUpdateConfig);
@@ -153,6 +160,7 @@ public final class AppsIndexerUserInstance {
                         appsDir,
                         executorService,
                         context,
+                        userHandle,
                         appsIndexerConfig,
                         appsIndexerForceUpdateConfig);
         indexer.loadSettingsAsync();
@@ -173,12 +181,14 @@ public final class AppsIndexerUserInstance {
             @NonNull File dataDir,
             @NonNull ExecutorService singleThreadedExecutor,
             @NonNull Context context,
+            @NonNull UserHandle userHandle,
             @NonNull AppsIndexerConfig appsIndexerConfig,
             @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig) {
         mDataDir = Objects.requireNonNull(dataDir);
         mSettings = new AppsIndexerSettings(mDataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
+        mUserHandle = Objects.requireNonNull(userHandle);
         mAppsIndexerConfig = Objects.requireNonNull(appsIndexerConfig);
         mAppsIndexerForceUpdateConfig = Objects.requireNonNull(appsIndexerForceUpdateConfig);
         // TODO: b/444057344 - Use the logger created by AppSearchUserInstance.
@@ -232,12 +242,12 @@ public final class AppsIndexerUserInstance {
             }
         }
         mAppsIndexerImpl.close();
-        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
-                mContext, mContext.getUser(), APPS_INDEXER);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .cancelUpdateJobIfScheduled(mContext, mUserHandle, APPS_INDEXER);
         synchronized (mSingleThreadedExecutor) {
             mSingleThreadedExecutor.shutdown();
         }
-        boolean unused = mSingleThreadedExecutor.awaitTermination(30L, TimeUnit.SECONDS);
+        boolean unused = mSingleThreadedExecutor.awaitTermination(30L, SECONDS);
     }
 
     /** Dumps the internal state of this {@link AppsIndexerUserInstance}. */
@@ -331,13 +341,14 @@ public final class AppsIndexerUserInstance {
         executeOnSingleThreadedExecutor(
                 () -> {
                     doUpdate(firstRun, appsUpdateStats);
-                    IndexerMaintenanceService.scheduleUpdateJob(
-                            mContext,
-                            mContext.getUser(),
-                            APPS_INDEXER,
-                            /* periodic= */ true,
-                            /* intervalMillis= */ mAppsIndexerConfig
-                                    .getAppsMaintenanceUpdateIntervalMillis());
+                    AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                            .scheduleUpdateJob(
+                                    mContext,
+                                    mUserHandle,
+                                    APPS_INDEXER,
+                                    /* periodic= */ true,
+                                    /* intervalMillis= */ mAppsIndexerConfig
+                                            .getAppsMaintenanceUpdateIntervalMillis());
                     appsUpdateStats.mTotalLatencyMillis =
                             SystemClock.elapsedRealtime() - updateLatencyStartTimestampMillis;
                     if (Flags.enableAppsIndexerPlatformLogger()) {

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// TODO: b/413737868 - Remove annotation and move JobInfo-related tests to a Platform-specific test.
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.contactsindexer;
 
 import static com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerForceUpdateConfig.KEY_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER;
@@ -65,8 +66,9 @@ import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.indexer.IndexerJobHandler;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import org.junit.After;
@@ -94,18 +96,22 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidJUnit4.class)
 public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBase {
-    private static final JobInfo PERIODIC_JOB_INFO = IndexerMaintenanceService.createJobInfo(
-            ApplicationProvider.getApplicationContext(),
-            ApplicationProvider.getApplicationContext().getUser(),
-            ContactsIndexerMaintenanceConfig.CONTACTS_INDEXER, /* periodic= */
-            true, /* intervalMillis= */
-            ContactsIndexerConfig.DEFAULT_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS);
+    private static final JobInfo PERIODIC_JOB_INFO =
+            FrameworkIndexerMaintenanceService.createJobInfo(
+                    ApplicationProvider.getApplicationContext(),
+                    ApplicationProvider.getApplicationContext().getUser(),
+                    IndexerJobHandler.CONTACTS_INDEXER,
+                    /* periodic= */ true,
+                    /* intervalMillis= */ ContactsIndexerConfig
+                            .DEFAULT_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS);
 
-    private static final JobInfo IMMEDIATE_JOB_INFO = IndexerMaintenanceService.createJobInfo(
-            ApplicationProvider.getApplicationContext(),
-            ApplicationProvider.getApplicationContext().getUser(),
-            ContactsIndexerMaintenanceConfig.CONTACTS_INDEXER, /* periodic= */
-            false, /* intervalMillis= */ -1);
+    private static final JobInfo IMMEDIATE_JOB_INFO =
+            FrameworkIndexerMaintenanceService.createJobInfo(
+                    ApplicationProvider.getApplicationContext(),
+                    ApplicationProvider.getApplicationContext().getUser(),
+                    IndexerJobHandler.CONTACTS_INDEXER,
+                    /* periodic= */ false,
+                    /* intervalMillis= */ -1);
 
     @Rule
     public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
@@ -498,7 +504,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         doReturn(PERIODIC_JOB_INFO)
                 .when(mockJobScheduler)
                 .getPendingJob(
-                        ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
                                 + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
@@ -521,7 +527,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         doReturn(IMMEDIATE_JOB_INFO)
                 .when(mockJobScheduler)
                 .getPendingJob(
-                        ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
                                 + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
@@ -548,8 +554,9 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // Simulate getPendingJob() returning a job with missing params
         doReturn(fakeJobInfo)
                 .when(mockJobScheduler)
-                .getPendingJob(ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
-                        + mContext.getUser().getIdentifier());
+                .getPendingJob(
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                                + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
 
@@ -578,8 +585,9 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // Simulate getPendingJob() returning a job with missing params
         doReturn(fakeJobInfo)
                 .when(mockJobScheduler)
-                .getPendingJob(ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
-                        + mContext.getUser().getIdentifier());
+                .getPendingJob(
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                                + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
 

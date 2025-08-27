@@ -16,9 +16,9 @@
 // @exportToGMSCore:skipFile()
 package com.android.server.appsearch;
 
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APPS_INDEXER;
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.APP_OPEN_EVENT_INDEXER;
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.APPS_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.APP_OPEN_EVENT_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.CONTACTS_INDEXER;
 
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
@@ -41,7 +41,7 @@ import com.android.server.appsearch.appsindexer.FrameworkAppsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerConfig;
 import com.android.server.appsearch.contactsindexer.ContactsIndexerManagerService;
 import com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 
 import java.io.PrintWriter;
 import java.util.Objects;
@@ -217,21 +217,21 @@ public class AppSearchModule {
         public void onUserUnlocking(@NonNull TargetUser user) {
             mAppSearchManagerService.onUserUnlocking(user);
             if (mContactsIndexerManagerService == null) {
-                IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                FrameworkIndexerMaintenanceService.cancelUpdateJobIfScheduled(
                         getContext(), user.getUserHandle(), CONTACTS_INDEXER);
             } else {
                 mContactsIndexerManagerService.onUserUnlocking(user);
             }
 
             if (mAppsIndexerManagerService == null) {
-                IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                FrameworkIndexerMaintenanceService.cancelUpdateJobIfScheduled(
                         getContext(), user.getUserHandle(), APPS_INDEXER);
             } else {
                 mAppsIndexerManagerService.onUserUnlocking(user);
             }
 
             if (mAppOpenEventIndexerManagerService == null) {
-                IndexerMaintenanceService.cancelUpdateJobIfScheduled(
+                FrameworkIndexerMaintenanceService.cancelUpdateJobIfScheduled(
                         getContext(), user.getUserHandle(), APP_OPEN_EVENT_INDEXER);
             } else {
                 // App Open Event Indexer only schedules a periodic update job on user unlock and
