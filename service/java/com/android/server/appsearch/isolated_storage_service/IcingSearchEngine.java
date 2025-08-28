@@ -121,6 +121,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public InitializeResultProto initialize() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -135,10 +136,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 InitializeResultProto.getDefaultInstance(),
-                status -> InitializeResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        InitializeResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -154,6 +160,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] input = schema.toByteArray();
 
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -178,10 +185,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 SetSchemaResultProto.getDefaultInstance(),
-                status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        SetSchemaResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     /**
@@ -195,6 +207,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] inputRequest = setSchemaRequest.toByteArray();
 
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -218,16 +231,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 SetSchemaResultProto.getDefaultInstance(),
-                status -> SetSchemaResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        SetSchemaResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public GetSchemaResultProto getSchema() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -242,16 +261,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 GetSchemaResultProto.getDefaultInstance(),
-                status -> GetSchemaResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        GetSchemaResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public GetSchemaResultProto getSchemaForDatabase(@NonNull String database) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -266,16 +291,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 GetSchemaResultProto.getDefaultInstance(),
-                status -> GetSchemaResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        GetSchemaResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public GetSchemaTypeResultProto getSchemaType(@NonNull String schemaType) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -294,10 +325,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 GetSchemaTypeResultProto.getDefaultInstance(),
-                status -> GetSchemaTypeResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        GetSchemaTypeResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -306,6 +342,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] input = document.toByteArray();
 
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -325,10 +362,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 PutResultProto.getDefaultInstance(),
-                status -> PutResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        PutResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -337,6 +379,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] input = putDocumentRequest.toByteArray();
 
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -364,6 +407,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 BatchPutResultProto.getDefaultInstance(),
@@ -371,6 +415,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                         BatchPutResultProto.newBuilder()
                                 // TODO(b/401245113) set status when the change is available.
                                 .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
                                 .build());
     }
 
@@ -381,6 +426,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull String uri,
             @NonNull GetResultSpecProto getResultSpec) {
         byte[] resultData;
+        long getVmStartTimestampMillis;
         try {
             mManager.signalActivityStarts();
             if (getResultSpec.getNumTotalDocumentBytesToReturn()
@@ -397,6 +443,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                                                 .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE)
                                 .build();
             }
+            getVmStartTimestampMillis = System.currentTimeMillis();
             resultData =
                     mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
                             .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -409,10 +456,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 GetResultProto.getDefaultInstance(),
-                status -> GetResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        GetResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -422,6 +474,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         // Used to rewrite the response from the 1st call if limit is reached.
         BatchGetResultProto.Builder responseBuilderIfLimitReached = null;
 
+        int getVmLatencyMillis = 0;
         try {
             mManager.signalActivityStarts();
             // TODO(b/401245769) this could be set directly in the caller so we don't need to do
@@ -449,10 +502,14 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                 // requestBuilder is reused for all the batchGet so we need to clear ids here.
                 requestBuilder.clearIds();
 
+                long getVmStartTimestampMillis = System.currentTimeMillis();
                 byte[] resultData =
                         mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
                                 .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                 .batchGet(getResultSpec.toByteArray());
+
+                getVmLatencyMillis +=
+                        (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
                 BatchGetResultProto response = getResponseProtoFromRawData(
                         resultData,
                         BatchGetResultProto.getDefaultInstance(),
@@ -513,6 +570,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         } catch (RemoteException e) {
             return BatchGetResultProto.newBuilder()
                     .setStatus(remoteExceptionStatus(e))
+                    .setGetVmLatencyMs(getVmLatencyMillis)
                     .build();
         } finally {
             mManager.signalActivityEnds();
@@ -529,6 +587,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public ReportUsageResultProto reportUsage(@NonNull UsageReport usageReport) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -543,16 +602,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 ReportUsageResultProto.getDefaultInstance(),
-                status -> ReportUsageResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        ReportUsageResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public GetAllNamespacesResultProto getAllNamespaces() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -571,10 +636,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 GetAllNamespacesResultProto.getDefaultInstance(),
-                status -> GetAllNamespacesResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        GetAllNamespacesResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -584,6 +654,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             @NonNull ScoringSpecProto scoringSpec,
             @NonNull ResultSpecProto resultSpec) {
         byte[] resultData;
+        long getVmStartTimestampMillis;
         try {
             mManager.signalActivityStarts();
             if (resultSpec.getNumTotalBytesPerPageThreshold()
@@ -600,6 +671,8 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                                                 .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE)
                                 .build();
             }
+
+            getVmStartTimestampMillis = System.currentTimeMillis();
             resultData =
                     mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
                             .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -620,16 +693,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 SearchResultProto.getDefaultInstance(),
-                status -> SearchResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        SearchResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public SearchResultProto getNextPage(long nextPageToken) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -648,10 +727,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 SearchResultProto.getDefaultInstance(),
-                status -> SearchResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        SearchResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -660,6 +744,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         byte[] inputRequest = getNextPageRequest.toByteArray();
 
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -679,10 +764,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 SearchResultProto.getDefaultInstance(),
-                status -> SearchResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        SearchResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @Override
@@ -705,6 +795,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public BlobProto openWriteBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -719,16 +810,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 BlobProto.getDefaultInstance(),
-                status -> BlobProto.newBuilder().setStatus(status).build());
+                status ->
+                        BlobProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public BlobProto removeBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -743,16 +840,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 BlobProto.getDefaultInstance(),
-                status -> BlobProto.newBuilder().setStatus(status).build());
+                status ->
+                        BlobProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public BlobProto openReadBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -767,16 +870,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 BlobProto.getDefaultInstance(),
-                status -> BlobProto.newBuilder().setStatus(status).build());
+                status ->
+                        BlobProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public BlobProto commitBlob(@NonNull PropertyProto.BlobHandleProto blobHandle) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -791,10 +900,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 BlobProto.getDefaultInstance(),
-                status -> BlobProto.newBuilder().setStatus(status).build());
+                status ->
+                        BlobProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
 
@@ -816,6 +930,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public DeleteResultProto delete(@NonNull String namespace, @NonNull String uri) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -830,16 +945,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 DeleteResultProto.getDefaultInstance(),
-                status -> DeleteResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        DeleteResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public SuggestionResponse searchSuggestions(@NonNull SuggestionSpecProto suggestionSpec) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -854,16 +975,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 SuggestionResponse.getDefaultInstance(),
-                status -> SuggestionResponse.newBuilder().setStatus(status).build());
+                status ->
+                        SuggestionResponse.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public DeleteByNamespaceResultProto deleteByNamespace(@NonNull String namespace) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -882,16 +1009,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 DeleteByNamespaceResultProto.getDefaultInstance(),
-                status -> DeleteByNamespaceResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        DeleteByNamespaceResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public DeleteBySchemaTypeResultProto deleteBySchemaType(@NonNull String schemaType) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -910,16 +1043,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 DeleteBySchemaTypeResultProto.getDefaultInstance(),
-                status -> DeleteBySchemaTypeResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        DeleteBySchemaTypeResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public DeleteByQueryResultProto deleteByQuery(@NonNull SearchSpecProto searchSpec) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -944,10 +1083,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 DeleteByQueryResultProto.getDefaultInstance(),
-                status -> DeleteByQueryResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        DeleteByQueryResultProto.newBuilder()
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .setStatus(status)
+                                .build());
     }
 
     @NonNull
@@ -955,6 +1099,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     public DeleteByQueryResultProto deleteByQuery(
             @NonNull SearchSpecProto searchSpec, boolean returnDeletedDocumentInfo) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -977,16 +1122,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 DeleteByQueryResultProto.getDefaultInstance(),
-                status -> DeleteByQueryResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        DeleteByQueryResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public PersistToDiskResultProto persistToDisk(@NonNull PersistType.Code persistTypeCode) {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -1005,16 +1156,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 PersistToDiskResultProto.getDefaultInstance(),
-                status -> PersistToDiskResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        PersistToDiskResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public OptimizeResultProto optimize() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -1029,16 +1186,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 OptimizeResultProto.getDefaultInstance(),
-                status -> OptimizeResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        OptimizeResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public GetOptimizeInfoResultProto getOptimizeInfo() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -1057,16 +1220,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 GetOptimizeInfoResultProto.getDefaultInstance(),
-                status -> GetOptimizeInfoResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        GetOptimizeInfoResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public StorageInfoResultProto getStorageInfo() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -1081,10 +1250,15 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 StorageInfoResultProto.getDefaultInstance(),
-                status -> StorageInfoResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        StorageInfoResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
@@ -1115,6 +1289,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @Override
     public ResetResultProto reset() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -1129,16 +1304,22 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         return getResponseProtoFromRawData(
                 resultData,
                 ResetResultProto.getDefaultInstance(),
-                status -> ResetResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        ResetResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public ResetResultProto clearAndDestroy() {
         byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
         try {
             mManager.signalActivityStarts();
             resultData =
@@ -1153,12 +1334,17 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
             mManager.signalActivityEnds();
         }
 
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
         mManager.removeUserInstance(mUserHandle);
 
         return getResponseProtoFromRawData(
                 resultData,
                 ResetResultProto.getDefaultInstance(),
-                status -> ResetResultProto.newBuilder().setStatus(status).build());
+                status ->
+                        ResetResultProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     private static @NonNull <M extends MessageLite> M getResponseProtoFromRawData(
