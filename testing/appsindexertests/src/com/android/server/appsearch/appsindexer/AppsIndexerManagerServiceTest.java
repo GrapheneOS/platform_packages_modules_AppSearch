@@ -30,6 +30,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static junit.framework.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import android.annotation.NonNull;
 import android.app.UiAutomation;
 import android.app.appsearch.AppSearchEnvironmentFactory;
@@ -40,6 +43,7 @@ import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchResultsShim;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.GlobalSearchSessionShimImpl;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -50,14 +54,18 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.UserInfo;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.UserHandle;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.annotation.Nullable;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
@@ -67,12 +75,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -81,12 +91,16 @@ import java.util.concurrent.TimeUnit;
 public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private AppsIndexerManagerService mAppsIndexerManagerService;
     private UiAutomation mUiAutomation;
     private BroadcastReceiver mCapturedReceiver;
     // Saving to class so we can unregister the callback
     private final PackageManager mPackageManager = Mockito.mock(PackageManager.class);
+
+    private Locale mLocale = null;
 
     @Before
     @Override
@@ -133,6 +147,29 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
                     public File getAppSearchDir(
                             @NonNull Context unused, @NonNull UserHandle userHandle) {
                         return mAppSearchDir;
+                    }
+
+                    @Override
+                    public Context createContextAsUser(
+                            @NonNull Context context, @NonNull UserHandle userHandle) {
+                        return new ContextWrapper(super.createContextAsUser(context, userHandle)) {
+                            @Override
+                            public PackageManager getPackageManager() {
+                                return mPackageManager;
+                            }
+
+                            @Override
+                            public Resources getResources() {
+                                if (mLocale == null) {
+                                    return super.getResources();
+                                }
+                                Configuration overrideConfig =
+                                        new Configuration(super.getResources().getConfiguration());
+                                overrideConfig.setLocale(mLocale);
+                                Context configContext = createConfigurationContext(overrideConfig);
+                                return configContext.getResources();
+                            }
+                        };
                     }
                 });
 
@@ -398,6 +435,96 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         // 10 is greater than the expected number of results, which is numFakePackage - 1 = 2
         assertThat(page).hasSize(numFakePackages - 1);
 
+        mAppsIndexerManagerService.onUserStopping(targetUser);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_LOCALE_CHANGE_FULL_UPDATE)
+    public void testLocaleChange() throws Exception {
+        // Populate fake PackageManager with 1 fake package
+        List<PackageInfo> fakePackages = ImmutableList.of(createFakePackageInfo(0));
+        List<ResolveInfo> fakeActivities = ImmutableList.of(createFakeLaunchResolveInfo(0));
+
+        // Set locale
+        mLocale = new Locale("en", "US");
+
+        setupMockPackageManager(
+                mPackageManager,
+                fakePackages,
+                fakeActivities,
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Mock the initial application label
+        String originalLabel = "Original English Label";
+        when(mPackageManager.getApplicationLabel(any())).thenReturn(originalLabel);
+
+        UserInfo userInfo =
+                new UserInfo(
+                        mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
+        SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
+        GlobalSearchSessionShim db =
+                GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
+        // Apps indexer schedules a full-update job for bootstrapping from PackageManager,
+        // and JobScheduler API requires BOOT_COMPLETED permission for persisting the job.
+        mUiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
+        try {
+            CountDownLatch bootstrapLatch = setupLatch(1, /* listenForSchemaChanges= */ false);
+            mAppsIndexerManagerService.onUserUnlocking(targetUser);
+            assertTrue(bootstrapLatch.await(10000L, TimeUnit.MILLISECONDS));
+        } finally {
+            mUiAutomation.dropShellPermissionIdentity();
+        }
+
+        // Verify the initial label in AppSearch
+        SearchResultsShim results =
+                db.search(
+                        "",
+                        new SearchSpec.Builder()
+                                .addFilterNamespaces(MobileApplication.APPS_NAMESPACE)
+                                .addFilterPackageNames(mContext.getPackageName())
+                                .build());
+        List<SearchResult> page = results.getNextPageAsync().get();
+        assertThat(page).hasSize(1);
+
+        assertThat(
+                        page.get(0)
+                                .getGenericDocument()
+                                .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES))
+                .isEqualTo(originalLabel);
+
+        // Create a fake locale changed intent
+        Intent fakeIntent = new Intent(Intent.ACTION_LOCALE_CHANGED);
+        fakeIntent.setData(Uri.parse("package:" + mContext.getPackageName()));
+        fakeIntent.putExtra(Intent.EXTRA_UID, targetUser.getUserHandle().getUid(20));
+
+        // Mock a new label
+        String newLabel = "New French Label";
+        when(mPackageManager.getApplicationLabel(any())).thenReturn(newLabel);
+
+        // The fake locale intent will start a sync, but to trigger a full update we also need to
+        // mock a locale change
+        mLocale = new Locale("fr", "FR");
+
+        CountDownLatch latch = setupLatch(1, /* listenForSchemaChanges= */ false);
+        mCapturedReceiver.onReceive(mContext, fakeIntent);
+        assertTrue(latch.await(10000L, TimeUnit.MILLISECONDS));
+
+        // Verify the label has been updated in AppSearch
+        results =
+                db.search(
+                        "",
+                        new SearchSpec.Builder()
+                                .addFilterNamespaces(MobileApplication.APPS_NAMESPACE)
+                                .addFilterPackageNames(mContext.getPackageName())
+                                .build());
+        page = results.getNextPageAsync().get();
+        assertThat(page).hasSize(1);
+
+        assertThat(
+                        page.get(0)
+                                .getGenericDocument()
+                                .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES))
+                .isEqualTo(newLabel);
         mAppsIndexerManagerService.onUserStopping(targetUser);
     }
 }
