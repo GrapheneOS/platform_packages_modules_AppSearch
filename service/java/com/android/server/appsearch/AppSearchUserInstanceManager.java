@@ -35,8 +35,8 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
-import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
+import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IcingSearchEngine;
@@ -372,8 +372,9 @@ public final class AppSearchUserInstanceManager {
                     && DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir)) {
                 IsolatedStorageServiceManager.cleanUp(
                         userContext,
-                        unused ->
-                                DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir));
+                        unused -> DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir),
+                        executorManager.getOrCreateUserExecutor(
+                                userHandle, /* isReadOnly= */ false));
             } else {
                 DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir);
             }
