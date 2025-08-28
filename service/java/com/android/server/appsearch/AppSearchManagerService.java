@@ -3798,17 +3798,6 @@ public class AppSearchManagerService extends SystemService {
                             mAppSearchConfig,
                             mExecutorManager,
                             mIsolatedStorageServiceManager);
-                    // It is possible that data got modified during initialization (e.g. rebuild),
-                    // so we have to check if we need to schedule persistToDisk.
-                    if (Flags.enableDelayedPersistToDisk()) {
-                        maybeSchedulePersistToDisk(
-                                callingPackageName,
-                                BaseStats.CALL_TYPE_INITIALIZE,
-                                targetUser,
-                                mAppSearchConfig.getLightweightPersistType(),
-                                mAppSearchConfig.getCachedPersistDelayMillis(),
-                                /* forceSchedule= */ false);
-                    }
                     ++operationSuccessCount;
                     invokeCallbackOnResult(callback, AppSearchResultParcel.fromVoid());
                 } catch (AppSearchException | RuntimeException e) {
