@@ -18,7 +18,7 @@ package android.app.appsearch.aidl;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcelV2;
 
-/** {@hide} */
+/** @hide */
 oneway interface IAppSearchResultCallback {
     void onResult(in AppSearchResultParcel resultParcel);
     void onResultV2(in AppSearchResultParcelV2 resultParcel);

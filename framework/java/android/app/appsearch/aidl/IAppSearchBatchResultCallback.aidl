@@ -18,7 +18,7 @@ package android.app.appsearch.aidl;
 import android.app.appsearch.aidl.AppSearchBatchResultParcel;
 import android.app.appsearch.aidl.AppSearchResultParcel;
 
-/** {@hide} */
+/** @hide */
 oneway interface IAppSearchBatchResultCallback {
     void onResult(in AppSearchBatchResultParcel resultParcel);
     void onSystemError(in AppSearchResultParcel resultParcel);

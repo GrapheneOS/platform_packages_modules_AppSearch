@@ -58,7 +58,7 @@ import android.app.appsearch.SearchSuggestionSpec;
 import android.content.AttributionSource;
 import android.os.ParcelFileDescriptor;
 
-/** {@hide} */
+/** @hide */
 // Always add new functions in the end with the commented transaction id.
 interface IAppSearchManager {
     /**
