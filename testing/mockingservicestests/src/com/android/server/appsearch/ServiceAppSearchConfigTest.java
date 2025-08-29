@@ -63,6 +63,7 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DISABLED_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ENABLED_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FIVE_MINUTE_PERSIST_DELAY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
@@ -198,8 +199,6 @@ public class ServiceAppSearchConfigTest {
                 DEFAULT_TIME_OPTIMIZE_THRESHOLD_MILLIS);
         assertThat(appSearchConfig.getCachedDocCountOptimizeThreshold()).isEqualTo(
                 DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD);
-        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
-                .isEqualTo(DEFAULT_DISABLED_API_CALL_STATS_LIMIT);
         assertThat(appSearchConfig.getCachedDenylist()).isEqualTo(Denylist.EMPTY_INSTANCE);
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(
                 IcingOptionsConfig.DEFAULT_MAX_TOKEN_LENGTH);
@@ -256,6 +255,26 @@ public class ServiceAppSearchConfigTest {
                 .isEqualTo(DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH);
         assertThat(appSearchConfig.getCompressionThresholdBytes())
                 .isEqualTo(DEFAULT_COMPRESSION_THRESHOLD_BYTES);
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_API_CALL_STATS_TRACKING)
+    public void testDefaultValues_disableApiCallStatsLimit() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+
+        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
+                .isEqualTo(DEFAULT_DISABLED_API_CALL_STATS_LIMIT);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_API_CALL_STATS_TRACKING)
+    public void testDefaultValues_enableApiCallStatsLimit() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+
+        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
+                .isEqualTo(DEFAULT_ENABLED_API_CALL_STATS_LIMIT);
     }
 
     @Test
