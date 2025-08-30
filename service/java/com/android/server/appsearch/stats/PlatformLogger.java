@@ -157,14 +157,17 @@ public class PlatformLogger implements InternalAppSearchLogger {
                                 currentCallReceivedTimestamp - mLastCallStatsTimestampMillisLocked,
                                 -1L);
             }
-            if (getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0) {
-                addStatsToQueueLocked(new ApiCallRecord(stats));
-            } else {
+            boolean enableStatsQueue =
+                    getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0;
+            if (!enableStatsQueue) {
                 mLastNCalls.clear();
             }
             if (shouldLogForTypeLocked(stats.getCallType(), stats.getEnabledFeatures())) {
-
                 logStatsImplLocked(stats, calculatedTimeSincePreviousRequestMillis);
+            }
+            if (enableStatsQueue) {
+                // avoid add this call stast itself in the n last queue.
+                addStatsToQueueLocked(new ApiCallRecord(stats));
             }
             mLastCallStatsTimestampMillisLocked = currentCallReceivedTimestamp;
         }

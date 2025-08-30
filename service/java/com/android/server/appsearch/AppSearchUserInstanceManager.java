@@ -35,6 +35,7 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
+import com.android.server.appsearch.external.localstorage.AppSearchLogger;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
@@ -355,7 +356,8 @@ public final class AppSearchUserInstanceManager {
                             userHandle,
                             config,
                             executorManager,
-                            isolatedStorageServiceManager);
+                            isolatedStorageServiceManager,
+                            logger);
         } else {
             if (LogUtil.INFO) {
                 Log.i(
@@ -677,12 +679,14 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager) {
+            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager,
+            @NonNull AppSearchLogger logger) {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
         Objects.requireNonNull(executorManager);
         Objects.requireNonNull(isolatedStorageServiceManager);
+        Objects.requireNonNull(logger);
 
         IcingSearchEngineInterface isolatedIcingInterface =
                 new IcingSearchEngine(
@@ -717,8 +721,7 @@ public final class AppSearchUserInstanceManager {
         if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
             // Data migration is not needed. But we still want to log an entry to
             // indicate that data migration is correctly skipped.
-            AppSearchUserInstance instance = getUserInstanceOrNull(userHandle);
-            if (vmFirstRun && instance != null && instance.getLogger() != null) {
+            if (vmFirstRun) {
                 // Skipped is effectively doing migration with 0 data.
                 CallStats.Builder callStatsBuilder =
                         new CallStats.Builder()
@@ -732,7 +735,7 @@ public final class AppSearchUserInstanceManager {
                                 .setLaunchVMEnabled(true)
                                 .setNumOperationsSucceeded(0)
                                 .setNumOperationsFailed(0);
-                instance.getLogger().logStats(callStatsBuilder.build());
+                logger.logStats(callStatsBuilder.build());
             }
             Log.i(TAG, "Data migration is not needed.");
             return isolatedIcingInterface;
