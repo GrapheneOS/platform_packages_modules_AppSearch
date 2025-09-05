@@ -863,3 +863,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_apps_indexer_platform_logger"
+    namespace: "appsearch"
+    description: "Logs AppUpdateStats from PlatformLogger after calling shouldLogForTypeLocked."
+    bug: "413737868"
+}

@@ -35,6 +35,7 @@ import com.android.server.appsearch.AppSearchMetricsProto.AppSearchVmStartAttemp
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.appsindexer.AppOpenEventStats;
+import com.android.server.appsearch.appsindexer.AppsUpdateStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.ClickStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
@@ -192,6 +193,18 @@ public class PlatformLogger implements InternalAppSearchLogger {
             if (shouldLogForTypeLocked(
                     BaseStats.CALL_TYPE_INITIALIZE, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
+            }
+        }
+    }
+
+    @Override
+    public void logStats(@NonNull AppsUpdateStats appsUpdateStats) {
+        Objects.requireNonNull(appsUpdateStats);
+        synchronized (mLock) {
+            if (shouldLogForTypeLocked(
+                    BaseStats.INTERNAL_CALL_TYPE_APPS_INDEXER,
+                    BaseStats.NO_FEATURES_ENABLED_BITMASK)) {
+                logStatsImplLocked(appsUpdateStats);
             }
         }
     }
@@ -888,6 +901,37 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getEmbeddingIndexPersistLatencyMillis(), // 24
                 stats.getUnblockedAppSearchLatencyMillis(), // 25
                 stats.getNumIcingCalls()); // 26
+    }
+
+    @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull AppsUpdateStats appsUpdateStats) {
+        int[] updateStatusArr = new int[appsUpdateStats.getUpdateStatusCodes().size()];
+        int updateIdx = 0;
+        for (int updateStatus : appsUpdateStats.getUpdateStatusCodes()) {
+            updateStatusArr[updateIdx] = updateStatus;
+            ++updateIdx;
+        }
+        AppSearchStatsLog.write(
+                AppSearchStatsLog.APP_SEARCH_APPS_INDEXER_STATS_REPORTED,
+                appsUpdateStats.getUpdateType(),
+                updateStatusArr,
+                appsUpdateStats.getNumberOfAppsAdded(),
+                appsUpdateStats.getNumberOfAppsRemoved(),
+                appsUpdateStats.getNumberOfAppsUpdated(),
+                appsUpdateStats.getNumberOfAppsUnchanged(),
+                appsUpdateStats.getTotalLatencyMillis(),
+                appsUpdateStats.getPackageManagerLatencyMillis(),
+                appsUpdateStats.getAppSearchGetLatencyMillis(),
+                appsUpdateStats.getAppSearchSetSchemaLatencyMillis(),
+                appsUpdateStats.getAppSearchPutLatencyMillis(),
+                appsUpdateStats.getUpdateStartTimestampMillis(),
+                appsUpdateStats.getLastAppUpdateTimestampMillis(),
+                appsUpdateStats.getNumberOfFunctionsAdded(),
+                appsUpdateStats.getApproximateNumberOfFunctionsRemoved(),
+                appsUpdateStats.getNumberOfFunctionsUpdated(),
+                appsUpdateStats.getApproximateNumberOfFunctionsUnchanged(),
+                appsUpdateStats.getAppSearchRemoveLatencyMillis(),
+                appsUpdateStats.isForceUpdateTriggered());
     }
 
     @GuardedBy("mLock")
