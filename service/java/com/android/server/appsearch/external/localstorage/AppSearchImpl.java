@@ -483,7 +483,7 @@ public final class AppSearchImpl implements Closeable {
                     }
                 }
                 checkSuccess(initializeResultProto.getStatus());
-                if (!hasDatabaseStateChangedAfterInit(initializeResultProto)) {
+                if (hasDatabaseStateChangedAfterInit(initializeResultProto)) {
                     mNeedsPersistToDisk.set(true);
                 }
 
@@ -639,7 +639,8 @@ public final class AppSearchImpl implements Closeable {
                 LogUtil.piiTrace(TAG, "Init completed successfully");
             } catch (AppSearchException e) {
                 // Some error. Reset and see if it fixes it.
-                Log.wtf(TAG, "Error initializing, attempting to reset IcingSearchEngine.", e);
+                LogUtil.criticalError(
+                        TAG, "Error initializing, attempting to reset IcingSearchEngine.", e);
                 if (initStatsBuilder != null) {
                     initStatsBuilder.setStatusCode(e.getResultCode());
                 }
@@ -5603,19 +5604,19 @@ public final class AppSearchImpl implements Closeable {
         //   to decide if persistToDisk is needed or not.
         InitializeStatsProto initializeStatsProto = initializeResultProto.getInitializeStats();
         return initializeStatsProto.getDocumentStoreDataStatus()
-                        == InitializeStatsProto.DocumentStoreDataStatus.NO_DATA_LOSS
-                && initializeStatsProto.getSchemaStoreRecoveryCause()
-                        == InitializeStatsProto.RecoveryCause.NONE
-                && initializeStatsProto.getDocumentStoreRecoveryCause()
-                        == InitializeStatsProto.RecoveryCause.NONE
-                && initializeStatsProto.getIndexRestorationCause()
-                        == InitializeStatsProto.RecoveryCause.NONE
-                && initializeStatsProto.getIntegerIndexRestorationCause()
-                        == InitializeStatsProto.RecoveryCause.NONE
-                && initializeStatsProto.getQualifiedIdJoinIndexRestorationCause()
-                        == InitializeStatsProto.RecoveryCause.NONE
-                && initializeStatsProto.getEmbeddingIndexRestorationCause()
-                        == InitializeStatsProto.RecoveryCause.NONE;
+                        != InitializeStatsProto.DocumentStoreDataStatus.NO_DATA_LOSS
+                || initializeStatsProto.getSchemaStoreRecoveryCause()
+                        != InitializeStatsProto.RecoveryCause.NONE
+                || initializeStatsProto.getDocumentStoreRecoveryCause()
+                        != InitializeStatsProto.RecoveryCause.NONE
+                || initializeStatsProto.getIndexRestorationCause()
+                        != InitializeStatsProto.RecoveryCause.NONE
+                || initializeStatsProto.getIntegerIndexRestorationCause()
+                        != InitializeStatsProto.RecoveryCause.NONE
+                || initializeStatsProto.getQualifiedIdJoinIndexRestorationCause()
+                        != InitializeStatsProto.RecoveryCause.NONE
+                || initializeStatsProto.getEmbeddingIndexRestorationCause()
+                        != InitializeStatsProto.RecoveryCause.NONE;
     }
 
     /** Calls getSchema in a thread safe manner. */
