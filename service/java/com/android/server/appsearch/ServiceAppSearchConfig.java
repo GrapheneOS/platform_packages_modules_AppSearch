@@ -60,6 +60,8 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      */
     int TRUNKFOODER_SAMPLING_INTERVAL = 4;
 
+    long DEFAULT_MAX_BYTES_OPTIMIZE_THRESHOLD = 512 * 1024 * 1024; // 512 MiB
+    long DEFAULT_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD = 500_000; // 500k docs
     int DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES = 512 * 1024; // 512KiB
     int DEFAULT_LIMIT_CONFIG_PER_PACKAGE_DOCUMENT_COUNT_LIMIT = 80_000;
     int DEFAULT_LIMIT_CONFIG_DOCUMENT_COUNT_LIMIT_START_THRESHOLD = 2_000_000;
@@ -204,6 +206,25 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
      */
     int getCachedMinTimeOptimizeThresholdMs();
 
+    /** Returns the delay in millisecond to schedule checkForOptimize. */
+    long getCachedCheckOptimizeDelayMillis();
+
+    /**
+     * Returns the cached max optimize byte size threshold.
+     *
+     * <p>An AppSearch Optimize job will be FORCED if the estimated number of reclaimable bytes from
+     * deleted and expired documents exceeds this threshold.
+     */
+    long getCachedMaxBytesOptimizeThreshold();
+
+    /**
+     * Returns the cached max optimize document count threshold.
+     *
+     * <p>An AppSearch Optimize job will be FORCED if the number of expired/deleted documents
+     * exceeds this threshold.
+     */
+    long getCachedMaxDocCountOptimizeThreshold();
+
     /**
      * Returns the maximum number of last API calls' statistics that can be included in the tracking
      * queue.
@@ -297,6 +318,12 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return Flags.enableFiveMinPersistToDiskDelay()
                 ? DEFAULT_FIVE_MINUTE_PERSIST_DELAY
                 : DEFAULT_PERSIST_DELAY;
+    }
+
+    /** Default check optimize delay time. */
+    default long defaultCheckOptimizeDelayMillis() {
+        // 5min delay
+        return TimeUnit.MINUTES.toMillis(5);
     }
 
     /** Default number of API call stats appsearch is tracking. */

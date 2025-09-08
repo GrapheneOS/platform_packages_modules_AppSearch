@@ -67,7 +67,7 @@ public class MockingServiceOptimizeStrategyTest {
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         ServiceOptimizeStrategy mServiceOptimizeStrategy =
-                new ServiceOptimizeStrategy(appSearchConfig);
+                new ServiceOptimizeStrategy(appSearchConfig, /* isVmEnabledForUser= */ false);
         // Create optimizeInfo with all values above respective thresholds.
         GetOptimizeInfoResultProto optimizeInfo =
                 GetOptimizeInfoResultProto.newBuilder()

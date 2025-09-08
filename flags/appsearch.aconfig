@@ -841,6 +841,13 @@ flag {
 }
 
 flag {
+    name: "enable_throttling_check_optimize_info"
+    namespace: "appsearch"
+    description: "Reduces the number of times we check optimize info."
+    bug: "435251329"
+}
+
+flag {
     name: "enable_schema_type_id_optimization"
     namespace: "appsearch"
     description: "When enabled, the type-ids of existing types will be preserved when possible."

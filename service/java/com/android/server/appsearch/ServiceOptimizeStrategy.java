@@ -38,8 +38,14 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
     private static final String TAG = "AppSearchOptimize";
     private final ServiceAppSearchConfig mAppSearchConfig;
 
-    ServiceOptimizeStrategy(@NonNull ServiceAppSearchConfig config) {
+    // vm is not guaranteed to be running for the user until data migration is done. But it is ok to
+    // still set the value at beginning to enable the better optimization logic on devices with VM
+    // capability enabled.
+    private final boolean mIsVmEnabledForUser;
+
+    ServiceOptimizeStrategy(@NonNull ServiceAppSearchConfig config, boolean isVmEnabledForUser) {
         mAppSearchConfig = Objects.requireNonNull(config);
+        mIsVmEnabledForUser = isVmEnabledForUser;
     }
 
     @Override
@@ -49,6 +55,7 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
                         || optimizeInfo.getTimeSinceLastOptimizeMs()
                                 >= mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs();
 
+        // TODO(b/435251329) this flag can be cleaned up.
         if (Flags.enableNewOptimizeStrategyForActiveResultStates()) {
             boolean forceOptimize =
                     optimizeInfo.getTimeSinceLastOptimizeMs()
@@ -61,7 +68,31 @@ public class ServiceOptimizeStrategy implements OptimizeStrategy {
                                             >= mAppSearchConfig.getCachedDocCountOptimizeThreshold()
                                     || optimizeInfo.getEstimatedOptimizableBytes()
                                             >= mAppSearchConfig.getCachedBytesOptimizeThreshold());
+            if (Flags.enableThrottlingCheckOptimizeInfo() || mIsVmEnabledForUser) {
+                // If there are too many docs or bytes to optimize, we should force optimize.
+                forceOptimize |=
+                        optimizeInfo.getOptimizableDocs()
+                                        >= mAppSearchConfig.getCachedMaxDocCountOptimizeThreshold()
+                                || optimizeInfo.getEstimatedOptimizableBytes()
+                                        >= mAppSearchConfig.getCachedMaxBytesOptimizeThreshold();
+            }
+
             if (forceOptimize) {
+                Log.i(
+                        TAG,
+                        String.format(
+                                "Forcing optimize:\n"
+                                    + "  Time since last optimize: %d ms (threshold: %d ms)\n"
+                                    + "  Optimizable docs: %d (threshold: %d)\n"
+                                    + "  Estimated optimizable bytes: %d (threshold: %d)",
+                                optimizeInfo.getTimeSinceLastOptimizeMs(),
+                                Math.max(
+                                    mAppSearchConfig.getCachedTimeOptimizeThresholdMs(),
+                                    mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs()),
+                                optimizeInfo.getOptimizableDocs(),
+                                mAppSearchConfig.getCachedMaxDocCountOptimizeThreshold(),
+                                optimizeInfo.getEstimatedOptimizableBytes(),
+                                mAppSearchConfig.getCachedMaxBytesOptimizeThreshold()));
                 return true;
             }
 
