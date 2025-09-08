@@ -398,8 +398,21 @@ public final class AppSearchUserInstanceManager {
                             /* callStatsBuilder= */ null,
                             visibilityCheckerImpl,
                             frameworkRevocableFileDescriptorStore,
+                            // TODO(b/430289015): Right now AppSearchImpl infers isVMEnabledForUser
+                            // from whether this is null or not.
+                            // We should refactor to use the same value other places are using.
+                            // Caveats are for the very 1st time, we will treat the system as vm
+                            // disabled until migration finishes. We might want to refactor that
+                            // part as well.
                             icingInstance,
-                            new ServiceOptimizeStrategy(config));
+                            // This isVMEnabledForUser might not be accurate when data migration is
+                            // scheduled. Before it finishes, the system would behave like VM is
+                            // disabled, but this boolean is true.
+                            // But, since the optimization strategy itself can apply on non-vm
+                            // cases, and we are still targeting right devices, we can just
+                            // make it simple by just enabling it directly using this
+                            // isVMEnabledForUser boolean.
+                            new ServiceOptimizeStrategy(config, isVMEnabledForUser));
 
             // Update storage info file
             UserStorageInfo userStorageInfo =

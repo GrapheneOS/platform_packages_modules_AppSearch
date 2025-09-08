@@ -172,6 +172,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -213,12 +214,23 @@ public class AppSearchManagerService extends SystemService {
     private final AppSearchModule.Lifecycle mLifecycle;
     private final SearchSessionStatsExtractor mSearchSessionStatsExtractor;
 
+    // Not using lock here as this is being used to throttle checkForOptimize and it doesn't need to
+    // be accurate.
+    private AtomicInteger mMutateBatchSize = new AtomicInteger(0);
+    private static final int CHECK_OPTIMIZE_INTERVAL = 100;
+
     // Tracks the scheduled persistToDisk task, ensuring only one persistToDisk task is scheduled
     // at a time.
     //TODO(b/405169836) Consider moving the ScheduledFutures to a better place, e.g.,
     // AppSearchUserInstance.
     @GuardedBy("mPerUserPersistToDiskFutureLocked")
     private final Map<UserHandle, ScheduledFuture<?>> mPerUserPersistToDiskFutureLocked =
+            new ArrayMap<>();
+
+    // TODO(b/435251329): As we might want to do the same things for other API calls, consider using
+    // Map<UserHandle, Map<CallType, ScheduledFuture>>
+    @GuardedBy("mPerUserCheckOptimizeFutureLocked")
+    private final Map<UserHandle, ScheduledFuture<?>> mPerUserCheckOptimizeFutureLocked =
             new ArrayMap<>();
 
     public AppSearchManagerService(Context context, AppSearchModule.Lifecycle lifecycle) {
@@ -512,6 +524,15 @@ public class AppSearchManagerService extends SystemService {
             if (persistToDiskFuture != null) {
                 // Cancel the persistToDisk task if it is scheduled but has not yet started.
                 persistToDiskFuture.cancel(/* mayInterruptIfRunning= */ false);
+            }
+
+            ScheduledFuture<?> checkOptimizeFuture;
+            synchronized (mPerUserCheckOptimizeFutureLocked) {
+                checkOptimizeFuture = mPerUserCheckOptimizeFutureLocked.remove(userHandle);
+            }
+            if (checkOptimizeFuture != null) {
+                // Cancel the checkOptimize task if it is scheduled but has not yet started.
+                checkOptimizeFuture.cancel(/* mayInterruptIfRunning= */ false);
             }
 
             if (Flags.enableUserInstanceFutures()) {
@@ -1244,11 +1265,17 @@ public class AppSearchManagerService extends SystemService {
 
                     // The existing documents with same ID will be deleted, so there may be some
                     // resources that could be released after optimize().
-                    checkForOptimize(
+                    if ((Flags.enableThrottlingCheckOptimizeInfo()
+                            || isVmEnabledForUser(targetUser))
+                            && statusCode == AppSearchResult.RESULT_OUT_OF_SPACE) {
+                        checkForOptimize(targetUser, instance, /*scheduleWithDelay=*/ false);
+                    } else {
+                        checkForOptimize(
                             targetUser,
                             instance,
                             /* mutateBatchSize= */
                             request.getDocumentsParcel().getTotalDocumentCount());
+                    }
                 } catch (AppSearchException
                          | RuntimeException
                          | InterruptedException
@@ -2765,6 +2792,12 @@ public class AppSearchManagerService extends SystemService {
                                         failedResult));
                             }
                         }
+                    }
+
+                    if ((Flags.enableThrottlingCheckOptimizeInfo()
+                            || isVmEnabledForUser(targetUser))
+                            && statusCode == AppSearchResult.RESULT_OUT_OF_SPACE) {
+                        checkForOptimize(targetUser, instance, /*scheduleWithDelay=*/ false);
                     }
 
                     if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
@@ -4308,6 +4341,25 @@ public class AppSearchManagerService extends SystemService {
             // We shouldn't schedule any task to locked user.
             return;
         }
+
+        // Check the batch size here so we can reduce code duplication, and more importantly,
+        // fully control the scheduling.
+        if (Flags.enableThrottlingCheckOptimizeInfo() || isVmEnabledForUser(targetUser)) {
+            // It is OK not to lock here as we will only schedule checkForOptimize once.
+            long updatedMutateBatchSize = mMutateBatchSize.addAndGet(mutateBatchSize);
+            if (updatedMutateBatchSize >= CHECK_OPTIMIZE_INTERVAL) {
+                boolean checkOptimizeScheduled =
+                        checkForOptimize(targetUser, instance, /* scheduleWithDelay= */ true);
+                if (checkOptimizeScheduled) {
+                    // It is OK to reset the counter here even if it might get increased in another
+                    // thread, as checkForOptimize has been scheduled.
+                    mMutateBatchSize.set(0);
+                }
+            }
+            return;
+        }
+
+        // Run checkForOptimize directly on the executor if the flag is off or VM is disabled.
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 targetUser,
@@ -4346,26 +4398,48 @@ public class AppSearchManagerService extends SystemService {
                 });
     }
 
+    /**
+     * Runs/Schedules a checkForOptimize task.
+     *
+     * <p>Depending on the flag and VM status, this method either schedules a task to run
+     * checkForOptimize on a delay, or runs it directly on the executor.
+     *
+     * @return true if the checkForOptimize task is scheduled, false otherwise.
+     */
     @WorkerThread
-    private void checkForOptimize(
+    private boolean checkForOptimize(
+            @NonNull UserHandle targetUser, @NonNull AppSearchUserInstance instance) {
+        boolean scheduleWithDelay =
+                Flags.enableThrottlingCheckOptimizeInfo() || isVmEnabledForUser(targetUser);
+        return checkForOptimize(targetUser, instance, scheduleWithDelay);
+    }
+
+    /**
+     * @return true if the checkForOptimize task is run/scheduled, false otherwise.
+     *
+     * @param scheduleWithDelay if true, the task will be scheduled with a delay, otherwise it will
+     *     be run on the executor directly.
+     */
+    @WorkerThread
+    private boolean checkForOptimize(
             @NonNull UserHandle targetUser,
-            @NonNull AppSearchUserInstance instance) {
+            @NonNull AppSearchUserInstance instance,
+            boolean scheduleWithDelay) {
         final long callReceivedTimestampMillis = System.currentTimeMillis();
         if (mServiceImplHelper.isUserLocked(targetUser)) {
             // We shouldn't schedule any task to locked user.
-            return;
+            return false;
         }
+
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
-        mExecutorManager.executeLambdaForUserNoCallbackAsync(
-                targetUser,
-                /* isReadOnly= */ false,
+        Runnable checkForOptimizeTask =
                 () -> {
                     long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
                     OptimizeStats.Builder optimizeStatsBuilder = new OptimizeStats.Builder();
                     CallStats.Builder callStatsBuilder = new CallStats.Builder();
                     try {
-                        instance.getAppSearchImpl().checkForOptimize(optimizeStatsBuilder,
-                                callStatsBuilder);
+                        instance.getAppSearchImpl()
+                                .checkForOptimize(optimizeStatsBuilder, callStatsBuilder);
                     } catch (Exception e) {
                         Log.w(TAG, "Error occurred when check for optimize", e);
                     } finally {
@@ -4376,22 +4450,45 @@ public class AppSearchManagerService extends SystemService {
                         int onExecutorLatencyMillis =
                                 (int) (totalLatencyEndMillis - waitExecutorEndTimeMillis);
 
-                        OptimizeStats oStats = optimizeStatsBuilder.setTotalLatencyMillis(
-                                        totalLatency)
-                                .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
-                                .setExecutorAcquisitionLatencyMillis(executorAcquisitionLatency)
-                                .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
-                                .build();
+                        OptimizeStats oStats =
+                                optimizeStatsBuilder
+                                        .setTotalLatencyMillis(totalLatency)
+                                        .setCallReceivedTimestampMillis(callReceivedTimestampMillis)
+                                        .setExecutorAcquisitionLatencyMillis(
+                                                executorAcquisitionLatency)
+                                        .setOnExecutorLatencyMillis(onExecutorLatencyMillis)
+                                        .build();
                         if (oStats.getOriginalDocumentCount() > 0) {
-                            // see if optimize has been run by checking originalDocumentCount
-                            if (oStats.getDeletedDocumentCount()
-                                    + oStats.getExpiredDocumentCount() > 0) {
+                            if (oStats.getDeletedDocumentCount() + oStats.getExpiredDocumentCount()
+                                    > 0) {
                                 dropStorageInfoCacheForUser(targetUser);
                             }
                             instance.getLogger().logStats(oStats);
                         }
                     }
-                });
+                };
+
+        if (scheduleWithDelay) {
+            synchronized (mPerUserCheckOptimizeFutureLocked) {
+                ScheduledFuture<?> checkForOptimizeFuture =
+                        mPerUserCheckOptimizeFutureLocked.get(targetUser);
+                if (checkForOptimizeFuture == null || checkForOptimizeFuture.isDone()) {
+                    Log.i(TAG, "Scheduling checkForOptimize for user: " + targetUser);
+                    checkForOptimizeFuture =
+                            mExecutorManager.scheduleLambdaForUserNoCallbackAsync(
+                                    targetUser,
+                                    checkForOptimizeTask,
+                                    mAppSearchConfig.getCachedCheckOptimizeDelayMillis(),
+                                    TimeUnit.MILLISECONDS);
+                    mPerUserCheckOptimizeFutureLocked.put(targetUser, checkForOptimizeFuture);
+                }
+            }
+        } else {
+            mExecutorManager.executeLambdaForUserNoCallbackAsync(
+                    targetUser, /* isReadOnly= */ false, checkForOptimizeTask);
+        }
+
+        return true;
     }
 
     /**
