@@ -839,3 +839,20 @@ flag {
     description: "Enable portable-file-backed-proto-log maintaining a buffer for decompression rather than allocating new ones."
     bug: "435754056"
 }
+
+flag {
+    name: "enable_schema_type_id_optimization"
+    namespace: "appsearch"
+    description: "When enabled, the type-ids of existing types will be preserved when possible."
+    bug: "434218554"
+}
+
+flag {
+    name: "enable_apps_indexer_multilingual_names"
+    namespace: "appsearch"
+    description: "Gets labels across all languages for an app and adds them to alternate names"
+    bug: "441550876"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

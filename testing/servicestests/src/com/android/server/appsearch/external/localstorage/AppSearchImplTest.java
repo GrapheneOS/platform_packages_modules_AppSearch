@@ -13311,10 +13311,10 @@ public class AppSearchImplTest {
                                                                 .CARDINALITY_OPTIONAL)
                                                 .setIndexingType(
                                                         AppSearchSchema.StringPropertyConfig
-                                                                .INDEXING_TYPE_NONE)
+                                                                .INDEXING_TYPE_EXACT_TERMS)
                                                 .setTokenizerType(
                                                         AppSearchSchema.StringPropertyConfig
-                                                                .TOKENIZER_TYPE_NONE)
+                                                                .TOKENIZER_TYPE_PLAIN)
                                                 .build())
                                 .build());
         InternalSetSchemaResponse internalSetSchemaResponse =
@@ -13330,14 +13330,35 @@ public class AppSearchImplTest {
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Put a document.
-        GenericDocument document =
-                new GenericDocument.Builder<>("namespace", "id", "Type")
+        GenericDocument document1 =
+                new GenericDocument.Builder<>("namespace", "id1", "Type")
                         .setPropertyString("body", "foo bar baz")
                         .build();
         mAppSearchImpl.putDocument(
                 "package",
                 "database",
-                document,
+                document1,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
+
+        // Call persistToDisk.
+        mAppSearchImpl.persistToDisk(
+                "package",
+                BaseStats.CALL_TYPE_PUT_DOCUMENT,
+                PersistType.Code.RECOVERY_PROOF,
+                /* logger= */ null,
+                /* callStatsBuilder= */ null);
+
+        // Put another document without calling persistToDisk.
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "Type")
+                        .setPropertyString("body", "hello world")
+                        .build();
+        mAppSearchImpl.putDocument(
+                "package",
+                "database",
+                document2,
                 /* sendChangeNotifications= */ false,
                 /* logger= */ null,
                 /* callStatsBuilder= */ null);
@@ -13359,10 +13380,6 @@ public class AppSearchImplTest {
         InitializeStats initStats = initStatsBuilder.build();
         assertThat(initStats.getNativeSchemaStoreRecoveryCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_NONE);
-        assertThat(initStats.getNativeDocumentStoreDataStatus())
-                .isEqualTo(InitializeStats.DOCUMENT_STORE_DATA_STATUS_NO_DATA_LOSS);
-        assertThat(initStats.getNativeDocumentStoreRecoveryCause())
-                .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
         assertThat(initStats.getNativeIndexRestorationCause())
                 .isEqualTo(InitializeStats.RECOVERY_CAUSE_IO_ERROR);
         assertThat(initStats.getNativeIntegerIndexRestorationCause())

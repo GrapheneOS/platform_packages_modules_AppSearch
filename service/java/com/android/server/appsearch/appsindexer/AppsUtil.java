@@ -35,11 +35,13 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.Signature;
 import android.content.res.AssetManager;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Build;
 import android.text.TextUtils;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.appsearch.flags.Flags;
@@ -59,6 +61,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -227,8 +230,8 @@ public final class AppsUtil {
     }
 
     /**
-     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
-     * build AppSearch {@link MobileApplication} documents. Info from both are required to build app
+     * Uses {@link Context} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to build
+     * AppSearch {@link MobileApplication} documents. Info from both are required to build app
      * documents.
      *
      * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
@@ -236,15 +239,18 @@ public final class AppsUtil {
      */
     @NonNull
     public static List<MobileApplication> buildAppsFromPackageInfos(
+            @NonNull Context context,
             @NonNull PackageManager packageManager,
             @NonNull Map<PackageInfo, ResolveInfos> packageInfos) {
+        Objects.requireNonNull(context);
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfos);
 
         List<MobileApplication> mobileApplications = new ArrayList<>();
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
             MobileApplication mobileApplication =
-                    createMobileApplication(packageManager, entry.getKey(), entry.getValue());
+                    createMobileApplication(
+                            context, packageManager, entry.getKey(), entry.getValue());
             if (mobileApplication != null) {
                 mobileApplications.add(mobileApplication);
             }
@@ -453,9 +459,11 @@ public final class AppsUtil {
      */
     @Nullable
     private static MobileApplication createMobileApplication(
+            @NonNull Context context,
             @NonNull PackageManager packageManager,
             @NonNull PackageInfo packageInfo,
             @NonNull ResolveInfos resolveInfos) {
+        Objects.requireNonNull(context);
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageInfo);
         Objects.requireNonNull(resolveInfos);
@@ -494,13 +502,26 @@ public final class AppsUtil {
             builder.setIconUri(iconUri);
         }
 
-        String applicationLabel =
-                packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
+        // Use a Set to automatically handle duplicate alternate names.
+        final ArraySet<String> alternateNames = new ArraySet<>();
+
+        // Add multilingual names if the corresponding flag is enabled.
+        if (Flags.enableAppsIndexerMultilingualNames()) {
+            ArraySet<String> multiLingualNames =
+                    getMultilingualNames(
+                            context,
+                            packageInfo.packageName,
+                            launchActivityResolveInfo.activityInfo.applicationInfo.labelRes);
+            if (multiLingualNames != null) {
+                alternateNames.addAll(multiLingualNames);
+            }
+        }
+
+        // Add labels from the ResolveInfos if the corresponding flag is enabled.
         if (Flags.enableAppsIndexerUseFirstResolveInfo()) {
             // A package may have multiple ResolveInfos, and these can have different labels. All of
             // these labels should be added to alternate names if they are different from the
             // display name to better support matching.
-            List<String> alternateNames = new ArrayList<>();
 
             Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
             launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -509,27 +530,87 @@ public final class AppsUtil {
             for (int i = 0; i < activities.size(); i++) {
                 ResolveInfo resolveInfo = activities.get(i);
                 String alternateLabel = resolveInfo.loadLabel(packageManager).toString();
-                if (!applicationDisplayName.equals(alternateLabel)) {
-                    alternateNames.add(alternateLabel);
-                }
+                alternateNames.add(alternateLabel);
             }
+        }
 
-            if (!applicationDisplayName.equals(applicationLabel)) {
-                // This can be different from applicationDisplayName, and should be indexed
-                alternateNames.add(applicationLabel);
-            }
+        // Always add the application label for the default locale as a fallback. This can be
+        // different from the display name derived from the first ResolveInfo.
+        String applicationLabel =
+                packageManager.getApplicationLabel(packageInfo.applicationInfo).toString();
+        alternateNames.add(applicationLabel);
+
+        // Remove the primary display name itself, since it's not an "alternate" name.
+        alternateNames.remove(applicationDisplayName);
+
+        if (!alternateNames.isEmpty()) {
             builder.setAlternateNames(alternateNames.toArray(new String[0]));
-        } else {
-            if (!applicationDisplayName.equals(applicationLabel)) {
-                // This can be different from applicationDisplayName, and should be indexed
-                builder.setAlternateNames(applicationLabel);
-            }
         }
 
         if (launchActivityResolveInfo.activityInfo.name != null) {
             builder.setClassName(launchActivityResolveInfo.activityInfo.name);
         }
         return builder.build();
+    }
+
+    /** Returns an set of alternate names from all available locales for an app. */
+    @NonNull
+    private static ArraySet<String> getMultilingualNames(
+            @NonNull Context context, @NonNull String packageName, int labelResId) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(packageName);
+        ArraySet<String> foundLabels = new ArraySet<>();
+        if (labelResId == 0) {
+            return foundLabels;
+        }
+
+        try {
+            // Create a Context for the target package so we can get labels in various locales
+            Context appContext;
+            try {
+                appContext = context.createPackageContext(packageName, Context.CONTEXT_RESTRICTED);
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.w(TAG, "Failed to create package context for " + packageName, e);
+                return foundLabels;
+            }
+
+            String[] locales = appContext.getAssets().getLocales();
+            if (locales == null || locales.length == 0) {
+                return foundLabels;
+            }
+
+            Configuration baseAppConfig = appContext.getResources().getConfiguration();
+
+            for (String localeTag : locales) {
+                if (localeTag == null || localeTag.isEmpty()) {
+                    continue;
+                }
+                try {
+                    Locale locale = Locale.forLanguageTag(localeTag.replace('_', '-'));
+                    Configuration localizedConfig = new Configuration(baseAppConfig);
+                    localizedConfig.setLocale(locale);
+
+                    // Create a context with the new configuration
+                    Context localizedContext =
+                            appContext.createConfigurationContext(localizedConfig);
+
+                    // Get Resources from the localized Context
+                    Resources localizedResources = localizedContext.getResources();
+
+                    // Get the string
+                    String translatedLabel = localizedResources.getString(labelResId);
+                    if (!TextUtils.isEmpty(translatedLabel)) {
+                        foundLabels.add(translatedLabel);
+                    }
+                } catch (Resources.NotFoundException e) {
+                    // This locale might not have a translation for this specific string
+                    Log.w(TAG, "Resource not found for locale " + localeTag + " in " + packageName);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "An unexpected error getting multilingual names occurred.", e);
+        }
+        return foundLabels;
     }
 
     /**

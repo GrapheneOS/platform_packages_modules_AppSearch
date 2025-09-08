@@ -420,9 +420,6 @@ public class CallStats extends BaseStats {
                         INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION,
                         INTERNAL_CALL_TYPE_PRUNE_PACKAGE_DATA,
                         INTERNAL_CALL_TYPE_CLOSE,
-                        INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
-                        INTERNAL_CALL_TYPE_ON_USER_UNLOCKING,
-                        INTERNAL_CALL_TYPE_HANDLE_PACKAGE_REMOVED,
-                        INTERNAL_CALL_TYPE_SCHEDULED_FLUSH));
+                        INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB));
     }
 }

@@ -265,7 +265,7 @@ public final class AppsIndexerImpl implements Closeable {
                 long beforePutTimestamp = SystemClock.elapsedRealtime();
                 List<MobileApplication> mobileApplications =
                         AppsUtil.buildAppsFromPackageInfos(
-                                packageManager, packagesToBeAddedOrUpdated);
+                                mContext, packageManager, packagesToBeAddedOrUpdated);
 
                 AppSearchBatchResult<String, Void> result =
                         mAppSearchHelper.indexApps(

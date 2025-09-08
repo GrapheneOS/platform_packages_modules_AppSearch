@@ -15,5 +15,5 @@
  */
 package android.app.appsearch.stats;
 
-/** {@hide} */
+/** @hide */
 parcelable SchemaMigrationStats;

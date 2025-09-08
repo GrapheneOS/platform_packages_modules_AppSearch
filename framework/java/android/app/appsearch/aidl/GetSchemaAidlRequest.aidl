@@ -15,5 +15,5 @@
  */
 package android.app.appsearch.aidl;
 
-/** {@hide} */
+/** @hide */
 parcelable GetSchemaAidlRequest;

@@ -15,5 +15,5 @@
  */
 package android.app.appsearch;
 
-/** {@hide} */
+/** @hide */
 parcelable AppSearchSchema;
