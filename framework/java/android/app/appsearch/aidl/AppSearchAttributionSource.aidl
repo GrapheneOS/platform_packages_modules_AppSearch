@@ -16,5 +16,5 @@
 
  package android.app.appsearch.aidl;
 
- /** {@hide} */
+ /** @hide */
  parcelable AppSearchAttributionSource;

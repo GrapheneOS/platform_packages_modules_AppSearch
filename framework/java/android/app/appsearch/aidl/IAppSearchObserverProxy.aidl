@@ -15,7 +15,7 @@
  */
 package android.app.appsearch.aidl;
 
-/** {@hide} */
+/** @hide */
 oneway interface IAppSearchObserverProxy {
     void onSchemaChanged(
             in String packageName, in String databaseName, in List<String> changedSchemaNames);
