@@ -839,3 +839,10 @@ flag {
     description: "Enable portable-file-backed-proto-log maintaining a buffer for decompression rather than allocating new ones."
     bug: "435754056"
 }
+
+flag {
+    name: "enable_schema_type_id_optimization"
+    namespace: "appsearch"
+    description: "When enabled, the type-ids of existing types will be preserved when possible."
+    bug: "434218554"
+}

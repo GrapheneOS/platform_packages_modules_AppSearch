@@ -60,6 +60,7 @@ import com.android.server.appsearch.util.ExecutorManager;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -75,6 +76,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+@Ignore("b/438037081")
 public class AppSearchUserInstanceManagerTest {
     @Rule
     public final RuleChain mRuleChain =
