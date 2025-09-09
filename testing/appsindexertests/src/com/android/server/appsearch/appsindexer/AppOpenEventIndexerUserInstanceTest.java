@@ -25,11 +25,11 @@ import static com.android.server.appsearch.appsindexer.TestUtils.setupMockUsageS
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 
 import android.annotation.Nullable;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -66,6 +66,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+@RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
 public class AppOpenEventIndexerUserInstanceTest {
     private TestContext mContext;
     private final UsageStatsManager mMockUsageStatsManager = mock(UsageStatsManager.class);
