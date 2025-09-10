@@ -311,6 +311,9 @@ public class AppSearchManagerService extends SystemService {
         //TODO(b/145759910) Add a direct callback when user clears the data instead of relying on
         // broadcasts
         IntentFilter packageChangedFilter = new IntentFilter();
+        if (!Flags.disableActionPackageRemovedPruning()) {
+            packageChangedFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        }
         packageChangedFilter.addAction(Intent.ACTION_PACKAGE_FULLY_REMOVED);
         packageChangedFilter.addAction(Intent.ACTION_PACKAGE_DATA_CLEARED);
         packageChangedFilter.addDataScheme("package");
@@ -353,6 +356,37 @@ public class AppSearchManagerService extends SystemService {
             }
 
             switch (action) {
+                case Intent.ACTION_PACKAGE_REMOVED:
+                    // This action is sent on package upgrades and downgrades. Upgrades are fine,
+                    // but we need to detect downgrades to clear AppSearch data.
+                    // Per PackageIntentParser.java:
+                    // EXTRA_REPLACING == false: UNINSTALLED
+                    // EXTRA_REPLACING == true AND EXTRA_DATA_REMOVED == false: UPGRADED
+                    // EXTRA_REPLACING == true AND EXTRA_DATA_REMOVED == true: DOWNGRADED
+                    if (Flags.disableActionPackageRemovedPruning()) {
+                        return; // Handling of ACTION_PACKAGE_REMOVED disabled.
+                    }
+                    if (!intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
+                        // Package is not being replaced -- if being uninstalled, will be handled by
+                        // the PACKAGE_FULLY_REMOVED broadcast.
+                        if (LogUtil.DEBUG) {
+                            Log.d(TAG, "Received ACTION_PACKAGE_REMOVED without REPLACING");
+                        }
+                        return;
+                    }
+                    if (!intent.getBooleanExtra(Intent.EXTRA_DATA_REMOVED, false)) {
+                        // Package being replaced but data is left intact -- probably an upgrade.
+                        if (LogUtil.DEBUG) {
+                            Log.d(
+                                    TAG,
+                                    "Received ACTION_PACKAGE_REMOVED with REPLACING but without "
+                                            + "EXTRA_DATA_REMOVED -- app being upgraded");
+                        }
+                        return;
+                    }
+                // Else package is being replaced and its data is being removed (downgraded
+                // system app). Fall through.
+
                 case Intent.ACTION_PACKAGE_FULLY_REMOVED:
                 case Intent.ACTION_PACKAGE_DATA_CLEARED:
                     Uri data = intent.getData();
@@ -367,14 +401,14 @@ public class AppSearchManagerService extends SystemService {
                         return;
                     }
 
-                    if (LogUtil.DEBUG) {
-                        Log.d(TAG, "Received " + action + " broadcast on package: " + packageName);
-                    }
-
                     int uid = intent.getIntExtra(Intent.EXTRA_UID, INVALID_UID);
                     if (uid == INVALID_UID) {
                         Log.e(TAG, "uid is missing in the intent: " + intent);
                         return;
+                    }
+
+                    if (LogUtil.INFO) {
+                        Log.i(TAG, "Handling " + action + " broadcast on package: " + packageName);
                     }
 
                     handlePackageRemoved(packageName, uid);
