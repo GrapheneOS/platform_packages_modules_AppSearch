@@ -85,6 +85,164 @@ public class AppsUpdateStats {
     // Determines if a Force Update has been triggered
     boolean mForceUpdateTriggered;
 
+    // Getter methods.
+
+    @UpdateType
+    public int getUpdateType() {
+        return mUpdateType;
+    }
+
+    public Set<Integer> getUpdateStatusCodes() {
+        return mUpdateStatusCodes;
+    }
+
+    public int getNumberOfAppsAdded() {
+        return mNumberOfAppsAdded;
+    }
+
+    public int getNumberOfAppsRemoved() {
+        return mNumberOfAppsRemoved;
+    }
+
+    public int getNumberOfAppsUpdated() {
+        return mNumberOfAppsUpdated;
+    }
+
+    public int getNumberOfAppsUnchanged() {
+        return mNumberOfAppsUnchanged;
+    }
+
+    public long getTotalLatencyMillis() {
+        return mTotalLatencyMillis;
+    }
+
+    public long getPackageManagerLatencyMillis() {
+        return mPackageManagerLatencyMillis;
+    }
+
+    public long getAppSearchGetLatencyMillis() {
+        return mAppSearchGetLatencyMillis;
+    }
+
+    public long getAppSearchSetSchemaLatencyMillis() {
+        return mAppSearchSetSchemaLatencyMillis;
+    }
+
+    public long getAppSearchPutLatencyMillis() {
+        return mAppSearchPutLatencyMillis;
+    }
+
+    public long getUpdateStartTimestampMillis() {
+        return mUpdateStartTimestampMillis;
+    }
+
+    public long getLastAppUpdateTimestampMillis() {
+        return mLastAppUpdateTimestampMillis;
+    }
+
+    public int getNumberOfFunctionsAdded() {
+        return mNumberOfFunctionsAdded;
+    }
+
+    public int getApproximateNumberOfFunctionsRemoved() {
+        return mApproximateNumberOfFunctionsRemoved;
+    }
+
+    public int getNumberOfFunctionsUpdated() {
+        return mNumberOfFunctionsUpdated;
+    }
+
+    public int getApproximateNumberOfFunctionsUnchanged() {
+        return mApproximateNumberOfFunctionsUnchanged;
+    }
+
+    public long getAppSearchRemoveLatencyMillis() {
+        return mAppSearchRemoveLatencyMillis;
+    }
+
+    public boolean isForceUpdateTriggered() {
+        return mForceUpdateTriggered;
+    }
+
+    // Setter methods.
+
+    public void setUpdateType(@UpdateType int updateType) {
+        mUpdateType = updateType;
+    }
+
+    public void setUpdateStatusCodes(Set<Integer> updateStatusCodes) {
+        mUpdateStatusCodes = updateStatusCodes;
+    }
+
+    public void setNumberOfAppsAdded(int numberOfAppsAdded) {
+        mNumberOfAppsAdded = numberOfAppsAdded;
+    }
+
+    public void setNumberOfAppsRemoved(int numberOfAppsRemoved) {
+        mNumberOfAppsRemoved = numberOfAppsRemoved;
+    }
+
+    public void setNumberOfAppsUpdated(int numberOfAppsUpdated) {
+        mNumberOfAppsUpdated = numberOfAppsUpdated;
+    }
+
+    public void setNumberOfAppsUnchanged(int numberOfAppsUnchanged) {
+        mNumberOfAppsUnchanged = numberOfAppsUnchanged;
+    }
+
+    public void setTotalLatencyMillis(long totalLatencyMillis) {
+        mTotalLatencyMillis = totalLatencyMillis;
+    }
+
+    public void setPackageManagerLatencyMillis(long packageManagerLatencyMillis) {
+        mPackageManagerLatencyMillis = packageManagerLatencyMillis;
+    }
+
+    public void setAppSearchGetLatencyMillis(long appSearchGetLatencyMillis) {
+        mAppSearchGetLatencyMillis = appSearchGetLatencyMillis;
+    }
+
+    public void setAppSearchSetSchemaLatencyMillis(long appSearchSetSchemaLatencyMillis) {
+        mAppSearchSetSchemaLatencyMillis = appSearchSetSchemaLatencyMillis;
+    }
+
+    public void setAppSearchPutLatencyMillis(long appSearchPutLatencyMillis) {
+        mAppSearchPutLatencyMillis = appSearchPutLatencyMillis;
+    }
+
+    public void setUpdateStartTimestampMillis(long updateStartTimestampMillis) {
+        mUpdateStartTimestampMillis = updateStartTimestampMillis;
+    }
+
+    public void setLastAppUpdateTimestampMillis(long lastAppUpdateTimestampMillis) {
+        mLastAppUpdateTimestampMillis = lastAppUpdateTimestampMillis;
+    }
+
+    public void setNumberOfFunctionsAdded(int numberOfFunctionsAdded) {
+        mNumberOfFunctionsAdded = numberOfFunctionsAdded;
+    }
+
+    public void setApproximateNumberOfFunctionsRemoved(int approximateNumberOfFunctionsRemoved) {
+        mApproximateNumberOfFunctionsRemoved = approximateNumberOfFunctionsRemoved;
+    }
+
+    public void setNumberOfFunctionsUpdated(int numberOfFunctionsUpdated) {
+        mNumberOfFunctionsUpdated = numberOfFunctionsUpdated;
+    }
+
+    public void setApproximateNumberOfFunctionsUnchanged(
+            int approximateNumberOfFunctionsUnchanged) {
+        mApproximateNumberOfFunctionsUnchanged = approximateNumberOfFunctionsUnchanged;
+    }
+
+    public void setAppSearchRemoveLatencyMillis(long appSearchRemoveLatencyMillis) {
+        mAppSearchRemoveLatencyMillis = appSearchRemoveLatencyMillis;
+    }
+
+    public void setForceUpdateTriggered(boolean forceUpdateTriggered) {
+        mForceUpdateTriggered = forceUpdateTriggered;
+    }
+
     /** Resets the Apps Indexer update stats. */
     public void clear() {
         mUpdateType = UNKNOWN_UPDATE_TYPE;

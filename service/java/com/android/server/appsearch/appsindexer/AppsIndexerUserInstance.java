@@ -34,6 +34,8 @@ import android.util.Slog;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.AppSearchComponentFactory;
+import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerMaintenanceService;
@@ -83,8 +85,6 @@ public final class AppsIndexerUserInstance {
     // will happen in the case that an update is requested while another is running.
     private final Semaphore mRunningOrScheduledSemaphore = new Semaphore(2);
 
-    private AppsIndexerImpl mAppsIndexerImpl;
-
     /**
      * Single threaded executor to make sure there is only one active sync for this {@link
      * AppsIndexerUserInstance}. Background tasks should be scheduled using {@link
@@ -99,6 +99,9 @@ public final class AppsIndexerUserInstance {
     private final Context mContext;
     private final AppsIndexerConfig mAppsIndexerConfig;
     private final IndexerForceUpdateConfig mAppsIndexerForceUpdateConfig;
+    private final InternalAppSearchLogger mLogger;
+
+    private AppsIndexerImpl mAppsIndexerImpl;
     private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     /**
@@ -178,6 +181,12 @@ public final class AppsIndexerUserInstance {
         mContext = Objects.requireNonNull(context);
         mAppsIndexerConfig = Objects.requireNonNull(appsIndexerConfig);
         mAppsIndexerForceUpdateConfig = Objects.requireNonNull(appsIndexerForceUpdateConfig);
+        // TODO: b/444057344 - Use the logger created by AppSearchUserInstance.
+        mLogger =
+                AppSearchComponentFactory.createLoggerInstance(
+                        mContext,
+                        AppSearchComponentFactory.getConfigInstance(
+                                mSingleThreadedExecutor, mContext));
     }
 
     @VisibleForTesting
@@ -331,7 +340,11 @@ public final class AppsIndexerUserInstance {
                                     .getAppsMaintenanceUpdateIntervalMillis());
                     appsUpdateStats.mTotalLatencyMillis =
                             SystemClock.elapsedRealtime() - updateLatencyStartTimestampMillis;
-                    logStats(appsUpdateStats);
+                    if (Flags.enableAppsIndexerPlatformLogger()) {
+                        mLogger.logStats(appsUpdateStats);
+                    } else {
+                        logStats(appsUpdateStats);
+                    }
                 });
 
         if (Flags.enableIndexerForceUpdate()) {
