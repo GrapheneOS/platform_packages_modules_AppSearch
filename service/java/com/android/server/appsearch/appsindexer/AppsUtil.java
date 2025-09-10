@@ -675,12 +675,14 @@ public final class AppsUtil {
                                         resolveInfo.serviceInfo.name));
                 assetFilePath = property.getString();
             } catch (PackageManager.NameNotFoundException e) {
-                Log.w(
-                        TAG,
-                        "getDynamicAppFunctionSchemasForPackages: Failed to get schema "
-                                + "property for package: "
-                                + resolveInfo.serviceInfo.packageName,
-                        e);
+                if (LogUtil.DEBUG) {
+                    Log.d(
+                            TAG,
+                            "getDynamicAppFunctionSchemasForPackages: Failed to get schema "
+                                    + "property for package: "
+                                    + resolveInfo.serviceInfo.packageName,
+                            e);
+                }
             }
 
             if (assetFilePath != null) {
