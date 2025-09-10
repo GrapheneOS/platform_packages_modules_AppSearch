@@ -161,10 +161,12 @@ public final class AppOpenEventIndexerUserInstance {
         mDataDir = Objects.requireNonNull(dataDir);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
+        // TODO: b/444057344 - Use the logger created by AppSearchUserInstance.
         mLogger =
                 AppSearchComponentFactory.createLoggerInstance(
                         mContext,
-                        AppSearchComponentFactory.getConfigInstance(mSingleThreadedExecutor, mContext));
+                        AppSearchComponentFactory.getConfigInstance(
+                                mSingleThreadedExecutor, mContext));
 
         mAppOpenEventIndexerImpl = Objects.requireNonNull(appOpenEventIndexerImpl);
         mAppOpenEventIndexerSettings = Objects.requireNonNull(appOpenEventIndexerSettings);
