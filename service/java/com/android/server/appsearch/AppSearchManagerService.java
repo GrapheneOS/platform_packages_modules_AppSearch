@@ -170,6 +170,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -411,7 +412,20 @@ public class AppSearchManagerService extends SystemService {
                         Log.i(TAG, "Handling " + action + " broadcast on package: " + packageName);
                     }
 
-                    handlePackageRemoved(packageName, uid);
+                    try {
+                        handlePackageRemoved(packageName, uid);
+                    } catch (RejectedExecutionException e) {
+                        // If the user stops before the package removal is handled, then it is
+                        // possible to get RejectedExecutionException here. Functionally this is not
+                        // a problem as data will be pruned when user is stopped, so catch the
+                        // exception and log it without crashing.
+                        // TODO(b/444300895): Review all executor usages to ensure
+                        //   RejectedExecutionException is safe throughout our codebase.
+                        Log.w(
+                                TAG,
+                                "Failed to remove package. It is likely that the user stops before"
+                                        + " removing the package.");
+                    }
                     break;
                 default:
                     Log.e(TAG, "Received unknown intent: " + intent);
