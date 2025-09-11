@@ -870,3 +870,13 @@ flag {
     description: "Logs AppUpdateStats from PlatformLogger after calling shouldLogForTypeLocked."
     bug: "413737868"
 }
+
+flag {
+    name: "disable_action_package_removed_pruning"
+    namespace: "appsearch"
+    description: "Kill switch to stop handling action_package_removed intents with REPLACING and DATA_REMOVED as package uninstalls."
+    bug: "443737331"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

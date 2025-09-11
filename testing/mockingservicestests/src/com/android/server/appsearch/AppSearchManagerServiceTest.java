@@ -35,9 +35,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -114,7 +111,6 @@ import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
-import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
@@ -125,12 +121,9 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.appsearch.flags.Flags;
-import com.android.dx.mockito.inline.extended.ExtendedMockito;
-import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
-import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
-import com.android.server.LocalManagerRegistry;
+import com.android.server.appsearch.ServiceTestUtil.MockServiceManager;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
@@ -140,7 +133,6 @@ import com.android.server.appsearch.external.localstorage.usagereporting.ClickAc
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchActionGenericDocument;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.appsearch.util.ExecutorManager;
-import com.android.server.usage.StorageStatsManagerLocal;
 
 import libcore.io.IoBridge;
 
@@ -2114,32 +2106,6 @@ public class AppSearchManagerServiceTest {
                                 /* setSchemaStatsBuilder= */ null,
                                 /* callStatsBuilder= */ null);
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
-    }
-
-    private static class MockServiceManager implements StaticMockFixture {
-        ArgumentCaptor<IAppSearchManager.Stub> mStubCaptor = ArgumentCaptor.forClass(
-                IAppSearchManager.Stub.class);
-
-        @Override
-        public StaticMockitoSessionBuilder setUpMockedClasses(
-                @NonNull StaticMockitoSessionBuilder sessionBuilder) {
-            sessionBuilder.mockStatic(LocalManagerRegistry.class);
-            sessionBuilder.spyStatic(ServiceManager.class);
-            return sessionBuilder;
-        }
-
-        @Override
-        public void setUpMockBehaviors() {
-            ExtendedMockito.doReturn(mock(StorageStatsManagerLocal.class)).when(
-                    () -> LocalManagerRegistry.getManager(StorageStatsManagerLocal.class));
-            ExtendedMockito.doNothing().when(
-                    () -> ServiceManager.addService(anyString(), mStubCaptor.capture(),
-                            anyBoolean(), anyInt()));
-        }
-
-        @Override
-        public void tearDown() {
-        }
     }
 
     private static final class TestContext extends ContextWrapper {
