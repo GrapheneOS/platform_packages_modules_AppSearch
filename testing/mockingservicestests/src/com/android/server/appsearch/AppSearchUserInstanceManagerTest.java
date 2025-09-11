@@ -22,6 +22,7 @@ import static com.android.server.appsearch.external.localstorage.stats.VmStartAt
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -60,7 +61,6 @@ import com.android.server.appsearch.util.ExecutorManager;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -76,7 +76,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-@Ignore("b/438037081")
 public class AppSearchUserInstanceManagerTest {
     @Rule
     public final RuleChain mRuleChain =
@@ -262,6 +261,7 @@ public class AppSearchUserInstanceManagerTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_beforeISSConnection_cancelsCreation()
             throws InterruptedException {
+        assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         ContextWrapper blockingContext =
                 new ContextWrapper(mContext) {
@@ -314,6 +314,7 @@ public class AppSearchUserInstanceManagerTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_duringVMConnection_cancelsCreation()
             throws RemoteException, InterruptedException {
+        assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         com.android.server.appsearch.isolated_storage_service.IIsolatedStorageService
                 isolatedStorageService =
@@ -357,6 +358,7 @@ public class AppSearchUserInstanceManagerTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_afterVMConnection_cancelsCreation()
             throws AppSearchException, RemoteException, InterruptedException {
+        assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
 
         IsolatedStorageServiceManager isolatedStorageServiceManager =
