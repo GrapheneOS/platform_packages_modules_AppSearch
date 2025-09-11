@@ -238,8 +238,8 @@ public class IsolatedStorageService extends Service {
             //  handling creation failures.
             if (e.getMessage().contains("Failed to read VM config from file")
                     || e.getMessage().contains("Persisted VM config is invalid")) {
-                Log.wtf(TAG, "Deleting the vm to recover from vm config failures", e);
                 deleteVmByName(vmm, VM_NAME);
+                Log.wtf(TAG, "Deleting the vm to recover from vm config failures", e);
             } else {
                 Log.wtf(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
             }
