@@ -492,7 +492,7 @@ public final class AppSearchUserInstanceManager {
         } catch (ExecutionException | InterruptedException e) {
             throw new AppSearchException(
                     AppSearchResult.RESULT_ABORTED,
-                    "User Instance creation for: " + userHandle + " failed to complete.");
+                    "User Instance creation for: " + userHandle + " failed to complete.", e);
         }
     }
 
