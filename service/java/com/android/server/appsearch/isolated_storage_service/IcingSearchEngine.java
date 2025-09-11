@@ -19,16 +19,19 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.DeadObjectException;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.isolated_storage_service.IIcingSearchEngine;
+import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.util.MemInfoReader;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchGetResultProto;
 import com.google.android.icing.proto.BatchPutResultProto;
 import com.google.android.icing.proto.BlobProto;
+import com.google.android.icing.proto.BlobInfoProto;
 import com.google.android.icing.proto.DebugInfoResultProto;
 import com.google.android.icing.proto.DebugInfoVerbosity;
 import com.google.android.icing.proto.DeleteByNamespaceResultProto;
@@ -915,15 +918,108 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
     @NonNull
     @Override
     public BlobProto getAllBlobInfos() {
-        // TODO(b/434206770): Implement this with isolated_storage.
-        return BlobProto.getDefaultInstance();
+        byte[] resultData;
+        long getVmStartTimestampMillis = 0;
+        long getVmEndTimestampMillis = 0;
+        try {
+            mManager.signalActivityStarts();
+            getVmStartTimestampMillis = SystemClock.elapsedRealtime();
+            IIcingSearchEngine icingInstance =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            getVmEndTimestampMillis = SystemClock.elapsedRealtime();
+            resultData = icingInstance.getAllBlobInfos();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BlobProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
+        } catch (RemoteException e) {
+            return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        } finally {
+            mManager.signalActivityEnds();
+        }
+
+        int getVmLatencyMillis = (int) (getVmEndTimestampMillis - getVmStartTimestampMillis);
+        return getResponseProtoFromRawData(
+                resultData,
+                BlobProto.getDefaultInstance(),
+                status ->
+                        BlobProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
     @Override
     public BlobProto putBlobInfos(BlobProto blobProto) {
-        // TODO(b/434206770): Implement this with isolated_storage.
-        return BlobProto.getDefaultInstance();
+        byte[] resultData = null;
+        long getVmStartTimestampMillis = 0;
+        long getVmEndTimestampMillis = 0;
+        try {
+            mManager.signalActivityStarts();
+            getVmStartTimestampMillis = SystemClock.elapsedRealtime();
+            IIcingSearchEngine icingInstance =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            getVmEndTimestampMillis = SystemClock.elapsedRealtime();
+            if (blobProto.getSerializedSize()
+                    <= ServiceAppSearchConfig.DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES) {
+                resultData = icingInstance.putBlobInfos(blobProto.toByteArray());
+            } else {
+                // The blobProto is too large, we need to break it into smaller chunks.
+                BlobProto.Builder currentChunkBuilder =
+                        BlobProto.newBuilder()
+                                .setStatus(blobProto.getStatus())
+                                .setFileDescriptor(blobProto.getFileDescriptor())
+                                .setFileName(blobProto.getFileName())
+                                .setGetVmLatencyMs(blobProto.getGetVmLatencyMs());
+
+                int initialChunkSize = currentChunkBuilder.build().getSerializedSize();
+                int currentChunkSize = initialChunkSize;
+                for (BlobInfoProto blobInfoProto : blobProto.getBlobInfoProtosList()) {
+                    int currentBlobInfoSize = blobInfoProto.getSerializedSize();
+                    currentChunkSize += currentBlobInfoSize;
+                    if (currentChunkSize
+                            > ServiceAppSearchConfig.DEFAULT_LIMIT_CONFIG_MAX_DOCUMENT_SIZE_BYTES) {
+                        BlobProto chunkToSend = currentChunkBuilder.build();
+                        if (chunkToSend.getBlobInfoProtosCount() > 0) {
+                            resultData = icingInstance.putBlobInfos(chunkToSend.toByteArray());
+                        }
+
+                        // Start a new chunk with the proto that was too large for the previous one.
+                        currentChunkBuilder =
+                                BlobProto.newBuilder()
+                                        .setStatus(blobProto.getStatus())
+                                        .setFileDescriptor(blobProto.getFileDescriptor())
+                                        .setFileName(blobProto.getFileName())
+                                        .setGetVmLatencyMs(blobProto.getGetVmLatencyMs());
+                        currentChunkSize = initialChunkSize + currentBlobInfoSize;
+                    }
+
+                    currentChunkBuilder.addBlobInfoProtos(blobInfoProto);
+                }
+
+                BlobProto lastChunk = currentChunkBuilder.build();
+                if (lastChunk.getBlobInfoProtosCount() > 0) {
+                    resultData = icingInstance.putBlobInfos(lastChunk.toByteArray());
+                }
+            }
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return BlobProto.newBuilder().setStatus(futureGetFailureStatus(e)).build();
+        } catch (RemoteException e) {
+            return BlobProto.newBuilder().setStatus(remoteExceptionStatus(e)).build();
+        } finally {
+            mManager.signalActivityEnds();
+        }
+
+        int getVmLatencyMillis = (int) (getVmEndTimestampMillis - getVmStartTimestampMillis);
+        return getResponseProtoFromRawData(
+                resultData,
+                BlobProto.getDefaultInstance(),
+                status ->
+                        BlobProto.newBuilder()
+                                .setStatus(status)
+                                .setGetVmLatencyMs(getVmLatencyMillis)
+                                .build());
     }
 
     @NonNull
