@@ -399,6 +399,12 @@ public class IsolatedStorageService extends Service {
                 } catch (VirtualMachineException e) {
                     Log.e(TAG, "Failed to connect to " + VM_NAME, e);
 
+                    // Cancel the future to notify the waiting thread to early end the waiting due
+                    // to a failure.
+                    // The future itself is trivial - it's just a signaling mechanism for the
+                    // waiting thread (i.e. get()) to unblock before timeout.
+                    mFuture.cancel(/* mayInterruptIfRunning= */ true);
+
                     // Set the payload ready future object in IsolatedStorageService to null, so
                     // the service can avoid serving any request with an invalid
                     // mVmIsolatedStorageService.
@@ -573,7 +579,11 @@ public class IsolatedStorageService extends Service {
         @Override
         public boolean deleteVm() {
             try {
-                return deleteCurrentVmIfExists();
+                synchronized (mLock) {
+                    // setting this to null to prevent the deleted vm from being used
+                    mVm = null;
+                    return deleteCurrentVmIfExists();
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Unable to delete VM", e);
                 return false;
