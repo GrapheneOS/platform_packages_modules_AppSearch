@@ -22,7 +22,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.content.ComponentName;
 import android.content.Context;
@@ -31,6 +30,7 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
+import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
@@ -925,13 +925,23 @@ public class IsolatedStorageServiceManager {
     }
 
     private final class VmDataUnlocker {
+
+        /**
+         * The threshold to delete vm after encountering consecutive {@link DeadObjectException}
+         * errors when trying to notify vm data unlock.
+         */
+        private static final int CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD = 4;
+
         @GuardedBy("mLock")
         private boolean mIsUserUnlocked = false;
 
         @GuardedBy("mLock")
         private boolean mIsVmAvailable = false;
 
-        private void onVmAvailable() {
+        @GuardedBy("mLock")
+        private int mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+
+        private void onVmAvailable() throws RemoteException {
             synchronized (mLock) {
                 mIsVmAvailable = true;
                 tryVmDataUnlock();
@@ -956,7 +966,7 @@ public class IsolatedStorageServiceManager {
         }
 
         @GuardedBy("mLock")
-        private void tryVmDataUnlock() {
+        private void tryVmDataUnlock() throws RemoteException {
             if (!mIsVmAvailable || !mIsUserUnlocked) {
                 Log.i(
                         TAG,
@@ -970,9 +980,25 @@ public class IsolatedStorageServiceManager {
             Log.i(TAG, "signaling VM to unlock");
             try {
                 mVmIsolatedStorageServiceLocked.onUserUnlocking();
+                mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+                Log.i(TAG, "VM unlocked");
+            } catch (DeadObjectException e) {
+                mConsecutiveVmDataUnlockDoeErrorsLocked++;
+                if (mConsecutiveVmDataUnlockDoeErrorsLocked
+                        >= CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD) {
+                    if (mIsolatedStorageService.deleteVm()) {
+                        mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+                        Log.wtf(
+                                TAG,
+                                "Deleted the VM due to consecutive DOE errors when trying to"
+                                        + " unlock vm data");
+                    }
+                }
+                throw e;
             } catch (RemoteException e) {
-                Log.e(TAG, "onUserUnlocking VM notify failure", e);
-                ExceptionUtil.handleRemoteException(e);
+                Log.e(TAG, "failed to signal VM to unlock", e);
+                mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+                throw e;
             }
         }
     }
