@@ -61,6 +61,7 @@ import com.android.server.SystemService;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -207,6 +208,7 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
     }
 
     // This tests a local scheduled job for Contacts Indexer in the test package
+    @Ignore("TODO b/397864006 timing out on HSUM device due to jobscheduler delay")
     @Test
     public void testLocalScheduledJob_runsFullUpdate() throws Exception {
         // Allow first run delta update to index contacts but prevent following delta updates from

@@ -62,6 +62,7 @@ import com.android.server.appsearch.indexer.IndexerMaintenanceService;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
@@ -391,6 +392,7 @@ public class ContactsIndexerMaintenanceTest {
         mIndexerMaintenanceService.onStopJob(null);
     }
 
+    @Ignore("TODO b/397864006 timing out on HSUM device due to jobscheduler delay")
     @Test
     public void testScheduleAndRunJob_unsetIndexerType_indexerTypeIsSet() throws Exception {
         Context context = ApplicationProvider.getApplicationContext();
