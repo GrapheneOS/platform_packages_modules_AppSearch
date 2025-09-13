@@ -887,3 +887,13 @@ flag {
     description: "Enables sharded embedding storage, which separates embeddings with different model signatures, dimensions, or schema types into different files."
     bug: "436237337"
 }
+
+flag {
+    name: "enable_directly_write_commit_remove_blob_response"
+    namespace: "appsearch"
+    description: "Enable directly write data to parcel data for remove and commit blob"
+    bug: "444290368"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

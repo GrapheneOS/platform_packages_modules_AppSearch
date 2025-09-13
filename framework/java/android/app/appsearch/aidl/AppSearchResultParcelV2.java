@@ -18,7 +18,6 @@ package android.app.appsearch.aidl;
 
 import static android.app.appsearch.ParcelableUtil.WRITE_PARCEL_MODE_DIRECTLY_WRITE_TO_PARCEL;
 import static android.app.appsearch.ParcelableUtil.WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB;
-import static android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -29,11 +28,14 @@ import android.app.appsearch.OpenBlobForWriteResponse;
 import android.app.appsearch.ParcelableUtil;
 import android.app.appsearch.RemoveBlobResponse;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
+
+import com.android.appsearch.flags.Flags;
 
 import java.util.Objects;
 
@@ -254,7 +256,14 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
      * {@link RemoveBlobResponse}.
      */
     public static AppSearchResultParcelV2<RemoveBlobResponse> fromRemoveBlobResponseParcel(
-            RemoveBlobResponse removeBlobResponse) {
+            RemoveBlobResponse removeBlobResponse) throws AppSearchException {
+        if (Flags.enableDirectlyWriteCommitRemoveBlobResponse()
+                && removeBlobResponse.getResponseParcel().mWriteParcelModel
+                        == WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_INTERNAL_ERROR,
+                    "Marshall remove blob response in AppSearchResultParcelV2 is not allowed");
+        }
         return new AppSearchResultParcelV2.Builder<RemoveBlobResponse>(
                         WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB, AppSearchResult.RESULT_OK)
                 .setRemoveBlobResponse(removeBlobResponse)
@@ -266,7 +275,14 @@ public final class AppSearchResultParcelV2<ValueType> extends AbstractSafeParcel
      * {@link CommitBlobResponse}.
      */
     public static AppSearchResultParcelV2<CommitBlobResponse> fromCommitBlobResponseParcel(
-            CommitBlobResponse commitBlobResponse) {
+            CommitBlobResponse commitBlobResponse) throws AppSearchException {
+        if (Flags.enableDirectlyWriteCommitRemoveBlobResponse()
+                && commitBlobResponse.getResponseParcel().mWriteParcelModel
+                        == WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_INTERNAL_ERROR,
+                    "Marshall commit blob response in AppSearchResultParcelV2 is not allowed");
+        }
         return new AppSearchResultParcelV2.Builder<CommitBlobResponse>(
                         WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB, AppSearchResult.RESULT_OK)
                 .setCommitBlobResponse(commitBlobResponse)

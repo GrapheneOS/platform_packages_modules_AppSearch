@@ -64,6 +64,10 @@ public class ParcelableUtil {
      * use Android Shared Memory it detects the data size is larger than 16 KiB. The data must be
      * marshalled to byte array to use that API. This could help us to avoid exceed binder
      * transaction limit when sending large objects.
+     *
+     * <p>Never use this mode if you need to marshall the parcel, the outcome of writeBlob contains
+     * a fd to Android Shared Memory and cannot be marshalled. Only use this mode on the end parcel
+     * object.
      */
     public static final int WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB = 1;
 

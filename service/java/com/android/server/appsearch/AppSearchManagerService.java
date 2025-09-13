@@ -1818,7 +1818,8 @@ public class AppSearchManagerService extends SystemService {
                     RemoveBlobResponse response = new RemoveBlobResponse(resultBuilder.build());
                     invokeCallbackOnResult(callback,
                             AppSearchResultParcelV2.fromRemoveBlobResponseParcel(response));
-                } catch (RuntimeException | InterruptedException | ExecutionException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
@@ -1935,7 +1936,8 @@ public class AppSearchManagerService extends SystemService {
                             new CommitBlobResponse(resultBuilder.build());
                     invokeCallbackOnResult(callback,
                             AppSearchResultParcelV2.fromCommitBlobResponseParcel(response));
-                } catch (RuntimeException | InterruptedException | ExecutionException e) {
+                } catch (AppSearchException | RuntimeException | InterruptedException
+                         | ExecutionException e) {
                     ++operationFailureCount;
                     AppSearchResult<Void> failedResult = throwableToFailedResult(e);
                     statusCode = failedResult.getResultCode();
