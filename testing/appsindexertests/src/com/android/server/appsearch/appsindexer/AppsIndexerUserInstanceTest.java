@@ -84,7 +84,9 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -301,8 +303,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
-        settings.setLastPartitionFingerprintsSortedByPartitionName(
-                Build.getFingerprintedPartitions());
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
         settings.persist();
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
@@ -652,8 +656,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
-        settings.setLastPartitionFingerprintsSortedByPartitionName(
-                Build.getFingerprintedPartitions());
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
         settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
         settings.persist();
 
@@ -778,8 +784,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
-        settings.setLastPartitionFingerprintsSortedByPartitionName(
-                Build.getFingerprintedPartitions());
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
         settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
         settings.persist();
 
