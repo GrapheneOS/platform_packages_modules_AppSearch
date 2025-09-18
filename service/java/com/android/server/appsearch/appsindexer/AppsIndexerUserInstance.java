@@ -42,6 +42,7 @@ import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.ProtoSettingsStore;
 import com.android.server.appsearch.indexer.SettingsStore;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
@@ -200,7 +201,11 @@ public final class AppsIndexerUserInstance {
                         mContext,
                         AppSearchComponentFactory.getConfigInstance(
                                 mSingleThreadedExecutor, mContext));
-        mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        if (Flags.enableProtoIndexerSettingsStorage()) {
+            mSettingsStore = new ProtoSettingsStore(mDataDir);
+        } else {
+            mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        }
     }
 
     @VisibleForTesting

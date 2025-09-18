@@ -45,6 +45,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.ProtoSettingsStore;
 import com.android.server.appsearch.indexer.SettingsStore;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
@@ -198,7 +199,11 @@ public final class ContactsIndexerUserInstance {
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContactsObserver = new ContactsObserver();
         mContactsIndexerImpl = new ContactsIndexerImpl(context, appSearchHelper);
-        mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        if (Flags.enableProtoIndexerSettingsStorage()) {
+            mSettingsStore = new ProtoSettingsStore(mDataDir);
+        } else {
+            mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        }
     }
 
     public void startAsync() {

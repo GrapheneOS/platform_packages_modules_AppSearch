@@ -897,3 +897,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_proto_indexer_settings_storage"
+    namespace: "appsearch"
+    description: "Persist indexer settings as a proto using AtomicFile"
+    bug: "413737868"
+}

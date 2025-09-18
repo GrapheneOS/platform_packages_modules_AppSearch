@@ -33,6 +33,7 @@ import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.ProtoSettingsStore;
 import com.android.server.appsearch.indexer.SettingsStore;
 
 import java.io.File;
@@ -175,7 +176,11 @@ public final class AppOpenEventIndexerUserInstance {
         mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
         mAppOpenEventIndexerForceUpdateConfig =
                 Objects.requireNonNull(appOpenEventIndexerForceUpdateConfig);
-        mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        if (Flags.enableProtoIndexerSettingsStorage()) {
+            mSettingsStore = new ProtoSettingsStore(mDataDir);
+        } else {
+            mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        }
     }
 
     /** Initialize a Device Config Listener */
