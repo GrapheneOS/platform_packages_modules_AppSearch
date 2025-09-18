@@ -654,22 +654,22 @@ public class AppSearchManagerService extends SystemService {
     }
 
     class LocalService {
-        /** Persist all pending mutation operation to disk for the given user. */
-        public void doFullyPersistForUser(@UserIdInt int userId)
-                throws AppSearchException,
-                        CancellationException,
-                        ExecutionException,
-                        InterruptedException {
+        /**
+         * Check and schedule to persist all pending mutation operation to disk for the given user.
+         */
+        public void doFullyPersistForUser(@UserIdInt int userId) throws CancellationException {
             UserHandle targetUser = UserHandle.getUserHandleForUid(userId);
-            AppSearchUserInstance instance =
-                    mAppSearchUserInstanceManager.getUserInstance(targetUser);
-            instance.getAppSearchImpl().persistToDisk(
-                    /*callingPackageName=*/ null,
-                    BaseStats.INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
-                    PersistType.Code.FULL,
-                    instance.getLogger(),
-                    /*callStatsBuilder=*/null
-            );
+            // Due to b/408269409, the job wasn't scheduled correctly before, so we don't need the
+            // else here.
+            if (Flags.enableDelayedPersistToDisk() && Flags.enableScheduleMaintenanceJob()) {
+                maybeSchedulePersistToDisk(
+                        /* callingPackageName= */ null,
+                        BaseStats.INTERNAL_CALL_TYPE_PERSIST_TO_DISK_JOB,
+                        targetUser,
+                        PersistType.Code.FULL,
+                        mAppSearchConfig.getCachedPersistDelayMillis(),
+                        /* forceSchedule= */ true);
+            }
         }
     }
 
