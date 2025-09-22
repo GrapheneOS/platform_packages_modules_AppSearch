@@ -264,19 +264,11 @@ public class IsolatedStorageServiceManager {
      * not already.
      */
     public void initialize() throws AppSearchException {
-        VmInitializationStats.Builder statsBuilder =
-                new VmInitializationStats.Builder(VmInitializationStats.VM_INIT_TYPE_BOOTING);
-        try {
-            initialize(
-                    /* forceVmRestart= */ false,
-                    MAX_VM_START_RETRIES,
-                    /* numRetriesForVmConnect= */ 1,
-                    statsBuilder);
-        } finally {
-            if (mLogger != null) {
-                mLogger.logStats(statsBuilder.build());
-            }
-        }
+        initialize(
+                /* forceVmRestart= */ false,
+                MAX_VM_START_RETRIES,
+                /* numRetriesForVmConnect= */ 1,
+                VmInitializationStats.VM_INIT_TYPE_BOOTING);
     }
 
     /**
@@ -288,21 +280,32 @@ public class IsolatedStorageServiceManager {
      * @param forceVmRestart Whether to force restarting the VM.
      * @param numRetriesForVmStart Number of retries when starting the VM.
      * @param numRetriesForVmConnect Number of retries when connecting to the VM.
-     * @param statsBuilder nullable {@link VmInitializationStats.Builder} for stats report.
+     * @param vmInitType {@link VmInitializationStats.VmInitType} enum.
      */
     private void initialize(
             boolean forceVmRestart,
             int numRetriesForVmStart,
             int numRetriesForVmConnect,
-            @Nullable VmInitializationStats.Builder statsBuilder)
+            @VmInitializationStats.VmInitType int vmInitType)
             throws AppSearchException {
         synchronized (mLock) {
             if (mIsolatedStorageService == null) {
                 bindIsolatedStorageServiceLocked();
             }
             if (mVmIsolatedStorageServiceLocked == null) {
-                connectToVmIsolatedStorageServiceLocked(
-                        forceVmRestart, numRetriesForVmStart, numRetriesForVmConnect, statsBuilder);
+                VmInitializationStats.Builder statsBuilder =
+                        new VmInitializationStats.Builder(vmInitType);
+                try {
+                    connectToVmIsolatedStorageServiceLocked(
+                            forceVmRestart,
+                            numRetriesForVmStart,
+                            numRetriesForVmConnect,
+                            statsBuilder);
+                } finally {
+                    if (mLogger != null) {
+                        mLogger.logStats(statsBuilder.build());
+                    }
+                }
             }
         }
     }
@@ -851,24 +854,15 @@ public class IsolatedStorageServiceManager {
         synchronized (mLock) {
             try {
                 mIsReconnecting = true;
-                VmInitializationStats.Builder statsBuilder =
-                        new VmInitializationStats.Builder(
-                                VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
                 // TODO(b/421272017): add logs that will cover how many retries we're attempting
                 // and whether they actually recover eventually.
-                try {
-                    if (!reinitializeWithRetryLocked(statsBuilder)) {
-                        Log.wtf(
-                                TAG,
-                                "failed to re-initialize after "
-                                        + MAX_REINITIALIZATION_RETRIES
-                                        + " retries");
-                        return;
-                    }
-                } finally {
-                    if (mLogger != null) {
-                        mLogger.logStats(statsBuilder.build());
-                    }
+                if (!reinitializeWithRetryLocked()) {
+                    Log.wtf(
+                            TAG,
+                            "failed to re-initialize after "
+                                    + MAX_REINITIALIZATION_RETRIES
+                                    + " retries");
+                    return;
                 }
 
                 for (UserHandle userHandle : mUserInstancesLocked.keySet()) {
@@ -890,10 +884,10 @@ public class IsolatedStorageServiceManager {
     }
 
     @GuardedBy("mLock")
-    private boolean reinitializeWithRetryLocked(VmInitializationStats.Builder statsBuilder) {
+    private boolean reinitializeWithRetryLocked() {
         for (int i = 0; i < MAX_REINITIALIZATION_RETRIES; i++) {
             try {
-                reinitializeLocked(statsBuilder);
+                reinitializeLocked();
                 return true;
             } catch (AppSearchException e) {
                 Log.e(TAG, "failed to re-initialize after " + i + " retries");
@@ -903,15 +897,14 @@ public class IsolatedStorageServiceManager {
     }
 
     @GuardedBy("mLock")
-    private void reinitializeLocked(VmInitializationStats.Builder statsBuilder)
-            throws AppSearchException {
+    private void reinitializeLocked() throws AppSearchException {
         // try reconnecting without forcing restarting the VM first
         try {
             initialize(
                     /* forceVmRestart= */ false,
                     /* numRetriesForVmStart= */ 1,
                     /* numRetriesForVmConnect= */ 3,
-                    statsBuilder);
+                    VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
             Log.i(TAG, "succeeded to re-initialize without forcing vm restart");
             return;
         } catch (Exception e) {
@@ -921,7 +914,7 @@ public class IsolatedStorageServiceManager {
                 /* forceVmRestart= */ true,
                 /* numRetriesForVmStart= */ 1,
                 /* numRetriesForVmConnect= */ 1,
-                statsBuilder);
+                VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
     }
 
     private final class VmDataUnlocker {
