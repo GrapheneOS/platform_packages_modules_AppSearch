@@ -101,7 +101,11 @@ public final class AppsIndexerUserInstanceManager {
                                 .getFile(appSearchDir, APPS_DIR);
                 instance =
                         AppsIndexerUserInstance.createInstance(
-                                userContext, appsDir, config, forceUpdateConfig);
+                                userContext,
+                                userContext.getUser(),
+                                appsDir,
+                                config,
+                                forceUpdateConfig);
                 instance.startAsync();
                 if (LogUtil.DEBUG) {
                     Log.d(TAG, "Created Apps Indexer instance for user " + userHandle);

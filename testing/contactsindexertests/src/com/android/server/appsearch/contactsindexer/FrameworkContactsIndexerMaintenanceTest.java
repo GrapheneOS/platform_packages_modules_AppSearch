@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.contactsindexer;
 
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
-import static com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID;
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
+import static com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.CONTACTS_INDEXER;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -57,8 +57,9 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
-import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.AppSearchComponentFactory;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceConfig;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 
 import org.junit.After;
 import org.junit.Before;
@@ -75,15 +76,15 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class ContactsIndexerMaintenanceTest {
+public class FrameworkContactsIndexerMaintenanceTest {
     private static final int DEFAULT_USER_ID = 0;
     private static final UserHandle DEFAULT_USER_HANDLE = new UserHandle(0);
 
     private Context mContext;
     private Context mContextWrapper;
-    private IndexerMaintenanceService mIndexerMaintenanceService;
-    private MockitoSession session;
-    @Mock private JobScheduler mockJobScheduler;
+    private FrameworkIndexerMaintenanceService mIndexerMaintenanceService;
+    private MockitoSession mSession;
+    @Mock private JobScheduler mMockJobScheduler;
     private JobParameters mParams;
     private PersistableBundle mExtras;
 
@@ -91,28 +92,30 @@ public class ContactsIndexerMaintenanceTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         mContext = ApplicationProvider.getApplicationContext();
-        mContextWrapper = new ContextWrapper(mContext) {
-            @Override
-            @Nullable
-            public Object getSystemService(String name) {
-                if (Context.JOB_SCHEDULER_SERVICE.equals(name)) {
-                    return mockJobScheduler;
-                }
-                return getSystemService(name);
-            }
-        };
-        mIndexerMaintenanceService = spy(new IndexerMaintenanceService());
+        mContextWrapper =
+                new ContextWrapper(mContext) {
+                    @Override
+                    @Nullable
+                    public Object getSystemService(String name) {
+                        if (Context.JOB_SCHEDULER_SERVICE.equals(name)) {
+                            return mMockJobScheduler;
+                        }
+                        return getSystemService(name);
+                    }
+                };
+        mIndexerMaintenanceService = spy(new FrameworkIndexerMaintenanceService());
         doNothing().when(mIndexerMaintenanceService).jobFinished(any(), anyBoolean());
-        session = ExtendedMockito.mockitoSession().
-                mockStatic(LocalManagerRegistry.class).
-                startMocking();
+        mSession =
+                ExtendedMockito.mockitoSession()
+                        .mockStatic(LocalManagerRegistry.class)
+                        .startMocking();
         mExtras = new PersistableBundle();
         mParams = Mockito.mock(JobParameters.class);
     }
 
     @After
     public void tearDown() {
-        session.finishMocking();
+        mSession.finishMocking();
     }
 
     @Test
@@ -120,12 +123,13 @@ public class ContactsIndexerMaintenanceTest {
         UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         try {
             uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-            IndexerMaintenanceService.scheduleUpdateJob(
-                    mContext,
-                    DEFAULT_USER_HANDLE,
-                    CONTACTS_INDEXER,
-                    /* periodic= */ false,
-                    /* intervalMillis= */ -1);
+            AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                    .scheduleUpdateJob(
+                            mContext,
+                            DEFAULT_USER_HANDLE,
+                            CONTACTS_INDEXER,
+                            /* periodic= */ false,
+                            /* intervalMillis= */ -1);
         } finally {
             uiAutomation.dropShellPermissionIdentity();
         }
@@ -142,12 +146,13 @@ public class ContactsIndexerMaintenanceTest {
         UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         try {
             uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-            IndexerMaintenanceService.scheduleUpdateJob(
-                    mContext,
-                    /* userId= */ DEFAULT_USER_HANDLE,
-                    /* indexerType= */ CONTACTS_INDEXER,
-                    /* periodic= */ true,
-                    /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+            AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                    .scheduleUpdateJob(
+                            mContext,
+                            /* userId= */ DEFAULT_USER_HANDLE,
+                            /* indexerType= */ CONTACTS_INDEXER,
+                            /* periodic= */ true,
+                            /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
         } finally {
             uiAutomation.dropShellPermissionIdentity();
         }
@@ -158,31 +163,33 @@ public class ContactsIndexerMaintenanceTest {
         assertThat(jobInfo.isPersisted()).isTrue();
         assertThat(jobInfo.isPeriodic()).isTrue();
         assertThat(jobInfo.getIntervalMillis()).isEqualTo(TimeUnit.DAYS.toMillis(7));
-        assertThat(jobInfo.getFlexMillis()).isEqualTo(TimeUnit.DAYS.toMillis(7)/2);
+        assertThat(jobInfo.getFlexMillis()).isEqualTo(TimeUnit.DAYS.toMillis(7) / 2);
     }
 
     @Test
     public void testScheduleFullUpdateJob_oneOffThenPeriodic_isRescheduled() {
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContextWrapper,
-                DEFAULT_USER_HANDLE,
-                /* indexerType= */ CONTACTS_INDEXER,
-                /* periodic= */ false,
-                /* intervalMillis= */ -1);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        /* indexerType= */ CONTACTS_INDEXER,
+                        /* periodic= */ false,
+                        /* intervalMillis= */ -1);
         ArgumentCaptor<JobInfo> firstJobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
-        verify(mockJobScheduler).schedule(firstJobInfoCaptor.capture());
+        verify(mMockJobScheduler).schedule(firstJobInfoCaptor.capture());
         JobInfo firstJobInfo = firstJobInfoCaptor.getValue();
 
-        when(mockJobScheduler.getPendingJob(eq(MIN_CONTACTS_INDEXER_JOB_ID)))
+        when(mMockJobScheduler.getPendingJob(eq(MIN_CONTACTS_INDEXER_JOB_ID)))
                 .thenReturn(firstJobInfo);
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContextWrapper,
-                DEFAULT_USER_HANDLE,
-                /* indexerType= */ CONTACTS_INDEXER,
-                /* periodic= */ true,
-                /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        /* indexerType= */ CONTACTS_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
         ArgumentCaptor<JobInfo> argumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-        verify(mockJobScheduler, times(2)).schedule(argumentCaptor.capture());
+        verify(mMockJobScheduler, times(2)).schedule(argumentCaptor.capture());
         List<JobInfo> jobInfos = argumentCaptor.getAllValues();
         JobInfo jobInfo = jobInfos.get(1);
         assertThat(jobInfo.isRequireBatteryNotLow()).isTrue();
@@ -194,29 +201,31 @@ public class ContactsIndexerMaintenanceTest {
 
     @Test
     public void testScheduleFullUpdateJob_differentParams_isRescheduled() {
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContextWrapper,
-                DEFAULT_USER_HANDLE,
-                /* indexerType= */ CONTACTS_INDEXER,
-                /* periodic= */ true,
-                /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        /* indexerType= */ CONTACTS_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
         ArgumentCaptor<JobInfo> firstJobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
-        verify(mockJobScheduler).schedule(firstJobInfoCaptor.capture());
+        verify(mMockJobScheduler).schedule(firstJobInfoCaptor.capture());
         JobInfo firstJobInfo = firstJobInfoCaptor.getValue();
 
-        when(mockJobScheduler.getPendingJob(eq(MIN_CONTACTS_INDEXER_JOB_ID)))
+        when(mMockJobScheduler.getPendingJob(eq(MIN_CONTACTS_INDEXER_JOB_ID)))
                 .thenReturn(firstJobInfo);
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContextWrapper,
-                DEFAULT_USER_HANDLE,
-                /* indexerType= */ CONTACTS_INDEXER,
-                /* periodic= */ true,
-                /* intervalMillis= */ TimeUnit.DAYS.toMillis(30));
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        /* indexerType= */ CONTACTS_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ TimeUnit.DAYS.toMillis(30));
         ArgumentCaptor<JobInfo> argumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
         // Mockito.verify() counts the number of occurrences from the beginning of the test.
         // This verify() uses times(2) to also account for the call to JobScheduler.schedule() above
         // where the first JobInfo is captured.
-        verify(mockJobScheduler, times(2)).schedule(argumentCaptor.capture());
+        verify(mMockJobScheduler, times(2)).schedule(argumentCaptor.capture());
         List<JobInfo> jobInfos = argumentCaptor.getAllValues();
         JobInfo jobInfo = jobInfos.get(1);
         assertThat(jobInfo.isRequireBatteryNotLow()).isTrue();
@@ -228,38 +237,43 @@ public class ContactsIndexerMaintenanceTest {
 
     @Test
     public void testScheduleFullUpdateJob_sameParams_isNotRescheduled() {
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContextWrapper,
-                DEFAULT_USER_HANDLE,
-                /* indexerType= */ CONTACTS_INDEXER,
-                /* periodic= */ true,
-                /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        /* indexerType= */ CONTACTS_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
         ArgumentCaptor<JobInfo> argumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-        verify(mockJobScheduler).schedule(argumentCaptor.capture());
+        verify(mMockJobScheduler).schedule(argumentCaptor.capture());
         JobInfo firstJobInfo = argumentCaptor.getValue();
 
-        when(mockJobScheduler.getPendingJob(eq(MIN_CONTACTS_INDEXER_JOB_ID)))
+        when(mMockJobScheduler.getPendingJob(eq(MIN_CONTACTS_INDEXER_JOB_ID)))
                 .thenReturn(firstJobInfo);
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContextWrapper,
-                DEFAULT_USER_HANDLE,
-                /* indexerType= */ CONTACTS_INDEXER,
-                /* periodic= */ true,
-                /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        /* indexerType= */ CONTACTS_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
         // Mockito.verify() counts the number of occurrences from the beginning of the test.
         // This verify() uses the default count of 1 (equivalent to times(1)) to account for the
         // call to JobScheduler.schedule() above where the first JobInfo is captured.
-        verify(mockJobScheduler).schedule(any(JobInfo.class));
+        verify(mMockJobScheduler).schedule(any(JobInfo.class));
     }
 
     @Test
     public void testDoUpdateForUser_withInitializedLocalService_isSuccessful() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
-        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
-                ContactsIndexerManagerService.LocalService.class);
-        ExtendedMockito.doReturn(mockService).when(() -> LocalManagerRegistry.getManager(
-                ContactsIndexerManagerService.LocalService.class));
+        mExtras.putInt(FrameworkIndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
+        ContactsIndexerManagerService.LocalService mockService =
+                Mockito.mock(ContactsIndexerManagerService.LocalService.class);
+        ExtendedMockito.doReturn(mockService)
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
         CancellationSignal signal = new CancellationSignal();
         boolean updateSucceeded =
                 mIndexerMaintenanceService.doUpdateForUser(
@@ -271,10 +285,13 @@ public class ContactsIndexerMaintenanceTest {
     @Test
     public void testDoUpdateForUser_withInitializedLocalService_withoutIndexerType_isSuccessful() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
-                ContactsIndexerManagerService.LocalService.class);
-        ExtendedMockito.doReturn(mockService).when(() -> LocalManagerRegistry.getManager(
-                ContactsIndexerManagerService.LocalService.class));
+        ContactsIndexerManagerService.LocalService mockService =
+                Mockito.mock(ContactsIndexerManagerService.LocalService.class);
+        ExtendedMockito.doReturn(mockService)
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
         CancellationSignal signal = new CancellationSignal();
         boolean updateSucceeded =
                 mIndexerMaintenanceService.doUpdateForUser(
@@ -286,24 +303,29 @@ public class ContactsIndexerMaintenanceTest {
     @Test
     public void testOnStartJob_withInitializedLocalService_withoutIndexerType_isSuccessful() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        mExtras.putInt(IndexerMaintenanceService.EXTRA_USER_ID, 0);
-        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
-                ContactsIndexerManagerService.LocalService.class);
-        ExtendedMockito.doReturn(mockService).when(() -> LocalManagerRegistry.getManager(
-                ContactsIndexerManagerService.LocalService.class));
+        mExtras.putInt(FrameworkIndexerMaintenanceService.EXTRA_USER_ID, 0);
+        ContactsIndexerManagerService.LocalService mockService =
+                Mockito.mock(ContactsIndexerManagerService.LocalService.class);
+        ExtendedMockito.doReturn(mockService)
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
         assertThat(mIndexerMaintenanceService.onStartJob(mParams)).isTrue();
-        verify(mIndexerMaintenanceService, timeout(10000)).doUpdateForUser(any(), any(), any(),
-                any());
+        verify(mIndexerMaintenanceService, timeout(10000))
+                .doUpdateForUser(any(), any(), any(), any());
         verify(mockService, timeout(10000)).doUpdateForUser(any(), any());
     }
 
     @Test
     public void testDoUpdateForUser_withUninitializedLocalService_failsGracefully() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
+        mExtras.putInt(FrameworkIndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ExtendedMockito.doReturn(null)
-                .when(() -> LocalManagerRegistry.getManager(
-                        ContactsIndexerManagerService.LocalService.class));
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
         boolean updateSucceeded =
                 mIndexerMaintenanceService.doUpdateForUser(
                         mContextWrapper, mParams, DEFAULT_USER_HANDLE, new CancellationSignal());
@@ -313,13 +335,15 @@ public class ContactsIndexerMaintenanceTest {
     @Test
     public void testDoUpdateForUser_onEncounteringException_failsGracefully() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
-        ContactsIndexerManagerService.LocalService mockService = Mockito.mock(
-                ContactsIndexerManagerService.LocalService.class);
+        mExtras.putInt(FrameworkIndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
+        ContactsIndexerManagerService.LocalService mockService =
+                Mockito.mock(ContactsIndexerManagerService.LocalService.class);
         doThrow(RuntimeException.class).when(mockService).doUpdateForUser(any(), any());
         ExtendedMockito.doReturn(mockService)
-                .when(() -> LocalManagerRegistry.getManager(
-                        ContactsIndexerManagerService.LocalService.class));
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
 
         boolean updateSucceeded =
                 mIndexerMaintenanceService.doUpdateForUser(
@@ -331,52 +355,57 @@ public class ContactsIndexerMaintenanceTest {
     @Test
     public void testDoUpdateForUser_cancelsBackgroundJob_whenCiDisabled() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
+        mExtras.putInt(FrameworkIndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ExtendedMockito.doReturn(null)
-                .when(() -> LocalManagerRegistry.getManager(
-                        ContactsIndexerManagerService.LocalService.class));
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
 
         mIndexerMaintenanceService.doUpdateForUser(
                 mContextWrapper, mParams, DEFAULT_USER_HANDLE, new CancellationSignal());
 
-        verify(mockJobScheduler).cancel(MIN_CONTACTS_INDEXER_JOB_ID);
+        verify(mMockJobScheduler).cancel(MIN_CONTACTS_INDEXER_JOB_ID);
     }
 
     @Test
     public void testDoUpdateForUser_doesNotCancelBackgroundJob_whenCiEnabled() {
         when(mParams.getExtras()).thenReturn(mExtras);
-        mExtras.putInt(IndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
+        mExtras.putInt(FrameworkIndexerMaintenanceService.INDEXER_TYPE, CONTACTS_INDEXER);
         ExtendedMockito.doReturn(Mockito.mock(ContactsIndexerManagerService.LocalService.class))
-                .when(() -> LocalManagerRegistry.getManager(
-                        ContactsIndexerManagerService.LocalService.class));
+                .when(
+                        () ->
+                                LocalManagerRegistry.getManager(
+                                        ContactsIndexerManagerService.LocalService.class));
 
         mIndexerMaintenanceService.doUpdateForUser(
                 mContextWrapper, mParams, DEFAULT_USER_HANDLE, new CancellationSignal());
 
-        verifyNoMoreInteractions(mockJobScheduler);
+        verifyNoMoreInteractions(mMockJobScheduler);
     }
 
     @Test
     public void testCancelPendingFullUpdateJob_succeeds() {
-        UserInfo userInfo = new UserInfo(DEFAULT_USER_ID, /*name=*/ "default", /*flags=*/ 0);
+        UserInfo userInfo = new UserInfo(DEFAULT_USER_ID, /* name= */ "default", /* flags= */ 0);
         SystemService.TargetUser user = new SystemService.TargetUser(userInfo);
         UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         try {
             uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-            IndexerMaintenanceService.scheduleUpdateJob(
-                    mContext,
-                    DEFAULT_USER_HANDLE,
-                    /* indexerType= */ CONTACTS_INDEXER,
-                    /* periodic= */ true,
-                    /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+            AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                    .scheduleUpdateJob(
+                            mContext,
+                            DEFAULT_USER_HANDLE,
+                            /* indexerType= */ CONTACTS_INDEXER,
+                            /* periodic= */ true,
+                            /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
         } finally {
             uiAutomation.dropShellPermissionIdentity();
         }
         JobInfo jobInfo = getPendingFullUpdateJob(DEFAULT_USER_ID);
         assertThat(jobInfo).isNotNull();
 
-        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
-                mContext, user.getUserHandle(), CONTACTS_INDEXER);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .cancelUpdateJobIfScheduled(mContext, user.getUserHandle(), CONTACTS_INDEXER);
 
         jobInfo = getPendingFullUpdateJob(DEFAULT_USER_ID);
         assertThat(jobInfo).isNull();
@@ -445,12 +474,13 @@ public class ContactsIndexerMaintenanceTest {
             // Create a PersistableBundle with unset indexer_type
             PersistableBundle jobExtras = new PersistableBundle();
             // Do not set INDEXER_TYPE
-            jobExtras.putInt(IndexerMaintenanceService.EXTRA_USER_ID, DEFAULT_USER_ID);
+            jobExtras.putInt(FrameworkIndexerMaintenanceService.EXTRA_USER_ID, DEFAULT_USER_ID);
 
             // Directly schedule a job without the indexer type set
             JobInfo noTypeJob =
                     new JobInfo.Builder(
-                                    IndexerMaintenanceConfig.getConfigForIndexer(CONTACTS_INDEXER)
+                                    FrameworkIndexerMaintenanceConfig.getConfigForIndexer(
+                                                            CONTACTS_INDEXER)
                                                     .getMinJobId()
                                             + DEFAULT_USER_ID,
                                     new ComponentName(
@@ -478,8 +508,8 @@ public class ContactsIndexerMaintenanceTest {
             verify(spyScheduler, timeout(10000L)).schedule(jobInfoCaptor.capture());
 
             // It should be rescheduled with the proper extra value.
-            assertThat(jobInfoCaptor.getValue().getExtras().getInt("indexer_type", -1)).isEqualTo(
-                    CONTACTS_INDEXER);
+            assertThat(jobInfoCaptor.getValue().getExtras().getInt("indexer_type", -1))
+                    .isEqualTo(CONTACTS_INDEXER);
         } finally {
             uiAutomation.dropShellPermissionIdentity();
         }
