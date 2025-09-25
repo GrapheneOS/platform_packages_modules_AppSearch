@@ -23,9 +23,6 @@ android_test {
     defaults: ["modules-utils-testable-device-config-defaults"],
     static_libs: [
         "CtsAppSearchTestUtils",
-        "Harrier",
-        "Nene",
-        "TestApp",
         "bedstead-enterprise",
         "androidx.test.ext.junit",
         "androidx.test.rules",
