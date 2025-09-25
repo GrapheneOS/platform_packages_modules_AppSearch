@@ -880,3 +880,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_sharded_embedding_storage"
+    namespace: "appsearch"
+    description: "Enables sharded embedding storage, which separates embeddings with different model signatures, dimensions, or schema types into different files."
+    bug: "436237337"
+}

@@ -138,6 +138,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     public static final String KEY_MAX_BYTES_OPTIMIZE_THRESHOLD = "max_bytes_optimize_threshold";
     public static final String KEY_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD =
             "max_doc_count_optimize_threshold";
+    public static final String KEY_EMBEDDING_INDEX_NUM_SHARDS = "embedding_index_num_shards";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -198,6 +199,7 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_CHECK_OPTIMIZE_DELAY_MILLIS,
         KEY_MAX_BYTES_OPTIMIZE_THRESHOLD,
         KEY_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD,
+        KEY_EMBEDDING_INDEX_NUM_SHARDS,
     };
 
     // Lock needed for all the operations in this class.
@@ -849,6 +851,15 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         }
     }
 
+    @Override
+    public int getEmbeddingIndexNumShards() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(
+                    KEY_EMBEDDING_INDEX_NUM_SHARDS, DEFAULT_EMBEDDING_INDEX_NUM_SHARDS);
+        }
+    }
+
     private void updateCachedValues(DeviceConfig.@NonNull Properties properties) {
         for (String key : properties.getKeyset()) {
             updateCachedValue(key, properties);
@@ -1174,6 +1185,12 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             case KEY_COMPRESSION_MEM_LEVEL:
                 synchronized (mLock) {
                     mBundleLocked.putInt(key, properties.getInt(key, defaultCompressionMemLevel()));
+                }
+                break;
+            case KEY_EMBEDDING_INDEX_NUM_SHARDS:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(
+                            key, properties.getInt(key, DEFAULT_EMBEDDING_INDEX_NUM_SHARDS));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:
