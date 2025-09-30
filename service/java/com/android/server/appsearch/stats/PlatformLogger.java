@@ -1174,13 +1174,15 @@ public class PlatformLogger implements InternalAppSearchLogger {
      * default Trunkfooder value if LAUNCH_VM is enabled.
      **/
     private int getSamplingInterval(@BaseStats.CallType int statsType, long enabledFeatures) {
+        int samplingInterval = getSamplingIntervalFromConfig(statsType);
         if (("eng".equals(Build.TYPE) || "userdebug".equals(Build.TYPE))
                 && BaseStats.areFeaturesOn(enabledFeatures, List.of(BaseStats.LAUNCH_VM))) {
             // Opt any eng or userdebug device with vm-enabled in for higher sampling.
             // TODO(b/) Remove this once the flag is rolled out to trunkfood.
-            return ServiceAppSearchConfig.TRUNKFOODER_SAMPLING_INTERVAL;
+            return Math.min(
+                    samplingInterval, ServiceAppSearchConfig.TRUNKFOODER_SAMPLING_INTERVAL);
         }
-        return getSamplingIntervalFromConfig(statsType);
+        return samplingInterval;
     }
 
     /** Returns sampling ratio for stats type specified form {@link ServiceAppSearchConfig}. */
@@ -1203,6 +1205,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 return mConfig.getCachedSamplingIntervalForOptimizeStats();
             case BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER:
                 return mConfig.getAppOpenEventIndexerLoggingSamplingRate();
+            case BaseStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION:
+                return mConfig.getIsolatedStorageDataMigrationSamplingRate();
             case BaseStats.CALL_TYPE_UNKNOWN:
             case BaseStats.CALL_TYPE_SET_SCHEMA:
             case BaseStats.CALL_TYPE_GET_DOCUMENT:
@@ -1227,7 +1231,6 @@ public class PlatformLogger implements InternalAppSearchLogger {
             case BaseStats.CALL_TYPE_OPEN_WRITE_BLOB:
             case BaseStats.CALL_TYPE_COMMIT_BLOB:
             case BaseStats.CALL_TYPE_OPEN_READ_BLOB:
-            case BaseStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION:
             // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
             default:
                 return mConfig.getCachedSamplingIntervalDefault();
