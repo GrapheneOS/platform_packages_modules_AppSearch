@@ -81,6 +81,8 @@ public class IsolatedStorageServiceManager {
 
     public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE =
             "ro.appsearch.feature.enable_isolated_storage";
+    public static final String SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE_OVERRIDE =
+            "ro.appsearch.feature.enable_isolated_storage_override";
     public static final String SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM =
             "ro.enable.nonprotected_appsearch_vm";
     public static final long DEFAULT_MEMORY_BYTES = 79 * 1024 * 1024;
@@ -186,7 +188,9 @@ public class IsolatedStorageServiceManager {
     private static boolean isolatedStorageFlagsSet() {
         return Flags.enableIsolatedStorage()
                 && SystemProperties.getBoolean(
-                        SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE, /* def= */ false);
+                        SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE, /* def= */ false)
+                && SystemProperties.getBoolean(
+                        SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE_OVERRIDE, /* def= */ true);
     }
 
     /** Checks whether the device supports protect VMs, and new FD->IBinder VM APIs. */
