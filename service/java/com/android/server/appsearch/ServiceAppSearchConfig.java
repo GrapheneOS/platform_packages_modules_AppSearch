@@ -253,6 +253,12 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return DEFAULT_SAMPLING_INTERVAL;
     }
 
+    /** Returns the sampling rate for isolated storage data migration stats logging. */
+    default int getIsolatedStorageDataMigrationSamplingRate() {
+        // Always log the data migration stats, as it only happens once per reboot.
+        return 1;
+    }
+
     /**
      * Returns the maximum allowed duration for an app function call in milliseconds.
      *
