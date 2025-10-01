@@ -88,8 +88,7 @@ public class AppOpenEventIndexerImplTest {
     public void testAppOpenEventIndexerImpl_updateAppsThrowsError_shouldContinueOnError()
             throws Exception {
         long firstRunTimeBase = System.currentTimeMillis();
-        AppOpenEventIndexerSettings settings =
-                new AppOpenEventIndexerSettings(temporaryFolder.newFolder("tmp"));
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
 
         long initialLastUpdateMillis = firstRunTimeBase - TimeUnit.MINUTES.toMillis(5);
         settings.setLastUpdateTimestampMillis(initialLastUpdateMillis);
@@ -115,7 +114,9 @@ public class AppOpenEventIndexerImplTest {
         AppSearchException thrownAppSearchException =
                 assertThrows(
                         AppSearchException.class,
-                () -> appOpenEventIndexerImpl.doUpdate(settings, new AppOpenEventStats.Builder()));
+                        () ->
+                                appOpenEventIndexerImpl.doUpdate(
+                                        settings, new AppOpenEventStats.Builder()));
         assertThat(thrownAppSearchException.getCause()).isSameInstanceAs(simulatedError);
 
         assertThrows(
@@ -156,8 +157,7 @@ public class AppOpenEventIndexerImplTest {
     @Test
     public void testAppOpenEventIndexerImpl_updateApps_worksEndToEnd() throws Exception {
         long currentTimeMillis = System.currentTimeMillis();
-        AppOpenEventIndexerSettings settings =
-                new AppOpenEventIndexerSettings(temporaryFolder.newFolder("tmpEndToEnd"));
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         settings.setLastUpdateTimestampMillis(currentTimeMillis);
         UsageStatsManager usm = Mockito.mock(UsageStatsManager.class);
 
@@ -204,8 +204,7 @@ public class AppOpenEventIndexerImplTest {
     @Test
     public void testAppOpenEventIndexerImpl_updateApps_statsAreCorrect() throws Exception {
         long currentTimeMillis = System.currentTimeMillis();
-        AppOpenEventIndexerSettings settings =
-                new AppOpenEventIndexerSettings(temporaryFolder.newFolder("tmp"));
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         settings.setLastUpdateTimestampMillis(currentTimeMillis);
 
         UsageStatsManager usm = Mockito.mock(UsageStatsManager.class);
@@ -270,8 +269,7 @@ public class AppOpenEventIndexerImplTest {
     @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
     public void testAppOpenEventIndexerImpl_updateApps_recentQueryStartTime() throws Exception {
         long effectiveCurrentTimeMillis = System.currentTimeMillis();
-        AppOpenEventIndexerSettings settings =
-                new AppOpenEventIndexerSettings(temporaryFolder.newFolder("tmpRecentQuery"));
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
 
         long lastUpdateTimeMillis = effectiveCurrentTimeMillis - TimeUnit.MINUTES.toMillis(30);
         settings.setLastUpdateTimestampMillis(lastUpdateTimeMillis);
@@ -326,8 +324,7 @@ public class AppOpenEventIndexerImplTest {
 
         long lastUpdateTimestampMillis = effectiveCurrentTimeMillis - TimeUnit.MINUTES.toMillis(90);
 
-        AppOpenEventIndexerSettings settings =
-                new AppOpenEventIndexerSettings(temporaryFolder.newFolder("paginatedReadCheck"));
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         settings.setLastUpdateTimestampMillis(lastUpdateTimestampMillis);
 
         UsageStatsManager mockUsm = Mockito.mock(UsageStatsManager.class);

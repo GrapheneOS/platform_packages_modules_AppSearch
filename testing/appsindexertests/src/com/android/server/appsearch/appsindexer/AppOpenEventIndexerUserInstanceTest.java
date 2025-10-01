@@ -51,6 +51,8 @@ import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 
 import org.junit.After;
 import org.junit.Before;
@@ -85,6 +87,7 @@ public class AppOpenEventIndexerUserInstanceTest {
             new TestAppOpenEventIndexerConfig();
     private IndexerForceUpdateConfig mAppOpenEventIndexerForceUpdateConfig =
             new TestAppOpenEventIndexerForceUpdateConfig();
+    private SettingsStore mSettingsStore;
 
     class TestContext extends ContextWrapper {
         @Nullable JobScheduler mJobScheduler;
@@ -119,6 +122,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         // Setup the file path to the persisted data
         mAppsDir = new File(mTemporaryFolder.newFolder(), "app-open-events");
+        mSettingsStore = new PersistableBundleSettingsStore(mAppsDir);
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
                         mContext,
@@ -364,8 +368,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
-        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
-        settings.load();
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         assertThat(lastAttemptedUpdatedTimestampMillis).isEqualTo(0);
     }
@@ -374,9 +377,9 @@ public class AppOpenEventIndexerUserInstanceTest {
     @Test
     public void testFirstRun_lastRunInFuture_runsSync() throws Exception {
         long currentTimeMillis = System.currentTimeMillis();
-        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         settings.setLastAttemptedUpdateTimestampMillis(Long.MAX_VALUE);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         mInstance =
                 AppOpenEventIndexerUserInstance.createInstance(
@@ -399,8 +402,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
-        settings = new AppOpenEventIndexerSettings(mAppsDir);
-        settings.load();
+        settings = mInstance.getSettings();
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         // Timestamp should be set to more current value
         assertThat(lastAttemptedUpdatedTimestampMillis).isAtMost(System.currentTimeMillis());
@@ -431,8 +433,8 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
-        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
-        settings.load();
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
+        mSettingsStore.loadInto(settings);
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         assertThat(lastAttemptedUpdatedTimestampMillis).isGreaterThan(0);
     }
@@ -461,13 +463,13 @@ public class AppOpenEventIndexerUserInstanceTest {
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
         assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
-        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings(mAppsDir);
-        settings.load();
+        AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
+        mSettingsStore.loadInto(settings);
         long firstAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
 
         // Reset the last run timestamp to 0 to simulate what would happen if the sync fails
         settings.setLastAttemptedUpdateTimestampMillis(0);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         long secondAttemptedUpdateTimestampMillis = 0;
 
@@ -479,7 +481,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
             assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
 
-            settings.load();
+            mSettingsStore.loadInto(settings);
             secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         }
 

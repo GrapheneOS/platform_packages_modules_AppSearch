@@ -130,7 +130,7 @@ import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
 import com.android.server.appsearch.external.localstorage.usagereporting.SearchSessionStatsExtractor;
 import com.android.server.appsearch.external.localstorage.visibilitystore.CallerAccess;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityStore;
-import com.android.server.appsearch.indexer.IndexerSettings;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationStats;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
@@ -3982,7 +3982,8 @@ public class AppSearchManagerService extends SystemService {
         }
 
         @BinderThread
-        // Now we would read a data_migration_status file, and IndexerSettings.readBundle requires
+        // Now we would read a data_migration_status file, and
+        // PersistableBundleSettingsStore.readBundle requires
         // to be run on WorkerThread
         @SuppressLint("WrongThread")
         private void dumpAppSearch(@NonNull PrintWriter pw, boolean verbose) {
@@ -4029,7 +4030,8 @@ public class AppSearchManagerService extends SystemService {
                 if (dataMigrationStatus.exists()) {
                     try {
                         DataMigrationStats migrationStats = new DataMigrationStats();
-                        PersistableBundle bundle = IndexerSettings.readBundle(dataMigrationStatus);
+                        PersistableBundle bundle =
+                                PersistableBundleSettingsStore.readBundle(dataMigrationStatus);
                         migrationStats.setBundle(bundle);
                         pw.println(migrationStats);
                     } catch (IOException e) {

@@ -44,6 +44,8 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import java.io.File;
@@ -81,20 +83,10 @@ public final class ContactsIndexerUserInstance {
     // notification so we won't schedule too many delta updates.
     private final Object mDeltaUpdateLock = new Object();
 
-    // Whether a delta update has been scheduled or run. Now we only allow one delta update being
-    // run at a time.
-    @GuardedBy("mDeltaUpdateLock")
-    private boolean mDeltaUpdateScheduled = false;
-
-    // Whether we are receiving notifications from CP2.
-    @GuardedBy("mDeltaUpdateLock")
-    private boolean mCp2ChangePending = false;
-
     private final AppSearchHelper mAppSearchHelper;
     private final ContactsIndexerImpl mContactsIndexerImpl;
     private final ContactsIndexerConfig mContactsIndexerConfig;
     private final IndexerForceUpdateConfig mContactsIndexerForceUpdateConfig;
-    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     /**
      * Single threaded executor to make sure there is only one active sync for this {@link
@@ -107,6 +99,19 @@ public final class ContactsIndexerUserInstance {
      * by them.
      */
     private final ExecutorService mSingleThreadedExecutor;
+
+    private final SettingsStore mSettingsStore;
+
+    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
+
+    // Whether a delta update has been scheduled or run. Now we only allow one delta update being
+    // run at a time.
+    @GuardedBy("mDeltaUpdateLock")
+    private boolean mDeltaUpdateScheduled = false;
+
+    // Whether we are receiving notifications from CP2.
+    @GuardedBy("mDeltaUpdateLock")
+    private boolean mCp2ChangePending = false;
 
     /**
      * Constructs and initializes a {@link ContactsIndexerUserInstance}.
@@ -188,11 +193,12 @@ public final class ContactsIndexerUserInstance {
         mContactsIndexerConfig = Objects.requireNonNull(contactsIndexerConfig);
         mContactsIndexerForceUpdateConfig =
                 Objects.requireNonNull(contactsIndexerForceUpdateConfig);
-        mSettings = new ContactsIndexerSettings(mDataDir);
+        mSettings = new ContactsIndexerSettings();
         mAppSearchHelper = Objects.requireNonNull(appSearchHelper);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContactsObserver = new ContactsObserver();
         mContactsIndexerImpl = new ContactsIndexerImpl(context, appSearchHelper);
+        mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
     }
 
     public void startAsync() {
@@ -708,12 +714,14 @@ public final class ContactsIndexerUserInstance {
                 () -> {
                     boolean unused = mDataDir.mkdirs();
                     try {
-                        mSettings.load();
+                        mSettingsStore.loadInto(mSettings);
                     } catch (IOException e) {
                         // Ignore file not found errors (bootstrap case)
                         if (!(e instanceof FileNotFoundException)) {
                             Log.w(TAG, "Failed to load settings from disk", e);
                         }
+                        // Reset settings on failure.
+                        mSettings.reset();
                     }
                 });
     }
@@ -721,7 +729,7 @@ public final class ContactsIndexerUserInstance {
     @WorkerThread
     private void persistSettings() {
         try {
-            mSettings.persist();
+            mSettingsStore.persist(mSettings);
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
         }

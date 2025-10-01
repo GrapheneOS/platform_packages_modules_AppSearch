@@ -32,6 +32,8 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -58,7 +60,6 @@ public final class AppOpenEventIndexerUserInstance {
 
     private static final String TAG = "AppSearchAppOpenEventIn";
     private final AppOpenEventIndexerImpl mAppOpenEventIndexerImpl;
-    private final AppOpenEventIndexerSettings mAppOpenEventIndexerSettings;
 
     // While IndexerSettings is not thread safe, it is only accessed through a single-threaded
     // executor service. It will be read and updated before the next scheduled task accesses it.
@@ -67,9 +68,9 @@ public final class AppOpenEventIndexerUserInstance {
 
     private final AppOpenEventIndexerConfig mAppOpenEventIndexerConfig;
     private final IndexerForceUpdateConfig mAppOpenEventIndexerForceUpdateConfig;
-    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
-
     private final InternalAppSearchLogger mLogger;
+    private final AppOpenEventIndexerSettings mSettings;
+    private final SettingsStore mSettingsStore;
 
     /**
      * Single threaded executor to make sure there is only one active sync per {@link
@@ -81,6 +82,8 @@ public final class AppOpenEventIndexerUserInstance {
      * AppSearch should be able to handle exceptions thrown by them.
      */
     private final ExecutorService mSingleThreadedExecutor;
+
+    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     /**
      * Constructs and initializes a {@link AppOpenEventIndexerUserInstance}.
@@ -134,7 +137,7 @@ public final class AppOpenEventIndexerUserInstance {
                         executorService,
                         context,
                         appOpenEventIndexerImpl,
-                        new AppOpenEventIndexerSettings(appOpenEventIndexerDir),
+                        new AppOpenEventIndexerSettings(),
                         appOpenEventIndexerConfig,
                         appOpenEventIndexerForceUpdateConfig);
         indexer.loadSettingsAsync();
@@ -168,10 +171,11 @@ public final class AppOpenEventIndexerUserInstance {
                                 mSingleThreadedExecutor, mContext));
 
         mAppOpenEventIndexerImpl = Objects.requireNonNull(appOpenEventIndexerImpl);
-        mAppOpenEventIndexerSettings = Objects.requireNonNull(appOpenEventIndexerSettings);
+        mSettings = Objects.requireNonNull(appOpenEventIndexerSettings);
         mAppOpenEventIndexerConfig = Objects.requireNonNull(appOpenEventIndexerConfig);
         mAppOpenEventIndexerForceUpdateConfig =
                 Objects.requireNonNull(appOpenEventIndexerForceUpdateConfig);
+        mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
     }
 
     /** Initialize a Device Config Listener */
@@ -194,8 +198,7 @@ public final class AppOpenEventIndexerUserInstance {
             mOnDeviceConfigChangedListener =
                     IndexerForceUpdateConfig.addListener(
                             mSingleThreadedExecutor,
-                            () ->
-                                handleForceUpdateConfigChanged(callback));
+                            () -> handleForceUpdateConfigChanged(callback));
         }
     }
 
@@ -205,9 +208,8 @@ public final class AppOpenEventIndexerUserInstance {
             if (mOnDeviceConfigChangedListener != null) {
                 executeOnSingleThreadedExecutor(
                         () ->
-                            DeviceConfig.removeOnPropertiesChangedListener(
-                                    mOnDeviceConfigChangedListener)
-                        );
+                                DeviceConfig.removeOnPropertiesChangedListener(
+                                        mOnDeviceConfigChangedListener));
             }
         }
         mAppOpenEventIndexerImpl.close();
@@ -225,9 +227,7 @@ public final class AppOpenEventIndexerUserInstance {
         // we only have one thread to handle all the updates. It is possible we might run into
         // race condition if there is an update running while those numbers are being printed.
         // This is acceptable though for debug purpose, so still no lock here.
-        pw.println(
-                "last_update_timestamp_millis: "
-                        + mAppOpenEventIndexerSettings.getLastUpdateTimestampMillis());
+        pw.println("last_update_timestamp_millis: " + mSettings.getLastUpdateTimestampMillis());
     }
 
     /** Schedule an update on single threaded executor. */
@@ -264,10 +264,10 @@ public final class AppOpenEventIndexerUserInstance {
                     }
                 });
         if (Flags.enableIndexerForceUpdate()) {
-            mAppOpenEventIndexerSettings.setIndexerForceUpdateEmergencyCounter(
+            mSettings.setIndexerForceUpdateEmergencyCounter(
                     mAppOpenEventIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
             try {
-                mAppOpenEventIndexerSettings.persist();
+                mSettingsStore.persist(mSettings);
             } catch (IOException e) {
                 Log.w(TAG, "Failed to save settings to disk", e);
             }
@@ -293,12 +293,14 @@ public final class AppOpenEventIndexerUserInstance {
                     }
 
                     try {
-                        mAppOpenEventIndexerSettings.load();
+                        mSettingsStore.loadInto(mSettings);
                     } catch (IOException e) {
                         // Ignore file not found errors (bootstrap case)
                         if (!(e instanceof FileNotFoundException)) {
                             Log.e(TAG, "Failed to load settings from disk", e);
                         }
+                        // Reset settings on failure.
+                        mSettings.reset();
                     }
                 });
     }
@@ -340,7 +342,7 @@ public final class AppOpenEventIndexerUserInstance {
             Objects.requireNonNull(appOpenEventStatsBuilder);
             if (Flags.enableAppOpenEventsIndexerCheckPriorAttempt()) {
                 long now = System.currentTimeMillis();
-                long lastRun = mAppOpenEventIndexerSettings.getLastAttemptedUpdateTimestampMillis();
+                long lastRun = mSettings.getLastAttemptedUpdateTimestampMillis();
                 long timeSinceLastRun = now - lastRun;
 
                 // If timeSinceLastRun is somehow negative, it means that the system clock
@@ -352,20 +354,19 @@ public final class AppOpenEventIndexerUserInstance {
                     return;
                 }
 
-                mAppOpenEventIndexerSettings.setLastAttemptedUpdateTimestampMillis(now);
-                mAppOpenEventIndexerSettings.persist();
+                mSettings.setLastAttemptedUpdateTimestampMillis(now);
+                mSettingsStore.persist(mSettings);
             }
 
-            long lastUpdateMillis = mAppOpenEventIndexerSettings.getLastUpdateTimestampMillis();
+            long lastUpdateMillis = mSettings.getLastUpdateTimestampMillis();
             long currentTimeMillis = System.currentTimeMillis();
 
             if (currentTimeMillis - lastUpdateMillis < MIN_TIME_BETWEEN_UPDATES_MILLIS) {
                 Log.w(TAG, "Skipping update because last update was too recent");
                 return;
             }
-            mAppOpenEventIndexerImpl.doUpdate(
-                    mAppOpenEventIndexerSettings, appOpenEventStatsBuilder);
-            mAppOpenEventIndexerSettings.persist();
+            mAppOpenEventIndexerImpl.doUpdate(mSettings, appOpenEventStatsBuilder);
+            mSettingsStore.persist(mSettings);
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
         } catch (AppSearchException e) {
@@ -391,7 +392,7 @@ public final class AppOpenEventIndexerUserInstance {
 
     @VisibleForTesting
     public AppOpenEventIndexerSettings getSettings() {
-        return mAppOpenEventIndexerSettings;
+        return mSettings;
     }
 
     /**
@@ -408,7 +409,7 @@ public final class AppOpenEventIndexerUserInstance {
                 return;
             }
             if (mAppOpenEventIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter()
-                    > mAppOpenEventIndexerSettings.getIndexerForceUpdateEmergencyCounter()) {
+                    > mSettings.getIndexerForceUpdateEmergencyCounter()) {
                 updateAsync(callback, /* isForceUpdateTriggered= */ true);
             }
         } catch (RuntimeException e) {

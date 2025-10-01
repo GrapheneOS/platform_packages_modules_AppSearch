@@ -41,6 +41,8 @@ import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import java.io.File;
@@ -102,6 +104,7 @@ public final class AppsIndexerUserInstance {
     private final AppsIndexerConfig mAppsIndexerConfig;
     private final IndexerForceUpdateConfig mAppsIndexerForceUpdateConfig;
     private final InternalAppSearchLogger mLogger;
+    private final SettingsStore mSettingsStore;
 
     private AppsIndexerImpl mAppsIndexerImpl;
     private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
@@ -185,7 +188,7 @@ public final class AppsIndexerUserInstance {
             @NonNull AppsIndexerConfig appsIndexerConfig,
             @NonNull IndexerForceUpdateConfig appsIndexerForceUpdateConfig) {
         mDataDir = Objects.requireNonNull(dataDir);
-        mSettings = new AppsIndexerSettings(mDataDir);
+        mSettings = new AppsIndexerSettings();
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContext = Objects.requireNonNull(context);
         mUserHandle = Objects.requireNonNull(userHandle);
@@ -197,6 +200,7 @@ public final class AppsIndexerUserInstance {
                         mContext,
                         AppSearchComponentFactory.getConfigInstance(
                                 mSingleThreadedExecutor, mContext));
+        mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
     }
 
     @VisibleForTesting
@@ -275,8 +279,7 @@ public final class AppsIndexerUserInstance {
                         + formatTimestamp(mSettings.getLastAppUpdateTimestampMillis()));
         pw.println(
                 "last_partitions_fingerprint_sorted_by_partition_name"
-                        + Arrays.toString(
-                                mSettings.getLastPartitionFingerprintsSortedByPartitionName()));
+                        + Arrays.toString(mSettings.getLastPartitionFingerprints()));
         try (AppSearchHelper appSearchHelper = new AppSearchHelper(mContext)) {
             Map<String, MobileApplication> appsMap =
                     appSearchHelper
@@ -362,7 +365,7 @@ public final class AppsIndexerUserInstance {
             mSettings.setIndexerForceUpdateEmergencyCounter(
                 mAppsIndexerForceUpdateConfig.getIndexerForceUpdateEmergencyCounter());
             try {
-                mSettings.persist();
+                mSettingsStore.persist(mSettings);
             } catch (IOException e) {
                 Log.w(TAG, "Failed to save settings to disk", e);
             }
@@ -406,7 +409,7 @@ public final class AppsIndexerUserInstance {
                     // preferred accessor
                     String currentLocaleCode = localeList.get(0).getLanguage();
                     String previousLocaleCode = mSettings.getPreviousLocaleCode();
-                    if (previousLocaleCode != null
+                    if (!previousLocaleCode.isEmpty()
                             && !previousLocaleCode.equals(currentLocaleCode)) {
                         // Only if previousLocaleCode is not empty will we initiate a locale change
                         // triggered update
@@ -438,7 +441,7 @@ public final class AppsIndexerUserInstance {
                     }
 
                     mSettings.setLastAttemptedUpdateTimestampMillis(now);
-                    mSettings.persist();
+                    mSettingsStore.persist(mSettings);
                 }
 
                 // Check if there was a previous successful run and AppSearch or system image wasn't
@@ -455,7 +458,7 @@ public final class AppsIndexerUserInstance {
                         sortedFingerprintedPartitions);
             }
 
-            mSettings.persist();
+            mSettingsStore.persist(mSettings);
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
         } catch (AppSearchException e) {
@@ -478,8 +481,7 @@ public final class AppsIndexerUserInstance {
      *     otherwise
      */
     private boolean checkForOtaUpdate(List<Build.Partition> fingerprintedPartitions) {
-        String[] oldFingerprintedPartitions =
-                mSettings.getLastPartitionFingerprintsSortedByPartitionName();
+        String[] oldFingerprintedPartitions = mSettings.getLastPartitionFingerprints();
 
         if (oldFingerprintedPartitions == null
                 || fingerprintedPartitions.size() != oldFingerprintedPartitions.length) {
@@ -534,12 +536,14 @@ public final class AppsIndexerUserInstance {
                     }
 
                     try {
-                        mSettings.load();
+                        mSettingsStore.loadInto(mSettings);
                     } catch (IOException e) {
                         // Ignore file not found errors (bootstrap case)
                         if (!(e instanceof FileNotFoundException)) {
                             Log.e(TAG, "Failed to load settings from disk", e);
                         }
+                        // Reset settings if not found.
+                        mSettings.reset();
                     }
                 });
     }

@@ -35,11 +35,10 @@ import com.android.server.appsearch.external.localstorage.AppSearchLogger;
 import com.android.server.appsearch.external.localstorage.converter.ResultCodeToProtoConverter;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
-import com.android.server.appsearch.indexer.IndexerSettings;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchPutResultProto;
-import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.PersistToDiskResultProto;
 import com.google.android.icing.proto.PersistType;
@@ -145,7 +144,8 @@ public class DataMigrationUtil {
 
             // Also dump the migration stats
             if (migrationStats != null) {
-                IndexerSettings.writeBundle(icingMigrationStatus, migrationStats.getBundle());
+                PersistableBundleSettingsStore.writeBundle(
+                        icingMigrationStatus, migrationStats.getBundle());
             }
         } catch (IOException e) {
             Log.e(TAG, "Failed to write migration status file", e);
@@ -410,7 +410,8 @@ public class DataMigrationUtil {
 
             if (dataMigrationStatusFile.exists()) {
                 try {
-                    PersistableBundle bundle = IndexerSettings.readBundle(dataMigrationStatusFile);
+                    PersistableBundle bundle =
+                            PersistableBundleSettingsStore.readBundle(dataMigrationStatusFile);
                     if (!bundle.isEmpty()) {
                         prevDataMigrationStats.setBundle(bundle);
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.server.appsearch.appsindexer;
+package com.android.server.appsearch.contactsindexer;
 
-import com.android.server.appsearch.indexer.BaseSettings;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 
-/**
- * Holds settings and persistent state for AppOpenEventIndexer.
- *
- * <p>This class is NOT thread safe.
- */
-public class AppOpenEventIndexerSettings extends BaseSettings {
-    // All behavior is inheritied from BaseSettings.
+import java.io.File;
+
+public class PersistableBundleContactsIndexerSettingsTest extends ContactsIndexerSettingsTest {
+    @Override
+    protected SettingsStore createSettingsStore(File baseDirectory) {
+        return new PersistableBundleSettingsStore(baseDirectory);
+    }
 }
