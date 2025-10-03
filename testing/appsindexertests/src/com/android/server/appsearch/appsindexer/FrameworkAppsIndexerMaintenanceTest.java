@@ -16,7 +16,6 @@
 // @exportToGMSCore:skipFile()
 package com.android.server.appsearch.appsindexer;
 
-import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.appsindexer.FrameworkAppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID;
 import static com.android.server.appsearch.indexer.IndexerJobHandler.APPS_INDEXER;
@@ -25,6 +24,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -35,7 +35,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
-import android.app.UiAutomation;
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
 import android.app.job.JobScheduler;
@@ -48,7 +47,6 @@ import android.os.UserHandle;
 
 import androidx.annotation.Nullable;
 import androidx.test.core.app.ApplicationProvider;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.server.LocalManagerRegistry;
@@ -114,20 +112,18 @@ public class FrameworkAppsIndexerMaintenanceTest {
 
     @Test
     public void testScheduleUpdateJob_oneOff_isNotPeriodic() {
-        UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        try {
-            uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-            AppSearchComponentFactory.getIndexerJobHandlerInstance()
-                    .scheduleUpdateJob(
-                            mContext,
-                            DEFAULT_USER_HANDLE,
-                            APPS_INDEXER,
-                            /* periodic= */ false,
-                            /* intervalMillis= */ -1);
-        } finally {
-            uiAutomation.dropShellPermissionIdentity();
-        }
-        JobInfo jobInfo = getPendingUpdateJob(DEFAULT_USER_ID);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        DEFAULT_USER_HANDLE,
+                        APPS_INDEXER,
+                        /* periodic= */ false,
+                        /* intervalMillis= */ -1);
+
+        ArgumentCaptor<JobInfo> jobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mMockJobScheduler).schedule(jobInfoCaptor.capture());
+
+        JobInfo jobInfo = jobInfoCaptor.getValue();
         assertThat(jobInfo).isNotNull();
         assertThat(jobInfo.isRequireBatteryNotLow()).isTrue();
         assertThat(jobInfo.isRequireDeviceIdle()).isTrue();
@@ -137,20 +133,18 @@ public class FrameworkAppsIndexerMaintenanceTest {
 
     @Test
     public void testScheduleUpdateJob_periodic_isPeriodic() {
-        UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        try {
-            uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-            AppSearchComponentFactory.getIndexerJobHandlerInstance()
-                    .scheduleUpdateJob(
-                            mContext,
-                            /* userId= */ DEFAULT_USER_HANDLE,
-                            /* indexerType= */ APPS_INDEXER,
-                            /* periodic= */ true,
-                            /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
-        } finally {
-            uiAutomation.dropShellPermissionIdentity();
-        }
-        JobInfo jobInfo = getPendingUpdateJob(DEFAULT_USER_ID);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContextWrapper,
+                        /* userId= */ DEFAULT_USER_HANDLE,
+                        /* indexerType= */ APPS_INDEXER,
+                        /* periodic= */ true,
+                        /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
+
+        ArgumentCaptor<JobInfo> jobInfoCaptor = ArgumentCaptor.forClass(JobInfo.class);
+        verify(mMockJobScheduler).schedule(jobInfoCaptor.capture());
+
+        JobInfo jobInfo = jobInfoCaptor.getValue();
         assertThat(jobInfo).isNotNull();
         assertThat(jobInfo.isRequireBatteryNotLow()).isTrue();
         assertThat(jobInfo.isRequireDeviceIdle()).isTrue();
@@ -337,24 +331,15 @@ public class FrameworkAppsIndexerMaintenanceTest {
     public void testCancelPendingUpdateJob_succeeds() throws IOException {
         UserInfo userInfo = new UserInfo(DEFAULT_USER_ID, /* name= */ "default", /* flags= */ 0);
         SystemService.TargetUser user = new SystemService.TargetUser(userInfo);
-        UiAutomation uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        try {
-            uiAutomation.adoptShellPermissionIdentity(RECEIVE_BOOT_COMPLETED);
-            AppSearchComponentFactory.getIndexerJobHandlerInstance()
-                    .scheduleUpdateJob(
-                            mContext,
-                            DEFAULT_USER_HANDLE,
-                            /* indexerType= */ APPS_INDEXER,
-                            /* periodic= */ true,
-                            /* intervalMillis= */ TimeUnit.DAYS.toMillis(7));
-        } finally {
-            uiAutomation.dropShellPermissionIdentity();
-        }
+        when(mMockJobScheduler.getPendingJob(anyInt()))
+                .thenReturn(Mockito.mock(JobInfo.class))
+                .thenReturn(null);
+
         JobInfo jobInfo = getPendingUpdateJob(DEFAULT_USER_ID);
         assertThat(jobInfo).isNotNull();
 
         AppSearchComponentFactory.getIndexerJobHandlerInstance()
-                .cancelUpdateJobIfScheduled(mContext, user.getUserHandle(), APPS_INDEXER);
+                .cancelUpdateJobIfScheduled(mContextWrapper, user.getUserHandle(), APPS_INDEXER);
 
         jobInfo = getPendingUpdateJob(DEFAULT_USER_ID);
         assertThat(jobInfo).isNull();
@@ -373,6 +358,6 @@ public class FrameworkAppsIndexerMaintenanceTest {
     @Nullable
     private JobInfo getPendingUpdateJob(@UserIdInt int userId) {
         int jobId = MIN_APPS_INDEXER_JOB_ID + userId;
-        return mContext.getSystemService(JobScheduler.class).getPendingJob(jobId);
+        return mContextWrapper.getSystemService(JobScheduler.class).getPendingJob(jobId);
     }
 }
