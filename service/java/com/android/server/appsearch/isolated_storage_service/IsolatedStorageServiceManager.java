@@ -211,9 +211,11 @@ public class IsolatedStorageServiceManager {
         boolean protectedAppSearchVmEnabled =
                 !SystemProperties.getBoolean(
                         SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
-        return protectedAppSearchVmEnabled
-                ? ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0)
-                : true;
+        int requiredCapability =
+                protectedAppSearchVmEnabled
+                        ? VirtualMachineManager.CAPABILITY_PROTECTED_VM
+                        : VirtualMachineManager.CAPABILITY_NON_PROTECTED_VM;
+        return (vmm.getCapabilities() & requiredCapability) != 0;
     }
 
     /** Cleans up the isolated storage service related data. */
