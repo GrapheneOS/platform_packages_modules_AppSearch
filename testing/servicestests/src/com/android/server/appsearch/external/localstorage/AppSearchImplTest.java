@@ -4916,7 +4916,7 @@ public class AppSearchImplTest {
         assertThat(exception)
                 .hasMessageThat()
                 .contains(
-                        Features.BLOB_STORAGE
+                        Features.SCHEMA_BLOB_HANDLE
                                 + " is not available on this AppSearch implementation.");
     }
 
@@ -5123,7 +5123,7 @@ public class AppSearchImplTest {
         assertThat(exception)
                 .hasMessageThat()
                 .contains(
-                        Features.BLOB_STORAGE
+                        Features.SCHEMA_BLOB_HANDLE
                                 + " is not available on this AppSearch implementation.");
     }
 

@@ -16,15 +16,16 @@
 package android.app.appsearch;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 import android.app.appsearch.aidl.AppSearchBatchResultParcelV2;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
-import android.os.Parcelable;
+import android.os.Parcelable.Creator;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -42,12 +43,11 @@ import java.util.Objects;
  * descriptor in the system.
  */
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "OpenBlobForWriteResponseCreator")
 public final class OpenBlobForWriteResponse extends AbstractSafeParcelable implements Closeable {
 
-    public static final @NonNull Parcelable.Creator<OpenBlobForWriteResponse> CREATOR =
+    public static final @NonNull Creator<OpenBlobForWriteResponse> CREATOR =
             new OpenBlobForWriteResponseCreator();
 
     @Field(id = 1)
@@ -61,8 +61,8 @@ public final class OpenBlobForWriteResponse extends AbstractSafeParcelable imple
 
     @Constructor
     OpenBlobForWriteResponse(
-            @AbstractSafeParcelable.Param(id = 1) @NonNull
-                    AppSearchBatchResultParcelV2<AppSearchBlobHandle, ParcelFileDescriptor>
+            @AbstractSafeParcelable.Param(id = 1)
+                    @NonNull AppSearchBatchResultParcelV2<AppSearchBlobHandle, ParcelFileDescriptor>
                             resultParcel) {
         mResultParcel = Objects.requireNonNull(resultParcel);
     }
