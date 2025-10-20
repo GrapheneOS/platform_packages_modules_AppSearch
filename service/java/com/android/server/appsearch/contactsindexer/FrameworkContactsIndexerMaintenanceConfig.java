@@ -13,30 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.server.appsearch.appsindexer;
+// @exportToGMSCore:skipFile()
+package com.android.server.appsearch.contactsindexer;
 
 import android.annotation.NonNull;
 
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceConfig;
 import com.android.server.appsearch.indexer.IndexerLocalService;
-import com.android.server.appsearch.indexer.IndexerMaintenanceConfig;
 
-/** Singleton class containing configuration for the app open event indexer maintenance task. */
-public class AppOpenEventIndexerMaintenanceConfig implements IndexerMaintenanceConfig {
+/** Singleton class containing configuration for the contacts indexer maintenance task. */
+public class FrameworkContactsIndexerMaintenanceConfig
+        implements FrameworkIndexerMaintenanceConfig {
 
-    public static final IndexerMaintenanceConfig INSTANCE =
-            new AppOpenEventIndexerMaintenanceConfig();
+    public static final FrameworkIndexerMaintenanceConfig INSTANCE =
+            new FrameworkContactsIndexerMaintenanceConfig();
 
     /** Enforces singleton class pattern. */
-    private AppOpenEventIndexerMaintenanceConfig() {}
+    private FrameworkContactsIndexerMaintenanceConfig() {}
 
     @NonNull
     @Override
     public Class<? extends IndexerLocalService> getLocalService() {
-        return AppOpenEventIndexerManagerService.LocalService.class;
+        return ContactsIndexerManagerService.LocalService.class;
     }
 
     @Override
     public int getMinJobId() {
-        return MIN_APP_OPEN_EVENT_INDEXER_JOB_ID;
+        return MIN_CONTACTS_INDEXER_JOB_ID;
     }
 }

@@ -88,6 +88,8 @@ public interface IcingOptionsConfig {
 
     int DEFAULT_COMPRESSION_THRESHOLD_BYTES = 600;
 
+    int DEFAULT_EMBEDDING_INDEX_NUM_SHARDS = 32;
+
     /**
      * The maximum allowable token length. All tokens in excess of this size will be truncated to
      * max_token_length before being indexed.
@@ -280,6 +282,9 @@ public interface IcingOptionsConfig {
      */
     int getCompressionThresholdBytes();
 
+    /** The number of shards to use for the embedding index. 1 means no sharding. */
+    int getEmbeddingIndexNumShards();
+
     /**
      * Converts to an {@link IcingSearchEngineOptions} instance.
      *
@@ -341,6 +346,13 @@ public interface IcingOptionsConfig {
                         Flags.enablePassingFilterToChildren() || isVMEnabled)
                 .setEnableProtoLogNewHeaderFormat(
                         Flags.enableProtoLogNewHeaderFormat() || isVMEnabled)
+                .setEnableEmbeddingIteratorV2(Flags.enableEmbeddingIteratorV2() || isVMEnabled)
+                .setEnableReusableDecompressionBuffer(
+                        Flags.enableReusableDecompressionBuffer() || isVMEnabled)
+                .setEmbeddingIndexNumShards(
+                        Flags.enableShardedEmbeddingStorage()
+                                ? Math.max(1, getEmbeddingIndexNumShards())
+                                : 1)
                 .build();
     }
 }

@@ -1,0 +1,83 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package com.android.server.appsearch.indexer;
+
+option java_multiple_files = true;
+option java_package = "com.android.server.appsearch.indexer";
+option java_outer_classname = "SettingsProto";
+
+// Settings that are held all indexers.
+// Next tag: 4
+message BaseSettingsProto {
+  // Timestamp of when the last update occurred in milliseconds.
+  int64 last_update_timestamp_millis = 1;
+
+  // Timestamp of when the last update attempt occurred in milliseconds.
+  int64 last_attempted_update_timestamp_millis = 2;
+
+  // Emergency counter that tracks the number of force updates
+  int32 indexer_force_update_emergency_counter = 3;
+}
+
+// Settings specific to the ContactsIndexer.
+// Next tag: 8
+message ContactsIndexerSettingsProto {
+  // Base indexer settings.
+  BaseSettingsProto base_settings = 1;
+
+  // Timestamp of when the last full update occurred in milliseconds.
+  int64 last_full_update_timestamp_millis = 2;
+
+  // Timestamp of when the last delta update occurred in milliseconds.
+  int64 last_delta_update_timestamp_millis = 3;
+
+  // Timestamp of when the last contact in CP2 was updated in milliseconds.
+  int64 last_contact_update_timestamp_millis = 4;
+
+  // Timestamp of when the last contact in CP2 was deleted in milliseconds.
+  int64 last_contact_delete_timestamp_millis = 5;
+}
+
+// Settings specific to the AppsIndexer.
+// Next tag: 7
+message AppsIndexerSettingsProto {
+  // Base indexer settings.
+  BaseSettingsProto base_settings = 1;
+
+  // Timestamp of when the last app was updated in milliseconds.
+  int64 last_app_update_timestamp_millis = 2;
+
+  // Version code of AppSearch module that previously indexed the apps.
+  int32 previous_indexer_version_code = 3;
+
+  // Fingerprints of all partitions as a string array sorted
+  // by the partition name.
+  repeated string last_partitions_fingerprint_sorted_by_partition_name = 4;
+
+  // Locale code of the previous apps indexer run.
+  string previous_locale_code = 5;
+
+  // A rolling log of the most recent indexing operations for debugging.
+  repeated string log_lines = 6;
+}
+
+// Settings specific to the AppOpenEventIndexer.
+// Next tag: 2
+message AppOpenEventIndexerSettingsProto {
+  // Base indexer settings.
+  BaseSettingsProto base_settings = 1;
+}

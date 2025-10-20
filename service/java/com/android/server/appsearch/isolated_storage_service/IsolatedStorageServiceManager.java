@@ -22,7 +22,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.content.ComponentName;
 import android.content.Context;
@@ -31,6 +30,7 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
+import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
@@ -50,6 +50,7 @@ import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
 import com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats;
+import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.proto.IcingSearchEngineOptions;
 import com.google.android.icing.proto.InitializeResultProto;
@@ -59,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -98,6 +100,9 @@ public class IsolatedStorageServiceManager {
     private static final long VM_STATUS_CHECK_INTERVAL_SECONDS = 60; // 1 minute
 
     private static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
+    private static final String SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD = "ro.debuggable";
+    private static final boolean IS_DEBUG_BUILD =
+            SystemProperties.getInt(SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD, /* def= */ 0) == 1;
 
     private final Context mContext;
     private final ServiceAppSearchConfig mAppSearchConfig;
@@ -202,13 +207,18 @@ public class IsolatedStorageServiceManager {
         boolean protectedAppSearchVmEnabled =
                 !SystemProperties.getBoolean(
                         SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
-        return protectedAppSearchVmEnabled
-                ? ((vmm.getCapabilities() & VirtualMachineManager.CAPABILITY_PROTECTED_VM) != 0)
-                : true;
+        int requiredCapability =
+                protectedAppSearchVmEnabled
+                        ? VirtualMachineManager.CAPABILITY_PROTECTED_VM
+                        : VirtualMachineManager.CAPABILITY_NON_PROTECTED_VM;
+        return (vmm.getCapabilities() & requiredCapability) != 0;
     }
 
     /** Cleans up the isolated storage service related data. */
     public static void cleanUp(@NonNull Context context, @NonNull Consumer<Void> onSuccess) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(onSuccess);
+
         String packageName = maybeGetPackageName(context);
         if (packageName == null) {
             Log.e(TAG, "Unable to get isolated storage service package name");
@@ -216,21 +226,26 @@ public class IsolatedStorageServiceManager {
         }
         Intent intent = new Intent();
         intent.setClassName(packageName, ISOLATED_STORAGE_SERVICE_CLASS_NAME);
+        ExecutorService executorService = ExecutorManager.createDefaultExecutorService();
         ServiceConnection connection =
                 new ServiceConnection() {
                     @Override
                     public void onServiceConnected(ComponentName name, IBinder service) {
-                        try {
-                            if (IIsolatedStorageService.Stub.asInterface(service).deleteVm()) {
-                                Log.i(TAG, "Deleted the VM");
-                                onSuccess.accept(null);
-                            } else {
-                                Log.e(TAG, "VM not deleted");
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "Unable to delete VM", e);
-                        }
-                        context.unbindService(this);
+                        executorService.execute(
+                                () -> {
+                                    try {
+                                        if (IIsolatedStorageService.Stub.asInterface(service)
+                                                .deleteVm()) {
+                                            Log.i(TAG, "Deleted the VM");
+                                            onSuccess.accept(null);
+                                        } else {
+                                            Log.e(TAG, "VM not deleted");
+                                        }
+                                    } catch (Exception e) {
+                                        Log.e(TAG, "Unable to delete VM", e);
+                                    }
+                                    context.unbindService(this);
+                                });
                     }
 
                     @Override
@@ -254,19 +269,11 @@ public class IsolatedStorageServiceManager {
      * not already.
      */
     public void initialize() throws AppSearchException {
-        VmInitializationStats.Builder statsBuilder =
-                new VmInitializationStats.Builder(VmInitializationStats.VM_INIT_TYPE_BOOTING);
-        try {
-            initialize(
-                    /* forceVmRestart= */ false,
-                    MAX_VM_START_RETRIES,
-                    /* numRetriesForVmConnect= */ 1,
-                    statsBuilder);
-        } finally {
-            if (mLogger != null) {
-                mLogger.logStats(statsBuilder.build());
-            }
-        }
+        initialize(
+                /* forceVmRestart= */ false,
+                MAX_VM_START_RETRIES,
+                /* numRetriesForVmConnect= */ 1,
+                VmInitializationStats.VM_INIT_TYPE_BOOTING);
     }
 
     /**
@@ -278,21 +285,32 @@ public class IsolatedStorageServiceManager {
      * @param forceVmRestart Whether to force restarting the VM.
      * @param numRetriesForVmStart Number of retries when starting the VM.
      * @param numRetriesForVmConnect Number of retries when connecting to the VM.
-     * @param statsBuilder nullable {@link VmInitializationStats.Builder} for stats report.
+     * @param vmInitType {@link VmInitializationStats.VmInitType} enum.
      */
     private void initialize(
             boolean forceVmRestart,
             int numRetriesForVmStart,
             int numRetriesForVmConnect,
-            @Nullable VmInitializationStats.Builder statsBuilder)
+            @VmInitializationStats.VmInitType int vmInitType)
             throws AppSearchException {
         synchronized (mLock) {
             if (mIsolatedStorageService == null) {
                 bindIsolatedStorageServiceLocked();
             }
             if (mVmIsolatedStorageServiceLocked == null) {
-                connectToVmIsolatedStorageServiceLocked(
-                        forceVmRestart, numRetriesForVmStart, numRetriesForVmConnect, statsBuilder);
+                VmInitializationStats.Builder statsBuilder =
+                        new VmInitializationStats.Builder(vmInitType);
+                try {
+                    connectToVmIsolatedStorageServiceLocked(
+                            forceVmRestart,
+                            numRetriesForVmStart,
+                            numRetriesForVmConnect,
+                            statsBuilder);
+                } finally {
+                    if (mLogger != null) {
+                        mLogger.logStats(statsBuilder.build());
+                    }
+                }
             }
         }
     }
@@ -425,6 +443,9 @@ public class IsolatedStorageServiceManager {
                             () -> {
                                 try {
                                     ParcelFileDescriptor pfd = getVmConnectionLocked();
+                                    if (pfd == null) {
+                                        throw new NullPointerException("Null PFD VM connection");
+                                    }
                                     return pfd;
                                 } catch (Exception e) {
                                     Log.e(TAG, "Unable to get vm connection", e);
@@ -751,37 +772,48 @@ public class IsolatedStorageServiceManager {
 
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
-            mIsolatedStorageService = IIsolatedStorageService.Stub.asInterface(service);
-            IBinder binder = mIsolatedStorageService.asBinder();
-            try {
-                binder.linkToDeath(mIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
-            } catch (RemoteException e) {
-                Log.e(
-                        TAG,
-                        "failed to register a recipient of died IsolatedStorageService binder",
-                        e);
-            }
-            Log.i(TAG, "IsolatedStorageService connected");
-            mFuture.complete(null);
+            mScheduledExecutorService.execute(
+                    () -> {
+                        mIsolatedStorageService = IIsolatedStorageService.Stub.asInterface(service);
+                        IBinder binder = mIsolatedStorageService.asBinder();
+                        try {
+                            binder.linkToDeath(
+                                    mIsolatedStorageServiceDeathRecipient, /* flags= */ 0);
+                        } catch (RemoteException e) {
+                            Log.e(
+                                    TAG,
+                                    "failed to register a recipient of died IsolatedStorageService"
+                                            + " binder",
+                                    e);
+                        }
+                        Log.i(TAG, "IsolatedStorageService connected");
+                        mFuture.complete(null);
+                    });
         }
 
         @Override
         public void onServiceDisconnected(ComponentName className) {
             Log.i(TAG, "IsolatedStorageService disconnected");
-            synchronized (mLock) {
-                mIsolatedStorageService = null;
-            }
-            mFuture.cancel(/* mayInterruptIfRunning= */ true);
+            mScheduledExecutorService.execute(
+                    () -> {
+                        synchronized (mLock) {
+                            mIsolatedStorageService = null;
+                        }
+                        mFuture.cancel(/* mayInterruptIfRunning= */ true);
+                    });
         }
 
         @Override
         public void onBindingDied(ComponentName className) {
             // TODO(b/416509934): properly handle this when it's correctly triggered
             Log.i(TAG, "IsolatedStorageService binding died");
-            synchronized (mLock) {
-                mIsolatedStorageService = null;
-            }
-            mFuture.cancel(/* mayInterruptIfRunning= */ true);
+            mScheduledExecutorService.execute(
+                    () -> {
+                        synchronized (mLock) {
+                            mIsolatedStorageService = null;
+                        }
+                        mFuture.cancel(/* mayInterruptIfRunning= */ true);
+                    });
         }
 
         @Override
@@ -795,10 +827,13 @@ public class IsolatedStorageServiceManager {
         @Override
         public void binderDied() {
             Log.w(TAG, "binderDied: IsolatedStorageService");
-            synchronized (mLock) {
-                mIsolatedStorageService = null;
-            }
-            mScheduledExecutorService.execute(() -> replaceVmIcingInstances());
+            mScheduledExecutorService.execute(
+                    () -> {
+                        synchronized (mLock) {
+                            mIsolatedStorageService = null;
+                        }
+                        replaceVmIcingInstances();
+                    });
         }
     }
 
@@ -806,14 +841,17 @@ public class IsolatedStorageServiceManager {
         @Override
         public void binderDied() {
             Log.w(TAG, "binderDied: VmIsolatedStorageService");
-            synchronized (mLock) {
-                mVmIsolatedStorageServiceLocked = null;
-                mVmUnlocker.onVmUnavailable();
-                for (UserInstance userInstance : mUserInstancesLocked.values()) {
-                    userInstance.reset();
-                }
-            }
-            mScheduledExecutorService.execute(() -> replaceVmIcingInstances());
+            mScheduledExecutorService.execute(
+                    () -> {
+                        synchronized (mLock) {
+                            mVmIsolatedStorageServiceLocked = null;
+                            mVmUnlocker.onVmUnavailable();
+                            for (UserInstance userInstance : mUserInstancesLocked.values()) {
+                                userInstance.reset();
+                            }
+                        }
+                        replaceVmIcingInstances();
+                    });
         }
     }
 
@@ -821,24 +859,15 @@ public class IsolatedStorageServiceManager {
         synchronized (mLock) {
             try {
                 mIsReconnecting = true;
-                VmInitializationStats.Builder statsBuilder =
-                        new VmInitializationStats.Builder(
-                                VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
                 // TODO(b/421272017): add logs that will cover how many retries we're attempting
                 // and whether they actually recover eventually.
-                try {
-                    if (!reinitializeWithRetryLocked(statsBuilder)) {
-                        Log.wtf(
-                                TAG,
-                                "failed to re-initialize after "
-                                        + MAX_REINITIALIZATION_RETRIES
-                                        + " retries");
-                        return;
-                    }
-                } finally {
-                    if (mLogger != null) {
-                        mLogger.logStats(statsBuilder.build());
-                    }
+                if (!reinitializeWithRetryLocked()) {
+                    Log.wtf(
+                            TAG,
+                            "failed to re-initialize after "
+                                    + MAX_REINITIALIZATION_RETRIES
+                                    + " retries");
+                    return;
                 }
 
                 for (UserHandle userHandle : mUserInstancesLocked.keySet()) {
@@ -860,10 +889,10 @@ public class IsolatedStorageServiceManager {
     }
 
     @GuardedBy("mLock")
-    private boolean reinitializeWithRetryLocked(VmInitializationStats.Builder statsBuilder) {
+    private boolean reinitializeWithRetryLocked() {
         for (int i = 0; i < MAX_REINITIALIZATION_RETRIES; i++) {
             try {
-                reinitializeLocked(statsBuilder);
+                reinitializeLocked();
                 return true;
             } catch (AppSearchException e) {
                 Log.e(TAG, "failed to re-initialize after " + i + " retries");
@@ -873,15 +902,14 @@ public class IsolatedStorageServiceManager {
     }
 
     @GuardedBy("mLock")
-    private void reinitializeLocked(VmInitializationStats.Builder statsBuilder)
-            throws AppSearchException {
+    private void reinitializeLocked() throws AppSearchException {
         // try reconnecting without forcing restarting the VM first
         try {
             initialize(
                     /* forceVmRestart= */ false,
                     /* numRetriesForVmStart= */ 1,
                     /* numRetriesForVmConnect= */ 3,
-                    statsBuilder);
+                    VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
             Log.i(TAG, "succeeded to re-initialize without forcing vm restart");
             return;
         } catch (Exception e) {
@@ -891,17 +919,27 @@ public class IsolatedStorageServiceManager {
                 /* forceVmRestart= */ true,
                 /* numRetriesForVmStart= */ 1,
                 /* numRetriesForVmConnect= */ 1,
-                statsBuilder);
+                VmInitializationStats.VM_INIT_TYPE_RECONNECTING);
     }
 
     private final class VmDataUnlocker {
+
+        /**
+         * The threshold to delete vm after encountering consecutive {@link DeadObjectException}
+         * errors when trying to notify vm data unlock.
+         */
+        private static final int CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD = 4;
+
         @GuardedBy("mLock")
         private boolean mIsUserUnlocked = false;
 
         @GuardedBy("mLock")
         private boolean mIsVmAvailable = false;
 
-        private void onVmAvailable() {
+        @GuardedBy("mLock")
+        private int mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+
+        private void onVmAvailable() throws RemoteException {
             synchronized (mLock) {
                 mIsVmAvailable = true;
                 tryVmDataUnlock();
@@ -926,7 +964,7 @@ public class IsolatedStorageServiceManager {
         }
 
         @GuardedBy("mLock")
-        private void tryVmDataUnlock() {
+        private void tryVmDataUnlock() throws RemoteException {
             if (!mIsVmAvailable || !mIsUserUnlocked) {
                 Log.i(
                         TAG,
@@ -940,9 +978,34 @@ public class IsolatedStorageServiceManager {
             Log.i(TAG, "signaling VM to unlock");
             try {
                 mVmIsolatedStorageServiceLocked.onUserUnlocking();
+                mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+                Log.i(TAG, "VM unlocked");
+            } catch (DeadObjectException e) {
+                mConsecutiveVmDataUnlockDoeErrorsLocked++;
+                if (mConsecutiveVmDataUnlockDoeErrorsLocked
+                        >= CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD) {
+                    // keep the vm on debug builds to surface the unlock issues
+                    if (IS_DEBUG_BUILD) {
+                        Log.wtf(
+                                TAG,
+                                "Saw at least "
+                                        + CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD
+                                        + " consecutive DOE errors when trying to unlock vm data");
+                    } else {
+                        if (mIsolatedStorageService.deleteVm()) {
+                            mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+                            Log.wtf(
+                                    TAG,
+                                    "Deleted the VM due to consecutive DOE errors when trying to"
+                                            + " unlock vm data");
+                        }
+                    }
+                }
+                throw e;
             } catch (RemoteException e) {
-                Log.e(TAG, "onUserUnlocking VM notify failure", e);
-                ExceptionUtil.handleRemoteException(e);
+                Log.e(TAG, "failed to signal VM to unlock", e);
+                mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
+                throw e;
             }
         }
     }

@@ -16,7 +16,7 @@
 
 package com.android.server.appsearch.contactsindexer;
 
-import static com.android.server.appsearch.indexer.IndexerMaintenanceConfig.CONTACTS_INDEXER;
+import static com.android.server.appsearch.indexer.IndexerJobHandler.CONTACTS_INDEXER;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -42,8 +42,11 @@ import android.util.Slog;
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.ProtoSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import java.io.File;
@@ -81,20 +84,10 @@ public final class ContactsIndexerUserInstance {
     // notification so we won't schedule too many delta updates.
     private final Object mDeltaUpdateLock = new Object();
 
-    // Whether a delta update has been scheduled or run. Now we only allow one delta update being
-    // run at a time.
-    @GuardedBy("mDeltaUpdateLock")
-    private boolean mDeltaUpdateScheduled = false;
-
-    // Whether we are receiving notifications from CP2.
-    @GuardedBy("mDeltaUpdateLock")
-    private boolean mCp2ChangePending = false;
-
     private final AppSearchHelper mAppSearchHelper;
     private final ContactsIndexerImpl mContactsIndexerImpl;
     private final ContactsIndexerConfig mContactsIndexerConfig;
     private final IndexerForceUpdateConfig mContactsIndexerForceUpdateConfig;
-    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
 
     /**
      * Single threaded executor to make sure there is only one active sync for this {@link
@@ -107,6 +100,19 @@ public final class ContactsIndexerUserInstance {
      * by them.
      */
     private final ExecutorService mSingleThreadedExecutor;
+
+    private final SettingsStore mSettingsStore;
+
+    private OnPropertiesChangedListener mOnDeviceConfigChangedListener;
+
+    // Whether a delta update has been scheduled or run. Now we only allow one delta update being
+    // run at a time.
+    @GuardedBy("mDeltaUpdateLock")
+    private boolean mDeltaUpdateScheduled = false;
+
+    // Whether we are receiving notifications from CP2.
+    @GuardedBy("mDeltaUpdateLock")
+    private boolean mCp2ChangePending = false;
 
     /**
      * Constructs and initializes a {@link ContactsIndexerUserInstance}.
@@ -188,11 +194,16 @@ public final class ContactsIndexerUserInstance {
         mContactsIndexerConfig = Objects.requireNonNull(contactsIndexerConfig);
         mContactsIndexerForceUpdateConfig =
                 Objects.requireNonNull(contactsIndexerForceUpdateConfig);
-        mSettings = new ContactsIndexerSettings(mDataDir);
+        mSettings = new ContactsIndexerSettings();
         mAppSearchHelper = Objects.requireNonNull(appSearchHelper);
         mSingleThreadedExecutor = Objects.requireNonNull(singleThreadedExecutor);
         mContactsObserver = new ContactsObserver();
         mContactsIndexerImpl = new ContactsIndexerImpl(context, appSearchHelper);
+        if (Flags.enableProtoIndexerSettingsStorage()) {
+            mSettingsStore = new ProtoSettingsStore(mDataDir);
+        } else {
+            mSettingsStore = new PersistableBundleSettingsStore(mDataDir);
+        }
     }
 
     public void startAsync() {
@@ -250,8 +261,8 @@ public final class ContactsIndexerUserInstance {
 
         mContext.getContentResolver().unregisterContentObserver(mContactsObserver);
 
-        IndexerMaintenanceService.cancelUpdateJobIfScheduled(
-                mContext, mContext.getUser(), CONTACTS_INDEXER);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .cancelUpdateJobIfScheduled(mContext, mContext.getUser(), CONTACTS_INDEXER);
         synchronized (mSingleThreadedExecutor) {
             mSingleThreadedExecutor.shutdown();
         }
@@ -303,17 +314,18 @@ public final class ContactsIndexerUserInstance {
         // to bring latest contact change in AppSearch right away, after it is re-enabled.
         if (Flags.enableCheckContactsIndexerUpdateJobParams()) {
             if (mSettings.getLastFullUpdateTimestampMillis() != 0
-                    && IndexerMaintenanceService.isUpdateJobScheduledWithExpectedParams(
-                    mContext,
-                    mContext.getUser(),
-                    CONTACTS_INDEXER,
-                    mContactsIndexerConfig.getContactsFullUpdateIntervalMillis())) {
+                    && AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                            .isUpdateJobScheduledWithExpectedParams(
+                                    mContext,
+                                    mContext.getUser(),
+                                    CONTACTS_INDEXER,
+                                    mContactsIndexerConfig.getContactsFullUpdateIntervalMillis())) {
                 return;
             }
         } else {
             if (mSettings.getLastFullUpdateTimestampMillis() != 0
-                    && IndexerMaintenanceService.isUpdateJobScheduled(
-                            mContext, mContext.getUser(), CONTACTS_INDEXER)) {
+                    && AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                            .isUpdateJobScheduled(mContext, mContext.getUser(), CONTACTS_INDEXER)) {
                 return;
             }
         }
@@ -330,12 +342,13 @@ public final class ContactsIndexerUserInstance {
                 () -> {
                     ContactsUpdateStats updateStats = new ContactsUpdateStats();
                     doFullUpdateInternalAsync(signal, updateStats);
-                    IndexerMaintenanceService.scheduleUpdateJob(
-                            mContext,
-                            mContext.getUser(),
-                            CONTACTS_INDEXER,
-                            /* periodic= */ true,
-                            mContactsIndexerConfig.getContactsFullUpdateIntervalMillis());
+                    AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                            .scheduleUpdateJob(
+                                    mContext,
+                                    mContext.getUser(),
+                                    CONTACTS_INDEXER,
+                                    /* periodic= */ true,
+                                    mContactsIndexerConfig.getContactsFullUpdateIntervalMillis());
                 });
     }
 
@@ -609,12 +622,13 @@ public final class ContactsIndexerUserInstance {
                                     // right now, considering we are sharing this limit with any
                                     // AppSearch clients, e.g. ShortcutManager, in the system
                                     // server.
-                                    IndexerMaintenanceService.scheduleUpdateJob(
-                                            mContext,
-                                            mContext.getUser(),
-                                            CONTACTS_INDEXER,
-                                            /* periodic= */ false,
-                                            /* intervalMillis= */ -1);
+                                    AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                                            .scheduleUpdateJob(
+                                                    mContext,
+                                                    mContext.getUser(),
+                                                    CONTACTS_INDEXER,
+                                                    /* periodic= */ false,
+                                                    /* intervalMillis= */ -1);
                                 }
 
                                 return null;
@@ -705,12 +719,14 @@ public final class ContactsIndexerUserInstance {
                 () -> {
                     boolean unused = mDataDir.mkdirs();
                     try {
-                        mSettings.load();
+                        mSettingsStore.loadInto(mSettings);
                     } catch (IOException e) {
                         // Ignore file not found errors (bootstrap case)
                         if (!(e instanceof FileNotFoundException)) {
                             Log.w(TAG, "Failed to load settings from disk", e);
                         }
+                        // Reset settings on failure.
+                        mSettings.reset();
                     }
                 });
     }
@@ -718,7 +734,7 @@ public final class ContactsIndexerUserInstance {
     @WorkerThread
     private void persistSettings() {
         try {
-            mSettings.persist();
+            mSettingsStore.persist(mSettings);
         } catch (IOException e) {
             Log.w(TAG, "Failed to save settings to disk", e);
         }
@@ -751,12 +767,13 @@ public final class ContactsIndexerUserInstance {
                     min(lastContactDeleteTimestampMillis, bootTimeMillis));
             persistSettings();
             // Schedule a full update since the new delta timestamp may still be missing changes
-            IndexerMaintenanceService.scheduleUpdateJob(
-                    mContext,
-                    mContext.getUser(),
-                    CONTACTS_INDEXER,
-                    /* periodic= */ false,
-                    /* intervalMillis= */ -1);
+            AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                    .scheduleUpdateJob(
+                            mContext,
+                            mContext.getUser(),
+                            CONTACTS_INDEXER,
+                            /* periodic= */ false,
+                            /* intervalMillis= */ -1);
         }
     }
 
@@ -820,12 +837,13 @@ public final class ContactsIndexerUserInstance {
     private void executeCp2SyncFirstRun(boolean isForceUpdateTriggered) {
         ContactsUpdateStats contactsUpdateStats = new ContactsUpdateStats();
         contactsUpdateStats.mForceUpdateTriggered = isForceUpdateTriggered;
-        IndexerMaintenanceService.scheduleUpdateJob(
-                mContext,
-                mContext.getUser(),
-                CONTACTS_INDEXER,
-                /* periodic= */ false,
-                /* intervalMillis= */ -1);
+        AppSearchComponentFactory.getIndexerJobHandlerInstance()
+                .scheduleUpdateJob(
+                        mContext,
+                        mContext.getUser(),
+                        CONTACTS_INDEXER,
+                        /* periodic= */ false,
+                        /* intervalMillis= */ -1);
         // TODO(b/222126568): refactor doDeltaUpdateAsync() to return a future value of
         // ContactsUpdateStats so that it can be checked and logged here, instead of the
         // placeholder exceptionally() block that only logs to the console.

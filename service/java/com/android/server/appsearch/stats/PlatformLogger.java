@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.app.appsearch.stats.BaseStats;
 import android.app.appsearch.stats.SchemaMigrationStats;
+import android.app.appsearch.util.LogUtil;
 import android.content.Context;
 import android.os.Build;
 import android.os.Process;
@@ -35,6 +36,7 @@ import com.android.server.appsearch.AppSearchMetricsProto.AppSearchVmStartAttemp
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
 import com.android.server.appsearch.appsindexer.AppOpenEventStats;
+import com.android.server.appsearch.appsindexer.AppsUpdateStats;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.ClickStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
@@ -151,20 +153,24 @@ public class PlatformLogger implements InternalAppSearchLogger {
         long calculatedTimeSincePreviousRequestMillis = -1L;
 
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "CallStats=", stats.getTotalLatencyMillis(), stats);
             if (mLastCallStatsTimestampMillisLocked > 0) {
                 calculatedTimeSincePreviousRequestMillis =
                         Math.max(
                                 currentCallReceivedTimestamp - mLastCallStatsTimestampMillisLocked,
                                 -1L);
             }
-            if (getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0) {
-                addStatsToQueueLocked(new ApiCallRecord(stats));
-            } else {
+            boolean enableStatsQueue =
+                    getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0;
+            if (!enableStatsQueue) {
                 mLastNCalls.clear();
             }
             if (shouldLogForTypeLocked(stats.getCallType(), stats.getEnabledFeatures())) {
-
                 logStatsImplLocked(stats, calculatedTimeSincePreviousRequestMillis);
+            }
+            if (enableStatsQueue) {
+                // avoid add this call stast itself in the n last queue.
+                addStatsToQueueLocked(new ApiCallRecord(stats));
             }
             mLastCallStatsTimestampMillisLocked = currentCallReceivedTimestamp;
         }
@@ -175,6 +181,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull PutDocumentStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "PutDocumentStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(
                     BaseStats.CALL_TYPE_PUT_DOCUMENT, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
@@ -186,6 +193,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull InitializeStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "InitializeStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(
                     BaseStats.CALL_TYPE_INITIALIZE, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
@@ -194,9 +202,24 @@ public class PlatformLogger implements InternalAppSearchLogger {
     }
 
     @Override
+    public void logStats(@NonNull AppsUpdateStats appsUpdateStats) {
+        Objects.requireNonNull(appsUpdateStats);
+        synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "AppsUpdateStats=", appsUpdateStats.getTotalLatencyMillis(),
+                    appsUpdateStats);
+            if (shouldLogForTypeLocked(
+                    BaseStats.INTERNAL_CALL_TYPE_APPS_INDEXER,
+                    BaseStats.NO_FEATURES_ENABLED_BITMASK)) {
+                logStatsImplLocked(appsUpdateStats);
+            }
+        }
+    }
+
+    @Override
     public void logStats(@NonNull AppOpenEventStats appOpenEventStats) {
         Objects.requireNonNull(appOpenEventStats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "AppOpenEventStats=", appOpenEventStats.getTotalLatencyMillis(), appOpenEventStats);
             if (shouldLogForTypeLocked(
                     BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER,
                     BaseStats.NO_FEATURES_ENABLED_BITMASK)) {
@@ -209,6 +232,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull QueryStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "QueryStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_SEARCH, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
             }
@@ -219,6 +243,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull RemoveStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "RemoveStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(
                     BaseStats.CALL_TYPE_REMOVE_DOCUMENTS_BY_ID, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
@@ -230,6 +255,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull OptimizeStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "OptimizeStats=", stats.getTotalLatencyMillis(), stats);
             if (getCachedApiCallStatsLimitForFeatures(stats.getEnabledFeatures()) > 0) {
                 // Unlike most other API calls, Optimize does not produce a CallStats, so we
                 // record OptimizeStats in the queue.
@@ -247,6 +273,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull SetSchemaStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "SetSchemaStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(
                     BaseStats.CALL_TYPE_SET_SCHEMA, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
@@ -258,6 +285,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull SchemaMigrationStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "SchemaMigrationStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(
                     BaseStats.CALL_TYPE_SCHEMA_MIGRATION, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
@@ -282,6 +310,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull VmInitializationStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "VmInitializationStats=", stats.getVmInitType(), stats);
             // ignore close exception
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_VM_INITIALIZATION_STATS_REPORTED,
@@ -294,6 +323,7 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull PersistToDiskStats stats) {
         Objects.requireNonNull(stats);
         synchronized (mLock) {
+            LogUtil.piiTrace(TAG, "PersistToDiskStats=", stats.getTotalLatencyMillis(), stats);
             if (shouldLogForTypeLocked(BaseStats.CALL_TYPE_FLUSH, stats.getEnabledFeatures())) {
                 logStatsImplLocked(stats);
             }
@@ -404,27 +434,33 @@ public class PlatformLogger implements InternalAppSearchLogger {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_CALL_STATS_REPORTED,
-                    extraStats.mSamplingInterval,
-                    extraStats.mSkippedSampleCount,
-                    extraStats.mPackageUid,
-                    hashCodeForDatabase,
-                    stats.getStatusCode(),
-                    stats.getTotalLatencyMillis(),
-                    stats.getCallType(),
-                    stats.getEstimatedBinderLatencyMillis(),
-                    stats.getNumOperationsSucceeded(),
-                    stats.getNumOperationsFailed(),
-                    numReportedCalls,
-                    stats.getEnabledFeatures(),
-                    timeSincePreviousRequestMillis,
-                    stats.getExecutorAcquisitionLatencyMillis(),
-                    lastNTimeMillis,
-                    lastNCallTypes,
-                    lastNUids,
-                    lastNDatabases,
-                    lastNStatusCodes,
-                    lastNTotalLatencyMillis,
-                    lastNOnExecutorLatencyMillis);
+                    extraStats.mSamplingInterval, // 1
+                    extraStats.mSkippedSampleCount, // 2
+                    extraStats.mPackageUid, // 3
+                    hashCodeForDatabase, // 4
+                    stats.getStatusCode(), // 5
+                    stats.getTotalLatencyMillis(), // 6
+                    stats.getCallType(), // 7
+                    stats.getEstimatedBinderLatencyMillis(), // 8
+                    stats.getNumOperationsSucceeded(), // 9
+                    stats.getNumOperationsFailed(), // 10
+                    numReportedCalls, // 11
+                    stats.getEnabledFeatures(), // 12
+                    timeSincePreviousRequestMillis, // 13
+                    stats.getExecutorAcquisitionLatencyMillis(), // 14
+                    lastNTimeMillis, // 15
+                    lastNCallTypes, // 16
+                    lastNUids, // 17
+                    lastNDatabases, // 18
+                    lastNStatusCodes, // 19
+                    lastNTotalLatencyMillis, // 20
+                    lastNOnExecutorLatencyMillis, // 21
+                    stats.getLastBlockingOperation(), // 22
+                    stats.getLastBlockingOperationLatencyMillis(), // 23
+                    stats.getJavaLockAcquisitionLatencyMillis(), // 24
+                    stats.getGetVmLatencyMillis(), // 25
+                    stats.getNumIcingCalls(), // 26
+                    stats.getUnblockedAppSearchLatencyMillis()); // 27
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -452,49 +488,50 @@ public class PlatformLogger implements InternalAppSearchLogger {
             // ignore close exception
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_SET_SCHEMA_STATS_REPORTED,
-                    extraStats.mSamplingInterval,
-                    extraStats.mSkippedSampleCount,
-                    extraStats.mPackageUid,
-                    hashCodeForDatabase,
-                    stats.getStatusCode(),
-                    stats.getTotalLatencyMillis(),
-                    stats.getNewTypeCount(),
-                    stats.getDeletedTypeCount(),
-                    stats.getCompatibleTypeChangeCount(),
-                    stats.getIndexIncompatibleTypeChangeCount(),
-                    stats.getBackwardsIncompatibleTypeChangeCount(),
-                    stats.getVerifyIncomingCallLatencyMillis(),
-                    stats.getExecutorAcquisitionLatencyMillis(),
-                    stats.getRebuildFromBundleLatencyMillis(),
-                    stats.getJavaLockAcquisitionLatencyMillis(),
-                    stats.getRewriteSchemaLatencyMillis(),
-                    stats.getTotalNativeLatencyMillis(),
-                    stats.getVisibilitySettingLatencyMillis(),
-                    stats.getDispatchChangeNotificationsLatencyMillis(),
-                    stats.getOptimizeLatencyMillis(),
-                    stats.isPackageObserved(),
-                    stats.getGetOldSchemaLatencyMillis(),
-                    stats.getGetObserverLatencyMillis(),
-                    stats.getPreparingChangeNotificationLatencyMillis(),
-                    stats.getSchemaMigrationCallType(),
-                    stats.getEnabledFeatures(),
-                    stats.getLastBlockingOperation(),
-                    stats.getLastBlockingOperationLatencyMillis(),
-                    stats.getGetVmLatencyMillis(),
-                    stats.getUnblockedAppSearchLatencyMillis(),
-                    stats.getJoinIndexIncompatibleTypeChangeCount(),
-                    stats.getScorablePropertyIncompatibleTypeChangeCount(),
-                    stats.getDeletedDocumentCount(),
-                    stats.isTermIndexRestored(),
-                    stats.isIntegerIndexRestored(),
-                    stats.isEmbeddingIndexRestored(),
-                    stats.isQualifiedIdJoinIndexRestored(),
-                    stats.getNativeSchemaStoreSetSchemaLatencyMillis(),
-                    stats.getNativeDocumentStoreUpdateSchemaLatencyMillis(),
-                    stats.getNativeDocumentStoreOptimizedUpdateSchemaLatencyMillis(),
-                    stats.getNativeIndexRestorationLatencyMillis(),
-                    stats.getNativeScorablePropertyCacheRegenerationLatencyMillis(),
-                    stats.getSkippedIcingInteraction());
+                    extraStats.mSamplingInterval, // 1
+                    extraStats.mSkippedSampleCount, // 2
+                    extraStats.mPackageUid, // 3
+                    hashCodeForDatabase, // 4
+                    stats.getStatusCode(), // 5
+                    stats.getTotalLatencyMillis(), // 6
+                    stats.getNewTypeCount(), // 7
+                    stats.getDeletedTypeCount(), // 8
+                    stats.getCompatibleTypeChangeCount(), // 9
+                    stats.getIndexIncompatibleTypeChangeCount(), // 10
+                    stats.getBackwardsIncompatibleTypeChangeCount(), // 11
+                    stats.getVerifyIncomingCallLatencyMillis(), // 12
+                    stats.getExecutorAcquisitionLatencyMillis(), // 13
+                    stats.getRebuildFromBundleLatencyMillis(), // 14
+                    stats.getJavaLockAcquisitionLatencyMillis(), // 15
+                    stats.getRewriteSchemaLatencyMillis(), // 16
+                    stats.getTotalNativeLatencyMillis(), // 17
+                    stats.getVisibilitySettingLatencyMillis(), // 18
+                    stats.getDispatchChangeNotificationsLatencyMillis(), // 19
+                    stats.getOptimizeLatencyMillis(), // 20
+                    stats.isPackageObserved(), // 21
+                    stats.getGetOldSchemaLatencyMillis(), // 22
+                    stats.getGetObserverLatencyMillis(), // 23
+                    stats.getPreparingChangeNotificationLatencyMillis(), // 24
+                    stats.getSchemaMigrationCallType(), // 25
+                    stats.getEnabledFeatures(), // 26
+                    stats.getLastBlockingOperation(), // 27
+                    stats.getLastBlockingOperationLatencyMillis(), // 28
+                    stats.getGetVmLatencyMillis(), // 29
+                    stats.getUnblockedAppSearchLatencyMillis(), // 30
+                    stats.getJoinIndexIncompatibleTypeChangeCount(), // 31
+                    stats.getScorablePropertyIncompatibleTypeChangeCount(), // 32
+                    stats.getDeletedDocumentCount(), // 33
+                    stats.isTermIndexRestored(), // 34
+                    stats.isIntegerIndexRestored(), // 35
+                    stats.isEmbeddingIndexRestored(), // 36
+                    stats.isQualifiedIdJoinIndexRestored(), // 37
+                    stats.getNativeSchemaStoreSetSchemaLatencyMillis(), // 38
+                    stats.getNativeDocumentStoreUpdateSchemaLatencyMillis(), // 39
+                    stats.getNativeDocumentStoreOptimizedUpdateSchemaLatencyMillis(), // 40
+                    stats.getNativeIndexRestorationLatencyMillis(), // 41
+                    stats.getNativeScorablePropertyCacheRegenerationLatencyMillis(), // 42
+                    stats.getSkippedIcingInteraction(), //43
+                    stats.getNumIcingCalls()); // 44
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -522,27 +559,28 @@ public class PlatformLogger implements InternalAppSearchLogger {
             // ignore close exception
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_REMOVE_STATS_REPORTED,
-                    extraStats.mSamplingInterval,
-                    extraStats.mSkippedSampleCount,
-                    extraStats.mPackageUid,
-                    hashCodeForDatabase,
-                    stats.getStatusCode(),
-                    stats.getTotalLatencyMillis(),
-                    stats.getNativeLatencyMillis(),
-                    stats.getDeleteType(),
-                    stats.getDeletedDocumentCount(),
-                    stats.getEnabledFeatures(),
-                    stats.getQueryLength(),
-                    stats.getNumTerms(),
-                    stats.getNumNamespacesFiltered(),
-                    stats.getNumSchemaTypesFiltered(),
-                    stats.getParseQueryLatencyMillis(),
-                    stats.getDocumentRemovalLatencyMillis(),
-                    stats.getLastBlockingOperation(),
-                    stats.getLastBlockingOperationLatencyMillis(),
-                    stats.getJavaLockAcquisitionLatencyMillis(),
-                    stats.getGetVmLatencyMillis(),
-                    stats.getUnblockedAppSearchLatencyMillis());
+                    extraStats.mSamplingInterval, // 1
+                    extraStats.mSkippedSampleCount, // 2
+                    extraStats.mPackageUid, // 3
+                    hashCodeForDatabase, // 4
+                    stats.getStatusCode(), // 5
+                    stats.getTotalLatencyMillis(), // 6
+                    stats.getNativeLatencyMillis(), // 7
+                    stats.getDeleteType(), // 8
+                    stats.getDeletedDocumentCount(), // 9
+                    stats.getEnabledFeatures(), // 10
+                    stats.getQueryLength(), // 11
+                    stats.getNumTerms(), // 12
+                    stats.getNumNamespacesFiltered(), // 13
+                    stats.getNumSchemaTypesFiltered(), // 14
+                    stats.getParseQueryLatencyMillis(), // 15
+                    stats.getDocumentRemovalLatencyMillis(), // 16
+                    stats.getLastBlockingOperation(), // 17
+                    stats.getLastBlockingOperationLatencyMillis(), // 18
+                    stats.getJavaLockAcquisitionLatencyMillis(), // 19
+                    stats.getGetVmLatencyMillis(), // 20
+                    stats.getUnblockedAppSearchLatencyMillis(), // 21
+                    stats.getNumIcingCalls()); // 22
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -611,29 +649,30 @@ public class PlatformLogger implements InternalAppSearchLogger {
             int hashCodeForDatabase = StatsUtil.calculateHashCodeMd5(database);
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_PUT_DOCUMENT_STATS_REPORTED,
-                    extraStats.mSamplingInterval,
-                    extraStats.mSkippedSampleCount,
-                    extraStats.mPackageUid,
-                    hashCodeForDatabase,
-                    stats.getStatusCode(),
-                    stats.getTotalLatencyMillis(),
-                    stats.getGenerateDocumentProtoLatencyMillis(),
-                    stats.getRewriteDocumentTypesLatencyMillis(),
-                    stats.getNativeLatencyMillis(),
-                    stats.getNativeDocumentStoreLatencyMillis(),
-                    stats.getNativeIndexLatencyMillis(),
-                    stats.getNativeIndexMergeLatencyMillis(),
-                    stats.getNativeDocumentSizeBytes(),
-                    stats.getNativeNumTokensIndexed(),
-                    /* nativeExceededMaxNumTokens= */ false /* Deprecated and removed */,
-                    stats.getEnabledFeatures(),
-                    stats.getMetadataTermIndexLatencyMillis(),
-                    stats.getEmbeddingIndexLatencyMillis(),
-                    stats.getLastBlockingOperation(),
-                    stats.getLastBlockingOperationLatencyMillis(),
-                    stats.getJavaLockAcquisitionLatencyMillis(),
-                    stats.getGetVmLatencyMillis(),
-                    stats.getUnblockedAppSearchLatencyMillis());
+                    extraStats.mSamplingInterval, // 1
+                    extraStats.mSkippedSampleCount, // 2
+                    extraStats.mPackageUid, // 3
+                    hashCodeForDatabase, // 4
+                    stats.getStatusCode(), // 5
+                    stats.getTotalLatencyMillis(), // 6
+                    stats.getGenerateDocumentProtoLatencyMillis(), // 7
+                    stats.getRewriteDocumentTypesLatencyMillis(), // 8
+                    stats.getNativeLatencyMillis(), // 9
+                    stats.getNativeDocumentStoreLatencyMillis(), // 10
+                    stats.getNativeIndexLatencyMillis(), // 11
+                    stats.getNativeIndexMergeLatencyMillis(), // 12
+                    stats.getNativeDocumentSizeBytes(), // 13
+                    stats.getNativeNumTokensIndexed(), // 14
+                    /* nativeExceededMaxNumTokens= */ false /* Deprecated and removed */, // 15
+                    stats.getEnabledFeatures(), // 16
+                    stats.getMetadataTermIndexLatencyMillis(), // 17
+                    stats.getEmbeddingIndexLatencyMillis(), // 18
+                    stats.getLastBlockingOperation(), // 19
+                    stats.getLastBlockingOperationLatencyMillis(), // 20
+                    stats.getJavaLockAcquisitionLatencyMillis(), // 21
+                    stats.getGetVmLatencyMillis(), // 22
+                    stats.getUnblockedAppSearchLatencyMillis(), // 23
+                    stats.getNumIcingCalls());  // 24
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -664,86 +703,92 @@ public class PlatformLogger implements InternalAppSearchLogger {
             SearchStats childStats = queryStats.getChildSearchStats();
             AppSearchStatsLog.write(
                     AppSearchStatsLog.APP_SEARCH_QUERY_STATS_REPORTED,
-                    extraStats.mSamplingInterval,
-                    extraStats.mSkippedSampleCount,
-                    extraStats.mPackageUid,
-                    hashCodeForDatabase,
-                    queryStats.getStatusCode(),
-                    queryStats.getTotalLatencyMillis(),
-                    queryStats.getRewriteSearchSpecLatencyMillis(),
-                    queryStats.getRewriteSearchResultLatencyMillis(),
-                    queryStats.getVisibilityScope(),
-                    queryStats.getNativeLatencyMillis(),
-                    parentStats == null ? 0 : parentStats.getNativeTermCount(),
-                    parentStats == null ? 0 : parentStats.getNativeQueryLength(),
-                    parentStats == null ? 0 : parentStats.getNativeFilteredNamespaceCount(),
-                    parentStats == null ? 0 : parentStats.getNativeFilteredSchemaTypeCount(),
-                    queryStats.getRequestedPageSize(),
-                    queryStats.getCurrentPageReturnedResultCount(),
-                    queryStats.isFirstPage(),
-                    parentStats == null ? 0 : parentStats.getNativeParseQueryLatencyMillis(),
-                    parentStats == null ? 0 : parentStats.getNativeRankingStrategy(),
-                    parentStats == null ? 0 : parentStats.getNativeScoredDocumentCount(),
-                    parentStats == null ? 0 : parentStats.getNativeScoringLatencyMillis(),
-                    queryStats.getRankingLatencyMillis(),
-                    queryStats.getDocumentRetrievingLatencyMillis(),
-                    queryStats.getResultWithSnippetsCount(),
-                    queryStats.getJavaLockAcquisitionLatencyMillis(),
-                    queryStats.getAclCheckLatencyMillis(),
-                    queryStats.getNativeLockAcquisitionLatencyMillis(),
-                    queryStats.getJavaToNativeJniLatencyMillis(),
-                    queryStats.getNativeToJavaJniLatencyMillis(),
-                    queryStats.getJoinType(),
-                    queryStats.getNumJoinedResultsCurrentPage(),
-                    queryStats.getJoinLatencyMillis(),
-                    hashCodeForSearchSourceLogTag,
-                    queryStats.getEnabledFeatures(),
-                    parentStats == null ? false : parentStats.isNativeNumericQuery(),
-                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsLiteIndex(),
-                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsMainIndex(),
+                    extraStats.mSamplingInterval, // 1
+                    extraStats.mSkippedSampleCount, // 2
+                    extraStats.mPackageUid, // 3
+                    hashCodeForDatabase, // 4
+                    queryStats.getStatusCode(), // 5
+                    queryStats.getTotalLatencyMillis(), // 6
+                    queryStats.getRewriteSearchSpecLatencyMillis(), // 7
+                    queryStats.getRewriteSearchResultLatencyMillis(), // 8
+                    queryStats.getVisibilityScope(), // 9
+                    queryStats.getNativeLatencyMillis(), // 10
+                    parentStats == null ? 0 : parentStats.getNativeTermCount(), // 11
+                    parentStats == null ? 0 : parentStats.getNativeQueryLength(), // 12
+                    parentStats == null ? 0 : parentStats.getNativeFilteredNamespaceCount(), // 13
+                    parentStats == null ? 0 : parentStats.getNativeFilteredSchemaTypeCount(), // 14
+                    queryStats.getRequestedPageSize(), // 15
+                    queryStats.getCurrentPageReturnedResultCount(), // 16
+                    queryStats.isFirstPage(), // 17
+                    parentStats == null ? 0 : parentStats.getNativeParseQueryLatencyMillis(), // 18
+                    parentStats == null ? 0 : parentStats.getNativeRankingStrategy(), // 19
+                    parentStats == null ? 0 : parentStats.getNativeScoredDocumentCount(), // 20
+                    parentStats == null ? 0 : parentStats.getNativeScoringLatencyMillis(), // 21
+                    queryStats.getRankingLatencyMillis(), // 22
+                    queryStats.getDocumentRetrievingLatencyMillis(), // 23
+                    queryStats.getResultWithSnippetsCount(), // 24
+                    queryStats.getJavaLockAcquisitionLatencyMillis(), // 25
+                    queryStats.getAclCheckLatencyMillis(), // 26
+                    queryStats.getNativeLockAcquisitionLatencyMillis(), // 27
+                    queryStats.getJavaToNativeJniLatencyMillis(), // 28
+                    queryStats.getNativeToJavaJniLatencyMillis(), // 29
+                    queryStats.getJoinType(), // 30
+                    queryStats.getNumJoinedResultsCurrentPage(), // 31
+                    queryStats.getJoinLatencyMillis(), // 32
+                    hashCodeForSearchSourceLogTag, // 33
+                    queryStats.getEnabledFeatures(), // 34
+                    parentStats == null ? false : parentStats.isNativeNumericQuery(), // 35
+                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsLiteIndex(), // 36
+                    parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsMainIndex(), // 37
                     parentStats == null ? 0 : parentStats.getNativeNumFetchedHitsIntegerIndex(),
+                    // 38
                     parentStats == null
                             ? 0
                             : parentStats.getNativeQueryProcessorLexerExtractTokenLatencyMillis(),
+                    // 39
                     parentStats == null
                             ? 0
                             : parentStats.getNativeQueryProcessorParserConsumeQueryLatencyMillis(),
+                    // 40
                     parentStats == null
                             ? 0
-                            : parentStats.getNativeQueryProcessorQueryVisitorLatencyMillis(),
-                    childStats == null ? 0 : childStats.getNativeQueryLength(),
-                    childStats == null ? 0 : childStats.getNativeTermCount(),
-                    childStats == null ? 0 : childStats.getNativeFilteredNamespaceCount(),
-                    childStats == null ? 0 : childStats.getNativeFilteredSchemaTypeCount(),
-                    childStats == null ? 0 : childStats.getNativeRankingStrategy(),
-                    childStats == null ? 0 : childStats.getNativeScoredDocumentCount(),
-                    childStats == null ? 0 : childStats.getNativeParseQueryLatencyMillis(),
-                    childStats == null ? 0 : childStats.getNativeScoringLatencyMillis(),
-                    childStats == null ? false : childStats.isNativeNumericQuery(),
-                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsLiteIndex(),
-                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsMainIndex(),
-                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsIntegerIndex(),
+                            : parentStats.getNativeQueryProcessorQueryVisitorLatencyMillis(), // 41
+                    childStats == null ? 0 : childStats.getNativeQueryLength(), // 42
+                    childStats == null ? 0 : childStats.getNativeTermCount(), // 43
+                    childStats == null ? 0 : childStats.getNativeFilteredNamespaceCount(), // 44
+                    childStats == null ? 0 : childStats.getNativeFilteredSchemaTypeCount(), // 45
+                    childStats == null ? 0 : childStats.getNativeRankingStrategy(), // 46
+                    childStats == null ? 0 : childStats.getNativeScoredDocumentCount(), // 47
+                    childStats == null ? 0 : childStats.getNativeParseQueryLatencyMillis(), // 48
+                    childStats == null ? 0 : childStats.getNativeScoringLatencyMillis(), // 49
+                    childStats == null ? false : childStats.isNativeNumericQuery(), // 50
+                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsLiteIndex(), // 51
+                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsMainIndex(), // 52
+                    childStats == null ? 0 : childStats.getNativeNumFetchedHitsIntegerIndex(), // 53
                     childStats == null
                             ? 0
                             : childStats.getNativeQueryProcessorLexerExtractTokenLatencyMillis(),
+                    // 54
                     childStats == null
                             ? 0
                             : childStats.getNativeQueryProcessorParserConsumeQueryLatencyMillis(),
+                    // 55
                     childStats == null
                             ? 0
-                            : childStats.getNativeQueryProcessorQueryVisitorLatencyMillis(),
-                    queryStats.getLiteIndexHitBufferByteSize(),
-                    queryStats.getLiteIndexHitBufferUnsortedByteSize(),
-                    queryStats.getPageTokenType(),
-                    queryStats.getNumResultStatesEvicted(),
-                    queryStats.getLastBlockingOperation(),
-                    queryStats.getLastBlockingOperationLatencyMillis(),
-                    queryStats.getGetVmLatencyMillis(),
-                    queryStats.getFirstNativeCallLatencyMillis(),
-                    queryStats.getAdditionalPagesReturnedResultCount(),
-                    queryStats.getAdditionalPageCount(),
-                    queryStats.getAdditionalPageRetrievalLatencyMillis(),
-                    queryStats.getUnblockedAppSearchLatencyMillis());
+                            : childStats.getNativeQueryProcessorQueryVisitorLatencyMillis(), // 56
+                    queryStats.getLiteIndexHitBufferByteSize(), // 57
+                    queryStats.getLiteIndexHitBufferUnsortedByteSize(), // 58
+                    queryStats.getPageTokenType(), // 59
+                    queryStats.getNumResultStatesEvicted(), // 60
+                    queryStats.getLastBlockingOperation(), // 61
+                    queryStats.getLastBlockingOperationLatencyMillis(), // 62
+                    queryStats.getGetVmLatencyMillis(), // 63
+                    queryStats.getFirstNativeCallLatencyMillis(), // 64
+                    queryStats.getAdditionalPagesReturnedResultCount(), // 65
+                    queryStats.getAdditionalPageCount(), // 66
+                    queryStats.getAdditionalPageRetrievalLatencyMillis(), // 67
+                    queryStats.getUnblockedAppSearchLatencyMillis(), // 68
+                    queryStats.getNumIcingCalls()); // 69
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
@@ -767,35 +812,36 @@ public class PlatformLogger implements InternalAppSearchLogger {
                         stats.getEnabledFeatures());
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_INITIALIZE_STATS_REPORTED,
-                extraStats.mSamplingInterval,
-                extraStats.mSkippedSampleCount,
-                extraStats.mPackageUid,
-                stats.getStatusCode(),
-                stats.getTotalLatencyMillis(),
-                stats.hasDeSync(),
-                stats.getPrepareSchemaAndNamespacesLatencyMillis(),
-                stats.getPrepareVisibilityStoreLatencyMillis(),
-                stats.getNativeLatencyMillis(),
-                stats.getNativeDocumentStoreRecoveryCause(),
-                stats.getNativeIndexRestorationCause(),
-                stats.getNativeSchemaStoreRecoveryCause(),
-                stats.getNativeDocumentStoreRecoveryLatencyMillis(),
-                stats.getNativeIndexRestorationLatencyMillis(),
-                stats.getNativeSchemaStoreRecoveryLatencyMillis(),
-                stats.getNativeDocumentStoreDataStatus(),
-                stats.getNativeDocumentCount(),
-                stats.getNativeSchemaTypeCount(),
-                stats.hasReset(),
-                stats.getResetStatusCode(),
-                stats.getEnabledFeatures(),
-                stats.getNativeNumPreviousInitFailures(),
-                stats.getNativeIntegerIndexRestorationCause(),
-                stats.getNativeQualifiedIdJoinIndexRestorationCause(),
-                stats.getNativeEmbeddingIndexRestorationCause(),
-                stats.getNativeInitializeIcuDataStatusCode(),
-                stats.getNativeNumFailedReindexedDocuments(),
-                stats.getJavaLockAcquisitionLatencyMillis(),
-                stats.getGetVmLatencyMillis());
+                extraStats.mSamplingInterval, // 1
+                extraStats.mSkippedSampleCount, // 2
+                extraStats.mPackageUid, // 3
+                stats.getStatusCode(), // 4
+                stats.getTotalLatencyMillis(), // 5
+                stats.hasDeSync(), // 6
+                stats.getPrepareSchemaAndNamespacesLatencyMillis(), // 7
+                stats.getPrepareVisibilityStoreLatencyMillis(), // 8
+                stats.getNativeLatencyMillis(), // 9
+                stats.getNativeDocumentStoreRecoveryCause(), // 10
+                stats.getNativeIndexRestorationCause(), // 11
+                stats.getNativeSchemaStoreRecoveryCause(), // 12
+                stats.getNativeDocumentStoreRecoveryLatencyMillis(), // 13
+                stats.getNativeIndexRestorationLatencyMillis(), // 14
+                stats.getNativeSchemaStoreRecoveryLatencyMillis(), // 15
+                stats.getNativeDocumentStoreDataStatus(), // 16
+                stats.getNativeDocumentCount(), // 17
+                stats.getNativeSchemaTypeCount(), // 18
+                stats.hasReset(), // 19
+                stats.getResetStatusCode(), // 20
+                stats.getEnabledFeatures(), // 21
+                stats.getNativeNumPreviousInitFailures(), // 22
+                stats.getNativeIntegerIndexRestorationCause(), // 23
+                stats.getNativeQualifiedIdJoinIndexRestorationCause(), // 24
+                stats.getNativeEmbeddingIndexRestorationCause(), // 25
+                stats.getNativeInitializeIcuDataStatusCode(), // 26
+                stats.getNativeNumFailedReindexedDocuments(), // 27
+                stats.getJavaLockAcquisitionLatencyMillis(), // 28
+                stats.getGetVmLatencyMillis(), // 29
+                stats.getNumIcingCalls()); // 30
     }
 
     @GuardedBy("mLock")
@@ -808,28 +854,29 @@ public class PlatformLogger implements InternalAppSearchLogger {
                         stats.getEnabledFeatures());
         AppSearchStatsLog.write(
                 AppSearchStatsLog.APP_SEARCH_OPTIMIZE_STATS_REPORTED,
-                extraStats.mSamplingInterval,
-                extraStats.mSkippedSampleCount,
-                stats.getStatusCode(),
-                stats.getTotalLatencyMillis(),
-                stats.getNativeLatencyMillis(),
-                stats.getDocumentStoreOptimizeLatencyMillis(),
-                stats.getIndexRestorationLatencyMillis(),
-                stats.getOriginalDocumentCount(),
-                stats.getDeletedDocumentCount(),
-                stats.getExpiredDocumentCount(),
-                stats.getStorageSizeBeforeBytes(),
-                stats.getStorageSizeAfterBytes(),
-                stats.getTimeSinceLastOptimizeMillis(),
-                stats.getEnabledFeatures(),
-                stats.getIndexRestorationMode(),
-                stats.getNumOriginalNamespaces(),
-                stats.getNumDeletedNamespaces(),
-                stats.getLastBlockingOperation(),
-                stats.getLastBlockingOperationLatencyMillis(),
-                stats.getJavaLockAcquisitionLatencyMillis(),
-                stats.getGetVmLatencyMillis(),
-                stats.getUnblockedAppSearchLatencyMillis());
+                extraStats.mSamplingInterval, // 1
+                extraStats.mSkippedSampleCount, // 2
+                stats.getStatusCode(), // 3
+                stats.getTotalLatencyMillis(), // 4
+                stats.getNativeLatencyMillis(), // 5
+                stats.getDocumentStoreOptimizeLatencyMillis(), // 6
+                stats.getIndexRestorationLatencyMillis(), // 7
+                stats.getOriginalDocumentCount(), // 8
+                stats.getDeletedDocumentCount(), // 9
+                stats.getExpiredDocumentCount(), // 10
+                stats.getStorageSizeBeforeBytes(), // 11
+                stats.getStorageSizeAfterBytes(), // 12
+                stats.getTimeSinceLastOptimizeMillis(), // 13
+                stats.getEnabledFeatures(), // 14
+                stats.getIndexRestorationMode(), // 15
+                stats.getNumOriginalNamespaces(), // 16
+                stats.getNumDeletedNamespaces(), // 17
+                stats.getLastBlockingOperation(), // 18
+                stats.getLastBlockingOperationLatencyMillis(), // 19
+                stats.getJavaLockAcquisitionLatencyMillis(), // 20
+                stats.getGetVmLatencyMillis(), // 21
+                stats.getUnblockedAppSearchLatencyMillis(), // 22
+                stats.getNumIcingCalls()); // 23
     }
 
     @GuardedBy("mLock")
@@ -865,8 +912,40 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 stats.getIndexPersistLatencyMillis(), // 21
                 stats.getIntegerIndexPersistLatencyMillis(), // 22
                 stats.getQualifiedIdJoinIndexPersistLatencyMillis(), // 23
-                stats.getEmbeddingIndexPersistLatencyMillis(),
-                stats.getUnblockedAppSearchLatencyMillis()); // 24
+                stats.getEmbeddingIndexPersistLatencyMillis(), // 24
+                stats.getUnblockedAppSearchLatencyMillis(), // 25
+                stats.getNumIcingCalls()); // 26
+    }
+
+    @GuardedBy("mLock")
+    private void logStatsImplLocked(@NonNull AppsUpdateStats appsUpdateStats) {
+        int[] updateStatusArr = new int[appsUpdateStats.getUpdateStatusCodes().size()];
+        int updateIdx = 0;
+        for (int updateStatus : appsUpdateStats.getUpdateStatusCodes()) {
+            updateStatusArr[updateIdx] = updateStatus;
+            ++updateIdx;
+        }
+        AppSearchStatsLog.write(
+                AppSearchStatsLog.APP_SEARCH_APPS_INDEXER_STATS_REPORTED,
+                appsUpdateStats.getUpdateType(),
+                updateStatusArr,
+                appsUpdateStats.getNumberOfAppsAdded(),
+                appsUpdateStats.getNumberOfAppsRemoved(),
+                appsUpdateStats.getNumberOfAppsUpdated(),
+                appsUpdateStats.getNumberOfAppsUnchanged(),
+                appsUpdateStats.getTotalLatencyMillis(),
+                appsUpdateStats.getPackageManagerLatencyMillis(),
+                appsUpdateStats.getAppSearchGetLatencyMillis(),
+                appsUpdateStats.getAppSearchSetSchemaLatencyMillis(),
+                appsUpdateStats.getAppSearchPutLatencyMillis(),
+                appsUpdateStats.getUpdateStartTimestampMillis(),
+                appsUpdateStats.getLastAppUpdateTimestampMillis(),
+                appsUpdateStats.getNumberOfFunctionsAdded(),
+                appsUpdateStats.getApproximateNumberOfFunctionsRemoved(),
+                appsUpdateStats.getNumberOfFunctionsUpdated(),
+                appsUpdateStats.getApproximateNumberOfFunctionsUnchanged(),
+                appsUpdateStats.getAppSearchRemoveLatencyMillis(),
+                appsUpdateStats.isForceUpdateTriggered());
     }
 
     @GuardedBy("mLock")
@@ -1109,13 +1188,15 @@ public class PlatformLogger implements InternalAppSearchLogger {
      * default Trunkfooder value if LAUNCH_VM is enabled.
      **/
     private int getSamplingInterval(@BaseStats.CallType int statsType, long enabledFeatures) {
+        int samplingInterval = getSamplingIntervalFromConfig(statsType);
         if (("eng".equals(Build.TYPE) || "userdebug".equals(Build.TYPE))
                 && BaseStats.areFeaturesOn(enabledFeatures, List.of(BaseStats.LAUNCH_VM))) {
             // Opt any eng or userdebug device with vm-enabled in for higher sampling.
             // TODO(b/) Remove this once the flag is rolled out to trunkfood.
-            return ServiceAppSearchConfig.TRUNKFOODER_SAMPLING_INTERVAL;
+            return Math.min(
+                    samplingInterval, ServiceAppSearchConfig.TRUNKFOODER_SAMPLING_INTERVAL);
         }
-        return getSamplingIntervalFromConfig(statsType);
+        return samplingInterval;
     }
 
     /** Returns sampling ratio for stats type specified form {@link ServiceAppSearchConfig}. */
@@ -1138,6 +1219,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                 return mConfig.getCachedSamplingIntervalForOptimizeStats();
             case BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER:
                 return mConfig.getAppOpenEventIndexerLoggingSamplingRate();
+            case BaseStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION:
+                return mConfig.getIsolatedStorageDataMigrationSamplingRate();
             case BaseStats.CALL_TYPE_UNKNOWN:
             case BaseStats.CALL_TYPE_SET_SCHEMA:
             case BaseStats.CALL_TYPE_GET_DOCUMENT:
@@ -1162,7 +1245,6 @@ public class PlatformLogger implements InternalAppSearchLogger {
             case BaseStats.CALL_TYPE_OPEN_WRITE_BLOB:
             case BaseStats.CALL_TYPE_COMMIT_BLOB:
             case BaseStats.CALL_TYPE_OPEN_READ_BLOB:
-            case BaseStats.INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION:
             // TODO(b/173532925) Some of them above will have dedicated sampling ratio config
             default:
                 return mConfig.getCachedSamplingIntervalDefault();

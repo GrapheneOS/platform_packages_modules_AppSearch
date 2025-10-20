@@ -29,6 +29,7 @@ import static android.permission.PermissionManager.PERMISSION_GRANTED;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresApi;
 import android.app.appfunctions.AppFunctionManager;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.PackageIdentifier;
@@ -65,7 +66,7 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
     private final PermissionManager mPermissionManager;
     private final PolicyChecker mPolicyChecker;
 
-    @Nullable private final AppFunctionManager mAppFunctionManager;
+    private final AppFunctionCompat mAppFunctionCompat;
 
     public VisibilityCheckerImpl(@NonNull Context userContext) {
         this(userContext, new PolicyCheckerImpl(userContext));
@@ -77,9 +78,11 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         mPermissionManager = userContext.getSystemService(PermissionManager.class);
         mPolicyChecker = policyChecker;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-            mAppFunctionManager = userContext.getSystemService(AppFunctionManager.class);
+            mAppFunctionCompat = new Api36Impl(userContext);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            mAppFunctionCompat = new Api33Impl();
         } else {
-            mAppFunctionManager = null;
+            mAppFunctionCompat = new NoOpApiImpl();
         }
     }
 
@@ -485,14 +488,66 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
      */
     @VisibleForTesting
     public boolean isValidAppFunctionAgent(@NonNull String callerPackageName) {
-        if (mAppFunctionManager == null
-                || !android.permission.flags.Flags.appFunctionAccessApiEnabled()) {
-            // Running on SDK without AppFunction access service, no access check required.
+        return mAppFunctionCompat.isValidAppFunctionAgent(callerPackageName);
+    }
+
+    private interface AppFunctionCompat {
+        /**
+         * Checks whether the given package is a valid agent.
+         *
+         * @param callerPackageName Package name of the caller.
+         */
+        boolean isValidAppFunctionAgent(@NonNull String callerPackageName);
+    }
+
+    private static class NoOpApiImpl implements AppFunctionCompat {
+        /**
+         * For SDK < 33, backporting AppFunction feature is not supported. All agents should be
+         * considered as invalid.
+         */
+        @Override
+        public boolean isValidAppFunctionAgent(@NonNull String callerPackageName) {
+            return false;
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private static class Api33Impl implements AppFunctionCompat {
+        /**
+         * For SDK between 35 and 33, backporting AppFunction feature is supported and there is no
+         * concept of valid agent yet. Therefore, all agent are considered as valid.
+         */
+        @Override
+        public boolean isValidAppFunctionAgent(@NonNull String callerPackageName) {
             return true;
         }
+    }
 
-        Objects.requireNonNull(callerPackageName);
-        final List<String> validAgents = mAppFunctionManager.getValidAgents();
-        return validAgents.contains(callerPackageName);
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    private static class Api36Impl implements AppFunctionCompat {
+        @NonNull private final AppFunctionManager mAppFunctionManager;
+
+        Api36Impl(@NonNull Context context) {
+            Objects.requireNonNull(context);
+            mAppFunctionManager =
+                    Objects.requireNonNull(context.getSystemService(AppFunctionManager.class));
+        }
+
+        /**
+         * For SDK >= 36, if the access API is enabled, only the agents in {@link
+         * AppFunctionManager#getValidAgents()} are considered as a valid agent.
+         */
+        @Override
+        public boolean isValidAppFunctionAgent(@NonNull String callerPackageName) {
+            if (!android.permission.flags.Flags.appFunctionAccessApiEnabled()) {
+                // Running on SDK without AppFunction access service, any app with
+                // EXECUTE_APP_FUNCTIONS permission is a valid agent.
+                return true;
+            }
+
+            Objects.requireNonNull(callerPackageName);
+            final List<String> validAgents = mAppFunctionManager.getValidAgents();
+            return validAgents.contains(callerPackageName);
+        }
     }
 }

@@ -17,10 +17,12 @@ package com.android.server.appsearch;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
+import static com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats.VM_START_STATUS_ERROR;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -52,8 +54,11 @@ import androidx.test.core.app.ApplicationProvider;
 import com.android.isolated_storage_service.IIcingSearchEngine;
 import com.android.isolated_storage_service.IIsolatedStorageService;
 import com.android.modules.utils.testing.TestableDeviceConfig;
+import com.android.server.appsearch.icing.proto.IcingSearchEngineOptions;
+import com.android.server.appsearch.icing.proto.PersistType;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
 import com.android.server.appsearch.isolated_storage_service.ServiceConfig;
+import com.android.server.appsearch.isolated_storage_service.VmStartResult;
 import com.android.server.appsearch.util.ExecutorManager;
 
 import org.junit.After;
@@ -71,6 +76,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class AppSearchUserInstanceManagerTest {
     @Rule
@@ -200,6 +206,63 @@ public class AppSearchUserInstanceManagerTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
+    public void getOrCreateUserInstanceFuture_futureCancelled_retries()
+            throws InterruptedException, AppSearchException {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+        ServiceAppSearchConfig cancellingConfig =
+                createMockConfig(
+                        mServiceConfig,
+                        manager,
+                        /* shouldCancelFirstInvocation= */ true,
+                        /* shouldThrowFirstInvocation= */ false);
+
+        AppSearchException exception =
+                assertThrows(
+                        AppSearchException.class,
+                        () ->
+                                manager.getOrCreateUserInstance(
+                                        mContext, mUserHandle, cancellingConfig, null, null));
+        assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
+        Future<AppSearchUserInstance> cancelledFuture =
+                manager.getUserInstanceCreationFuture(mUserHandle);
+        assertThat(cancelledFuture.isCancelled()).isTrue();
+        // On second run the cancellingConfig will not cancel user creation.
+        AppSearchUserInstance userInstance =
+                manager.getOrCreateUserInstance(
+                        mContext, mUserHandle, cancellingConfig, null, null);
+        assertThat(userInstance).isNotNull();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
+    public void getOrCreateUserInstanceFuture_futureEncountersException_retries()
+            throws InterruptedException, AppSearchException {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+        ServiceAppSearchConfig exceptionConfig =
+                createMockConfig(
+                        mServiceConfig,
+                        manager,
+                        /* shouldCancelFirstInvocation= */ false,
+                        /* shouldThrowFirstInvocation= */ true);
+
+        AppSearchException exception =
+                assertThrows(
+                        AppSearchException.class,
+                        () ->
+                                manager.getOrCreateUserInstance(
+                                        mContext, mUserHandle, exceptionConfig, null, null));
+        assertThat(exception.getCause()).isInstanceOf(ExecutionException.class);
+        Future<AppSearchUserInstance> exceptionInstance =
+                manager.getUserInstanceCreationFuture(mUserHandle);
+        assertThat(exceptionInstance.isDone()).isTrue();
+
+        AppSearchUserInstance instance =
+                manager.getOrCreateUserInstance(mContext, mUserHandle, exceptionConfig, null, null);
+        assertThat(instance).isNotNull();
+    }
+
+    @Test
     public void getAllUserHandles_returnsCorrectUserHandles() throws AppSearchException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         List<UserHandle> userHandles =
@@ -255,55 +318,39 @@ public class AppSearchUserInstanceManagerTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
-    public void cancelUserCreation_beforeISSConnection_cancelsCreation() {
+    public void cancelUserCreation_beforeISSConnection_cancelsCreation()
+            throws InterruptedException {
+        assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
-        ContextWrapper blockingContext =
-                new ContextWrapper(mContext) {
-                    final PackageManager mPackageManager = spy(mContext.getPackageManager());
-
-                    @Override
-                    public PackageManager getPackageManager() {
-                        Log.i("MockContext", "Trying to get package manager");
-                        return mPackageManager;
-                    }
-
-                    // Simulate cancellation before connection to ISS by cancelling right when we
-                    // try to connect.
-                    @Override
-                    public boolean bindServiceAsUser(
-                            Intent service, ServiceConnection conn, int flags, UserHandle user) {
-                        manager.cancelUserCreation(mUserHandle);
-                        return true;
-                    }
-                };
-
-        // Mock package name return
-        ResolveInfo dummyResolveInfo = new ResolveInfo();
-        dummyResolveInfo.serviceInfo = new ServiceInfo();
-        dummyResolveInfo.serviceInfo.packageName = "dummy_package";
-        doReturn(List.of(dummyResolveInfo))
-                .when(blockingContext.getPackageManager())
-                .queryIntentServices(any(), any());
-
-        assertThrows(
-                CancellationException.class,
-                () ->
-                        manager.getOrCreateUserInstance(
-                                blockingContext,
-                                mUserHandle,
-                                mServiceConfig,
-                                mExecutorManager,
-                                new IsolatedStorageServiceManager(
-                                        blockingContext,
-                                        mServiceConfig,
-                                        mExecutorManager.getOrCreateUserScheduledExecutor(
-                                                mUserHandle))));
-        assertThat(manager.getAllUserHandles()).containsExactly(mUserHandle);
+        ContextWrapper blockingContext = setupContextThatCancels(manager);
+        try {
+            AppSearchException exception =
+                    assertThrows(
+                            AppSearchException.class,
+                            () ->
+                                    manager.getOrCreateUserInstance(
+                                            blockingContext,
+                                            mUserHandle,
+                                            mServiceConfig,
+                                            mExecutorManager,
+                                            new IsolatedStorageServiceManager(
+                                                    blockingContext,
+                                                    mServiceConfig,
+                                                    mExecutorManager
+                                                            .getOrCreateUserScheduledExecutor(
+                                                                    mUserHandle))));
+            assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
+            assertThat(manager.getAllUserHandles()).containsExactly(mUserHandle);
+        } finally {
+            cleanUpUserExecutor(mUserHandle);
+        }
     }
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
-    public void cancelUserCreation_duringVMConnection_cancelsCreation() throws RemoteException {
+    public void cancelUserCreation_duringVMConnection_cancelsCreation()
+            throws RemoteException, InterruptedException {
+        assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         com.android.server.appsearch.isolated_storage_service.IIsolatedStorageService
                 isolatedStorageService =
@@ -316,7 +363,10 @@ public class AppSearchUserInstanceManagerTest {
                 .thenAnswer(
                         invocation -> {
                             manager.cancelUserCreation(mUserHandle);
-                            return false;
+                            VmStartResult result = new VmStartResult();
+                            result.pStatusCode = VM_START_STATUS_ERROR;
+                            result.pTotalLatencyMillis = 0;
+                            return result;
                         });
 
         IsolatedStorageServiceManager issManager =
@@ -325,22 +375,28 @@ public class AppSearchUserInstanceManagerTest {
                         mServiceConfig,
                         mExecutorManager.getOrCreateUserScheduledExecutor(mUserHandle));
         issManager.setIsolatedStorageServiceForTest(isolatedStorageService);
-
-        assertThrows(
-                CancellationException.class,
-                () ->
-                        manager.getOrCreateUserInstance(
-                                mContext,
-                                mUserHandle,
-                                mServiceConfig,
-                                mExecutorManager,
-                                issManager));
+        try {
+            AppSearchException exception =
+                    assertThrows(
+                            AppSearchException.class,
+                            () ->
+                                    manager.getOrCreateUserInstance(
+                                            mContext,
+                                            mUserHandle,
+                                            mServiceConfig,
+                                            mExecutorManager,
+                                            issManager));
+            assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
+        } finally {
+            cleanUpUserExecutor(mUserHandle);
+        }
     }
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_afterVMConnection_cancelsCreation()
-            throws AppSearchException, RemoteException {
+            throws AppSearchException, RemoteException, InterruptedException {
+        assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
 
         IsolatedStorageServiceManager isolatedStorageServiceManager =
@@ -376,15 +432,365 @@ public class AppSearchUserInstanceManagerTest {
                         })
                 .when(spyIsolatedStorageServiceManager)
                 .initialize();
+        try {
+            AppSearchException exception =
+                    assertThrows(
+                            AppSearchException.class,
+                            () ->
+                                    manager.getOrCreateUserInstance(
+                                            mContext,
+                                            mUserHandle,
+                                            mServiceConfig,
+                                            mExecutorManager,
+                                            spyIsolatedStorageServiceManager));
+            assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
+        } finally {
+            cleanUpUserExecutor(mUserHandle);
+        }
+    }
 
-        assertThrows(
-                CancellationException.class,
-                () ->
-                        manager.getOrCreateUserInstance(
-                                mContext,
-                                mUserHandle,
-                                mServiceConfig,
-                                mExecutorManager,
-                                spyIsolatedStorageServiceManager));
+    /** Shuts down running tasks and waits on running tasks for the given user handle's executor. */
+    private void cleanUpUserExecutor(UserHandle userHandle) throws InterruptedException {
+        mExecutorManager.getOrCreateUserScheduledExecutor(userHandle).shutdown();
+        // shutdownNow() only attempts to terminate running tasks. Do an awaitTermination() here
+        // to ensure that there are no remaining running tasks.
+        assertThat(
+                        mExecutorManager
+                                .getOrCreateUserScheduledExecutor(userHandle)
+                                .awaitTermination(/* timeout= */ 30, TimeUnit.SECONDS))
+                .isTrue();
+    }
+
+    /** Setup a context that will cancel before connecting to IsolatedStorageService */
+    private ContextWrapper setupContextThatCancels(AppSearchUserInstanceManager manager) {
+        ContextWrapper blockingContext =
+                new ContextWrapper(mContext) {
+                    final PackageManager mPackageManager = spy(mContext.getPackageManager());
+
+                    @Override
+                    public PackageManager getPackageManager() {
+                        Log.i("MockContext", "Trying to get package manager");
+                        return mPackageManager;
+                    }
+
+                    // Simulate cancellation before connection to ISS by cancelling right when we
+                    // try to connect.
+                    @Override
+                    public boolean bindServiceAsUser(
+                            Intent service, ServiceConnection conn, int flags, UserHandle user) {
+                        manager.cancelUserCreation(mUserHandle);
+                        return true;
+                    }
+                };
+
+        // Mock package name return. This is so that when the VM tries to bind to isolated storage
+        // it will get a package name, so that it create an Intent that it will use to bind to
+        // the isolated storage service. That way it will be able to make the call to
+        // bindServiceAsUser and call the mock method that will cancel user instance creation.
+        ResolveInfo dummyResolveInfo = new ResolveInfo();
+        dummyResolveInfo.serviceInfo = new ServiceInfo();
+        dummyResolveInfo.serviceInfo.packageName = "dummy_package";
+        doReturn(List.of(dummyResolveInfo))
+                .when(blockingContext.getPackageManager())
+                .queryIntentServices(any(), any());
+        return blockingContext;
+    }
+
+    /**
+     * Creates a ServiceAppSearchConfig that can be mocked as other implementations are final in
+     * order to be thread safe
+     *
+     * @return An instance of ServiceAppSearchConfig that returns smart zeros
+     */
+    private ServiceAppSearchConfig createMockConfig(
+            ServiceAppSearchConfig realConfig,
+            AppSearchUserInstanceManager manager,
+            boolean shouldCancelFirstInvocation,
+            boolean shouldThrowFirstInvocation) {
+        return new ServiceAppSearchConfig() {
+
+            boolean mShouldCancel = shouldCancelFirstInvocation;
+            boolean mShouldThrow = shouldThrowFirstInvocation;
+
+            @Override
+            public long getCachedMinTimeIntervalBetweenSamplesMillis() {
+                return realConfig.getCachedMinTimeIntervalBetweenSamplesMillis();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalDefault() {
+                return realConfig.getCachedSamplingIntervalDefault();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalForBatchCallStats() {
+                return realConfig.getCachedSamplingIntervalForBatchCallStats();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalForPutDocumentStats() {
+                return realConfig.getCachedSamplingIntervalForPutDocumentStats();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalForInitializeStats() {
+                return realConfig.getCachedSamplingIntervalForInitializeStats();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalForSearchStats() {
+                return realConfig.getCachedSamplingIntervalForSearchStats();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalForGlobalSearchStats() {
+                return realConfig.getCachedSamplingIntervalForGlobalSearchStats();
+            }
+
+            @Override
+            public int getCachedSamplingIntervalForOptimizeStats() {
+                return realConfig.getCachedSamplingIntervalForOptimizeStats();
+            }
+
+            @Override
+            public int getCachedBytesOptimizeThreshold() {
+                return realConfig.getCachedBytesOptimizeThreshold();
+            }
+
+            @Override
+            public int getCachedTimeOptimizeThresholdMs() {
+                return realConfig.getCachedTimeOptimizeThresholdMs();
+            }
+
+            @Override
+            public int getCachedDocCountOptimizeThreshold() {
+                return realConfig.getCachedDocCountOptimizeThreshold();
+            }
+
+            @Override
+            public int getCachedMinTimeOptimizeThresholdMs() {
+                return realConfig.getCachedMinTimeOptimizeThresholdMs();
+            }
+
+            @Override
+            public long getCachedCheckOptimizeDelayMillis() {
+                return realConfig.getCachedCheckOptimizeDelayMillis();
+            }
+
+            @Override
+            public long getCachedMaxBytesOptimizeThreshold() {
+                return realConfig.getCachedMaxBytesOptimizeThreshold();
+            }
+
+            @Override
+            public long getCachedMaxDocCountOptimizeThreshold() {
+                return realConfig.getCachedMaxDocCountOptimizeThreshold();
+            }
+
+            @Override
+            public int getCachedApiCallStatsLimit() {
+                return realConfig.getCachedApiCallStatsLimit();
+            }
+
+            @Override
+            public Denylist getCachedDenylist() {
+                return realConfig.getCachedDenylist();
+            }
+
+            @Override
+            public boolean getCachedRateLimitEnabled() {
+                return realConfig.getCachedRateLimitEnabled();
+            }
+
+            @Override
+            public AppSearchRateLimitConfig getCachedRateLimitConfig() {
+                return realConfig.getCachedRateLimitConfig();
+            }
+
+            @Override
+            public long getAppFunctionCallTimeoutMillis() {
+                return realConfig.getAppFunctionCallTimeoutMillis();
+            }
+
+            @Override
+            public long getCachedFullyPersistJobIntervalMillis() {
+                return realConfig.getCachedFullyPersistJobIntervalMillis();
+            }
+
+            @Override
+            public long getCachedPersistDelayMillis() {
+                return realConfig.getCachedPersistDelayMillis();
+            }
+
+            @Override
+            public void close() {
+                realConfig.close();
+            }
+
+            @Override
+            public boolean shouldStoreParentInfoAsSyntheticProperty() {
+                return realConfig.shouldStoreParentInfoAsSyntheticProperty();
+            }
+
+            @Override
+            public boolean shouldRetrieveParentInfo() {
+                return realConfig.shouldRetrieveParentInfo();
+            }
+
+            @Override
+            public PersistType.@org.jspecify.annotations.NonNull Code getLightweightPersistType() {
+                return realConfig.getLightweightPersistType();
+            }
+
+            @Override
+            public int getMaxTokenLength() {
+                return realConfig.getMaxTokenLength();
+            }
+
+            @Override
+            public int getIndexMergeSize() {
+                return realConfig.getIndexMergeSize();
+            }
+
+            @Override
+            public boolean getDocumentStoreNamespaceIdFingerprint() {
+                return realConfig.getDocumentStoreNamespaceIdFingerprint();
+            }
+
+            @Override
+            public float getOptimizeRebuildIndexThreshold() {
+                return realConfig.getOptimizeRebuildIndexThreshold();
+            }
+
+            @Override
+            public int getCompressionLevel() {
+                return realConfig.getCompressionLevel();
+            }
+
+            @Override
+            public int getCompressionMemLevel() {
+                return realConfig.getCompressionMemLevel();
+            }
+
+            @Override
+            public boolean getAllowCircularSchemaDefinitions() {
+                return realConfig.getAllowCircularSchemaDefinitions();
+            }
+
+            @Override
+            public boolean getUseReadOnlySearch() {
+                return realConfig.getUseReadOnlySearch();
+            }
+
+            @Override
+            public boolean getUsePreMappingWithFileBackedVector() {
+                return realConfig.getUsePreMappingWithFileBackedVector();
+            }
+
+            @Override
+            public boolean getUsePersistentHashMap() {
+                return realConfig.getUsePersistentHashMap();
+            }
+
+            @Override
+            public int getMaxPageBytesLimit() {
+                return realConfig.getMaxPageBytesLimit();
+            }
+
+            @Override
+            public int getMaxPageBytesLimitForVm() {
+                return realConfig.getMaxPageBytesLimitForVm();
+            }
+
+            @Override
+            public int getIntegerIndexBucketSplitThreshold() {
+                return realConfig.getIntegerIndexBucketSplitThreshold();
+            }
+
+            @Override
+            public boolean getLiteIndexSortAtIndexing() {
+                return realConfig.getLiteIndexSortAtIndexing();
+            }
+
+            @Override
+            public int getLiteIndexSortSize() {
+                return realConfig.getLiteIndexSortSize();
+            }
+
+            @Override
+            public boolean getUseNewQualifiedIdJoinIndex() {
+                return realConfig.getUseNewQualifiedIdJoinIndex();
+            }
+
+            @Override
+            public boolean getBuildPropertyExistenceMetadataHits() {
+                return realConfig.getBuildPropertyExistenceMetadataHits();
+            }
+
+            @Override
+            public long getOrphanBlobTimeToLiveMs() {
+                return realConfig.getOrphanBlobTimeToLiveMs();
+            }
+
+            @Override
+            public @org.jspecify.annotations.NonNull String getIcuDataFileAbsolutePath() {
+                return realConfig.getIcuDataFileAbsolutePath();
+            }
+
+            @Override
+            public int getCompressionThresholdBytes() {
+                return realConfig.getCompressionThresholdBytes();
+            }
+
+            @Override
+            public int getMaxDocumentSizeBytes() {
+                return realConfig.getMaxDocumentSizeBytes();
+            }
+
+            @Override
+            public int getPerPackageDocumentCountLimit() {
+                return realConfig.getPerPackageDocumentCountLimit();
+            }
+
+            @Override
+            public int getDocumentCountLimitStartThreshold() {
+                return realConfig.getDocumentCountLimitStartThreshold();
+            }
+
+            @Override
+            public int getMaxSuggestionCount() {
+                return realConfig.getMaxSuggestionCount();
+            }
+
+            @Override
+            public int getMaxOpenBlobCount() {
+                return realConfig.getMaxOpenBlobCount();
+            }
+
+            @Override
+            public int getMaxByteLimitForBatchPut() {
+                return realConfig.getMaxByteLimitForBatchPut();
+            }
+
+            @Override
+            public int getEmbeddingIndexNumShards() {
+                return realConfig.getEmbeddingIndexNumShards();
+            }
+
+            @Override
+            public @org.jspecify.annotations.NonNull IcingSearchEngineOptions
+                    toIcingSearchEngineOptions(
+                            @org.jspecify.annotations.NonNull String baseDir, boolean isVMEnabled) {
+                if (mShouldCancel) {
+                    mShouldCancel = false;
+                    manager.cancelUserCreation(mUserHandle);
+                    return realConfig.toIcingSearchEngineOptions(baseDir, isVMEnabled);
+                } else if (mShouldThrow) {
+                    mShouldThrow = false;
+                    throw new RuntimeException("Mock exception thrown");
+                }
+                return realConfig.toIcingSearchEngineOptions(baseDir, isVMEnabled);
+            }
+        };
     }
 }

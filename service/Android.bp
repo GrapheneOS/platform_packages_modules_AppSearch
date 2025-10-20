@@ -42,6 +42,19 @@ java_library_static {
     sdk_version: "current",
 }
 
+java_library_static {
+    name: "appsearch-indexer-settings-protos-lite",
+    proto: {
+        type: "lite",
+    },
+    srcs: [
+        "java/com/android/server/appsearch/indexer/settings.proto",
+    ],
+    min_sdk_version: "Tiramisu",
+    apex_available: ["com.android.appsearch"],
+    sdk_version: "current",
+}
+
 java_library {
     name: "statslog-appsearch-lib",
     srcs: [":statslog-appsearch-java-gen"],
@@ -66,6 +79,8 @@ java_defaults {
     static_libs: [
         "com.android.appsearch.isolated_storage_service.aidl-java",
         "com.android.isolated_storage_service.aidl-java",
+        "appsearch-metrics-protos-lite",
+        "appsearch-indexer-settings-protos-lite",
 
         // Entries below this line are outside of the appsearch package tree and must be kept in
         // sync with jarjar.txt
@@ -73,7 +88,6 @@ java_defaults {
         "libicing-java",
         "statslog-appsearch-lib",
 
-        "appsearch-metrics-protos-lite",
         "appsearch_flags_java_lib",
         "modules-utils-preconditions",
 

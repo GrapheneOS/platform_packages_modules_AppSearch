@@ -23,6 +23,7 @@ import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_C
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DENYLIST;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_EMBEDDING_INDEX_NUM_SHARDS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_FULLY_PERSIST_JOB_INTERVAL;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ICING_COMPRESSION_LEVEL;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ICING_DOCUMENT_STORE_NAMESPACE_ID_FINGERPRINT;
@@ -63,6 +64,8 @@ import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_BYTES_
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_COMPRESSION_THRESHOLD_BYTES;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DISABLED_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_EMBEDDING_INDEX_NUM_SHARDS;
+import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_ENABLED_API_CALL_STATS_LIMIT;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FIVE_MINUTE_PERSIST_DELAY;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FOUR_HOUR_MIN_TIME_OPTIMIZE_THRESHOLD_MILLIS;
 import static com.android.server.appsearch.ServiceAppSearchConfig.DEFAULT_FULLY_PERSIST_JOB_INTERVAL;
@@ -198,8 +201,6 @@ public class ServiceAppSearchConfigTest {
                 DEFAULT_TIME_OPTIMIZE_THRESHOLD_MILLIS);
         assertThat(appSearchConfig.getCachedDocCountOptimizeThreshold()).isEqualTo(
                 DEFAULT_DOC_COUNT_OPTIMIZE_THRESHOLD);
-        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
-                .isEqualTo(DEFAULT_DISABLED_API_CALL_STATS_LIMIT);
         assertThat(appSearchConfig.getCachedDenylist()).isEqualTo(Denylist.EMPTY_INSTANCE);
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(
                 IcingOptionsConfig.DEFAULT_MAX_TOKEN_LENGTH);
@@ -256,6 +257,28 @@ public class ServiceAppSearchConfigTest {
                 .isEqualTo(DEFAULT_ICU_DATA_FILE_ABSOLUTE_PATH);
         assertThat(appSearchConfig.getCompressionThresholdBytes())
                 .isEqualTo(DEFAULT_COMPRESSION_THRESHOLD_BYTES);
+        assertThat(appSearchConfig.getEmbeddingIndexNumShards())
+                .isEqualTo(DEFAULT_EMBEDDING_INDEX_NUM_SHARDS);
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_API_CALL_STATS_TRACKING)
+    public void testDefaultValues_disableApiCallStatsLimit() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+
+        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
+                .isEqualTo(DEFAULT_DISABLED_API_CALL_STATS_LIMIT);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_API_CALL_STATS_TRACKING)
+    public void testDefaultValues_enableApiCallStatsLimit() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+
+        assertThat(appSearchConfig.getCachedApiCallStatsLimit())
+                .isEqualTo(DEFAULT_ENABLED_API_CALL_STATS_LIMIT);
     }
 
     @Test
@@ -795,6 +818,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_ICING_LITE_INDEX_SORT_SIZE, Integer.toString(1003), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1004), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_EMBEDDING_INDEX_NUM_SHARDS, Integer.toString(1005), false);
 
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
@@ -811,6 +836,7 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getLiteIndexSortAtIndexing()).isEqualTo(true);
         assertThat(appSearchConfig.getLiteIndexSortSize()).isEqualTo(1003);
         assertThat(appSearchConfig.getCompressionThresholdBytes()).isEqualTo(1004);
+        assertThat(appSearchConfig.getEmbeddingIndexNumShards()).isEqualTo(1005);
     }
 
     @Test
@@ -843,6 +869,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1004), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_COMPRESSION_MEM_LEVEL, Integer.toString(3), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_EMBEDDING_INDEX_NUM_SHARDS, Integer.toString(1005), false);
 
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
@@ -876,6 +904,8 @@ public class ServiceAppSearchConfigTest {
                 KEY_COMPRESSION_THRESHOLD_BYTES, Integer.toString(1005), false);
         DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_COMPRESSION_MEM_LEVEL, Integer.toString(4), false);
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_EMBEDDING_INDEX_NUM_SHARDS, Integer.toString(1006), false);
 
         assertThat(appSearchConfig.getMaxTokenLength()).isEqualTo(25);
         assertThat(appSearchConfig.getIndexMergeSize()).isEqualTo(2000);
@@ -891,6 +921,7 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getLiteIndexSortSize()).isEqualTo(1004);
         assertThat(appSearchConfig.getCompressionThresholdBytes()).isEqualTo(1005);
         assertThat(appSearchConfig.getCompressionMemLevel()).isEqualTo(4);
+        assertThat(appSearchConfig.getEmbeddingIndexNumShards()).isEqualTo(1006);
     }
 
     @Test
@@ -1243,5 +1274,9 @@ public class ServiceAppSearchConfigTest {
                 "Trying to use a closed AppSearchConfig instance.",
                 IllegalStateException.class,
                 () -> appSearchConfig.getCompressionMemLevel());
+        Assert.assertThrows(
+                "Trying to use a closed AppSearchConfig instance.",
+                IllegalStateException.class,
+                () -> appSearchConfig.getEmbeddingIndexNumShards());
     }
 }

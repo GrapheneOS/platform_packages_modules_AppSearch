@@ -35,6 +35,8 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
+import com.android.server.appsearch.external.localstorage.AppSearchLogger;
+import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.InitializeStats;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
 import com.android.server.appsearch.isolated_storage_service.DataMigrationUtil;
@@ -354,7 +356,8 @@ public final class AppSearchUserInstanceManager {
                             userHandle,
                             config,
                             executorManager,
-                            isolatedStorageServiceManager);
+                            isolatedStorageServiceManager,
+                            logger);
         } else {
             if (LogUtil.INFO) {
                 Log.i(
@@ -395,8 +398,21 @@ public final class AppSearchUserInstanceManager {
                             /* callStatsBuilder= */ null,
                             visibilityCheckerImpl,
                             frameworkRevocableFileDescriptorStore,
+                            // TODO(b/430289015): Right now AppSearchImpl infers isVMEnabledForUser
+                            // from whether this is null or not.
+                            // We should refactor to use the same value other places are using.
+                            // Caveats are for the very 1st time, we will treat the system as vm
+                            // disabled until migration finishes. We might want to refactor that
+                            // part as well.
                             icingInstance,
-                            new ServiceOptimizeStrategy(config));
+                            // This isVMEnabledForUser might not be accurate when data migration is
+                            // scheduled. Before it finishes, the system would behave like VM is
+                            // disabled, but this boolean is true.
+                            // But, since the optimization strategy itself can apply on non-vm
+                            // cases, and we are still targeting right devices, we can just
+                            // make it simple by just enabling it directly using this
+                            // isVMEnabledForUser boolean.
+                            new ServiceOptimizeStrategy(config, isVMEnabledForUser));
 
             // Update storage info file
             UserStorageInfo userStorageInfo =
@@ -407,18 +423,18 @@ public final class AppSearchUserInstanceManager {
         } catch (AppSearchException e) {
             AppSearchResult<Void> failedResult = throwableToFailedResult(e);
             statusCode = failedResult.getResultCode();
+            Log.wtf(TAG, "Failed to create AppSearch instance: ", e);
             if (Flags.enableCloseAppsearchOnCreationFailure() && appSearchImpl != null) {
                 // If we've created the instance, but encountered some issue.
                 // Close this instance so that we clean up it's resources.
-                Log.e(TAG, "Failed to create AppSearch instance: ", e);
                 appSearchImpl.close();
             }
             throw e;
         } catch (Exception e) {
+            Log.wtf(TAG, "Failed to create AppSearch instance: ", e);
             if (Flags.enableCloseAppsearchOnCreationFailure() && appSearchImpl != null) {
                 // If we've created the instance, but encountered some issue.
                 // Close this instance so that we clean up it's resources.
-                Log.e(TAG, "Failed to create AppSearch instance: ", e);
                 appSearchImpl.close();
             }
             throw e;
@@ -457,7 +473,7 @@ public final class AppSearchUserInstanceManager {
         Future<AppSearchUserInstance> instanceFuture;
         mFutureInstanceMapLock.lock();
         try {
-            instanceFuture = mFutureInstancesLocked.get(userHandle);
+            instanceFuture = getValidUserInstanceFutureLocked(userHandle);
             if (instanceFuture == null) {
                 instanceFuture =
                         createUserInstanceFuture(
@@ -476,7 +492,64 @@ public final class AppSearchUserInstanceManager {
         } catch (ExecutionException | InterruptedException e) {
             throw new AppSearchException(
                     AppSearchResult.RESULT_ABORTED,
-                    "User Instance creation for: " + userHandle + " failed to complete.");
+                    "User Instance creation for: " + userHandle + " failed to complete.", e);
+        } catch (CancellationException e) {
+            throw new AppSearchException(
+                    AppSearchResult.RESULT_ABORTED,
+                    "User Instance creation for: " + userHandle + " was cancelled.",
+                    e);
+        }
+    }
+
+    /**
+     * Get a valid user instance future given a user handle.
+     *
+     * <p>A valid user instance future is one that is
+     *
+     * <ul>
+     *   <li>Still ongoing i.e. the user instance creation is still happening.
+     *   <li>Completed without any exceptions i.e. the user instance creation successfully
+     *       completed.
+     * </ul>
+     *
+     * If not valid, null will be returned.
+     *
+     * <p>To get just the user instance use getUserInstanceFuture or getUserInstanceFutureOrNull.
+     *
+     * @param userHandle The userHandle of the user instance future we are retrieving.
+     * @return Future of an AppSearchUserInstance that is either not done or done successfully. Null
+     *     if the future was never created, or did not complete successfully.
+     */
+    @GuardedBy("mFutureInstanceMapLock")
+    private Future<AppSearchUserInstance> getValidUserInstanceFutureLocked(UserHandle userHandle) {
+        Future<AppSearchUserInstance> instanceFuture;
+        instanceFuture = mFutureInstancesLocked.get(userHandle);
+        if (instanceFuture == null) {
+            if (LogUtil.INFO) {
+                Log.i(
+                        TAG,
+                        "Future was not created. Creating instance for userHandle: " + userHandle);
+            }
+            return null;
+        }
+        if (!instanceFuture.isDone()) {
+            if (LogUtil.INFO) {
+                Log.i(TAG, "User instance creation is ongoing for userHandle: " + userHandle);
+            }
+            return instanceFuture;
+        }
+        try {
+            instanceFuture.get();
+            return instanceFuture;
+        } catch (ExecutionException | InterruptedException e) {
+            Log.w(
+                    TAG,
+                    "User instance creation encountered an error for userHandle: " + userHandle,
+                    e);
+            return null;
+        } catch (CancellationException e) {
+            Log.w(TAG, "User instance creation was cancelled for userHandle: " + userHandle, e);
+            return null;
         }
     }
 
@@ -676,12 +749,14 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager) {
+            @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager,
+            @NonNull AppSearchLogger logger) {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
         Objects.requireNonNull(executorManager);
         Objects.requireNonNull(isolatedStorageServiceManager);
+        Objects.requireNonNull(logger);
 
         IcingSearchEngineInterface isolatedIcingInterface =
                 new IcingSearchEngine(
@@ -697,16 +772,41 @@ public final class AppSearchUserInstanceManager {
             Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
-        // We always create the migration file if vm is created. It will be empty until data
-        // migration actually runs. With this file created, it can help us to remove the vm if it
-        // gets disabled. During startup, we can check if this file exists, and call vm removal if
-        // it does.
         final File appSearchDir =
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
-        DataMigrationUtil.writeMigrationStatus(appSearchDir, /* migrationStats= */ null);
+        // Check whether this is the first time VM is booted after the feature is enabled.
+        boolean vmFirstRun = true;
+        if (DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir)) {
+            vmFirstRun = false;
+        } else {
+            // We always create the migration file if vm is created. It will be empty until data
+            // migration actually runs(migration might not needed so it will remain empty). With
+            // this file created, it can help us to remove the vm if
+            // it gets disabled. During startup, we can check if this file exists, and call vm
+            // removal if it does.
+            DataMigrationUtil.writeMigrationStatus(appSearchDir, /* migrationStats= */ null);
+        }
 
         if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
+            // Data migration is not needed. But we still want to log an entry to
+            // indicate that data migration is correctly skipped.
+            if (vmFirstRun) {
+                // Skipped is effectively doing migration with 0 data.
+                CallStats.Builder callStatsBuilder =
+                        new CallStats.Builder()
+                                .setStatusCode(AppSearchResult.RESULT_OK)
+                                // We re-purpose this to be the counter for previous runs.
+                                .setTotalLatencyMillis(0)
+                                .setEstimatedBinderLatencyMillis(0)
+                                .setCallType(
+                                        CallStats
+                                                .INTERNAL_CALL_TYPE_ISOLATED_STORAGE_DATA_MIGRATION)
+                                .setLaunchVMEnabled(true)
+                                .setNumOperationsSucceeded(0)
+                                .setNumOperationsFailed(0);
+                logger.logStats(callStatsBuilder.build());
+            }
             Log.i(TAG, "Data migration is not needed.");
             return isolatedIcingInterface;
         }
@@ -773,5 +873,27 @@ public final class AppSearchUserInstanceManager {
         } else {
             mInstanceMapLock.unlock();
         }
+    }
+
+    /**
+     * Get the user instance future for a given userHandle for tests only.
+     *
+     * <p>Unlike getValidUserInstanceFuture, this method will just return the future, regardless of
+     * whether its null, ongoing, successfully completed, or unsuccessfully completed.
+     *
+     * @param userHandle The user that we are trying to retrieve a user instance creation future
+     *     for.
+     * @return A future of a user instance creation, or null if the future was never created.
+     */
+    @VisibleForTesting
+    Future<AppSearchUserInstance> getUserInstanceCreationFuture(UserHandle userHandle) {
+        Future<AppSearchUserInstance> future;
+        mFutureInstanceMapLock.lock();
+        try {
+            future = mFutureInstancesLocked.get(userHandle);
+        } finally {
+            mFutureInstanceMapLock.unlock();
+        }
+        return future;
     }
 }

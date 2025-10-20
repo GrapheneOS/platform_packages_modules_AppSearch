@@ -35,7 +35,7 @@ import com.android.server.appsearch.external.localstorage.AppSearchLogger;
 import com.android.server.appsearch.external.localstorage.converter.ResultCodeToProtoConverter;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
-import com.android.server.appsearch.indexer.IndexerSettings;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
 
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchPutResultProto;
@@ -144,7 +144,8 @@ public class DataMigrationUtil {
 
             // Also dump the migration stats
             if (migrationStats != null) {
-                IndexerSettings.writeBundle(icingMigrationStatus, migrationStats.getBundle());
+                PersistableBundleSettingsStore.writeBundle(
+                        icingMigrationStatus, migrationStats.getBundle());
             }
         } catch (IOException e) {
             Log.e(TAG, "Failed to write migration status file", e);
@@ -271,13 +272,12 @@ public class DataMigrationUtil {
         Log.i(TAG, "Querying documents from source for data migration successful");
 
         // Step-3 Put all documents in searchResult in destination using a batchPut call.
-        //
-        // TODO(b/407815165) Add exception handling for any exceptions during put.
         long nextPageToken = searchResult.getNextPageToken();
         ArraySet<Integer> putStatusCodes = new ArraySet<>();
         long totalDocsSucceeded = 0L;
         long totalDocsFailed = 0L;
         StatusProto.Code lastFailedPutCode = StatusProto.Code.OK;
+        // Migrate docs
         while (searchResult != null && searchResult.getResultsCount() > 0) {
             PutDocumentRequest.Builder requestBuilder = PutDocumentRequest.newBuilder();
             for (int i = 0; i < searchResult.getResultsCount(); ++i) {
@@ -319,6 +319,11 @@ public class DataMigrationUtil {
         }
         migrationStats.setNumberOfDocsSucceeded(totalDocsSucceeded);
         migrationStats.setNumberOfDocsFailed(totalDocsFailed);
+
+        // Migrate blobs
+        // As blob API is introduced in B, we don't anticipate it is being widely used, so we
+        // will go ahead switch to the VM even if blob migration fails.
+        destination.putBlobInfos(source.rawGetAllBlobInfos());
 
         // Check if we want to retry for failed puts
         int totalTriedTimes = migrationStats.getDataMigrationRunCounter();
@@ -405,7 +410,8 @@ public class DataMigrationUtil {
 
             if (dataMigrationStatusFile.exists()) {
                 try {
-                    PersistableBundle bundle = IndexerSettings.readBundle(dataMigrationStatusFile);
+                    PersistableBundle bundle =
+                            PersistableBundleSettingsStore.readBundle(dataMigrationStatusFile);
                     if (!bundle.isEmpty()) {
                         prevDataMigrationStats.setBundle(bundle);
                     }

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// TODO: b/413737868 - Remove annotation and move JobInfo-related tests to a Platform-specific test.
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
@@ -55,7 +56,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
-import android.os.PersistableBundle;
+import android.os.Process;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
@@ -66,8 +67,11 @@ import androidx.test.core.app.ApplicationProvider;
 import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerSettings;
+import com.android.server.appsearch.indexer.IndexerJobHandler;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
+import com.android.server.appsearch.indexer.SettingsStore;
 
 import com.google.common.collect.ImmutableList;
 
@@ -82,7 +86,9 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -110,7 +116,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
     private ThreadPoolExecutor mSingleThreadedExecutor;
     private File mAppsDir;
-    private File mSettingsFile;
+    private SettingsStore mSettingsStore;
     private AppsIndexerUserInstance mInstance;
     private final AppsIndexerConfig mAppsIndexerConfig = new TestAppsIndexerConfig();
     private final IndexerForceUpdateConfig mIndexerForceUpdateConfig =
@@ -134,10 +140,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Setup the file path to the persisted data
         mAppsDir = new File(mTemporaryFolder.newFolder(), "appsearch/apps");
         mAppsDir.mkdirs();
-        mSettingsFile = new File(mAppsDir, AppsIndexerSettings.SETTINGS_FILE_NAME);
+        mSettingsStore = new PersistableBundleSettingsStore(mAppsDir);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -174,6 +181,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -229,6 +237,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         indexerForceUpdateConfig,
@@ -272,10 +281,10 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // The executor is responsible for releasing semaphore permits. It's invoked repeatedly
         // during listener configuration: once for updates and twice for every configuration change.
         assertThat(
-                semaphore.tryAcquire(
-                        /* permits */ 3,
-                        UPDATE_ASYNC_TIMEOUT.toSeconds(),
-                        TimeUnit.SECONDS))
+                        semaphore.tryAcquire(
+                                /* permits */ 3,
+                                UPDATE_ASYNC_TIMEOUT.toSeconds(),
+                                TimeUnit.SECONDS))
                 .isTrue();
 
         assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
@@ -296,12 +305,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @RequiresFlagsDisabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
     public void testFirstRun_updateAlreadyRan_doesNotUpdate() throws Exception {
         // Pretend we already ran
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
-        settings.setLastPartitionFingerprintsSortedByPartitionName(
-                Build.getFingerprintedPartitions());
-        settings.persist();
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
+        mSettingsStore.persist(settings);
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance are finished.
@@ -322,6 +333,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -375,6 +387,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -397,8 +410,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
-        settings.load();
+        AppsIndexerSettings settings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(settings);
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         assertThat(lastAttemptedUpdatedTimestampMillis).isEqualTo(0);
     }
@@ -406,9 +419,9 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_CHECK_PRIOR_ATTEMPT)
     @Test
     public void testFirstRun_lastRunInFuture_runsSync() throws Exception {
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         settings.setLastAttemptedUpdateTimestampMillis(Long.MAX_VALUE);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance are finished.
@@ -429,6 +442,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -450,8 +464,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        settings = new AppsIndexerSettings(mAppsDir);
-        settings.load();
+        settings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(settings);
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         // Timestamp should be set to more current value
         assertThat(lastAttemptedUpdatedTimestampMillis).isAtMost(System.currentTimeMillis());
@@ -479,6 +493,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -501,8 +516,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
-        settings.load();
+        AppsIndexerSettings settings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(settings);
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         assertThat(lastAttemptedUpdatedTimestampMillis).isGreaterThan(0);
     }
@@ -529,6 +544,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -550,13 +566,13 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
                 .isTrue();
 
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
-        settings.load();
+        AppsIndexerSettings settings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(settings);
         long firstAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
 
         // Reset the last run timestamp to 0 to simulate what would happen if the sync fails
         settings.setLastAppUpdateTimestampMillis(0);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         long secondAttemptedUpdateTimestampMillis = firstAttemptedUpdateTimestampMillis;
 
@@ -564,7 +580,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         while (secondAttemptedUpdateTimestampMillis == firstAttemptedUpdateTimestampMillis) {
             mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
             assertTrue(semaphore.tryAcquire(100L, TimeUnit.MILLISECONDS));
-            settings.load();
+            mSettingsStore.loadInto(settings);
             secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
         }
 
@@ -583,11 +599,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @Test
     public void testFirstRun_withOtaUpdate_updateAlreadyRan_indexesApp() throws Exception {
         // Pretend we already ran with no fingerprints set.
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
         settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance are finished.
@@ -608,6 +624,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -635,9 +652,9 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
         }
         // Last joined partition fingerprint is updated in settings.
-        AppsIndexerSettings currSettings = new AppsIndexerSettings(mAppsDir);
-        currSettings.load();
-        assertThat(Arrays.asList(currSettings.getLastPartitionFingerprintsSortedByPartitionName()))
+        AppsIndexerSettings currSettings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(currSettings);
+        assertThat(Arrays.asList(currSettings.getLastPartitionFingerprints()))
                 .containsExactlyElementsIn(
                         Build.getFingerprintedPartitions().stream()
                                 .map(partition -> partition.getFingerprint())
@@ -647,13 +664,15 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @Test
     public void testFirstRun_noOtaUpdate_updateAlreadyRan_doesNotIndex() throws Exception {
         // Pretend we already ran with the current partition fingerprints.
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
-        settings.setLastPartitionFingerprintsSortedByPartitionName(
-                Build.getFingerprintedPartitions());
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
         settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance are finished.
@@ -674,6 +693,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -709,11 +729,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
     public void testFirstRun_withIndexerUpdate_updateAlreadyRan_indexesApp() throws Exception {
         // Pretend we already ran with a old indexer version.
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
         settings.setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance are finished.
@@ -734,6 +754,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -763,8 +784,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
             assertThat(appsTimestampMap.keySet()).containsExactly("com.fake.package0");
         }
         // Previous indexer version is updated in settings.
-        AppsIndexerSettings currSettings = new AppsIndexerSettings(mAppsDir);
-        currSettings.load();
+        AppsIndexerSettings currSettings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(currSettings);
         assertThat(currSettings.getPreviousIndexerVersionCode())
                 .isEqualTo((long) CURR_APP_INDEXER_VERSION);
     }
@@ -773,13 +794,15 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ALL_PACKAGE_INDEXING_ON_INDEXER_UPDATE)
     public void testFirstRun_noIndexerUpdate_updateAlreadyRan_doesNotUpdate() throws Exception {
         // Pretend we already ran
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         mAppsDir.mkdirs();
         settings.setLastUpdateTimestampMillis(1000);
-        settings.setLastPartitionFingerprintsSortedByPartitionName(
-                Build.getFingerprintedPartitions());
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
         settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         // This semaphore allows us to pause test execution until we're sure the tasks in
         // AppsIndexerUserInstance are finished.
@@ -800,6 +823,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -833,7 +857,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_LOCALE_CHANGE_FULL_UPDATE)
-    public void testLocaleChange_triggersFullUpdate() throws Exception {
+    public void testSync_localeChange_triggersFullUpdate() throws Exception {
         final Semaphore semaphore = new Semaphore(0);
         mSingleThreadedExecutor =
                 new ThreadPoolExecutor(
@@ -850,13 +874,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 };
 
         // Set initial locale in settings
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         settings.setPreviousLocaleCode("en");
-        settings.persist();
+        mSettingsStore.persist(settings);
 
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -932,7 +957,138 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 .isEqualTo(updatedDisplayName);
 
         // Verify settings are updated with the new locale
-        settings.load();
+        mSettingsStore.loadInto(settings);
+        assertThat(settings.getPreviousLocaleCode()).isEqualTo("fr");
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_LOCALE_CHANGE_FULL_UPDATE)
+    public void testSync_previousLocaleNull_noFullUpdate() throws Exception {
+        final Semaphore semaphore = new Semaphore(0);
+        mSingleThreadedExecutor =
+                new ThreadPoolExecutor(
+                        /* corePoolSize= */ 1,
+                        /* maximumPoolSize= */ 1,
+                        /* KeepAliveTime= */ 0L,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<>()) {
+                    @Override
+                    protected void afterExecute(Runnable r, Throwable t) {
+                        super.afterExecute(r, t);
+                        semaphore.release();
+                    }
+                };
+
+        // Do not set initial locale in settings, only in the test context
+        mTestContext.setLocale(new Locale("en", "US"));
+
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext,
+                        mTestContext.getTestUser(),
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
+
+        // Wait for file setup
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        // Setup package manager with 1 app
+        setupMockPackageManager(
+                mMockPackageManager,
+                createFakePackageInfos(1),
+                createFakeResolveInfos(1),
+                /* appFunctionServices= */ ImmutableList.of());
+
+        // Initial index run
+        mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        // Locale settings should be now set
+        AppsIndexerSettings settings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(settings);
+        assertThat(settings.getPreviousLocaleCode()).isEqualTo("en");
+
+        AppSearchManager.SearchContext searchContext =
+                new AppSearchManager.SearchContext.Builder(AppSearchHelper.APP_DATABASE).build();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
+
+        SearchResultsShim sr = db.search("", new SearchSpec.Builder().build());
+        List<SearchResult> results = sr.getNextPageAsync().get();
+        assertThat(results.size()).isEqualTo(1);
+
+        String originalDisplayName =
+                results.get(0)
+                        .getGenericDocument()
+                        .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES);
+
+        // Update the display name of the package
+        String updatedDisplayName = "Le label";
+        when(mMockPackageManager.getApplicationLabel(any())).thenReturn(updatedDisplayName);
+
+        // Clear settings. The next run should not re-index because the last locale is null
+        settings.reset();
+        // Set the indexer version mode to prevent full update for that reason.
+        List<Build.Partition> sortedFingerprintedPartitions =
+                new ArrayList<>(Build.getFingerprintedPartitions());
+        sortedFingerprintedPartitions.sort(Comparator.comparing(Build.Partition::getName));
+        settings.setLastPartitionFingerprintsSortedByPartitionName(sortedFingerprintedPartitions);
+        settings.setPreviousIndexerVersionCode(CURR_APP_INDEXER_VERSION);
+        mSettingsStore.persist(settings);
+        // Recreate the instance to pick up settings change
+        mInstance =
+                AppsIndexerUserInstance.createInstance(
+                        mTestContext,
+                        mTestContext.getTestUser(),
+                        mAppsDir,
+                        mAppsIndexerConfig,
+                        mIndexerForceUpdateConfig,
+                        mSingleThreadedExecutor);
+
+        // Wait for file setup
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        mInstance.updateAsync(false, false);
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+        sr = db.search("", new SearchSpec.Builder().build());
+        results = sr.getNextPageAsync().get();
+        assertThat(results.size()).isEqualTo(1);
+
+        // Display name did not change
+        assertThat(
+                        results.get(0)
+                                .getGenericDocument()
+                                .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES))
+                .isEqualTo(originalDisplayName);
+
+        // Simulate Locale Change to fr-FR
+        mTestContext.setLocale(new Locale("fr", "FR"));
+
+        // Now it will update if we run updateAsync
+        mInstance.updateAsync(false, false);
+
+        // Wait for the update
+        assertThat(semaphore.tryAcquire(UPDATE_ASYNC_TIMEOUT.toSeconds(), TimeUnit.SECONDS))
+                .isTrue();
+
+        // Verify the app is re-indexed due to locale change forced update
+        sr = db.search("", new SearchSpec.Builder().build());
+        results = sr.getNextPageAsync().get();
+        assertThat(results.size()).isEqualTo(1);
+        assertThat(
+                        results.get(0)
+                                .getGenericDocument()
+                                .getPropertyString(MobileApplication.APP_PROPERTY_ALTERNATE_NAMES))
+                .isEqualTo(updatedDisplayName);
+
+        // Verify settings are updated with the new locale
+        mSettingsStore.loadInto(settings);
         assertThat(settings.getPreviousLocaleCode()).isEqualTo("fr");
     }
 
@@ -943,6 +1099,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -958,13 +1115,14 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(stats.mNumberOfAppsAdded).isEqualTo(1);
 
         // Pretend indexer version is updated
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
+        AppsIndexerSettings settings = new AppsIndexerSettings();
         settings.setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
-        settings.persist();
+        mSettingsStore.persist(settings);
         // Create new instance that uses the updated settings.
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1026,6 +1184,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         pauseContext,
+                        ((TestContext) pauseContext).getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1043,7 +1202,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         // Schedule a bunch of tasks. However, only one will run, and one other will be scheduled
         for (int i = 0; i < numOfNotifications / 2; i++) {
             // This will pretend to add apps repeatedly
-            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+            mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         }
 
         // Now, we wait for getPackageManager to be called
@@ -1065,7 +1224,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(numOfNotifications),
                 /* appFunctionServices= */ ImmutableList.of());
         for (int i = numOfNotifications / 2; i < numOfNotifications; i++) {
-            mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+            mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         }
 
         // Now we allow syncing to continue
@@ -1112,6 +1271,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                                     AppsIndexerUserInstance unused =
                                             AppsIndexerUserInstance.createInstance(
                                                     mTestContext,
+                                                    mTestContext.getTestUser(),
                                                     dataDir,
                                                     mAppsIndexerConfig,
                                                     mIndexerForceUpdateConfig,
@@ -1156,8 +1316,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 /* appFunctionServices= */ ImmutableList.of());
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
-        AppsIndexerSettings settings = new AppsIndexerSettings(mAppsDir);
-        settings.load();
+        AppsIndexerSettings settings = new AppsIndexerSettings();
+        mSettingsStore.loadInto(settings);
         // The tenth document will have a timestamp of 9 as it is 0-indexed
         assertThat(settings.getLastAppUpdateTimestampMillis()).isEqualTo(9);
     }
@@ -1203,13 +1363,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                         TestUtils.FAKE_PACKAGE_PREFIX + "8",
                         TestUtils.FAKE_PACKAGE_PREFIX + "9");
 
-        PersistableBundle settingsBundle = AppsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(IndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
-                .isAtLeast(timeBeforeChangeNotification);
+        AppsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastUpdateTimestampMillis()).isAtLeast(timeBeforeChangeNotification);
 
         // The last updated app was still the "9" app
-        assertThat(settingsBundle.getLong(AppsIndexerSettings.LAST_APP_UPDATE_TIMESTAMP_KEY))
-                .isEqualTo(9);
+        assertThat(settings.getLastAppUpdateTimestampMillis()).isEqualTo(9);
     }
 
     @Test
@@ -1235,6 +1393,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1250,7 +1409,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
 
-        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+        mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
 
         // Wait for all async tasks to complete
         afterSemaphore.acquire();
@@ -1295,6 +1454,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1362,6 +1522,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1421,6 +1582,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1474,6 +1636,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
@@ -1498,9 +1661,8 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
         assertThat(appIds.size()).isEqualTo(250);
 
-        PersistableBundle settingsBundle = AppsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(IndexerSettings.LAST_UPDATE_TIMESTAMP_KEY))
-                .isAtLeast(timeBeforeChangeNotification);
+        AppsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastUpdateTimestampMillis()).isAtLeast(timeBeforeChangeNotification);
     }
 
     @Test
@@ -1510,33 +1672,42 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
-        JobInfo mockJobInfo = mock(JobInfo.class);
+
+        // The JobInfo has to match exactly
+        JobInfo scheduled =
+                FrameworkIndexerMaintenanceService.createJobInfo(
+                        mTestContext,
+                        mTestContext.getUser(),
+                        IndexerJobHandler.APPS_INDEXER,
+                        /* isPeriodic= */ true,
+                        mAppsIndexerConfig.getAppsMaintenanceUpdateIntervalMillis());
+
         // getPendingJob() should return a non-null value to simulate the scenario where a
         // background job is already scheduled.
-        doReturn(mockJobInfo)
+        doReturn(scheduled)
                 .when(mockJobScheduler)
                 .getPendingJob(
-                        AppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
+                        FrameworkAppsIndexerMaintenanceConfig.MIN_APPS_INDEXER_JOB_ID
                                 + mTestContext.getUser().getIdentifier());
         mTestContext.setJobScheduler(mockJobScheduler);
         mInstance =
                 AppsIndexerUserInstance.createInstance(
                         mTestContext,
+                        mTestContext.getTestUser(),
                         mAppsDir,
                         mAppsIndexerConfig,
                         mIndexerForceUpdateConfig,
                         mSingleThreadedExecutor);
 
         int docCount = 10;
-        CountDownLatch latch = setupLatch(docCount);
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(docCount),
                 createFakeResolveInfos(docCount),
                 /* appFunctionServices= */ ImmutableList.of());
-        mInstance.doUpdate(/* firstRun= */ false, new AppsUpdateStats());
 
-        mInstance.updateAsync(/* firstRun= */ true, /* isForceUpdateTriggered= */ false);
+        CountDownLatch latch = setupLatch(docCount);
+        mInstance.updateAsync(/* firstRun= */ false, /* isForceUpdateTriggered= */ false);
         // Wait for all async tasks to complete
         latch.await(10L, TimeUnit.SECONDS);
 
@@ -1594,6 +1765,11 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         @NonNull
         public Context createContextAsUser(UserHandle user, int flags) {
             return this;
+        }
+
+        @NonNull
+        public UserHandle getTestUser() {
+            return Process.myUserHandle();
         }
     }
 }

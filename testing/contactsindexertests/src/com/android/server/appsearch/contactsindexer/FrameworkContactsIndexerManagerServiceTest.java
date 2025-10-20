@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.contactsindexer;
 
 import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
-import static com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID;
+import static com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -61,6 +61,7 @@ import com.android.server.SystemService;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -75,7 +76,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
-public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestBase {
+public class FrameworkContactsIndexerManagerServiceTest extends FakeContactsProviderTestBase {
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private ContactsIndexerManagerService mContactsIndexerManagerService;
     private UiAutomation mUiAutomation;
@@ -87,17 +88,18 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
             new MockLocalManagerRegistry();
 
     @Rule
-    public ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder()
-            .addStaticMockFixtures(() -> mMockLocalManagerRegistry)
-            .build();
+    public ExtendedMockitoRule mExtendedMockitoRule =
+            new ExtendedMockitoRule.Builder()
+                    .addStaticMockFixtures(() -> mMockLocalManagerRegistry)
+                    .build();
 
     @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
-        mContactsIndexerManagerService = new ContactsIndexerManagerService(mContext,
-                new TestContactsIndexerConfig());
+        mContactsIndexerManagerService =
+                new ContactsIndexerManagerService(mContext, new TestContactsIndexerConfig());
         // Ensure no scheduled job
         mJobScheduler = mContext.getSystemService(JobScheduler.class);
         mJobId = MIN_CONTACTS_INDEXER_JOB_ID + mContext.getUserId();
@@ -108,9 +110,14 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
     @After
     public void tearDown() throws Exception {
         // Wipe the data in AppSearchHelper.DATABASE_NAME.
-        AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(mContext,
-                new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build(),
-                mSingleThreadedExecutor).get();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(
+                                mContext,
+                                new AppSearchManager.SearchContext.Builder(
+                                                AppSearchHelper.DATABASE_NAME)
+                                        .build(),
+                                mSingleThreadedExecutor)
+                        .get();
         db.setSchemaAsync(new SetSchemaRequest.Builder().setForceOverride(true).build()).get();
         // Clean up scheduled job
         if (mJobScheduler != null && mJobId != -1) {
@@ -125,25 +132,27 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
         Assume.assumeNotNull(contactsProviderPackageName);
 
         // This config prevents delta updates from indexing any contacts
-        ContactsIndexerConfig config = new TestContactsIndexerConfig() {
-            @Override
-            public int getContactsFirstRunIndexingLimit() {
-                return 0;
-            }
+        ContactsIndexerConfig config =
+                new TestContactsIndexerConfig() {
+                    @Override
+                    public int getContactsFirstRunIndexingLimit() {
+                        return 0;
+                    }
 
-            @Override
-            public int getContactsDeltaUpdateLimit() {
-                return 0;
-            }
-        };
+                    @Override
+                    public int getContactsDeltaUpdateLimit() {
+                        return 0;
+                    }
+                };
         mContactsIndexerManagerService = new ContactsIndexerManagerService(mContext, config);
-        UserInfo userInfo = new UserInfo(mContext.getUser().getIdentifier(),
-                /* name= */ "default", /* flags= */ 0);
+        UserInfo userInfo =
+                new UserInfo(
+                        mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
         SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
 
         // Permissions required for registering receivers and scheduling jobs
-        mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL,
-                RECEIVE_BOOT_COMPLETED);
+        mUiAutomation.adoptShellPermissionIdentity(
+                INTERACT_ACROSS_USERS_FULL, RECEIVE_BOOT_COMPLETED);
         try {
             mContactsIndexerManagerService.onStart();
 
@@ -164,8 +173,8 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
 
             CountDownLatch fullUpdateLatch = countDownAppSearchDocumentChanges(100);
             // Clear the user data for the CP2 package which should trigger a full update
-            SystemUtil.runShellCommand("pm clear --user " + mContext.getUserId() + " "
-                    + contactsProviderPackageName);
+            SystemUtil.runShellCommand(
+                    "pm clear --user " + mContext.getUserId() + " " + contactsProviderPackageName);
             // Wait for full update to run and index all 100 contacts.
             assertThat(fullUpdateLatch.await(10L, TimeUnit.SECONDS)).isTrue();
 
@@ -190,7 +199,8 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
     }
 
     /** Returns null if the contacts provider package cannot be queried. */
-    @Nullable private String getContactsProviderPackageName() {
+    @Nullable
+    private String getContactsProviderPackageName() {
         PackageManager pm = mContext.getPackageManager();
         List<ProviderInfo> providers =
                 pm.queryContentProviders(
@@ -207,29 +217,32 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
     }
 
     // This tests a local scheduled job for Contacts Indexer in the test package
+    @Ignore("TODO b/397864006 timing out on HSUM device due to jobscheduler delay")
     @Test
     public void testLocalScheduledJob_runsFullUpdate() throws Exception {
         // Allow first run delta update to index contacts but prevent following delta updates from
         // indexing contacts
-        ContactsIndexerConfig config = new TestContactsIndexerConfig() {
-            @Override
-            public int getContactsFirstRunIndexingLimit() {
-                return 100;
-            }
+        ContactsIndexerConfig config =
+                new TestContactsIndexerConfig() {
+                    @Override
+                    public int getContactsFirstRunIndexingLimit() {
+                        return 100;
+                    }
 
-            @Override
-            public int getContactsDeltaUpdateLimit() {
-                return 0;
-            }
-        };
+                    @Override
+                    public int getContactsDeltaUpdateLimit() {
+                        return 0;
+                    }
+                };
         mContactsIndexerManagerService = new ContactsIndexerManagerService(mContext, config);
-        UserInfo userInfo = new UserInfo(mContext.getUser().getIdentifier(),
-                /* name= */ "default", /* flags= */ 0);
+        UserInfo userInfo =
+                new UserInfo(
+                        mContext.getUser().getIdentifier(), /* name= */ "default", /* flags= */ 0);
         SystemService.TargetUser targetUser = new SystemService.TargetUser(userInfo);
 
         // Permissions required for registering receivers and scheduling jobs
-        mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL,
-                RECEIVE_BOOT_COMPLETED);
+        mUiAutomation.adoptShellPermissionIdentity(
+                INTERACT_ACROSS_USERS_FULL, RECEIVE_BOOT_COMPLETED);
         try {
             mContactsIndexerManagerService.onStart();
 
@@ -256,7 +269,8 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
 
             CountDownLatch fullUpdateLatch = countDownAppSearchDocumentChanges(100);
             // Force scheduled job in test package to run immediately
-            SystemUtil.runShellCommand(mUiAutomation,
+            SystemUtil.runShellCommand(
+                    mUiAutomation,
                     "cmd jobscheduler run -f " + mContext.getPackageName() + " " + mJobId);
             assertThat(fullUpdateLatch.await(10L, TimeUnit.SECONDS)).isTrue();
         } finally {
@@ -268,8 +282,8 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
     private long getLastFullUpdateTimestampFromContactsIndexerDump() {
         StringWriter stringWriter = new StringWriter();
         PrintWriter pw = new PrintWriter(stringWriter);
-        mContactsIndexerManagerService.dumpContactsIndexerForUser(mContext.getUser(), pw,
-                /* verbose= */ false);
+        mContactsIndexerManagerService.dumpContactsIndexerForUser(
+                mContext.getUser(), pw, /* verbose= */ false);
         String[] output = stringWriter.toString().split(System.lineSeparator());
         return getTimestampOutOfDump(output[0]);
     }
@@ -307,20 +321,22 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
         CountDownLatch latch = new CountDownLatch(numChanges);
         GlobalSearchSessionShim shim =
                 GlobalSearchSessionShimImpl.createGlobalSearchSessionAsync(mContext).get();
-        ObserverCallback callback = new ObserverCallback() {
-            @Override
-            public void onSchemaChanged(SchemaChangeInfo changeInfo) {
-                // Do nothing
-            }
+        ObserverCallback callback =
+                new ObserverCallback() {
+                    @Override
+                    public void onSchemaChanged(SchemaChangeInfo changeInfo) {
+                        // Do nothing
+                    }
 
-            @Override
-            public void onDocumentChanged(DocumentChangeInfo changeInfo) {
-                for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
-                    latch.countDown();
-                }
-            }
-        };
-        shim.registerObserverCallback(mContext.getPackageName(),
+                    @Override
+                    public void onDocumentChanged(DocumentChangeInfo changeInfo) {
+                        for (int i = 0; i < changeInfo.getChangedDocumentIds().size(); i++) {
+                            latch.countDown();
+                        }
+                    }
+                };
+        shim.registerObserverCallback(
+                mContext.getPackageName(),
                 new ObserverSpec.Builder().addFilterSchemas("builtin:Person").build(),
                 mSingleThreadedExecutor,
                 callback);
@@ -329,8 +345,8 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
 
     /**
      * Prevents actually adding a manager to the registry since the registry is static and will
-     * throw an exception across tests if multiple ContactsIndexerManagerServices try to register
-     * a LocalService from onStart(). Instead, captures the LocalService and does nothing on
+     * throw an exception across tests if multiple ContactsIndexerManagerServices try to register a
+     * LocalService from onStart(). Instead, captures the LocalService and does nothing on
      * addManager and supplies the captured LocalService during getManager.
      */
     private static class MockLocalManagerRegistry implements StaticMockFixture {
@@ -346,15 +362,19 @@ public class ContactsIndexerManagerServiceTest extends FakeContactsProviderTestB
 
         @Override
         public void setUpMockBehaviors() {
-            ExtendedMockito.doNothing().when(
-                    () -> LocalManagerRegistry.addManager(any(), mLocalServiceCaptor.capture()));
-            ExtendedMockito.doAnswer(invocation -> mLocalServiceCaptor.getValue()).when(
-                    () -> LocalManagerRegistry.getManager(
-                            ContactsIndexerManagerService.LocalService.class));
+            ExtendedMockito.doNothing()
+                    .when(
+                            () ->
+                                    LocalManagerRegistry.addManager(
+                                            any(), mLocalServiceCaptor.capture()));
+            ExtendedMockito.doAnswer(invocation -> mLocalServiceCaptor.getValue())
+                    .when(
+                            () ->
+                                    LocalManagerRegistry.getManager(
+                                            ContactsIndexerManagerService.LocalService.class));
         }
 
         @Override
-        public void tearDown() {
-        }
+        public void tearDown() {}
     }
 }

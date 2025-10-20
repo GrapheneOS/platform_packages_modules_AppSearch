@@ -16,33 +16,13 @@
 
 package com.android.server.appsearch.appsindexer;
 
-import android.annotation.NonNull;
-
-import com.android.server.appsearch.indexer.IndexerSettings;
-
-import java.io.File;
+import com.android.server.appsearch.indexer.BaseSettings;
 
 /**
- * Abstract class for settings backed by a PersistableBundle.
+ * Holds settings and persistent state for AppOpenEventIndexer.
  *
- * <p>Holds settings such as:
- *
- * <ul>
- *   <li>getting and setting the timestamp of the last update, stored in {@link
- *       #getLastUpdateTimestampMillis()}
- * </ul>
- *
- * <p>This class is NOT thread safe (similar to {@link PersistableBundle} which it wraps).
+ * <p>This class is NOT thread safe.
  */
-public class AppOpenEventIndexerSettings extends IndexerSettings {
-    static final String SETTINGS_FILE_NAME = "app_open_event_indexer_settings.pb";
-
-    public AppOpenEventIndexerSettings(@NonNull File baseDir) {
-        super(baseDir);
-    }
-
-    @Override
-    protected String getSettingsFileName() {
-        return SETTINGS_FILE_NAME;
-    }
+public class AppOpenEventIndexerSettings extends BaseSettings {
+    // All behavior is inheritied from BaseSettings.
 }

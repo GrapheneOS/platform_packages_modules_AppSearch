@@ -25,7 +25,11 @@ import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackag
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.app.appsearch.testutil.AppSearchTestUtils;
@@ -33,9 +37,13 @@ import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.AssetManager;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 
@@ -60,6 +68,8 @@ import java.util.Map;
 /** This tests that we can convert what comes from PackageManager to a MobileApplication */
 public class AppsUtilTest {
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+    private final PackageManager mMockPackageManager = mock(PackageManager.class);
+    private final Context mContext = ApplicationProvider.getApplicationContext();
 
     @Test
     public void testBuildAppsFromPackageInfos_ReturnsNonNullList() throws Exception {
@@ -85,7 +95,7 @@ public class AppsUtilTest {
         setupMockPackageManager(
                 pm, fakePackages, fakeActivities, /* appFunctionServices= */ ImmutableList.of());
         List<MobileApplication> resultApps =
-                AppsUtil.buildAppsFromPackageInfos(pm, packageLaunchActivityMapping);
+                AppsUtil.buildAppsFromPackageInfos(mContext, pm, packageLaunchActivityMapping);
 
         assertThat(resultApps).hasSize(5);
         List<String> packageNames = new ArrayList<>();
@@ -109,7 +119,7 @@ public class AppsUtilTest {
                 AppsUtil.getPackagesToIndex(context, context.getPackageManager());
         List<MobileApplication> resultApps =
                 AppsUtil.buildAppsFromPackageInfos(
-                        context.getPackageManager(), packageActivityMapping);
+                        context, context.getPackageManager(), packageActivityMapping);
 
         assertThat(resultApps).isNotEmpty();
     }
@@ -197,7 +207,6 @@ public class AppsUtilTest {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_USE_FIRST_RESOLVE_INFO)
     public void testMultipleResolveInfosForApp() throws Exception {
-        Context context = ApplicationProvider.getApplicationContext();
         PackageManager pm = Mockito.mock(PackageManager.class);
         List<PackageInfo> fakePackages = new ArrayList<>();
         List<ResolveInfo> fakeActivities = new ArrayList<>();
@@ -235,9 +244,9 @@ public class AppsUtilTest {
         setupMockPackageManager(
                 pm, fakePackages, fakeActivities, /* appFunctionServices= */ ImmutableList.of());
         Map<PackageInfo, ResolveInfos> packageLaunchActivityMapping =
-                AppsUtil.getPackagesToIndex(context, pm);
+                AppsUtil.getPackagesToIndex(mContext, pm);
         List<MobileApplication> resultApps =
-                AppsUtil.buildAppsFromPackageInfos(pm, packageLaunchActivityMapping);
+                AppsUtil.buildAppsFromPackageInfos(mContext, pm, packageLaunchActivityMapping);
 
         // We just indexed 10 apps with 2 resolve infos each. In the first resolve info for each,
         // the name is "Fake Application Name". In the second resolve info for each, we set the name
@@ -257,5 +266,97 @@ public class AppsUtilTest {
             // Assertion based on values explicitly set on fakeResolveInfo2
             assertThat(app.getAlternateNames()).asList().contains(alternateAppName);
         }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_MULTILINGUAL_NAMES)
+    public void testBuildApps_multilingual_populatesAlternateNames() throws Exception {
+        String packageName = TestUtils.FAKE_PACKAGE_PREFIX + "0";
+        String defaultName = "App Name";
+        String frenchName = "Nom de l'application";
+        String spanishName = "Nombre de la aplicación";
+        int appLabelResId = 0x5678;
+        int activityLabelResId = 0x1234;
+
+        // Mock ApplicationInfo & PackageInfo
+        ApplicationInfo appInfo = new ApplicationInfo();
+        appInfo.packageName = packageName;
+        appInfo.labelRes = appLabelResId;
+
+        PackageInfo packageInfo = TestUtils.createFakePackageInfo(0);
+        packageInfo.applicationInfo = appInfo;
+
+        // ResolveInfo for DisplayName
+        ResolveInfo resolveInfo = TestUtils.createFakeLaunchResolveInfo(0);
+        resolveInfo.activityInfo.applicationInfo = appInfo;
+        resolveInfo.labelRes = activityLabelResId;
+
+        // Mock PackageManager calls used by resolveInfo.loadLabel() and getApplicationLabel()
+        when(mMockPackageManager.getText(
+                        eq(packageName), eq(activityLabelResId), any(ApplicationInfo.class)))
+                .thenReturn(defaultName);
+        when(mMockPackageManager.getApplicationLabel(any(ApplicationInfo.class)))
+                .thenReturn(defaultName);
+
+        Map<PackageInfo, ResolveInfos> packageMapping = new ArrayMap<>();
+        packageMapping.put(packageInfo, new ResolveInfos(null, resolveInfo));
+
+        // Mocking for icon uri related paths
+        Resources res = Mockito.mock(Resources.class);
+        when(res.getResourcePackageName(anyInt())).thenReturn("package");
+        when(res.getResourceTypeName(anyInt())).thenReturn("type");
+        when(mMockPackageManager.getResourcesForApplication((ApplicationInfo) any()))
+                .thenReturn(res);
+
+        // Ensure the spyContext returns the mock PackageManager
+        when(mMockPackageManager.getApplicationInfo(packageName, 0)).thenReturn(appInfo);
+
+        Context mockAppContext = Mockito.mock(Context.class);
+
+        Context multiLangContext =
+                new ContextWrapper(mContext) {
+                    @Override
+                    public Context createPackageContext(String packageName, int flags) {
+                        return mockAppContext;
+                    }
+                };
+
+        // Mock mockAppContext.getAssets()
+        AssetManager mockAssetManager = Mockito.mock(AssetManager.class);
+        when(mockAppContext.getAssets()).thenReturn(mockAssetManager);
+        when(mockAssetManager.getLocales()).thenReturn(new String[] {"en-US", "fr-FR", "es"});
+
+        // Mock mockAppContext.getResources() to return a base Configuration
+        Resources mockBaseResources = Mockito.mock(Resources.class);
+        Configuration baseConfig = new Configuration();
+        when(mockAppContext.getResources()).thenReturn(mockBaseResources);
+        when(mockBaseResources.getConfiguration()).thenReturn(baseConfig);
+
+        Context mockFrenchContext = Mockito.mock(Context.class);
+        Resources mockFrenchResources = Mockito.mock(Resources.class);
+        when(mockFrenchContext.getResources()).thenReturn(mockFrenchResources);
+        when(mockFrenchResources.getString(anyInt())).thenReturn(frenchName);
+
+        Context mockSpanishContext = Mockito.mock(Context.class);
+        Resources mockSpanishResources = Mockito.mock(Resources.class);
+        when(mockSpanishContext.getResources()).thenReturn(mockSpanishResources);
+        when(mockSpanishResources.getString(anyInt())).thenReturn(spanishName);
+
+        Context mockEnglishContext = Mockito.mock(Context.class);
+        Resources mockEnglishResources = Mockito.mock(Resources.class);
+        when(mockEnglishContext.getResources()).thenReturn(mockEnglishResources);
+        when(mockEnglishResources.getString(anyInt())).thenReturn(defaultName);
+
+        when(mockAppContext.createConfigurationContext(any(Configuration.class)))
+                .thenReturn(mockFrenchContext, mockSpanishContext, mockEnglishContext);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(
+                        multiLangContext, mMockPackageManager, packageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        MobileApplication app = resultApps.get(0);
+        assertThat(app.getDisplayName()).isEqualTo(defaultName);
+        assertThat(app.getAlternateNames()).asList().containsExactly(frenchName, spanishName);
     }
 }

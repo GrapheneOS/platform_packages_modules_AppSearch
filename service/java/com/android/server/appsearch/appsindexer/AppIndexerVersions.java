@@ -19,7 +19,7 @@ package com.android.server.appsearch.appsindexer;
 import android.annotation.IntDef;
 
 /** Defines constants and annotations for managing App Indexer versions. */
-public class AppIndexerVersions {
+public final class AppIndexerVersions {
 
     /** Default value when the version is not specified or can not be determined. */
     public static final int APP_INDEXER_VERSION_UNKNOWN = 0;
@@ -38,4 +38,6 @@ public class AppIndexerVersions {
      */
     @AppIndexerVersion
     public static final int CURR_APP_INDEXER_VERSION = APP_INDEXER_DYNAMIC_SCHEMA_ENABLED_VERSION;
+
+    private AppIndexerVersions() {}
 }

@@ -134,6 +134,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             "isolated_storage_delete_ce_vms";
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
+    public static final String KEY_CHECK_OPTIMIZE_DELAY_MILLIS = "check_optimize_delay_millis";
+    public static final String KEY_MAX_BYTES_OPTIMIZE_THRESHOLD = "max_bytes_optimize_threshold";
+    public static final String KEY_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD =
+            "max_doc_count_optimize_threshold";
+    public static final String KEY_EMBEDDING_INDEX_NUM_SHARDS = "embedding_index_num_shards";
 
     /**
      * This config does not need to be cached in FrameworkServiceAppSearchConfig as it is only
@@ -190,7 +195,11 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
         KEY_LIGHTWEIGHT_PERSIST_TYPE,
         KEY_COMPRESSION_THRESHOLD_BYTES,
         KEY_USE_FIXED_EXECUTOR_SERVICE,
-        KEY_COMPRESSION_MEM_LEVEL
+        KEY_COMPRESSION_MEM_LEVEL,
+        KEY_CHECK_OPTIMIZE_DELAY_MILLIS,
+        KEY_MAX_BYTES_OPTIMIZE_THRESHOLD,
+        KEY_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD,
+        KEY_EMBEDDING_INDEX_NUM_SHARDS,
     };
 
     // Lock needed for all the operations in this class.
@@ -657,6 +666,33 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
     }
 
     @Override
+    public long getCachedCheckOptimizeDelayMillis() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    KEY_CHECK_OPTIMIZE_DELAY_MILLIS, defaultCheckOptimizeDelayMillis());
+        }
+    }
+
+    @Override
+    public long getCachedMaxBytesOptimizeThreshold() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    KEY_MAX_BYTES_OPTIMIZE_THRESHOLD, DEFAULT_MAX_BYTES_OPTIMIZE_THRESHOLD);
+        }
+    }
+
+    @Override
+    public long getCachedMaxDocCountOptimizeThreshold() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getLong(
+                    KEY_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD, DEFAULT_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD);
+        }
+    }
+
+    @Override
     public int getIntegerIndexBucketSplitThreshold() {
         synchronized (mLock) {
             throwIfClosedLocked();
@@ -812,6 +848,15 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             throwIfClosedLocked();
             return mBundleLocked.getInt(
                     KEY_API_CALL_STATS_LIMIT, DEFAULT_ENABLED_API_CALL_STATS_LIMIT);
+        }
+    }
+
+    @Override
+    public int getEmbeddingIndexNumShards() {
+        synchronized (mLock) {
+            throwIfClosedLocked();
+            return mBundleLocked.getInt(
+                    KEY_EMBEDDING_INDEX_NUM_SHARDS, DEFAULT_EMBEDDING_INDEX_NUM_SHARDS);
         }
     }
 
@@ -1090,6 +1135,26 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                             key, properties.getLong(key, defaultPersistDelayMillis()));
                 }
                 break;
+            case KEY_CHECK_OPTIMIZE_DELAY_MILLIS:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key, properties.getLong(key, defaultCheckOptimizeDelayMillis()));
+                }
+                break;
+            case KEY_MAX_BYTES_OPTIMIZE_THRESHOLD:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key,
+                            properties.getLong(key, DEFAULT_MAX_BYTES_OPTIMIZE_THRESHOLD));
+                }
+                break;
+            case KEY_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD:
+                synchronized (mLock) {
+                    mBundleLocked.putLong(
+                            key,
+                            properties.getLong(key, DEFAULT_MAX_DOC_COUNT_OPTIMIZE_THRESHOLD));
+                }
+                break;
             case KEY_ORPHAN_BLOB_TIME_TO_LIVE_MS:
                 synchronized (mLock) {
                     mBundleLocked.putLong(
@@ -1120,6 +1185,12 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             case KEY_COMPRESSION_MEM_LEVEL:
                 synchronized (mLock) {
                     mBundleLocked.putInt(key, properties.getInt(key, defaultCompressionMemLevel()));
+                }
+                break;
+            case KEY_EMBEDDING_INDEX_NUM_SHARDS:
+                synchronized (mLock) {
+                    mBundleLocked.putInt(
+                            key, properties.getInt(key, DEFAULT_EMBEDDING_INDEX_NUM_SHARDS));
                 }
                 break;
             case KEY_BUILD_PROPERTY_EXISTENCE_METADATA_HITS:

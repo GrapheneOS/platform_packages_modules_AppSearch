@@ -15,5 +15,5 @@
  */
 package android.app.appsearch.observer;
 
-/** {@hide} */
+/** @hide */
 parcelable ObserverSpec;

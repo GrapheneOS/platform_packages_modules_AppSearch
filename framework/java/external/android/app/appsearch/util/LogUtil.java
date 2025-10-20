@@ -17,7 +17,10 @@
 package android.app.appsearch.util;
 
 import android.annotation.Size;
+import android.app.appsearch.AppSearchEnvironment;
 import android.app.appsearch.AppSearchEnvironmentFactory;
+import android.os.Build;
+import android.os.Process;
 import android.util.Log;
 
 import org.jspecify.annotations.NonNull;
@@ -29,10 +32,12 @@ import org.jspecify.annotations.Nullable;
  * @hide
  */
 public final class LogUtil {
-    /** Whether to log {@link Log#VERBOSE} and {@link Log#DEBUG} logs. */
-    // TODO(b/232285376): If it becomes possible to detect an eng build, turn this on by default
-    //  for eng builds.
-    public static final boolean DEBUG = false;
+    /**
+     * Whether to log {@link Log#VERBOSE} and {@link Log#DEBUG} logs.
+     *
+     * <p>This is enabled by default for eng builds only.
+     */
+    public static final boolean DEBUG = Build.TYPE.equals("eng");
 
     public static final boolean INFO =
             AppSearchEnvironmentFactory.getEnvironmentInstance().isInfoLoggingEnabled();
@@ -52,6 +57,29 @@ public final class LogUtil {
     private static final int PII_TRACE_LEVEL = 0;
 
     private LogUtil() {}
+
+    /**
+     * Logs a severe error at the Log.e level or higher. The error may also, on some backends, be
+     * reported as a crash or tombstone to an error collecting system.
+     *
+     * @param tag The tag used for logging.
+     * @param msg The log message to print to logcat.
+     * @param tr Optional exception to associate with the log.
+     */
+    public static void criticalError(
+            @NonNull String tag, @NonNull String msg, @Nullable Throwable tr) {
+        // In the system service, Log.wtf messages are reported to the tombstone/crash/system
+        // health aggregation systems. However, on some devices 'wtf' logs may be fatal
+        // (determined by system properties) so avoid using that level on other environments to
+        // avoid crashing apps.
+        if (AppSearchEnvironmentFactory.getEnvironmentInstance().getEnvironment()
+                        == AppSearchEnvironment.FRAMEWORK_ENVIRONMENT
+                && Process.myUid() == Process.SYSTEM_UID) {
+            Log.wtf(tag, msg, tr);
+        } else {
+            Log.e(tag, msg, tr);
+        }
+    }
 
     /** Returns whether piiTrace() is enabled (PII_TRACE_LEVEL > 0). */
     public static boolean isPiiTraceEnabled() {

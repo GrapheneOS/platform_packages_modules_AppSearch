@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// TODO: b/413737868 - Remove annotation and move JobInfo-related tests to a Platform-specific test.
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.contactsindexer;
 
 import static com.android.server.appsearch.contactsindexer.FrameworkContactsIndexerForceUpdateConfig.KEY_CONTACTS_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER;
@@ -65,8 +66,10 @@ import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.indexer.IndexerJobHandler;
+import com.android.server.appsearch.indexer.PersistableBundleSettingsStore;
 import com.android.server.appsearch.stats.AppSearchStatsLog;
 
 import org.junit.After;
@@ -94,18 +97,22 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidJUnit4.class)
 public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBase {
-    private static final JobInfo PERIODIC_JOB_INFO = IndexerMaintenanceService.createJobInfo(
-            ApplicationProvider.getApplicationContext(),
-            ApplicationProvider.getApplicationContext().getUser(),
-            ContactsIndexerMaintenanceConfig.CONTACTS_INDEXER, /* periodic= */
-            true, /* intervalMillis= */
-            ContactsIndexerConfig.DEFAULT_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS);
+    private static final JobInfo PERIODIC_JOB_INFO =
+            FrameworkIndexerMaintenanceService.createJobInfo(
+                    ApplicationProvider.getApplicationContext(),
+                    ApplicationProvider.getApplicationContext().getUser(),
+                    IndexerJobHandler.CONTACTS_INDEXER,
+                    /* periodic= */ true,
+                    /* intervalMillis= */ ContactsIndexerConfig
+                            .DEFAULT_CONTACTS_FULL_UPDATE_INTERVAL_MILLIS);
 
-    private static final JobInfo IMMEDIATE_JOB_INFO = IndexerMaintenanceService.createJobInfo(
-            ApplicationProvider.getApplicationContext(),
-            ApplicationProvider.getApplicationContext().getUser(),
-            ContactsIndexerMaintenanceConfig.CONTACTS_INDEXER, /* periodic= */
-            false, /* intervalMillis= */ -1);
+    private static final JobInfo IMMEDIATE_JOB_INFO =
+            FrameworkIndexerMaintenanceService.createJobInfo(
+                    ApplicationProvider.getApplicationContext(),
+                    ApplicationProvider.getApplicationContext().getUser(),
+                    IndexerJobHandler.CONTACTS_INDEXER,
+                    /* periodic= */ false,
+                    /* intervalMillis= */ -1);
 
     @Rule
     public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
@@ -127,6 +134,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
     private ContactsIndexerConfig mConfigForTest = new TestContactsIndexerConfig();
     private IndexerForceUpdateConfig mForceConfigForTest =
             new TestContactsIndexerForceUpdateConfig();
+    private PersistableBundleSettingsStore mSettingsStore;
 
     @Override
     @Before
@@ -135,7 +143,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
         // Setup the file path to the persisted data
         mContactsDir = new File(mTemporaryFolder.newFolder(), "appsearch/contacts");
-        mSettingsFile = new File(mContactsDir, ContactsIndexerSettings.SETTINGS_FILE_NAME);
+        mContactsDir.mkdirs();
+        mSettingsStore = new PersistableBundleSettingsStore(mContactsDir);
         mInstance =
                 ContactsIndexerUserInstance.createInstance(
                         mContext,
@@ -152,10 +161,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // Wipe the data in AppSearchHelper.DATABASE_NAME.
         AppSearchManager.SearchContext searchContext =
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
-        AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(
-                searchContext).get();
-        SetSchemaRequest setSchemaRequest = new SetSchemaRequest.Builder()
-                .setForceOverride(true).build();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder().setForceOverride(true).build();
         db.setSchemaAsync(setSchemaRequest).get();
         super.tearDown();
     }
@@ -168,8 +177,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             mFakeContactsProvider.setDataQueryDelayMs(dataQueryDelayMs);
             BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
             ThreadPoolExecutor singleThreadedExecutor =
-                    new ThreadPoolExecutor(/*corePoolSize=*/1, /*maximumPoolSize=*/
-                            1, /*KeepAliveTime=*/ 0L, TimeUnit.MILLISECONDS, queue);
+                    new ThreadPoolExecutor(
+                            /* corePoolSize= */ 1,
+                            /* maximumPoolSize= */ 1,
+                            /* KeepAliveTime= */ 0L,
+                            TimeUnit.MILLISECONDS,
+                            queue);
             ContactsIndexerUserInstance instance =
                     ContactsIndexerUserInstance.createInstance(
                             mContext,
@@ -205,23 +218,26 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             }
 
             // The total task count will be increased if there is another delta update scheduled.
-            assertThat(singleThreadedExecutor.getTaskCount()).isEqualTo(
-                    totalTaskAfterFirstDeltaUpdate);
+            assertThat(singleThreadedExecutor.getTaskCount())
+                    .isEqualTo(totalTaskAfterFirstDeltaUpdate);
         } finally {
             mFakeContactsProvider.setDataQueryDelayMs(0);
         }
     }
 
     @Test
-    public void testHandleNotificationDuringUpdate_oneAdditionalUpdateWillBeRun()
-            throws Exception {
+    public void testHandleNotificationDuringUpdate_oneAdditionalUpdateWillBeRun() throws Exception {
         try {
             long dataQueryDelayMs = 5000;
             mFakeContactsProvider.setDataQueryDelayMs(dataQueryDelayMs);
             BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
             ThreadPoolExecutor singleThreadedExecutor =
-                    new ThreadPoolExecutor(/*corePoolSize=*/1, /*maximumPoolSize=*/
-                            1, /*KeepAliveTime=*/ 0L, TimeUnit.MILLISECONDS, queue);
+                    new ThreadPoolExecutor(
+                            /* corePoolSize= */ 1,
+                            /* maximumPoolSize= */ 1,
+                            /* KeepAliveTime= */ 0L,
+                            TimeUnit.MILLISECONDS,
+                            queue);
             ContactsIndexerUserInstance instance =
                     ContactsIndexerUserInstance.createInstance(
                             mContext,
@@ -248,9 +264,9 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             }
             instance.handleDeltaUpdate();
 
-            //The 2nd update won't be scheduled right away.
-            assertThat(singleThreadedExecutor.getTaskCount()).isEqualTo(
-                    totalTaskAfterFirstDeltaUpdate);
+            // The 2nd update won't be scheduled right away.
+            assertThat(singleThreadedExecutor.getTaskCount())
+                    .isEqualTo(totalTaskAfterFirstDeltaUpdate);
 
             // To make sure the 1st update has been finished.
             Thread.sleep(dataQueryDelayMs);
@@ -283,8 +299,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                                 })
                         .get();
         assertThat(isDataDirectoryCreatedSynchronously).isFalse();
-        boolean isDataDirectoryCreatedAsynchronously = mSingleThreadedExecutor.submit(
-                dataDir::exists).get();
+        boolean isDataDirectoryCreatedAsynchronously =
+                mSingleThreadedExecutor.submit(dataDir::exists).get();
         assertThat(isDataDirectoryCreatedAsynchronously).isTrue();
     }
 
@@ -307,7 +323,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 }
             }
         };
-        shim.registerObserverCallback(mContext.getPackageName(),
+        shim.registerObserverCallback(
+                mContext.getPackageName(),
                 new ObserverSpec.Builder().addFilterSchemas("builtin:Person").build(),
                 mSingleThreadedExecutor,
                 callback);
@@ -485,8 +502,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
     @Test
     public void
-    testCp2SyncFirstRun_subsequentRunWithMatchingPeriodicJob_doesNotScheduleFullUpdateJob()
-            throws Exception {
+            testCp2SyncFirstRun_subsequentRunWithMatchingPeriodicJob_doesNotScheduleFullUpdateJob()
+                    throws Exception {
         // Trigger an initial full update.
         executeAndWaitForCompletion(
                 mInstance.doFullUpdateInternalAsync(new CancellationSignal(), mUpdateStats),
@@ -498,7 +515,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         doReturn(PERIODIC_JOB_INFO)
                 .when(mockJobScheduler)
                 .getPendingJob(
-                        ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
                                 + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
@@ -508,8 +525,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
 
     @Test
     public void
-    testCp2SyncFirstRun_subsequentRunWithMatchingImmediateJob_doesNotScheduleFullUpdateJob()
-            throws Exception {
+            testCp2SyncFirstRun_subsequentRunWithMatchingImmediateJob_doesNotScheduleFullUpdateJob()
+                    throws Exception {
         // Trigger an initial full update.
         executeAndWaitForCompletion(
                 mInstance.doFullUpdateInternalAsync(new CancellationSignal(), mUpdateStats),
@@ -521,7 +538,7 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         doReturn(IMMEDIATE_JOB_INFO)
                 .when(mockJobScheduler)
                 .getPendingJob(
-                        ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
                                 + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
@@ -532,8 +549,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CHECK_CONTACTS_INDEXER_UPDATE_JOB_PARAMS)
     @Test
     public void
-    testCp2SyncFirstRun_subsequentRunWithNonMatchingScheduledJob_withCheck_schedulesJob()
-            throws Exception {
+            testCp2SyncFirstRun_subsequentRunWithNonMatchingScheduledJob_withCheck_schedulesJob()
+                    throws Exception {
         // Trigger an initial full update.
         executeAndWaitForCompletion(
                 mInstance.doFullUpdateInternalAsync(new CancellationSignal(), mUpdateStats),
@@ -542,14 +559,14 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
         // Create matching JobInfo but with missing params
-        JobInfo fakeJobInfo = new JobInfo.Builder(PERIODIC_JOB_INFO)
-                .setExtras(new PersistableBundle())
-                .build();
+        JobInfo fakeJobInfo =
+                new JobInfo.Builder(PERIODIC_JOB_INFO).setExtras(new PersistableBundle()).build();
         // Simulate getPendingJob() returning a job with missing params
         doReturn(fakeJobInfo)
                 .when(mockJobScheduler)
-                .getPendingJob(ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
-                        + mContext.getUser().getIdentifier());
+                .getPendingJob(
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                                + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
 
@@ -572,14 +589,14 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
         // Create matching JobInfo but with missing params
-        JobInfo fakeJobInfo = new JobInfo.Builder(PERIODIC_JOB_INFO)
-                .setExtras(new PersistableBundle())
-                .build();
+        JobInfo fakeJobInfo =
+                new JobInfo.Builder(PERIODIC_JOB_INFO).setExtras(new PersistableBundle()).build();
         // Simulate getPendingJob() returning a job with missing params
         doReturn(fakeJobInfo)
                 .when(mockJobScheduler)
-                .getPendingJob(ContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
-                        + mContext.getUser().getIdentifier());
+                .getPendingJob(
+                        FrameworkContactsIndexerMaintenanceConfig.MIN_CONTACTS_INDEXER_JOB_ID
+                                + mContext.getUser().getIdentifier());
 
         mInstance.doCp2SyncFirstRun();
 
@@ -617,8 +634,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 mSingleThreadedExecutor);
 
         // check that delta update set the last contact updated timestamp (but not the previous one)
-        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis).isAtLeast(
-                timeBeforeDeltaChangeNotification);
+        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis)
+                .isAtLeast(timeBeforeDeltaChangeNotification);
         assertThat(mUpdateStats.mPreviousLastContactUpdatedTimeMillis).isEqualTo(0);
 
         // Insert another contact
@@ -630,10 +647,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 mSingleThreadedExecutor);
 
         // check that full update set the previous last contact updated timestamp
-        assertThat(updateStats.mLastContactUpdatedTimeMillis).isAtLeast(
-                mUpdateStats.mLastContactUpdatedTimeMillis);
-        assertThat(updateStats.mPreviousLastContactUpdatedTimeMillis).isEqualTo(
-                mUpdateStats.mLastContactUpdatedTimeMillis);
+        assertThat(updateStats.mLastContactUpdatedTimeMillis)
+                .isAtLeast(mUpdateStats.mLastContactUpdatedTimeMillis);
+        assertThat(updateStats.mPreviousLastContactUpdatedTimeMillis)
+                .isEqualTo(mUpdateStats.mLastContactUpdatedTimeMillis);
     }
 
     @Test
@@ -655,11 +672,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(250);
 
-        PersistableBundle settingsBundle = ContactsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY))
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastDeltaUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
-        assertThat(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY))
+        assertThat(settings.getLastContactUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
         // check stats
         assertThat(mUpdateStats.mUpdateType).isEqualTo(ContactsUpdateStats.DELTA_UPDATE);
@@ -677,14 +693,14 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(mUpdateStats.mTotalContactsToBeDeleted).isEqualTo(0);
         assertThat(mUpdateStats.mContactsDeleteSucceededCount).isEqualTo(0);
         // check timestamps
-        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis).isEqualTo(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis).isLessThan(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactDeletedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY));
+        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis)
+                .isEqualTo(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis)
+                .isLessThan(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis)
+                .isEqualTo(settings.getLastContactUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactDeletedTimeMillis)
+                .isEqualTo(settings.getLastContactDeleteTimestampMillis());
     }
 
     @Test
@@ -721,14 +737,18 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 mSingleThreadedExecutor);
 
         // Delete a few contacts to trigger delta update.
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /* extras= */ null);
 
         executeAndWaitForCompletion(
                 mInstance.doDeltaUpdateAsync(/* indexingLimit= */ -1, mUpdateStats),
@@ -740,11 +760,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(contactIds.size()).isEqualTo(6);
         assertThat(contactIds).containsNoneOf("2", "3", "5", "7");
 
-        PersistableBundle settingsBundle = ContactsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY))
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastDeltaUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
-        assertThat(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY))
+        assertThat(settings.getLastContactDeleteTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
         // check stats
         assertThat(mUpdateStats.mUpdateType).isEqualTo(ContactsUpdateStats.DELTA_UPDATE);
@@ -762,14 +781,14 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(mUpdateStats.mTotalContactsToBeDeleted).isEqualTo(4);
         assertThat(mUpdateStats.mContactsDeleteSucceededCount).isEqualTo(4);
         // check timestamps
-        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis).isEqualTo(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis).isLessThan(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactDeletedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY));
+        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis)
+                .isEqualTo(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis)
+                .isLessThan(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis)
+                .isEqualTo(settings.getLastContactUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactDeletedTimeMillis)
+                .isEqualTo(settings.getLastContactDeleteTimestampMillis());
     }
 
     @Test
@@ -783,14 +802,18 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         }
 
         // Delete a few contacts to trigger delta update.
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /* extras= */ null);
 
         mUpdateStats.clear();
         executeAndWaitForCompletion(
@@ -803,14 +826,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(contactIds.size()).isEqualTo(6);
         assertThat(contactIds).containsNoneOf("2", "3", "5", "7");
 
-        PersistableBundle settingsBundle = ContactsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY))
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastDeltaUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
-        assertThat(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY))
+        assertThat(settings.getLastContactUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
-        assertThat(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY))
+        assertThat(settings.getLastContactDeleteTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
         // check stats
         assertThat(mUpdateStats.mUpdateType).isEqualTo(ContactsUpdateStats.DELTA_UPDATE);
@@ -830,14 +851,14 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(mUpdateStats.mTotalContactsToBeDeleted).isEqualTo(4);
         assertThat(mUpdateStats.mContactsDeleteSucceededCount).isEqualTo(0);
         // check timestamps
-        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis).isEqualTo(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis).isLessThan(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactDeletedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY));
+        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis)
+                .isEqualTo(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis)
+                .isLessThan(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis)
+                .isEqualTo(settings.getLastContactUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactDeletedTimeMillis)
+                .isEqualTo(settings.getLastContactDeleteTimestampMillis());
     }
 
     @Test
@@ -858,14 +879,18 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
         // Delete a few contacts to trigger delta update.
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /* extras= */ null);
 
         mUpdateStats.clear();
         executeAndWaitForCompletion(
@@ -878,14 +903,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(contactIds.size()).isEqualTo(11);
         assertThat(contactIds).containsNoneOf("2", "3", "5", "7");
 
-        PersistableBundle settingsBundle = ContactsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY))
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastDeltaUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
-        assertThat(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY))
+        assertThat(settings.getLastContactUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
-        assertThat(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY))
+        assertThat(settings.getLastContactDeleteTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
         // check stats
         assertThat(mUpdateStats.mUpdateType).isEqualTo(ContactsUpdateStats.DELTA_UPDATE);
@@ -904,14 +927,14 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(mUpdateStats.mTotalContactsToBeDeleted).isEqualTo(4);
         assertThat(mUpdateStats.mContactsDeleteSucceededCount).isEqualTo(4);
         // check timestamps
-        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis).isEqualTo(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis).isLessThan(settingsBundle.getLong(
-                ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY));
-        assertThat(mUpdateStats.mLastContactDeletedTimeMillis).isEqualTo(
-                settingsBundle.getLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY));
+        assertThat(mUpdateStats.mUpdateAndDeleteStartTimeMillis)
+                .isEqualTo(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastDeltaUpdateStartTimeMillis)
+                .isLessThan(settings.getLastDeltaUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactUpdatedTimeMillis)
+                .isEqualTo(settings.getLastContactUpdateTimestampMillis());
+        assertThat(mUpdateStats.mLastContactDeletedTimeMillis)
+                .isEqualTo(settings.getLastContactDeleteTimestampMillis());
     }
 
     // This test tests whether a full update job will be run to prune the person corpus when
@@ -940,21 +963,16 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         long timeAtBeginning = System.currentTimeMillis();
 
         // Configure the timestamps to non-zero on disk.
-        PersistableBundle settingsBundle = new PersistableBundle();
-        settingsBundle.putLong(
-                ContactsIndexerSettings.LAST_FULL_UPDATE_TIMESTAMP_KEY, timeAtBeginning);
-        settingsBundle.putLong(
-                ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY, timeAtBeginning);
-        settingsBundle.putLong(
-                ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY, timeAtBeginning);
-        mSettingsFile.getParentFile().mkdirs();
-        mSettingsFile.createNewFile();
-        ContactsIndexerSettings.writeBundle(mSettingsFile, settingsBundle);
+        ContactsIndexerSettings initialSettings = new ContactsIndexerSettings();
+        initialSettings.setLastFullUpdateTimestampMillis(timeAtBeginning);
+        initialSettings.setLastContactUpdateTimestampMillis(timeAtBeginning);
+        initialSettings.setLastContactDeleteTimestampMillis(timeAtBeginning);
+        mSettingsStore.persist(initialSettings);
         // Preset a compatible schema.
         AppSearchManager.SearchContext searchContext =
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
-        AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(
-                searchContext).get();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
         SetSchemaRequest setSchemaRequest =
                 new SetSchemaRequest.Builder()
                         .addSchemas(
@@ -990,16 +1008,11 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         long timeBeforeDeltaChangeNotification = System.currentTimeMillis();
 
         // Configure the timestamps to non-zero on disk.
-        PersistableBundle settingsBundle = new PersistableBundle();
-        settingsBundle.putLong(ContactsIndexerSettings.LAST_FULL_UPDATE_TIMESTAMP_KEY,
-                timeBeforeDeltaChangeNotification);
-        settingsBundle.putLong(ContactsIndexerSettings.LAST_CONTACT_UPDATE_TIMESTAMP_KEY,
-                timeBeforeDeltaChangeNotification);
-        settingsBundle.putLong(ContactsIndexerSettings.LAST_CONTACT_DELETE_TIMESTAMP_KEY,
-                timeBeforeDeltaChangeNotification);
-        mSettingsFile.getParentFile().mkdirs();
-        mSettingsFile.createNewFile();
-        ContactsIndexerSettings.writeBundle(mSettingsFile, settingsBundle);
+        ContactsIndexerSettings initialSettings = new ContactsIndexerSettings();
+        initialSettings.setLastFullUpdateTimestampMillis(timeBeforeDeltaChangeNotification);
+        initialSettings.setLastContactUpdateTimestampMillis(timeBeforeDeltaChangeNotification);
+        initialSettings.setLastContactDeleteTimestampMillis(timeBeforeDeltaChangeNotification);
+        mSettingsStore.persist(initialSettings);
         // Insert contacts
         int docCount = 250;
         ContentResolver resolver = mContext.getContentResolver();
@@ -1010,8 +1023,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // Preset an incompatible schema.
         AppSearchManager.SearchContext searchContext =
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
-        AppSearchSessionShim db = AppSearchSessionShimImpl.createSearchSessionAsync(
-                searchContext).get();
+        AppSearchSessionShim db =
+                AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
         SetSchemaRequest setSchemaRequest =
                 new SetSchemaRequest.Builder()
                         .addSchemas(
@@ -1076,10 +1089,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         for (int i = 0; i < 10; i++) {
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /* extras= */ null);
 
         executeAndWaitForCompletion(
                 mInstance.doDeltaUpdateAsync(ContactsProviderUtil.UPDATE_LIMIT_NONE, mUpdateStats),
@@ -1107,10 +1122,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         for (int i = 0; i < 10; i++) {
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /* extras= */ null);
         long presentUpdateTimestamp =
                 mFakeContactsProvider.getMostRecentContactUpdateTimestampMillis();
         long presentDeleteTimestamp =
@@ -1132,10 +1149,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(contactIds.size()).isEqualTo(16);
 
         // Verify the deltas timestamps were updated to the present timestamps
-        assertThat(settings.getLastContactUpdateTimestampMillis()).isEqualTo(
-                presentUpdateTimestamp);
-        assertThat(settings.getLastContactDeleteTimestampMillis()).isEqualTo(
-                presentDeleteTimestamp);
+        assertThat(settings.getLastContactUpdateTimestampMillis())
+                .isEqualTo(presentUpdateTimestamp);
+        assertThat(settings.getLastContactDeleteTimestampMillis())
+                .isEqualTo(presentDeleteTimestamp);
 
         // Verify the full update job was scheduled due to inconsistent timestamps
         verify(mockJobScheduler).schedule(any());
@@ -1154,10 +1171,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         for (int i = 0; i < 10; i++) {
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 2),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 3),
+                /* extras= */ null);
         long futureUpdateTimestamp =
                 mFakeContactsProvider.getMostRecentContactUpdateTimestampMillis();
         long futureDeleteTimestamp =
@@ -1186,10 +1205,12 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         for (int i = 0; i < 10; i++) {
             resolver.insert(ContactsContract.Contacts.CONTENT_URI, dummyValues);
         }
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
-                /*extras=*/ null);
-        resolver.delete(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
-                /*extras=*/ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 5),
+                /* extras= */ null);
+        resolver.delete(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, 7),
+                /* extras= */ null);
 
         JobScheduler mockJobScheduler = mock(JobScheduler.class);
         mContext.setJobScheduler(mockJobScheduler);
@@ -1250,10 +1271,13 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                                 Mockito.anyLong(),
                                 Mockito.anyBoolean()));
 
-        assertThat(updateStatusArr.getValue()).asList().containsExactly(
-                AppSearchResult.RESULT_UNKNOWN_ERROR, AppSearchResult.RESULT_OUT_OF_SPACE);
-        assertThat(deleteStatusArr.getValue()).asList().containsExactly(
-                AppSearchResult.RESULT_INTERNAL_ERROR);
+        assertThat(updateStatusArr.getValue())
+                .asList()
+                .containsExactly(
+                        AppSearchResult.RESULT_UNKNOWN_ERROR, AppSearchResult.RESULT_OUT_OF_SPACE);
+        assertThat(deleteStatusArr.getValue())
+                .asList()
+                .containsExactly(AppSearchResult.RESULT_INTERNAL_ERROR);
     }
 
     @Test
@@ -1285,8 +1309,8 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         List<String> contactIds = searchHelper.getAllContactIdsAsync().get();
         assertThat(contactIds.size()).isEqualTo(250);
 
-        PersistableBundle settingsBundle = ContactsIndexerSettings.readBundle(mSettingsFile);
-        assertThat(settingsBundle.getLong(ContactsIndexerSettings.LAST_DELTA_UPDATE_TIMESTAMP_KEY))
+        ContactsIndexerSettings settings = mInstance.getSettings();
+        assertThat(settings.getLastDeltaUpdateTimestampMillis())
                 .isAtLeast(timeBeforeDeltaChangeNotification);
 
         // check stats
@@ -1299,8 +1323,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         assertThat(mUpdateStats.mContactsDeleteFailedCount).isEqualTo(0);
         assertThat(mUpdateStats.mContactsDeleteNotFoundCount).isEqualTo(0);
         assertThat(mUpdateStats.mTotalContactsToBeUpdated).isEqualTo(250);
-        assertThat(mUpdateStats.mContactsUpdateSucceededCount
-                + mUpdateStats.mContactsUpdateSkippedCount).isEqualTo(250);
+        assertThat(
+                        mUpdateStats.mContactsUpdateSucceededCount
+                                + mUpdateStats.mContactsUpdateSkippedCount)
+                .isEqualTo(250);
         assertThat(mUpdateStats.mTotalContactsToBeDeleted).isEqualTo(0);
         assertThat(mUpdateStats.mContactsDeleteSucceededCount).isEqualTo(0);
 
@@ -1314,8 +1340,10 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
         // NOT_FOUND does not count as error.
         assertThat(updateStats.mContactsDeleteFailedCount).isEqualTo(0);
         assertThat(updateStats.mTotalContactsToBeUpdated).isEqualTo(250);
-        assertThat(updateStats.mContactsUpdateSucceededCount
-                + updateStats.mContactsUpdateSkippedCount).isEqualTo(250);
+        assertThat(
+                        updateStats.mContactsUpdateSucceededCount
+                                + updateStats.mContactsUpdateSkippedCount)
+                .isEqualTo(250);
         assertThat(updateStats.mTotalContactsToBeDeleted).isEqualTo(0);
         assertThat(updateStats.mContactsDeleteSucceededCount).isEqualTo(0);
     }

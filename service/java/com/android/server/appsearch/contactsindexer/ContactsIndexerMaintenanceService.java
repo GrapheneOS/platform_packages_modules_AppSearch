@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch.contactsindexer;
 
-import com.android.server.appsearch.indexer.IndexerMaintenanceService;
+import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 
 /**
  * A copy of IndexerMaintenanceService
@@ -25,4 +25,4 @@ import com.android.server.appsearch.indexer.IndexerMaintenanceService;
  * the proper permissions in core/res/AndroidManifest.xml. IndexerMaintenanceService does not have
  * the proper permissions on T.
  */
-public class ContactsIndexerMaintenanceService extends IndexerMaintenanceService {}
+public class ContactsIndexerMaintenanceService extends FrameworkIndexerMaintenanceService {}

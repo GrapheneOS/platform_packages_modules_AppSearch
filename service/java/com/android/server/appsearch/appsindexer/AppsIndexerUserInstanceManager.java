@@ -96,10 +96,16 @@ public final class AppsIndexerUserInstanceManager {
                         AppSearchEnvironmentFactory.getEnvironmentInstance();
                 Context userContext = appSearchEnvironment.createContextAsUser(context, userHandle);
                 File appSearchDir = appSearchEnvironment.getAppSearchDir(userContext, userHandle);
-                File appsDir = new File(appSearchDir, APPS_DIR);
+                File appsDir =
+                        AppSearchEnvironmentFactory.getEnvironmentInstance()
+                                .getFile(appSearchDir, APPS_DIR);
                 instance =
                         AppsIndexerUserInstance.createInstance(
-                                userContext, appsDir, config, forceUpdateConfig);
+                                userContext,
+                                userContext.getUser(),
+                                appsDir,
+                                config,
+                                forceUpdateConfig);
                 instance.startAsync();
                 if (LogUtil.DEBUG) {
                     Log.d(TAG, "Created Apps Indexer instance for user " + userHandle);

@@ -825,3 +825,82 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_embedding_iterator_v2"
+    namespace: "appsearch"
+    description: "Enable new version of the embedding iterator which has a more efficient access pattern."
+    bug: "435005853"
+}
+
+flag {
+    name: "enable_reusable_decompression_buffer"
+    namespace: "appsearch"
+    description: "Enable portable-file-backed-proto-log maintaining a buffer for decompression rather than allocating new ones."
+    bug: "435754056"
+}
+
+flag {
+    name: "enable_throttling_check_optimize_info"
+    namespace: "appsearch"
+    description: "Reduces the number of times we check optimize info."
+    bug: "435251329"
+}
+
+flag {
+    name: "enable_schema_type_id_optimization"
+    namespace: "appsearch"
+    description: "When enabled, the type-ids of existing types will be preserved when possible."
+    bug: "434218554"
+}
+
+flag {
+    name: "enable_apps_indexer_multilingual_names"
+    namespace: "appsearch"
+    description: "Gets labels across all languages for an app and adds them to alternate names"
+    bug: "441550876"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_apps_indexer_platform_logger"
+    namespace: "appsearch"
+    description: "Logs AppUpdateStats from PlatformLogger after calling shouldLogForTypeLocked."
+    bug: "413737868"
+}
+
+flag {
+    name: "disable_action_package_removed_pruning"
+    namespace: "appsearch"
+    description: "Kill switch to stop handling action_package_removed intents with REPLACING and DATA_REMOVED as package uninstalls."
+    bug: "443737331"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_sharded_embedding_storage"
+    namespace: "appsearch"
+    description: "Enables sharded embedding storage, which separates embeddings with different model signatures, dimensions, or schema types into different files."
+    bug: "436237337"
+}
+
+flag {
+    name: "enable_directly_write_commit_remove_blob_response"
+    namespace: "appsearch"
+    description: "Enable directly write data to parcel data for remove and commit blob"
+    bug: "444290368"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_proto_indexer_settings_storage"
+    namespace: "appsearch"
+    description: "Persist indexer settings as a proto using AtomicFile"
+    bug: "413737868"
+}

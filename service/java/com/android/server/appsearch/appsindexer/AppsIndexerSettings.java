@@ -16,86 +16,61 @@
 
 package com.android.server.appsearch.appsindexer;
 
-import static com.android.server.appsearch.appsindexer.AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Build;
 
-import com.android.server.appsearch.indexer.IndexerSettings;
+import com.android.server.appsearch.indexer.BaseSettings;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
-import java.util.Objects;
 
 /**
- * Apps indexer settings backed by a PersistableBundle.
+ * Holds settings and persistent state for AppsIndexer.
  *
- * <p>Holds settings such as:
- *
- * <ul>
- *   <li>the timestamp of the last full update
- *   <li>the timestamp of the last apps update
- * </ul>
+ * <p>This class is NOT thread safe.
  */
-public class AppsIndexerSettings extends IndexerSettings {
-    static final String SETTINGS_FILE_NAME = "apps_indexer_settings.pb";
-    static final String LAST_APP_UPDATE_TIMESTAMP_KEY = "last_app_update_timestamp_millis";
+public class AppsIndexerSettings extends BaseSettings {
 
-    static final String PREVIOUS_APP_INDEXER_VERSION_CODE = "previous_app_indexer_version_code";
-
-    private static final String LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME =
-            "last_partitions_fingerprint_sorted_by_partition_name";
-
-    private static final String LOG_LINES_KEY = "log_lines";
     private static final int MAX_LOG_LINES = 15;
     private static final int MAX_LOG_LENGTH = 10_000;
 
-    private static final String PREVIOUS_LOCALE_CODE = "previous_locale_code";
+    // A rolling log of the most recent indexing operations for debugging.
+    private final Deque<String> mLogLines = new ArrayDeque<>();
 
-    private final Deque<String> mLogLines;
+    private long mLastAppUpdateTimestampMillis;
+    private int mPreviousIndexerVersionCode;
+    private String[] mLastPartitionFingerprints;
+    private String mPreviousLocaleCode;
 
-    public AppsIndexerSettings(@NonNull File baseDir) {
-        super(baseDir);
-        mLogLines = new ArrayDeque<>(MAX_LOG_LINES);
-        String[] storedLogLines = mBundle.getStringArray(LOG_LINES_KEY);
-        if (storedLogLines != null) {
-            for (String line : storedLogLines) {
-                mLogLines.offerLast(line);
-            }
-        }
-    }
-
-    @Override
-    protected String getSettingsFileName() {
-        return SETTINGS_FILE_NAME;
+    public AppsIndexerSettings() {
+        // Set explicit default values for all fields.
+        reset();
     }
 
     /** Returns the timestamp of when the last app was updated in milliseconds. */
     public long getLastAppUpdateTimestampMillis() {
-        return mBundle.getLong(LAST_APP_UPDATE_TIMESTAMP_KEY);
+        return mLastAppUpdateTimestampMillis;
     }
 
     /** Sets the timestamp of when the last app was updated in milliseconds. */
     public void setLastAppUpdateTimestampMillis(long timestampMillis) {
-        mBundle.putLong(LAST_APP_UPDATE_TIMESTAMP_KEY, timestampMillis);
+        mLastAppUpdateTimestampMillis = timestampMillis;
     }
 
     /** Returns the version code of AppSearch module that previously indexed the apps. */
     @AppIndexerVersions.AppIndexerVersion
     public int getPreviousIndexerVersionCode() {
-        return mBundle.getInt(PREVIOUS_APP_INDEXER_VERSION_CODE, APP_INDEXER_VERSION_UNKNOWN);
+        return mPreviousIndexerVersionCode;
     }
 
     /** Sets the version code of App Indexer that previously indexed the apps. */
     public void setPreviousIndexerVersionCode(
             @AppIndexerVersions.AppIndexerVersion int versionCode) {
-        mBundle.putInt(PREVIOUS_APP_INDEXER_VERSION_CODE, versionCode);
+        mPreviousIndexerVersionCode = versionCode;
     }
 
     /**
@@ -104,13 +79,16 @@ public class AppsIndexerSettings extends IndexerSettings {
      * last indexer run.
      */
     @Nullable
-    public String[] getLastPartitionFingerprintsSortedByPartitionName() {
-        return mBundle.getStringArray(LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME);
+    public String[] getLastPartitionFingerprints() {
+        return mLastPartitionFingerprints;
     }
 
     /**
-     * Stores the fingerprints of all partitions as a string array sorted by {@link
-     * Build.Partition#getName()}.
+     * Sets the stored fingerprint partitions sorted by {@link Build.Partition#getName()} returned
+     * by {@link Build#getFingerprintedPartitions()} from the last indexer run.
+     *
+     * @param fingerprintedPartitions The list of partitions to extract fingerprints from. The
+     *     caller is responsible for ensuring this list is sorted.
      */
     public void setLastPartitionFingerprintsSortedByPartitionName(
             @NonNull List<Build.Partition> fingerprintedPartitions) {
@@ -118,17 +96,39 @@ public class AppsIndexerSettings extends IndexerSettings {
         for (int i = 0; i < fingerprintedPartitions.size(); ++i) {
             fingerprints[i] = fingerprintedPartitions.get(i).getFingerprint();
         }
-        mBundle.putStringArray(LAST_PARTITIONS_FINGERPRINT_SORTED_BY_PARTITION_NAME, fingerprints);
+        setLastPartitionFingerprints(fingerprints);
     }
 
-    /** Get the locale code of the previous apps indexer run. */
+    /**
+     * Sets the stored fingerprint strings for partitions sorted by {@link
+     * Build.Partition#getName()} returned by {@link Build#getFingerprintedPartitions()} from the
+     * last indexer run.
+     */
+    public void setLastPartitionFingerprints(@Nullable String[] fingerprints) {
+        mLastPartitionFingerprints = fingerprints;
+    }
+
+    /** Returns the locale code of the previous apps indexer run. */
+    @NonNull
     public String getPreviousLocaleCode() {
-        return mBundle.getString(PREVIOUS_LOCALE_CODE);
+        return mPreviousLocaleCode;
     }
 
     /** Sets the locale code of the most recent apps indexer run. */
     public void setPreviousLocaleCode(@NonNull String localeCode) {
-        mBundle.putString(PREVIOUS_LOCALE_CODE, Objects.requireNonNull(localeCode));
+        mPreviousLocaleCode = localeCode;
+    }
+
+    /** Returns the current log messages. */
+    @NonNull
+    public Collection<String> getLogLines() {
+        return Collections.unmodifiableCollection(mLogLines);
+    }
+
+    /** Sets the current log messages. */
+    public void setLogLines(@NonNull Deque<String> logLines) {
+        mLogLines.clear();
+        mLogLines.addAll(logLines);
     }
 
     /** Appends a log message to the settings log. */
@@ -145,25 +145,14 @@ public class AppsIndexerSettings extends IndexerSettings {
         }
     }
 
-    /** Returns the current log messages. */
-    @NonNull
-    public Collection<String> getLogLines() {
-        return Collections.unmodifiableCollection(mLogLines);
-    }
-
-    /** Resets all settings to default values except {@link #getPreviousIndexerVersionCode()}. */
+    /** Resets all settings to default values. */
     @Override
     public void reset() {
         super.reset();
-        setLastAppUpdateTimestampMillis(0);
-        setPreviousIndexerVersionCode(APP_INDEXER_VERSION_UNKNOWN);
+        mLastAppUpdateTimestampMillis = 0L;
+        mPreviousIndexerVersionCode = AppIndexerVersions.APP_INDEXER_VERSION_UNKNOWN;
+        mLastPartitionFingerprints = null;
+        mPreviousLocaleCode = "";
         mLogLines.clear();
-        mBundle.remove(LOG_LINES_KEY);
-    }
-
-    @Override
-    public void persist() throws IOException {
-        mBundle.putStringArray(LOG_LINES_KEY, mLogLines.toArray(new String[0]));
-        super.persist();
     }
 }

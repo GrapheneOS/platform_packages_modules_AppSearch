@@ -221,8 +221,12 @@ public final class AppSearchBatchResultParcelV2<KeyType, ValueType> extends Abst
             valueAppSearchResultBundle.putParcelable(String.valueOf(i), valueAppSearchResultParcel);
             ++i;
         }
+        int mode = WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB;
+        if (Flags.enableDirectlyWriteCommitRemoveBlobResponse()) {
+            mode = WRITE_PARCEL_MODE_DIRECTLY_WRITE_TO_PARCEL;
+        }
         return new AppSearchBatchResultParcelV2<>(
-                WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB,
+                mode,
                 AppSearchBlobHandle.class.getName(),
                 keyAppSearchResultBundle,
                 valueAppSearchResultBundle);
@@ -269,6 +273,8 @@ public final class AppSearchBatchResultParcelV2<KeyType, ValueType> extends Abst
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mWriteParcelModel);
         switch (mWriteParcelModel) {
+            // Never use this mode if this AppSearchBatchResultParcelV2 is wrapped in a
+            // AppSearchResultParcelV2
             case WRITE_PARCEL_MODE_MARSHALL_WRITE_IN_BLOB:
                 byte[] bytes;
                 // Create a parcel object to serialize results. So that we can use

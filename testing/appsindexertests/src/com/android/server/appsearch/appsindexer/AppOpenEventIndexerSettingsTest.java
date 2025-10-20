@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import com.android.server.appsearch.indexer.SettingsStore;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -25,29 +27,33 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-public class AppOpenEventIndexerSettingsTest {
+public abstract class AppOpenEventIndexerSettingsTest {
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
     private AppOpenEventIndexerSettings mAppOpenEventIndexerSettings;
+    private SettingsStore mSettingsStore;
+
+    protected abstract SettingsStore createSettingsStore(File baseDirectory);
 
     @Before
     public void setUp() throws IOException {
         // Create a test folder for each test
         File baseDirectory = mTemporaryFolder.newFolder("testAppOpenEventIndexerSettings");
-        mAppOpenEventIndexerSettings = new AppOpenEventIndexerSettings(baseDirectory);
+        mAppOpenEventIndexerSettings = new AppOpenEventIndexerSettings();
+        mSettingsStore = createSettingsStore(baseDirectory);
     }
 
     @Test
     public void testLoadAndPersist() throws IOException {
         // Set some values, persist them, and then load them back
         mAppOpenEventIndexerSettings.setLastUpdateTimestampMillis(123456789L);
-        mAppOpenEventIndexerSettings.persist();
+        mSettingsStore.persist(mAppOpenEventIndexerSettings);
 
         // Reset the settings to ensure loading happens from the file
         mAppOpenEventIndexerSettings.setLastUpdateTimestampMillis(0);
 
-        mAppOpenEventIndexerSettings.load();
+        mSettingsStore.loadInto(mAppOpenEventIndexerSettings);
         Assert.assertEquals(
                 123456789L, mAppOpenEventIndexerSettings.getLastUpdateTimestampMillis());
     }

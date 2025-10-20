@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.appsearch.testutil.FakeAppSearchConfig;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import com.android.appsearch.flags.Flags;
@@ -39,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 public class ServiceOptimizeStrategyTest {
     ServiceAppSearchConfig mAppSearchConfig = new FakeAppSearchConfig();
     ServiceOptimizeStrategy mServiceOptimizeStrategy =
-            new ServiceOptimizeStrategy(mAppSearchConfig);
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ false);
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
     @Test
@@ -215,5 +216,155 @@ public class ServiceOptimizeStrategyTest {
                         .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
                         .build();
         assertThat(mServiceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldOptimize_aboveMaxDocCount() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ true);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(
+                            mAppSearchConfig.getCachedMaxDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldOptimizeNotVm_aboveMaxDocCount() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ false);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(
+                            mAppSearchConfig.getCachedMaxDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldOptimizeForVm_aboveMaxDocCount() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ true);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(
+                            mAppSearchConfig.getCachedMaxDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldNotOptimizeForNotVm_aboveMaxDocCount() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ false);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedBytesOptimizeThreshold())
+                        .setOptimizableDocs(
+                            mAppSearchConfig.getCachedMaxDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldOptimize_aboveMaxBytes() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ true);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedMaxBytesOptimizeThreshold())
+                        .setOptimizableDocs(
+                            mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldOptimizeNotVm_aboveMaxBytes() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ false);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedMaxBytesOptimizeThreshold())
+                        .setOptimizableDocs(
+                            mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldOptimizeForVm_aboveMaxBytes() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ true);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedMaxBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_THROTTLING_CHECK_OPTIMIZE_INFO)
+    public void testShouldNotOptimizeNotVm_aboveMaxBytes() {
+        ServiceOptimizeStrategy serviceOptimizeStrategy =
+            new ServiceOptimizeStrategy(mAppSearchConfig, /* isVmEnabledForUser= */ false);
+        GetOptimizeInfoResultProto optimizeInfo =
+                GetOptimizeInfoResultProto.newBuilder()
+                        .setTimeSinceLastOptimizeMs(
+                                mAppSearchConfig.getCachedMinTimeOptimizeThresholdMs() - 1)
+                        .setEstimatedOptimizableBytes(
+                                mAppSearchConfig.getCachedMaxBytesOptimizeThreshold())
+                        .setOptimizableDocs(mAppSearchConfig.getCachedDocCountOptimizeThreshold())
+                        .setStatus(StatusProto.newBuilder().setCode(StatusProto.Code.OK).build())
+                        .build();
+
+        assertThat(serviceOptimizeStrategy.shouldOptimize(optimizeInfo)).isFalse();
     }
 }

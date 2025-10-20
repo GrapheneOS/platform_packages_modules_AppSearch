@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// @exportToGMSCore:skipFile()
 package com.android.server.appsearch;
 
 import android.annotation.NonNull;
@@ -21,6 +21,8 @@ import android.content.Context;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityChecker;
+import com.android.server.appsearch.indexer.FrameworkIndexerJobHandler;
+import com.android.server.appsearch.indexer.IndexerJobHandler;
 import com.android.server.appsearch.stats.PlatformLogger;
 import com.android.server.appsearch.visibilitystore.VisibilityCheckerImpl;
 
@@ -29,6 +31,7 @@ import java.util.concurrent.Executor;
 /** This is a factory class for implementations needed based on environment for service code. */
 public final class AppSearchComponentFactory {
     private static volatile ServiceAppSearchConfig sConfigInstance;
+    private static volatile IndexerJobHandler sIndexerJobHandlerInstance;
 
     /** Gets an instance of ServiceAppSearchConfig for the given executor. */
     public static ServiceAppSearchConfig getConfigInstance(
@@ -61,6 +64,21 @@ public final class AppSearchComponentFactory {
 
     public static VisibilityChecker createVisibilityCheckerInstance(@NonNull Context context) {
         return new VisibilityCheckerImpl(context);
+    }
+
+    /** Gets an instance of the environment-specific IndexerJobHandler. */
+    @NonNull
+    public static IndexerJobHandler getIndexerJobHandlerInstance() {
+        IndexerJobHandler localRef = sIndexerJobHandlerInstance;
+        if (localRef == null) {
+            synchronized (AppSearchComponentFactory.class) {
+                localRef = sIndexerJobHandlerInstance;
+                if (localRef == null) {
+                    sIndexerJobHandlerInstance = localRef = new FrameworkIndexerJobHandler();
+                }
+            }
+        }
+        return localRef;
     }
 
     private AppSearchComponentFactory() {}
