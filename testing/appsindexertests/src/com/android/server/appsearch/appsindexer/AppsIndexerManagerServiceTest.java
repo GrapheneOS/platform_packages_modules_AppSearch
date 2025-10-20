@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
+import static android.Manifest.permission.READ_DEVICE_CONFIG;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppIndexerSession;
@@ -138,7 +139,9 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         // INTERACT_ACROSS_USERS_FULL: needed when we do registerReceiverForAllUsers for getting
         // package change notifications.
-        mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL);
+        // READ_DEVICE_CONFIG: AppsIndexerManagerService reads from DeviceConfig, which may cause
+        // permission_denied issues on certain test setups without this permission.
+        mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL, READ_DEVICE_CONFIG);
 
         File mAppSearchDir = mTemporaryFolder.newFolder();
         AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
