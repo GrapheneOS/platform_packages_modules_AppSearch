@@ -51,6 +51,7 @@ import androidx.annotation.NonNull;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.sync.SyncGlobalSearchSession;
@@ -100,7 +101,8 @@ public class AppOpenEventIndexerRealDocumentsTest {
     private Context mContextForService;
 
     @Rule public final TemporaryFolder mTemporaryFolder = new TemporaryFolder();
-    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules().around(
+            new TestableDeviceConfig.TestableDeviceConfigRule());
 
     @Before
     public void setUp() throws Exception {

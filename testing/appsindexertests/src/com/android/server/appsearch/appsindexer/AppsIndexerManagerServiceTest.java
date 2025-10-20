@@ -66,6 +66,7 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.appsearch.flags.Flags;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
@@ -91,7 +92,8 @@ import java.util.concurrent.TimeUnit;
 public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
-    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules().around(
+            new TestableDeviceConfig.TestableDeviceConfigRule());
 
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private AppsIndexerManagerService mAppsIndexerManagerService;
