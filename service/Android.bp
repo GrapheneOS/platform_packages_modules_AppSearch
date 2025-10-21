@@ -162,4 +162,7 @@ java_library {
             false: "",
         }),
     },
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
