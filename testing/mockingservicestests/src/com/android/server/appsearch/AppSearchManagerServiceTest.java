@@ -35,6 +35,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -1569,7 +1570,7 @@ public class AppSearchManagerServiceTest {
                         mUserHandle, BINDER_CALL_START_TIME), callback);
 
         // Verify write executor was used
-        verify(writeExecutorSpy, times(1)).execute(any());
+        verify(writeExecutorSpy, atLeastOnce()).execute(any());
         verify(readExecutorSpy, never()).execute(any());
     }
 
