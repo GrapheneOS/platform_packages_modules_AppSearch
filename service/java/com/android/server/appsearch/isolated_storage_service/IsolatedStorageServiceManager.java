@@ -83,6 +83,7 @@ public class IsolatedStorageServiceManager {
             "ro.appsearch.feature.enable_isolated_storage";
     public static final String SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM =
             "ro.enable.nonprotected_appsearch_vm";
+    public static final String SYS_SHUTDOWN_REASON = "sys.shutdown.requested";
     public static final long DEFAULT_MEMORY_BYTES = 79 * 1024 * 1024;
     public static final boolean DEFAULT_ISOLATED_STORAGE_DISABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_MIGRATION_DISABLED = false;
@@ -827,6 +828,10 @@ public class IsolatedStorageServiceManager {
         @Override
         public void binderDied() {
             Log.w(TAG, "binderDied: IsolatedStorageService");
+            if (isValidShutdown()) {
+                Log.i(TAG, "VM initiated valid shutdown request. Not attempting to reconnect");
+                return;
+            }
             mScheduledExecutorService.execute(
                     () -> {
                         synchronized (mLock) {
@@ -841,6 +846,10 @@ public class IsolatedStorageServiceManager {
         @Override
         public void binderDied() {
             Log.w(TAG, "binderDied: VmIsolatedStorageService");
+            if (isValidShutdown()) {
+                Log.i(TAG, "VM initiated valid shutdown request. Not attempting to reconnect");
+                return;
+            }
             mScheduledExecutorService.execute(
                     () -> {
                         synchronized (mLock) {
@@ -853,6 +862,15 @@ public class IsolatedStorageServiceManager {
                         replaceVmIcingInstances();
                     });
         }
+    }
+
+    private boolean isValidShutdown() {
+        String shutdownReason = SystemProperties.get(SYS_SHUTDOWN_REASON);
+        if (shutdownReason != null && !shutdownReason.isEmpty()) {
+            Log.i(TAG, "SHUTDOWN REQUESTED REASON: " + shutdownReason);
+            return true;
+        }
+        return false;
     }
 
     private void replaceVmIcingInstances() {
