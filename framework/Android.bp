@@ -94,6 +94,7 @@ java_sdk_library {
         "//cts/tests/appsearch:__subpackages__",
         "//packages/modules/AppSearch/service:__subpackages__",
         "//packages/modules/AppSearch/testing:__subpackages__",
+        "//vendor:__subpackages__",
     ],
     aconfig_declarations: [
         "appsearch_aconfig_flags",
