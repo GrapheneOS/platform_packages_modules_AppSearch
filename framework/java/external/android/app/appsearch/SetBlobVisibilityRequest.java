@@ -39,9 +39,8 @@ import java.util.Set;
  * surfaces and which are accessible based on specific visibility configurations.
  *
  * @see AppSearchSession#openBlobForWrite
+ * @see GlobalSearchSession#openBlobForRead
  */
-// TODO(b/273591938) linked to GlobalSearchSession when openBlobRead is added there.
-
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
 public class SetBlobVisibilityRequest {
 
