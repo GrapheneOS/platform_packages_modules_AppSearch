@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static android.Manifest.permission.READ_DEVICE_CONFIG;
+
 import static com.android.server.appsearch.appsindexer.FrameworkAppOpenEventIndexerForceUpdateConfig.KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_EMERGENCY_COUNTER;
 import static com.android.server.appsearch.appsindexer.FrameworkAppOpenEventIndexerForceUpdateConfig.KEY_APP_OPEN_EVENT_INDEXER_FORCE_UPDATE_ENABLED;
 import static com.android.server.appsearch.appsindexer.TestUtils.createIndividualUsageEvent;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.annotation.Nullable;
+import android.app.UiAutomation;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.job.JobInfo;
@@ -46,6 +49,7 @@ import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.DeviceConfig;
 
 import androidx.test.core.app.ApplicationProvider;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.TestableDeviceConfig;
@@ -71,6 +75,7 @@ import java.util.concurrent.TimeUnit;
 @RequiresFlagsEnabled(Flags.FLAG_APP_OPEN_EVENT_INDEXER_ENABLED_V2)
 public class AppOpenEventIndexerUserInstanceTest {
     private TestContext mContext;
+    private UiAutomation mUiAutomation;
     private final UsageStatsManager mMockUsageStatsManager = mock(UsageStatsManager.class);
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
@@ -118,6 +123,11 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mContext = new TestContext(context);
 
+        mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        // AppOpenEventUserInstance reads from DeviceConfig for its config settings, which may cause
+        // permission_denied issues on certain test setups without this permission.
+        mUiAutomation.adoptShellPermissionIdentity(READ_DEVICE_CONFIG);
+
         mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
 
         // Setup the file path to the persisted data
@@ -137,6 +147,8 @@ public class AppOpenEventIndexerUserInstanceTest {
     public void tearDown() throws Exception {
         mSingleThreadedExecutor.shutdown();
         mInstance.shutdown();
+
+        mUiAutomation.dropShellPermissionIdentity();
     }
 
     @Test
