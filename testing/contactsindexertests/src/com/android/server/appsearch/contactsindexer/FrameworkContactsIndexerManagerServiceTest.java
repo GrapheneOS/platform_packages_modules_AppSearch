@@ -55,6 +55,7 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 
@@ -88,10 +89,9 @@ public class FrameworkContactsIndexerManagerServiceTest extends FakeContactsProv
             new MockLocalManagerRegistry();
 
     @Rule
-    public ExtendedMockitoRule mExtendedMockitoRule =
-            new ExtendedMockitoRule.Builder()
-                    .addStaticMockFixtures(() -> mMockLocalManagerRegistry)
-                    .build();
+    public ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder()
+            .addStaticMockFixtures(() -> mMockLocalManagerRegistry, TestableDeviceConfig::new)
+            .build();
 
     @Override
     @Before

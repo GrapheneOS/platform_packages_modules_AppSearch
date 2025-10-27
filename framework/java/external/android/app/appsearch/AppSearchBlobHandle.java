@@ -17,16 +17,17 @@
 package android.app.appsearch;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.app.appsearch.util.IndentingStringBuilder;
 import android.os.Parcel;
-import android.os.Parcelable;
+import android.os.Parcelable.Creator;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.util.Preconditions;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -53,15 +54,13 @@ import java.util.Objects;
  * @see GenericDocument.Builder#setPropertyBlobHandle
  */
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "AppSearchBlobHandleCreator")
 public final class AppSearchBlobHandle extends AbstractSafeParcelable {
     /** The length of the SHA-256 digest in bytes. SHA-256 produces a 256-bit (32-byte) digest. */
     private static final int SHA_256_DIGEST_BYTE_LENGTH = 32;
 
-    @NonNull
-    public static final Parcelable.Creator<AppSearchBlobHandle> CREATOR =
+    public static final @NonNull Creator<AppSearchBlobHandle> CREATOR =
             new AppSearchBlobHandleCreator();
 
     @Field(id = 1, getter = "getSha256Digest")

@@ -16,14 +16,15 @@
 package android.app.appsearch;
 
 import android.annotation.FlaggedApi;
-import android.annotation.NonNull;
 import android.app.appsearch.aidl.AppSearchBatchResultParcelV2;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
 import android.os.Parcel;
-import android.os.Parcelable;
+import android.os.Parcelable.Creator;
 
 import com.android.appsearch.flags.Flags;
+
+import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -34,12 +35,11 @@ import java.util.Objects;
  * handles.
  */
 @FlaggedApi(Flags.FLAG_ENABLE_BLOB_STORE)
-// TODO(b/384721898): Switch to JSpecify annotations
-@SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
+@SuppressWarnings("HiddenSuperclass")
 @SafeParcelable.Class(creator = "CommitBlobResponseCreator")
 public final class CommitBlobResponse extends AbstractSafeParcelable {
 
-    public static final @NonNull Parcelable.Creator<CommitBlobResponse> CREATOR =
+    public static final @NonNull Creator<CommitBlobResponse> CREATOR =
             new CommitBlobResponseCreator();
 
     @Field(id = 1, getter = "getResponseParcel")
@@ -52,8 +52,8 @@ public final class CommitBlobResponse extends AbstractSafeParcelable {
 
     @Constructor
     CommitBlobResponse(
-            @Param(id = 1) @NonNull
-                    AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> resultParcel) {
+            @Param(id = 1)
+                    @NonNull AppSearchBatchResultParcelV2<AppSearchBlobHandle, Void> resultParcel) {
         mResultParcel = Objects.requireNonNull(resultParcel);
     }
 

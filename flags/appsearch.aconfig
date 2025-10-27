@@ -904,3 +904,10 @@ flag {
     description: "Persist indexer settings as a proto using AtomicFile"
     bug: "413737868"
 }
+
+flag {
+    name: "enable_schedule_maintenance_job"
+    namespace: "appsearch"
+    description: "Enables schedule the appsearch maintenance job in the job scheduler service."
+    bug: "408269409"
+}

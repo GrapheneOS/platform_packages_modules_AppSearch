@@ -48,5 +48,6 @@ java_plugin {
     generates_api: true,
     visibility: [
         "//packages/modules/AppSearch:__subpackages__",
+        "//vendor:__subpackages__",
     ],
 }

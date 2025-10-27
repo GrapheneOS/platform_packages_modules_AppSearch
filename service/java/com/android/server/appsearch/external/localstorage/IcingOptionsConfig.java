@@ -353,6 +353,7 @@ public interface IcingOptionsConfig {
                         Flags.enableShardedEmbeddingStorage()
                                 ? Math.max(1, getEmbeddingIndexNumShards())
                                 : 1)
+                .setEnableSchemaTypeIdOptimization(Flags.enableSchemaTypeIdOptimization())
                 .build();
     }
 }

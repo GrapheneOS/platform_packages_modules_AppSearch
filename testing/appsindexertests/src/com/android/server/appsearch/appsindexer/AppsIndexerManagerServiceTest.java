@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
+import static android.Manifest.permission.READ_DEVICE_CONFIG;
 import static android.Manifest.permission.RECEIVE_BOOT_COMPLETED;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.createFakeAppIndexerSession;
@@ -66,6 +67,7 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.appsearch.flags.Flags;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
@@ -91,7 +93,8 @@ import java.util.concurrent.TimeUnit;
 public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
-    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules().around(
+            new TestableDeviceConfig.TestableDeviceConfigRule());
 
     private final ExecutorService mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
     private AppsIndexerManagerService mAppsIndexerManagerService;
@@ -138,7 +141,9 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         // INTERACT_ACROSS_USERS_FULL: needed when we do registerReceiverForAllUsers for getting
         // package change notifications.
-        mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL);
+        // READ_DEVICE_CONFIG: AppsIndexerManagerService reads from DeviceConfig, which may cause
+        // permission_denied issues on certain test setups without this permission.
+        mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL, READ_DEVICE_CONFIG);
 
         File mAppSearchDir = mTemporaryFolder.newFolder();
         AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
