@@ -683,13 +683,6 @@ flag {
 }
 
 flag {
-    name: "enable_wiping_out_system_server_data_after_migration"
-    namespace: "appsearch"
-    description: "Enable wiping out old icing directory after data has been migrated to the VM."
-    bug: "422162268"
-}
-
-flag {
     name: "enable_close_appsearch_on_creation_failure"
     namespace: "appsearch"
     description: "Enable closing the instance of AppSearchImpl if we manage to create it, but we fail to fully create the user instance."
