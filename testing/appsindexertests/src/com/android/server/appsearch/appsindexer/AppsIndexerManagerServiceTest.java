@@ -194,7 +194,8 @@ public class AppsIndexerManagerServiceTest extends AppsIndexerTestBase {
         AppSearchSessionShim db = createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
 
         db.setSchemaAsync(new SetSchemaRequest.Builder().setForceOverride(true).build()).get();
-
+        AppSearchEnvironmentFactory.setEnvironmentInstanceForTest(
+                new FrameworkAppSearchEnvironment());
         mUiAutomation.dropShellPermissionIdentity();
         super.tearDown();
     }

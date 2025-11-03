@@ -47,6 +47,7 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.appsearch.flags.Flags;
+import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.SystemService;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 import com.android.server.appsearch.sync.SyncGlobalSearchSession;
@@ -54,7 +55,9 @@ import com.android.server.appsearch.sync.SyncGlobalSearchSessionImpl;
 import com.android.server.appsearch.sync.SyncSearchResults;
 
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -63,6 +66,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class AppsIndexerRealDocumentsTest extends AppsIndexerTestBase {
+    @Rule
+    public final RuleChain mRuleChain =
+            AppSearchTestUtils.createCommonTestRules()
+                    .around(new TestableDeviceConfig.TestableDeviceConfigRule());
+
     @After
     @Override
     public void tearDown() throws Exception {
