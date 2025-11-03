@@ -393,9 +393,6 @@ public final class AppsIndexerImpl implements Closeable {
             return true;
         }
 
-        if (!Flags.enableIndexerRunOnAppFunctionComponentChange()) {
-            return false;
-        }
 
         if (appFunctionServiceResolveInfo == null) {
             // appFunctionServiceResolveInfo being null means the service is disabled/does not

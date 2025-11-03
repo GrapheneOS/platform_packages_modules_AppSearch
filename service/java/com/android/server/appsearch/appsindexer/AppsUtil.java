@@ -480,8 +480,7 @@ public final class AppsUtil {
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
         ResolveInfo appFunctionServiceResolveInfo = resolveInfos.getAppFunctionServiceInfo();
-        if (Flags.enableIndexerRunOnAppFunctionComponentChange()
-                && appFunctionServiceResolveInfo != null) {
+        if (appFunctionServiceResolveInfo != null) {
             builder.setIsAppFunctionServiceEnabled(
                     isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo));
         }

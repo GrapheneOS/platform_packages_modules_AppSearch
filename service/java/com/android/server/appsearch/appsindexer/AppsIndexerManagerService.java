@@ -187,23 +187,21 @@ public final class AppsIndexerManagerService extends SystemService {
                 // If the state of AppFunctionService component is changed within the package,
                 // indexer should be rerun. AppFunctionService component is identified by checking
                 // if it matches the app function intent filter.
-                if (Flags.enableIndexerRunOnAppFunctionComponentChange()) {
-                    Intent appFunctionServiceIntent =
-                            new Intent("android.app.appfunctions.AppFunctionService")
-                                    .setPackage(changedPackage);
-                    // Include disabled components in the query because if this broadcast is
-                    // disabling AppFunctionService, the component may already be disabled and would
-                    // otherwise be skipped
-                    List<ResolveInfo> services =
-                            mContext.getPackageManager()
-                                    .queryIntentServices(
-                                            appFunctionServiceIntent,
-                                            /* flags= */ PackageManager.MATCH_DISABLED_COMPONENTS);
+                Intent appFunctionServiceIntent =
+                        new Intent("android.app.appfunctions.AppFunctionService")
+                                .setPackage(changedPackage);
+                // Include disabled components in the query because if this broadcast is
+                // disabling AppFunctionService, the component may already be disabled and would
+                // otherwise be skipped
+                List<ResolveInfo> services =
+                        mContext.getPackageManager()
+                                .queryIntentServices(
+                                        appFunctionServiceIntent,
+                                        /* flags= */ PackageManager.MATCH_DISABLED_COMPONENTS);
 
-                    for (int j = 0; j < services.size(); j++) {
-                        if (changedComponent.equals(services.get(j).serviceInfo.name)) {
-                            return true;
-                        }
+                for (int j = 0; j < services.size(); j++) {
+                    if (changedComponent.equals(services.get(j).serviceInfo.name)) {
+                        return true;
                     }
                 }
             }
