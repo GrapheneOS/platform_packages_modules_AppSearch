@@ -4153,24 +4153,15 @@ public class AppSearchManagerService extends SystemService {
                 }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
-                if (instance == null || Flags.enableStorageInfoCache()) {
-                    Context userContext =
-                            mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
-                    UserStorageInfo userStorageInfo =
-                            mAppSearchUserInstanceManager
-                                .getOrCreateUserStorageInfoInstance(
-                                    userContext, userHandle);
+                Context userContext =
+                        mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
+                UserStorageInfo userStorageInfo =
+                        mAppSearchUserInstanceManager
+                            .getOrCreateUserStorageInfoInstance(
+                                userContext, userHandle);
 
-                    refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
-                    stats.dataSize += userStorageInfo.getSizeBytesForPackage(packageName);
-                } else {
-                    stats.dataSize +=
-                            instance.getAppSearchImpl()
-                                    .getStorageInfoForPackages(
-                                            new ArraySet<>(Collections.singleton(packageName)),
-                                            /*callStatsBuilder=*/null)
-                                    .getSizeBytes();
-                }
+                refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
+                stats.dataSize += userStorageInfo.getSizeBytesForPackage(packageName);
             } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(
                         TAG,
@@ -4200,25 +4191,17 @@ public class AppSearchManagerService extends SystemService {
                 }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
-                if (instance == null || Flags.enableStorageInfoCache()) {
-                    Context userContext =
-                            mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
-                    UserStorageInfo userStorageInfo =
-                            mAppSearchUserInstanceManager
-                                .getOrCreateUserStorageInfoInstance(
-                                    userContext, userHandle);
+                Context userContext =
+                        mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
+                UserStorageInfo userStorageInfo =
+                        mAppSearchUserInstanceManager
+                            .getOrCreateUserStorageInfoInstance(
+                                userContext, userHandle);
 
-                    refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
-                    for (int i = 0; i < packagesForUid.length; i++) {
-                        stats.dataSize += userStorageInfo.getSizeBytesForPackage(
-                            packagesForUid[i]);
-                    }
-                } else {
-                    Set<String> packageNames = new ArraySet<>(packagesForUid);
-                    stats.dataSize +=
-                            instance.getAppSearchImpl()
-                                .getStorageInfoForPackages(packageNames, /*callStatsBuilder=*/null)
-                                .getSizeBytes();
+                refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
+                for (int i = 0; i < packagesForUid.length; i++) {
+                    stats.dataSize += userStorageInfo.getSizeBytesForPackage(
+                        packagesForUid[i]);
                 }
             } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(TAG, "Unable to augment storage stats for uid " + uid, e);
@@ -4242,33 +4225,15 @@ public class AppSearchManagerService extends SystemService {
                 }
                 AppSearchUserInstance instance =
                         mAppSearchUserInstanceManager.getUserInstanceOrNull(userHandle);
-                if (instance == null || Flags.enableStorageInfoCache()) {
-                    Context userContext =
-                            mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
-                    UserStorageInfo userStorageInfo =
-                            mAppSearchUserInstanceManager
-                                .getOrCreateUserStorageInfoInstance(
-                                    userContext, userHandle);
+                Context userContext =
+                        mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
+                UserStorageInfo userStorageInfo =
+                        mAppSearchUserInstanceManager
+                            .getOrCreateUserStorageInfoInstance(
+                                userContext, userHandle);
 
-                    refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
-                    stats.dataSize += userStorageInfo.getTotalSizeBytes();
-                } else {
-                    List<PackageInfo> packagesForUser =
-                            mPackageManager.getInstalledPackagesAsUser(
-                                    /* flags= */ 0, userHandle.getIdentifier());
-                    if (packagesForUser != null) {
-                        Set<String> packageNames = new ArraySet<>();
-                        for (int i = 0; i < packagesForUser.size(); i++) {
-                            String packageName = packagesForUser.get(i).packageName;
-                            packageNames.add(packageName);
-                        }
-                        stats.dataSize +=
-                                instance.getAppSearchImpl()
-                                        .getStorageInfoForPackages(
-                                                packageNames, /*callStatsBuilder=*/null)
-                                        .getSizeBytes();
-                    }
-                }
+                refreshCachedStorageInfoIfNecessary(instance, userStorageInfo);
+                stats.dataSize += userStorageInfo.getTotalSizeBytes();
             } catch (AppSearchException | InterruptedException | RuntimeException e) {
                 Log.e(TAG, "Unable to augment storage stats for " + userHandle, e);
                 ExceptionUtil.handleException(e);
@@ -4749,10 +4714,6 @@ public class AppSearchManagerService extends SystemService {
      * updates in storage usage.
      */
     private void dropStorageInfoCacheForUser(@NonNull UserHandle targetUser) {
-        if (!Flags.enableStorageInfoCache()) {
-            return;
-        }
-
         Context targetContext =
                 mAppSearchEnvironment.createContextAsUser(mContext, targetUser);
         UserStorageInfo userStorageInfo =
