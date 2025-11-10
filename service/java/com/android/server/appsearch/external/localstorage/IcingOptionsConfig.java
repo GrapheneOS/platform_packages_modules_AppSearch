@@ -354,6 +354,7 @@ public interface IcingOptionsConfig {
                                 ? Math.max(1, getEmbeddingIndexNumShards())
                                 : 1)
                 .setEnableSchemaTypeIdOptimization(Flags.enableSchemaTypeIdOptimization())
+                .setEnableOptimizeImprovements(Flags.enableOptimizeImprovements())
                 .build();
     }
 }

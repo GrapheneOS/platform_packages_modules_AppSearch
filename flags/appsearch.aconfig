@@ -896,3 +896,10 @@ flag {
     description: "Enables schedule the appsearch maintenance job in the job scheduler service."
     bug: "408269409"
 }
+
+flag {
+    name: "enable_optimize_improvements"
+    namespace: "appsearch"
+    description: " Controls whether a few minor improvements to Optimize and Index Merge are enabled."
+    bug: "455903084"
+}
