@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import com.android.server.appsearch.appsindexer.AppOpenEventStats;
 import com.android.server.appsearch.appsindexer.AppsUpdateStats;
 import com.android.server.appsearch.external.localstorage.AppSearchLogger;
+import com.android.server.appsearch.stats.VmInitializationStats;
 import com.android.server.appsearch.util.ApiCallRecord;
 
 import java.util.List;
@@ -43,4 +44,7 @@ public interface InternalAppSearchLogger extends AppSearchLogger {
 
     /** Logs {@link AppOpenEventStats} for AppOpenEventIndexer. */
     void logStats(@NonNull AppOpenEventStats appOpenEventStats);
+
+    /** Logs {@link VmInitializationStats} */
+    void logStats(@NonNull VmInitializationStats stats);
 }

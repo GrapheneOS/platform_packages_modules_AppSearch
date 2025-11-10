@@ -19,6 +19,8 @@ package com.android.server.appsearch;
 import static android.text.format.DateUtils.DAY_IN_MILLIS;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 
+import android.os.Build;
+
 import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.external.localstorage.AppSearchConfig;
 import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServiceManager;
@@ -344,6 +346,21 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return Flags.enableHigherSamplingForTrunkfooders()
                 ? TRUNKFOODER_SAMPLING_INTERVAL
                 : DEFAULT_SAMPLING_INTERVAL;
+    }
+
+    /** Returns whether to enable repeated fields for join API. */
+    default boolean enableRepeatedFieldJoins() {
+        // Currently, this feature is rollback incompatible to older AppSearch versions. Therefore,
+        // restrict this feature on C+ only.
+        // - AppSearch propagates this boolean value (with C+ SDK_INT check) to Icing in
+        //   IcingOptionsConfig.
+        // - Icing rejects a schema with repeated joinable fields if the feature is not enabled.
+        //   This ensures rollback compatibility.
+        //
+        // TODO(b/457496944): change Icing backup schema to cover repeated joinable fields and
+        //   modify SDK_INT check here if we decide to support this feature on T.
+        return Flags.enableRepeatedFieldJoins()
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN;
     }
 
     /**

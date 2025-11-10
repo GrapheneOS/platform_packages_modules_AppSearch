@@ -48,8 +48,8 @@ import com.android.isolated_storage_service.IIcingSearchEngine;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
-import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
-import com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats;
+import com.android.server.appsearch.stats.VmInitializationStats;
+import com.android.server.appsearch.stats.VmStartAttemptStats;
 import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.proto.IcingSearchEngineOptions;

@@ -893,3 +893,10 @@ flag {
     description: " Controls whether a few minor improvements to Optimize and Index Merge are enabled."
     bug: "455903084"
 }
+
+flag {
+    name: "enable_repeated_field_joins"
+    namespace: "appsearch"
+    description: " Enables repeated field for join API."
+    bug: "457496944"
+}
