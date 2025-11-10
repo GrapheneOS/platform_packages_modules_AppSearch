@@ -1461,64 +1461,7 @@ public class AppSearchManagerService extends SystemService {
                     AppSearchBatchResult.Builder<String, GenericDocumentParcel> resultBuilder =
                             new AppSearchBatchResult.Builder<>();
 
-                    if (!Flags.enableBatchGet()) {
-                        for (String id : request.getGetByDocumentIdRequest().getIds()) {
-                            try {
-                                GenericDocument document;
-                                if (global) {
-                                    boolean callerHasSystemAccess = instance.getVisibilityChecker()
-                                            .doesCallerHaveSystemAccess(
-                                                    request.getCallerAttributionSource()
-                                                            .getPackageName());
-                                    Map<String, List<String>> typePropertyPaths =
-                                            request.getGetByDocumentIdRequest().getProjections();
-                                    if (request.isForEnterprise()) {
-                                        EnterpriseSearchSpecTransformer.transformPropertiesMap(
-                                                typePropertyPaths);
-                                    }
-                                    document = instance.getAppSearchImpl().globalGetDocument(
-                                            request.getTargetPackageName(),
-                                            request.getDatabaseName(),
-                                            request.getGetByDocumentIdRequest().getNamespace(),
-                                            id,
-                                            typePropertyPaths,
-                                            new FrameworkCallerAccess(
-                                                    request.getCallerAttributionSource(),
-                                                    callerHasSystemAccess,
-                                                    request.isForEnterprise()),
-                                            callStatsBuilder);
-                                    if (request.isForEnterprise()) {
-                                        document =
-                                                EnterpriseSearchResultPageTransformer
-                                                        .transformDocument(
-                                                                request.getTargetPackageName(),
-                                                                request.getDatabaseName(),
-                                                                document);
-                                    }
-                                } else {
-                                    document = instance.getAppSearchImpl().getDocument(
-                                            request.getTargetPackageName(),
-                                            request.getDatabaseName(),
-                                            request.getGetByDocumentIdRequest().getNamespace(),
-                                            id,
-                                            request.getGetByDocumentIdRequest().getProjections(),
-                                            callStatsBuilder);
-                                }
-                                ++operationSuccessCount;
-                                resultBuilder.setSuccess(id, document.getDocumentParcel());
-                            } catch (AppSearchException | RuntimeException e) {
-                                // Since we can only include one status code in the atom,
-                                // for failures, we would just save the one for the last failure
-                                // Also, we don't rethrow here, so we can keep trying for
-                                // the following ones.
-                                AppSearchResult<GenericDocumentParcel> result =
-                                        throwableToFailedResult(e);
-                                resultBuilder.setResult(id, result);
-                                statusCode = result.getResultCode();
-                                ++operationFailureCount;
-                            }
-                        }
-                    } else if (!request.getGetByDocumentIdRequest().getIds().isEmpty()) {
+                    if (!request.getGetByDocumentIdRequest().getIds().isEmpty()) {
                         AppSearchBatchResult<String, GenericDocument> getDocumentsResult;
                         if (global) {
                             boolean callerHasSystemAccess = instance.getVisibilityChecker()
