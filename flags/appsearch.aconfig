@@ -634,16 +634,6 @@ flag {
 }
 
 flag {
-    name: "enable_enterprise_visible_to_config"
-    namespace: "appsearch"
-    description: "Enable checking VisibleToConfig for schema visibility when querying with enterprise global search session."
-    bug: "417289133"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_delayed_persist_to_disk"
     namespace: "appsearch"
     description: "Enables AppSearch write API calls to schedule persistToDisk calls after a specified delay, rather than executing them immediately."

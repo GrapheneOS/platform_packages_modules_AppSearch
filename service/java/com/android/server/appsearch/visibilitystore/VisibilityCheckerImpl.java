@@ -116,14 +116,12 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                     /* checkEnterpriseAccess= */ true)) {
                 return true;
             }
-            if (Flags.enableEnterpriseVisibleToConfig()) {
-                Set<SchemaVisibilityConfig> visibleToConfigs =
-                        internalVisibilityConfig.getVisibleToConfigs();
-                for (SchemaVisibilityConfig visibleToConfig : visibleToConfigs) {
-                    if (checkMatchAllVisibilityConfig(frameworkCallerAccess,
-                            visibleToConfig, /* checkEnterpriseAccess= */ true)) {
-                        return true;
-                    }
+            Set<SchemaVisibilityConfig> visibleToConfigs =
+                    internalVisibilityConfig.getVisibleToConfigs();
+            for (SchemaVisibilityConfig visibleToConfig : visibleToConfigs) {
+                if (checkMatchAllVisibilityConfig(frameworkCallerAccess,
+                        visibleToConfig, /* checkEnterpriseAccess= */ true)) {
+                    return true;
                 }
             }
             return false;
