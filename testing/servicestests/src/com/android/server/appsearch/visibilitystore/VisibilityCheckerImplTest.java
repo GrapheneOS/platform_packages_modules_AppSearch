@@ -1320,7 +1320,6 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ENTERPRISE_VISIBLE_TO_CONFIG)
     public void testSetSchema_enterpriseVisibleToConfig_withEnterpriseAccessPermission()
             throws Exception {
         // Values for a "foo" client
@@ -1393,7 +1392,6 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_ENTERPRISE_VISIBLE_TO_CONFIG)
     public void testSetSchema_enterpriseVisibleToConfig_enterpriseAccessAndAdditionalPermissionSet()
             throws Exception {
         // Values for a "foo" client
