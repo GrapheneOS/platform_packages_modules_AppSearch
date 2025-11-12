@@ -305,10 +305,9 @@ flag {
 flag {
     name: "enable_delete_propagation_type"
     namespace: "appsearch"
-    description: "Enables delete propagation type related APIs."
+    description: "Enables delete propagation type related APIs. This flag is deprecated and all APIs should use enable_delete_propagation_rw."
     bug: "376913014"
     is_fixed_read_only: true
-    is_exported: true
 }
 
 flag {
@@ -889,4 +888,11 @@ flag {
     namespace: "appsearch"
     description: " Enables repeated field for join API."
     bug: "457496944"
+}
+
+flag {
+    name: "enable_delete_propagation_rw"
+    namespace: "appsearch"
+    description: "Enables delete propagation API. It replaces the original read-only flag enable_delete_propagation_type."
+    bug: "376913014"
 }

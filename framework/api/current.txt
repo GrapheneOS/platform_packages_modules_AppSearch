@@ -194,12 +194,12 @@ package android.app.appsearch {
   }
 
   public static final class AppSearchSchema.StringPropertyConfig extends android.app.appsearch.AppSearchSchema.PropertyConfig {
-    method @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_type") public int getDeletePropagationType();
+    method @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_rw") public int getDeletePropagationType();
     method public int getIndexingType();
     method public int getJoinableValueType();
     method public int getTokenizerType();
-    field @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_type") public static final int DELETE_PROPAGATION_TYPE_NONE = 0; // 0x0
-    field @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_type") public static final int DELETE_PROPAGATION_TYPE_PROPAGATE_FROM = 1; // 0x1
+    field @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_rw") public static final int DELETE_PROPAGATION_TYPE_NONE = 0; // 0x0
+    field @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_rw") public static final int DELETE_PROPAGATION_TYPE_PROPAGATE_FROM = 1; // 0x1
     field public static final int INDEXING_TYPE_EXACT_TERMS = 1; // 0x1
     field public static final int INDEXING_TYPE_NONE = 0; // 0x0
     field public static final int INDEXING_TYPE_PREFIXES = 2; // 0x2
@@ -215,7 +215,7 @@ package android.app.appsearch {
     ctor public AppSearchSchema.StringPropertyConfig.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig build();
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setCardinality(int);
-    method @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_type") @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setDeletePropagationType(int);
+    method @FlaggedApi("com.android.appsearch.flags.enable_delete_propagation_rw") @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setDeletePropagationType(int);
     method @FlaggedApi("com.android.appsearch.flags.enable_schema_description") @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setDescription(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setIndexingType(int);
     method @NonNull public android.app.appsearch.AppSearchSchema.StringPropertyConfig.Builder setJoinableValueType(int);
