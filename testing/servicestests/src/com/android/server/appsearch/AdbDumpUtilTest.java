@@ -148,6 +148,7 @@ public class AdbDumpUtilTest {
                 "adbdump_database",
                 schemas,
                 /* visibilityDocuments= */ Collections.emptyList(),
+                /* accountPropertyPaths= */ Collections.emptyMap(),
                 /* forceOverride= */ false,
                 /* version= */ 0,
                 /* setSchemaStatsBuilder= */ null,

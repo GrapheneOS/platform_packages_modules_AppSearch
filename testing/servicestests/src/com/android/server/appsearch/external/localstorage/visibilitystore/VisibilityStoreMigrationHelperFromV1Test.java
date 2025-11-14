@@ -97,6 +97,7 @@ public class VisibilityStoreMigrationHelperFromV1Test {
                         VisibilityStore.DOCUMENT_VISIBILITY_DATABASE_NAME,
                         ImmutableList.of(VisibilityDocumentV1.SCHEMA),
                         /* prefixedVisibilityBundles= */ Collections.emptyList(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true, // force push the old version into disk
                         /* version= */ 1,
                         /* setSchemaStatsBuilder= */ null,
@@ -124,6 +125,7 @@ public class VisibilityStoreMigrationHelperFromV1Test {
                         "database",
                         ImmutableList.of(new AppSearchSchema.Builder("Schema").build()),
                         /* visibilityDocuments= */ Collections.emptyList(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ false,
                         /* schemaVersion= */ 0,
                         /* setSchemaStatsBuilder= */ null,

@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.app.appsearch.annotation.CanIgnoreReturnValue;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
@@ -25,8 +26,6 @@ import com.android.server.appsearch.external.localstorage.util.PrefixUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -97,16 +96,13 @@ public class NamespaceCache {
         return mDocumentNamespaceMap.keySet();
     }
 
-    /** Gets all prefixed blob namespaces in AppSearch. */
-    public @NonNull List<String> getAllPrefixedBlobNamespaces() {
-        List<String> prefixedBlobNamespaces = new ArrayList<>();
-        for (Set<String> value : mBlobNamespaceMap.values()) {
-            prefixedBlobNamespaces.addAll(value);
-        }
-        return prefixedBlobNamespaces;
-    }
-
-    /** Removes prefixed document namespaces under the given prefix. */
+    /**
+     * Removes prefixed document namespaces under the given prefix.
+     *
+     * @return the set of prefixed document namespaces that were removed, or {@code null} if the
+     *     prefix was not found.
+     */
+    @CanIgnoreReturnValue
     public @Nullable Set<String> removeDocumentNamespaces(@NonNull String prefix) {
         return mDocumentNamespaceMap.remove(prefix);
     }

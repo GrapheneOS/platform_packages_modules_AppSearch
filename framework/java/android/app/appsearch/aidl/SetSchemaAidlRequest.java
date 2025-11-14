@@ -18,11 +18,13 @@ package android.app.appsearch.aidl;
 
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.safeparcel.AbstractSafeParcelable;
 import android.app.appsearch.safeparcel.SafeParcelable;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.UserHandle;
@@ -75,6 +77,10 @@ public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
     @Field(id = 9, getter = "getSchemaMigrationCallType")
     private final int mSchemaMigrationCallType;
 
+    @Nullable
+    @Field(id = 10, getter = "getSchemasWipeoutAccountPropertyPaths")
+    private final Bundle mSchemasWipeoutAccountPropertyPaths;
+
     /**
      * Updates the AppSearch schema for this database.
      *
@@ -101,7 +107,8 @@ public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
             @Param(id = 6) int schemaVersion,
             @Param(id = 7) @NonNull UserHandle userHandle,
             @Param(id = 8) @ElapsedRealtimeLong long binderCallStartTimeMillis,
-            @Param(id = 9) int schemaMigrationCallType) {
+            @Param(id = 9) int schemaMigrationCallType,
+            @Param(id = 10) @Nullable Bundle schemasWipeoutAccountPropertyPaths) {
         mCallerAttributionSource = Objects.requireNonNull(callerAttributionSource);
         mDatabaseName = Objects.requireNonNull(databaseName);
         mSchemas = Objects.requireNonNull(schemas);
@@ -111,6 +118,7 @@ public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
         mUserHandle = Objects.requireNonNull(userHandle);
         mBinderCallStartTimeMillis = binderCallStartTimeMillis;
         mSchemaMigrationCallType = schemaMigrationCallType;
+        mSchemasWipeoutAccountPropertyPaths = schemasWipeoutAccountPropertyPaths;
     }
 
     @NonNull
@@ -153,6 +161,11 @@ public final class SetSchemaAidlRequest extends AbstractSafeParcelable {
 
     public int getSchemaMigrationCallType() {
         return mSchemaMigrationCallType;
+    }
+
+    @Nullable
+    public Bundle getSchemasWipeoutAccountPropertyPaths() {
+        return mSchemasWipeoutAccountPropertyPaths;
     }
 
     @Override

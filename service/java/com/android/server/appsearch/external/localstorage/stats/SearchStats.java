@@ -20,6 +20,8 @@ import android.app.appsearch.annotation.CanIgnoreReturnValue;
 
 import org.jspecify.annotations.NonNull;
 
+import java.util.Locale;
+
 /**
  * Class holds detailed stats for {@link android.app.appsearch.AppSearchSession#search(String,
  * SearchSpec)}.
@@ -218,6 +220,7 @@ public final class SearchStats {
     @Override
     public String toString() {
         return String.format(
+                Locale.ROOT,
                 "SearchStats {\n"
                         + "  nativeQueryLength=%d,\n"
                         + "  nativeNumTerms=%d,\n"

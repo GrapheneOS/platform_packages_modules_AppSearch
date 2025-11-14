@@ -16,7 +16,10 @@
 
 package android.app.appsearch;
 
+import android.annotation.FlaggedApi;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+
+import com.android.appsearch.flags.Flags;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -25,15 +28,31 @@ import org.jspecify.annotations.Nullable;
  * Encapsulates a {@link GenericDocument} that represent an Account.
  *
  * <p>This class is a higher level implement of {@link GenericDocument}.
- *
- * @hide
  */
-public class AppSearchAccount extends GenericDocument {
+@FlaggedApi(Flags.FLAG_ENABLE_SCHEMAS_WIPEOUT_ACCOUNT_PROPERTY_PATHS)
+public final class AppSearchAccount extends GenericDocument {
     /** The name of the schema type for {@link AppSearchAccount} documents. */
     public static final String SCHEMA_TYPE = "builtin:Account";
 
+    /**
+     * The property name of the type of an account.
+     *
+     * @hide
+     */
     public static final String PROPERTY_ACCOUNT_TYPE = "accountType";
+
+    /**
+     * The property name of the name of an account.
+     *
+     * @hide
+     */
     public static final String PROPERTY_ACCOUNT_NAME = "accountName";
+
+    /**
+     * The property name of the id of an account.
+     *
+     * @hide
+     */
     public static final String PROPERTY_ACCOUNT_ID = "accountId";
 
     public static final AppSearchSchema SCHEMA =
@@ -99,7 +118,7 @@ public class AppSearchAccount extends GenericDocument {
     }
 
     /** The builder class for {@link AppSearchAccount}. */
-    public static class Builder extends GenericDocument.Builder<Builder> {
+    public static final class Builder extends GenericDocument.Builder<Builder> {
         /**
          * Creates a new {@link AppSearchAccount.Builder}
          *

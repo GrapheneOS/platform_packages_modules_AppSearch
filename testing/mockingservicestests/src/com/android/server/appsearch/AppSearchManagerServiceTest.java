@@ -109,6 +109,7 @@ import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
@@ -278,12 +279,16 @@ public class AppSearchManagerServiceTest {
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.setSchema(
                 new SetSchemaAidlRequest(
-                AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
                         DATABASE_NAME,
-                /* schemaBundles= */ Collections.emptyList(),
-                /* visibilityBundles= */ Collections.emptyList(), /* forceOverride= */ false,
-                /* schemaVersion= */ 0, mUserHandle, BINDER_CALL_START_TIME,
-                SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE),
+                        /* schemaBundles= */ Collections.emptyList(),
+                        /* visibilityBundles= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* schemaVersion= */ 0,
+                        mUserHandle,
+                        BINDER_CALL_START_TIME,
+                        SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE,
+                        /* schemasWipeoutAccountPropertyPaths= */ new Bundle()),
                 callback);
         assertThat(callback.get().getResultCode()).isEqualTo(AppSearchResult.RESULT_OK);
         verifyCallStats(mContext.getPackageName(), DATABASE_NAME, CallStats.CALL_TYPE_SET_SCHEMA, callReceivedTimestampMillis);
@@ -412,6 +417,7 @@ public class AppSearchManagerServiceTest {
                                 DATABASE_NAME,
                                 schemas,
                                 /* visibilityDocuments= */ Collections.emptyList(),
+                                /* accountPropertyPaths= */ Collections.emptyMap(),
                                 /* forceOverride= */ false,
                                 /* version= */ 0,
                                 /* setSchemaStatsBuilder= */ null,
@@ -1628,8 +1634,12 @@ public class AppSearchManagerServiceTest {
                         DATABASE_NAME,
                         /* schemaBundles= */ Collections.emptyList(),
                         /* visibilityBundles= */ Collections.emptyList(),
-                        /* forceOverride= */ false, /* schemaVersion= */ 0, mUserHandle,
-                        BINDER_CALL_START_TIME, SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE),
+                        /* forceOverride= */ false,
+                        /* schemaVersion= */ 0,
+                        mUserHandle,
+                        BINDER_CALL_START_TIME,
+                        SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE,
+                        /* schemasWipeoutAccountPropertyPaths= */ new Bundle()),
                 callback);
 
         // Verify write executor was used
@@ -1707,12 +1717,16 @@ public class AppSearchManagerServiceTest {
         TestResultCallback callback = new TestResultCallback();
         mAppSearchManagerServiceStub.setSchema(
                 new SetSchemaAidlRequest(
-                AppSearchAttributionSource
-                    .createAttributionSource(mContext, mCallingPid), DATABASE_NAME,
-                /* schemaBundles= */ Collections.emptyList(),
-                /* visibilityBundles= */ Collections.emptyList(), /* forceOverride= */ false,
-                /* schemaVersion= */ 0, mUserHandle, BINDER_CALL_START_TIME,
-                SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE),
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        DATABASE_NAME,
+                        /* schemaBundles= */ Collections.emptyList(),
+                        /* visibilityBundles= */ Collections.emptyList(),
+                        /* forceOverride= */ false,
+                        /* schemaVersion= */ 0,
+                        mUserHandle,
+                        BINDER_CALL_START_TIME,
+                        SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE,
+                        /* schemasWipeoutAccountPropertyPaths= */ new Bundle()),
                 callback);
         verifyCallResult(resultCode, CallStats.CALL_TYPE_SET_SCHEMA, callback.get());
     }
@@ -2071,6 +2085,7 @@ public class AppSearchManagerServiceTest {
                                 databaseName,
                                 schemas,
                                 /* visibilityDocuments= */ Collections.emptyList(),
+                                /* accountPropertyPaths= */ Collections.emptyMap(),
                                 /* forceOverride= */ false,
                                 /* version= */ 0,
                                 /* setSchemaStatsBuilder= */ null,
@@ -2102,6 +2117,7 @@ public class AppSearchManagerServiceTest {
                                 databaseName,
                                 /* schemas= */ Collections.emptyList(),
                                 /* visibilityDocuments= */ Collections.emptyList(),
+                                /* accountPropertyPaths= */ Collections.emptyMap(),
                                 /* forceOverride= */ true,
                                 /* version= */ 0,
                                 /* setSchemaStatsBuilder= */ null,

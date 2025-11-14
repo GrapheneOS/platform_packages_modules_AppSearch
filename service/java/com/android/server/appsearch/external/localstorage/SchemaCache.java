@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.app.appsearch.PropertyPath;
 import android.app.appsearch.checker.initialization.qual.UnknownInitialization;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.util.ArrayMap;
@@ -68,6 +69,15 @@ public class SchemaCache {
      */
     private final Map<String, Map<String, List<String>>>
             mSchemaChildToTransitiveUnprefixedParentsMap = new ArrayMap<>();
+
+    /**
+     * An in-memory cache of property paths, keyed by prefixed schema type, that point to {@link
+     * android.app.appsearch.AppSearchAccount} property paths.
+     *
+     * <p>This map is used for runtime validation of documents. It is rebuilt from schema
+     * information during {@code getSchema} calls.
+     */
+    private final Map<String, Set<String>> mPrefixedAccountPropertyPaths = new ArrayMap<>();
 
     public SchemaCache() {}
 
@@ -166,6 +176,11 @@ public class SchemaCache {
         }
     }
 
+    /** Add all the prefixed schema types with account {@link PropertyPath}s . */
+    public @NonNull Map<String, Set<String>> getPrefixedAccountPropertyPaths() {
+        return mPrefixedAccountPropertyPaths;
+    }
+
     /**
      * Rebuilds the schema parent-to-children and child-to-parents maps for the given prefix, based
      * on the current schema map.
@@ -262,6 +277,12 @@ public class SchemaCache {
             mSchemaMap.put(prefix, schemaTypeMap);
         }
         schemaTypeMap.put(schemaTypeConfigProto.getSchemaType(), schemaTypeConfigProto);
+    }
+
+    /** Add the account {@link PropertyPath} for the given prefixed schema type. */
+    public void addToSchemasWipeoutAccountPropertyPaths(
+            @NonNull String prefixedSchemaType, @NonNull Set<String> accountPropertyPaths) {
+        mPrefixedAccountPropertyPaths.put(prefixedSchemaType, accountPropertyPaths);
     }
 
     /**

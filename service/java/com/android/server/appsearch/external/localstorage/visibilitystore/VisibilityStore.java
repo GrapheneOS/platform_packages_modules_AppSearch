@@ -101,12 +101,10 @@ public class VisibilityStore {
     public static @NonNull VisibilityStore createDocumentVisibilityStore(
             @NonNull AppSearchImpl appSearchImpl, CallStats.@Nullable Builder callStatsBuilder)
             throws AppSearchException {
-        List<String> cachedSchemaTypes = appSearchImpl.getAllPrefixedSchemaTypes();
         return new VisibilityStore(
                 appSearchImpl,
                 DOCUMENT_VISIBILITY_DATABASE_NAME,
                 DOCUMENT_ANDROID_V_OVERLAY_DATABASE_NAME,
-                cachedSchemaTypes,
                 callStatsBuilder);
     }
 
@@ -114,12 +112,10 @@ public class VisibilityStore {
     public static @NonNull VisibilityStore createBlobVisibilityStore(
             @NonNull AppSearchImpl appSearchImpl, CallStats.@Nullable Builder callStatsBuilder)
             throws AppSearchException {
-        List<String> cachedBlobNamespaces = appSearchImpl.getAllPrefixedBlobNamespaces();
         return new VisibilityStore(
                 appSearchImpl,
                 BLOB_VISIBILITY_DATABASE_NAME,
                 BLOB_ANDROID_V_OVERLAY_DATABASE_NAME,
-                cachedBlobNamespaces,
                 callStatsBuilder);
     }
 
@@ -139,15 +135,12 @@ public class VisibilityStore {
      * @param databaseName The database name to store visibility settings.
      * @param androidVOverlayDatabaseName The database name to store Android V overlay visibility
      *     settings.
-     * @param allVisibilityDocumentIds The list of all visibility document ids stored in the given
-     *     database.
      * @throws AppSearchException On internal error.
      */
     private VisibilityStore(
             @NonNull AppSearchImpl appSearchImpl,
             @NonNull String databaseName,
             @NonNull String androidVOverlayDatabaseName,
-            @NonNull List<String> allVisibilityDocumentIds,
             CallStats.@Nullable Builder callStatsBuilder)
             throws AppSearchException {
         mAppSearchImpl = Objects.requireNonNull(appSearchImpl);
@@ -185,7 +178,7 @@ public class VisibilityStore {
                 // Check the version for visibility overlay database.
                 migrateVisibilityOverlayDatabase(callStatsBuilder);
                 // Now we have the latest schema, load visibility config map.
-                loadVisibilityConfigMap(allVisibilityDocumentIds, callStatsBuilder);
+                loadVisibilityConfigMap(callStatsBuilder);
                 break;
             default:
                 // We must did something wrong.
@@ -366,16 +359,10 @@ public class VisibilityStore {
     /**
      * Loads all stored latest {@link InternalVisibilityConfig} from Icing, and put them into {@link
      * #mVisibilityConfigMap}.
-     *
-     * @param allVisibilityDocumentIds all of document ids that we should have visibility settings
-     *     stored in this database. The Id should be either prefixedSchemaType for document
-     *     visibility settings or prefixedBlobNamespace for blob visibility settings.
      */
     @RequiresNonNull("mAppSearchImpl")
     private void loadVisibilityConfigMap(
-            @UnderInitialization VisibilityStore this,
-            @NonNull List<String> allVisibilityDocumentIds,
-            CallStats.@Nullable Builder callStatsBuilder)
+            @UnderInitialization VisibilityStore this, CallStats.@Nullable Builder callStatsBuilder)
             throws AppSearchException {
         // query all overlay document first and convert to id->doc map.
         List<GenericDocument> androidVOverlayDocuments =
@@ -460,6 +447,7 @@ public class VisibilityStore {
                                 VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                                 VisibilityPermissionConfig.SCHEMA),
                         /* visibilityConfigs= */ Collections.emptyList(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
                         /* setSchemaStatsBuilder= */ null,
@@ -478,6 +466,7 @@ public class VisibilityStore {
                         Collections.singletonList(
                                 VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA),
                         /* visibilityConfigs= */ Collections.emptyList(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ VisibilityToDocumentConverter
                                 .ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
@@ -543,6 +532,7 @@ public class VisibilityStore {
                                 Collections.singletonList(
                                         VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA),
                                 /* visibilityConfigs= */ Collections.emptyList(),
+                                /* accountPropertyPaths= */ Collections.emptyMap(),
                                 /* forceOverride= */ true, // force update to nest version.
                                 VisibilityToDocumentConverter
                                         .ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
@@ -598,6 +588,7 @@ public class VisibilityStore {
                                     VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                                     VisibilityPermissionConfig.SCHEMA),
                             /* visibilityConfigs= */ Collections.emptyList(),
+                            /* accountPropertyPaths= */ Collections.emptyMap(),
                             /* forceOverride= */ true,
                             /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
                             /* setSchemaStatsBuilder= */ null,
@@ -620,6 +611,7 @@ public class VisibilityStore {
                                     VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_SCHEMA,
                                     VisibilityPermissionConfig.SCHEMA),
                             /* visibilityConfigs= */ Collections.emptyList(),
+                            /* accountPropertyPaths= */ Collections.emptyMap(),
                             /* forceOverride= */ false,
                             /* version= */ VisibilityToDocumentConverter.SCHEMA_VERSION_LATEST,
                             /* setSchemaStatsBuilder= */ null,
@@ -662,6 +654,7 @@ public class VisibilityStore {
                             Collections.singletonList(
                                     VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA),
                             /* visibilityConfigs= */ Collections.emptyList(),
+                            /* accountPropertyPaths= */ Collections.emptyMap(),
                             /* forceOverride= */ false,
                             VisibilityToDocumentConverter.ANDROID_V_OVERLAY_SCHEMA_VERSION_LATEST,
                             /* setSchemaStatsBuilder= */ null,

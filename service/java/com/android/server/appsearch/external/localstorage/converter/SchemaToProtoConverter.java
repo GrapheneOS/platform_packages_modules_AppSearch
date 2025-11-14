@@ -30,9 +30,11 @@ import com.google.android.icing.proto.StringIndexingConfig;
 import com.google.android.icing.proto.TermMatchType;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Translates an {@link AppSearchSchema} into a {@link SchemaTypeConfigProto}.
@@ -51,7 +53,9 @@ public final class SchemaToProtoConverter {
     // TODO(b/284356266): Consider handling addition of schema name prefixes in this function.
 
     public static @NonNull SchemaTypeConfigProto toSchemaTypeConfigProto(
-            @NonNull AppSearchSchema schema, int version) {
+            @NonNull AppSearchSchema schema,
+            @Nullable Set<String> accountPropertyPaths,
+            int version) {
         Objects.requireNonNull(schema);
         SchemaTypeConfigProto.Builder protoBuilder =
                 SchemaTypeConfigProto.newBuilder()
@@ -64,6 +68,9 @@ public final class SchemaToProtoConverter {
             protoBuilder.addProperties(propertyProto);
         }
         protoBuilder.addAllParentTypes(schema.getParentTypes());
+        if (accountPropertyPaths != null) {
+            protoBuilder.addAllAccountProperties(accountPropertyPaths);
+        }
         return protoBuilder.build();
     }
 
