@@ -17,7 +17,7 @@ package com.android.server.appsearch;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
-import static com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats.VM_START_STATUS_ERROR;
+import static com.android.server.appsearch.stats.VmStartAttemptStats.VM_START_STATUS_ERROR;
 
 import static com.google.common.truth.Truth.assertThat;
 

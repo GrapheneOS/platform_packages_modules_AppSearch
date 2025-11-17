@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.server.appsearch.external.localstorage.stats;
+package com.android.server.appsearch.stats;
 
 import static com.google.common.truth.Truth.assertThat;
 

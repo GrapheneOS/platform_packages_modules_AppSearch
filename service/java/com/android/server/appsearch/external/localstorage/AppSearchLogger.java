@@ -27,7 +27,6 @@ import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.RemoveStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
-import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
 
 import org.jspecify.annotations.NonNull;
 
@@ -109,11 +108,6 @@ public interface AppSearchLogger {
 
     /** Logs {@link PersistToDiskStats} */
     default void logStats(@NonNull PersistToDiskStats stats) {
-        // no-op
-    }
-
-    /** Logs {@link VmInitializationStats} */
-    default void logStats(@NonNull VmInitializationStats stats) {
         // no-op
     }
 

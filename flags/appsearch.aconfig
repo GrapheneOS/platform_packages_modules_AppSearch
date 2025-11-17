@@ -305,10 +305,9 @@ flag {
 flag {
     name: "enable_delete_propagation_type"
     namespace: "appsearch"
-    description: "Enables delete propagation type related APIs."
+    description: "Enables delete propagation type related APIs. This flag is deprecated and all APIs should use enable_delete_propagation_rw."
     bug: "376913014"
     is_fixed_read_only: true
-    is_exported: true
 }
 
 flag {
@@ -497,16 +496,6 @@ flag {
 }
 
 flag {
-    name: "enable_batch_get"
-    namespace: "appsearch"
-    description: "Uses the new batch get API from Icing."
-    bug: "401245769"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_strict_page_byte_size_limit"
     namespace: "appsearch"
     description: "Enables strict byte size enforcement on a result page."
@@ -546,18 +535,6 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
-
-flag {
-    name: "enable_storage_info_cache"
-    namespace: "appsearch"
-    description: "Enables the StorageInfo cache in AppSearchImpl."
-    bug: "395156359"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-
 
 flag {
     name: "enable_indexer_run_on_ota_update"
@@ -641,16 +618,6 @@ flag {
     namespace: "appsearch"
     description: "Enables the AppSearchResult#RESULT_UNAVAILABLE."
     bug: "404210068"
-}
-
-flag {
-    name: "enable_enterprise_visible_to_config"
-    namespace: "appsearch"
-    description: "Enable checking VisibleToConfig for schema visibility when querying with enterprise global search session."
-    bug: "417289133"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -895,4 +862,25 @@ flag {
     namespace: "appsearch"
     description: "Enables schedule the appsearch maintenance job in the job scheduler service."
     bug: "408269409"
+}
+
+flag {
+    name: "enable_optimize_improvements"
+    namespace: "appsearch"
+    description: " Controls whether a few minor improvements to Optimize and Index Merge are enabled."
+    bug: "455903084"
+}
+
+flag {
+    name: "enable_repeated_field_joins"
+    namespace: "appsearch"
+    description: " Enables repeated field for join API."
+    bug: "457496944"
+}
+
+flag {
+    name: "enable_delete_propagation_rw"
+    namespace: "appsearch"
+    description: "Enables delete propagation API. It replaces the original read-only flag enable_delete_propagation_type."
+    bug: "376913014"
 }

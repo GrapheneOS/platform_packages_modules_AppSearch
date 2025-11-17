@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.external.localstorage;
 
+import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.SearchSpec;
 
 import com.android.appsearch.flags.Flags;
@@ -286,6 +287,12 @@ public interface IcingOptionsConfig {
     int getEmbeddingIndexNumShards();
 
     /**
+     * Controls whether repeated fields may set joinable value type to {@link
+     * AppSearchSchema.StringPropertyConfig#JOINABLE_VALUE_TYPE_QUALIFIED_ID}.
+     */
+    boolean enableRepeatedFieldJoins();
+
+    /**
      * Converts to an {@link IcingSearchEngineOptions} instance.
      *
      * @param baseDir base directory of the icing instance.
@@ -314,9 +321,12 @@ public interface IcingOptionsConfig {
                 .setEnableScorableProperties(Flags.enableScorableProperty())
                 .setIcuDataFileAbsolutePath(getIcuDataFileAbsolutePath())
                 .setManageBlobFiles(!Flags.enableAppSearchManageBlobFiles())
-                // Join index v3 is a prerequisite for delete propagation.
+                // Join index v3 and soft index restoration are prerequisites for delete
+                // propagation.
                 .setEnableDeletePropagationFrom(
-                        Flags.enableDeletePropagationType() && Flags.enableQualifiedIdJoinIndexV3())
+                        Flags.enableDeletePropagationRw()
+                                && Flags.enableQualifiedIdJoinIndexV3()
+                                && Flags.enableSoftIndexRestoration())
                 .setCalculateTimeSinceLastAttemptedOptimize(
                         Flags.enableCalculateTimeSinceLastAttemptedOptimize())
                 .setEnableQualifiedIdJoinIndexV3(Flags.enableQualifiedIdJoinIndexV3())
@@ -354,6 +364,8 @@ public interface IcingOptionsConfig {
                                 ? Math.max(1, getEmbeddingIndexNumShards())
                                 : 1)
                 .setEnableSchemaTypeIdOptimization(Flags.enableSchemaTypeIdOptimization())
+                .setEnableOptimizeImprovements(Flags.enableOptimizeImprovements())
+                .setEnableRepeatedFieldJoins(enableRepeatedFieldJoins())
                 .build();
     }
 }

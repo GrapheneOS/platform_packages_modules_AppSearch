@@ -827,9 +827,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
         public @interface DeletePropagationType {}
 
         /** Does not propagate deletion. */
-        // TODO(b/384947619) unhide the API once it is ready.
-
-        @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
+        @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
         public static final int DELETE_PROPAGATION_TYPE_NONE = 0;
 
         /**
@@ -847,9 +845,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * the joinable value type). Otherwise, throw {@link IllegalStateException} when building
          * (see {@link StringPropertyConfig.Builder#build}).
          */
-        // TODO(b/384947619) unhide the API once it is ready.
-
-        @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
+        @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
         public static final int DELETE_PROPAGATION_TYPE_PROPAGATE_FROM = 1;
 
         StringPropertyConfig(@NonNull PropertyConfigParcel propertyConfigParcel) {
@@ -898,9 +894,7 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
          * Returns how the deletion will be propagated between this document and the referenced
          * document whose qualified id is held by this property.
          */
-        // TODO(b/384947619) unhide the API once it is ready.
-
-        @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
+        @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
         @DeletePropagationType
         public int getDeletePropagationType() {
             JoinableConfigParcel joinableConfigParcel =
@@ -1029,10 +1023,8 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              * delete propagation has to use the qualified id. Otherwise, throw {@link
              * IllegalStateException} when building.
              */
-            // TODO(b/384947619) unhide the API once it is ready.
-
             @CanIgnoreReturnValue
-            @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_TYPE)
+            @FlaggedApi(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
             public @NonNull StringPropertyConfig.Builder setDeletePropagationType(
                     @DeletePropagationType int deletePropagationType) {
                 Preconditions.checkArgumentInRange(
@@ -1053,8 +1045,6 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
              *           indexing type {@link StringPropertyConfig#INDEXING_TYPE_NONE}.
              *       <li>Indexing type is not {@link StringPropertyConfig#INDEXING_TYPE_NONE} with
              *           tokenizer type {@link StringPropertyConfig#TOKENIZER_TYPE_NONE}.
-             *       <li>{@link StringPropertyConfig#JOINABLE_VALUE_TYPE_QUALIFIED_ID} is set to a
-             *           {@link PropertyConfig#CARDINALITY_REPEATED} property.
              *       <li>Deletion type other than {@link
              *           StringPropertyConfig#DELETE_PROPAGATION_TYPE_NONE} is used without setting
              *           {@link StringPropertyConfig#JOINABLE_VALUE_TYPE_QUALIFIED_ID}.
@@ -1071,12 +1061,6 @@ public final class AppSearchSchema extends AbstractSafeParcelable {
                     Preconditions.checkState(
                             mIndexingType != INDEXING_TYPE_NONE,
                             "Cannot set " + "TOKENIZER_TYPE_PLAIN with INDEXING_TYPE_NONE.");
-                }
-                if (mJoinableValueType == JOINABLE_VALUE_TYPE_QUALIFIED_ID) {
-                    Preconditions.checkState(
-                            mCardinality != CARDINALITY_REPEATED,
-                            "Cannot set JOINABLE_VALUE_TYPE_QUALIFIED_ID with"
-                                + " CARDINALITY_REPEATED.");
                 }
                 if (mDeletePropagationType != DELETE_PROPAGATION_TYPE_NONE) {
                     Preconditions.checkState(

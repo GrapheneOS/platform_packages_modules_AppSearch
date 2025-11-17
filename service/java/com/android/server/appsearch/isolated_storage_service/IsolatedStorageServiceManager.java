@@ -48,8 +48,8 @@ import com.android.isolated_storage_service.IIcingSearchEngine;
 import com.android.server.appsearch.AppSearchComponentFactory;
 import com.android.server.appsearch.InternalAppSearchLogger;
 import com.android.server.appsearch.ServiceAppSearchConfig;
-import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
-import com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats;
+import com.android.server.appsearch.stats.VmInitializationStats;
+import com.android.server.appsearch.stats.VmStartAttemptStats;
 import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.proto.IcingSearchEngineOptions;
@@ -94,6 +94,8 @@ public class IsolatedStorageServiceManager {
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
     private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 61;
+    // Wait up to 5 minutes for CF
+    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS_CF = 300;
     private static final int MAX_VM_START_RETRIES = 3;
     private static final int MAX_REINITIALIZATION_RETRIES = 9;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
@@ -205,14 +207,17 @@ public class IsolatedStorageServiceManager {
             return false;
         }
 
-        boolean protectedAppSearchVmEnabled =
-                !SystemProperties.getBoolean(
-                        SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
+        boolean nonProtectedAppSearchVmEnabled = isNonProtectedVmEnabled();
         int requiredCapability =
-                protectedAppSearchVmEnabled
-                        ? VirtualMachineManager.CAPABILITY_PROTECTED_VM
-                        : VirtualMachineManager.CAPABILITY_NON_PROTECTED_VM;
+                nonProtectedAppSearchVmEnabled
+                        ? VirtualMachineManager.CAPABILITY_NON_PROTECTED_VM
+                        : VirtualMachineManager.CAPABILITY_PROTECTED_VM;
         return (vmm.getCapabilities() & requiredCapability) != 0;
+    }
+
+    public static boolean isNonProtectedVmEnabled() {
+        return SystemProperties.getBoolean(
+                SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
     }
 
     /** Cleans up the isolated storage service related data. */
@@ -510,9 +515,13 @@ public class IsolatedStorageServiceManager {
 
         try {
             for (int i = 0; i < numRetries; i++) {
+                boolean nonProtectedAppSearchVmEnabled = isNonProtectedVmEnabled();
+                int timeout =
+                        nonProtectedAppSearchVmEnabled
+                                ? PAYLOAD_WAIT_TIMEOUT_SECONDS_CF
+                                : PAYLOAD_WAIT_TIMEOUT_SECONDS;
                 VmStartResult result =
-                        mIsolatedStorageService.startVm(
-                                serviceConfig, PAYLOAD_WAIT_TIMEOUT_SECONDS, forceVmRestart);
+                        mIsolatedStorageService.startVm(serviceConfig, timeout, forceVmRestart);
                 if (statsBuilder != null) {
                     statsBuilder.addStartAttemptStats(
                             new VmStartAttemptStats.Builder()

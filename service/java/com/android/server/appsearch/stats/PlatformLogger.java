@@ -49,8 +49,6 @@ import com.android.server.appsearch.external.localstorage.stats.SearchIntentStat
 import com.android.server.appsearch.external.localstorage.stats.SearchSessionStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchStats;
 import com.android.server.appsearch.external.localstorage.stats.SetSchemaStats;
-import com.android.server.appsearch.external.localstorage.stats.VmInitializationStats;
-import com.android.server.appsearch.external.localstorage.stats.VmStartAttemptStats;
 import com.android.server.appsearch.util.ApiCallRecord;
 import com.android.server.appsearch.util.PackageUtil;
 import com.android.server.appsearch.util.StatsUtil;
@@ -219,7 +217,11 @@ public class PlatformLogger implements InternalAppSearchLogger {
     public void logStats(@NonNull AppOpenEventStats appOpenEventStats) {
         Objects.requireNonNull(appOpenEventStats);
         synchronized (mLock) {
-            LogUtil.piiTrace(TAG, "AppOpenEventStats=", appOpenEventStats.getTotalLatencyMillis(), appOpenEventStats);
+            LogUtil.piiTrace(
+                    TAG,
+                    "AppOpenEventStats=",
+                    appOpenEventStats.getTotalLatencyMillis(),
+                    appOpenEventStats);
             if (shouldLogForTypeLocked(
                     BaseStats.INTERNAL_CALL_TYPE_APP_OPEN_EVENT_INDEXER,
                     BaseStats.NO_FEATURES_ENABLED_BITMASK)) {

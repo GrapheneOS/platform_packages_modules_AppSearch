@@ -351,4 +351,22 @@ public class FlagsTest {
         assertThat(Flags.FLAG_ENABLE_SCHEMA_TYPE_ID_OPTIMIZATION)
                 .isEqualTo("com.android.appsearch.flags.enable_schema_type_id_optimization");
     }
+
+    @Test
+    public void testFlagValue_enableOptimizeImprovements() {
+        assertThat(Flags.FLAG_ENABLE_OPTIMIZE_IMPROVEMENTS)
+                .isEqualTo("com.android.appsearch.flags.enable_optimize_improvements");
+    }
+
+    @Test
+    public void testFlagValue_enableRepeatedFieldJoins() {
+        assertThat(Flags.FLAG_ENABLE_REPEATED_FIELD_JOINS)
+                .isEqualTo("com.android.appsearch.flags.enable_repeated_field_joins");
+    }
+
+    @Test
+    public void testFlagValue_enableDeletePropagationRw() {
+        assertThat(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
+                .isEqualTo("com.android.appsearch.flags.enable_delete_propagation_rw");
+    }
 }
