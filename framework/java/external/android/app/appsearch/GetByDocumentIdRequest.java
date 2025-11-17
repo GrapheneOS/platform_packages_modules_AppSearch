@@ -46,7 +46,8 @@ import java.util.Set;
  *
  * @see AppSearchSession#getByDocumentId
  */
-// TODO(b/384721898): Switch to JSpecify annotations
+// TODO(b/384721898): Switching to JSpecify annotations changes APIs once synced to platform.
+//  Do not switch unless you've checked that no APIs are affected.
 @SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
 @SafeParcelable.Class(creator = "GetByDocumentIdRequestCreator")
 public final class GetByDocumentIdRequest extends AbstractSafeParcelable {

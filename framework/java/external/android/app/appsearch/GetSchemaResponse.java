@@ -41,7 +41,8 @@ import java.util.Set;
 
 /** The response class of {@link AppSearchSession#getSchema} */
 @SafeParcelable.Class(creator = "GetSchemaResponseCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
+// TODO(b/384721898): Switching to JSpecify annotations changes APIs once synced to platform.
+//  Do not switch unless you've checked that no APIs are affected.
 @SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
 public final class GetSchemaResponse extends AbstractSafeParcelable {
 
