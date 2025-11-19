@@ -23,7 +23,8 @@ import android.app.appsearch.safeparcel.PackageIdentifierParcel;
 import java.util.Objects;
 
 /** This class represents a uniquely identifiable package. */
-// TODO(b/384721898): Switch to JSpecify annotations
+// TODO(b/384721898): Switching to JSpecify annotations changes APIs once synced to platform.
+//  Do not switch unless you've checked that no APIs are affected.
 @SuppressWarnings("JSpecifyNullness")
 public class PackageIdentifier {
     private final @NonNull PackageIdentifierParcel mPackageIdentifierParcel;

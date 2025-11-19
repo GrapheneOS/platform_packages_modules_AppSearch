@@ -874,3 +874,20 @@ flag {
     description: "Enables delete propagation API. It replaces the original read-only flag enable_delete_propagation_type."
     bug: "376913014"
 }
+
+flag {
+    name: "enable_schemas_wipeout_account_property_paths"
+    namespace: "appsearch"
+    description: "Enables wipe out documents under specific property paths when an account is removed."
+    bug: "413089233"
+}
+
+flag {
+    name: "enable_non_existent_qualified_id_join"
+    namespace: "appsearch"
+    description: "Enables indexing non existent parent qualified id in the join index."
+    bug: "446180684"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

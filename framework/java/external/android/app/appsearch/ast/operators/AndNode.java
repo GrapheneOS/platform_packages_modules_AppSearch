@@ -31,7 +31,8 @@ import java.util.Objects;
 
 /** {@link Node} that represents logical AND of nodes. */
 @FlaggedApi(Flags.FLAG_ENABLE_ABSTRACT_SYNTAX_TREES)
-// TODO(b/384721898): Switch to JSpecify annotations
+// TODO(b/384721898): Switching to JSpecify annotations changes APIs once synced to platform.
+//  Do not switch unless you've checked that no APIs are affected.
 @SuppressWarnings("JSpecifyNullness")
 public final class AndNode implements Node {
     private List<Node> mChildren;
