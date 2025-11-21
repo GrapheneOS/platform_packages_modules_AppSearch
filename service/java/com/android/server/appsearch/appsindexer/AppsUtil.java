@@ -636,8 +636,6 @@ public final class AppsUtil {
     /**
      * Creates dynamic app function schemas defined by the app per package.
      *
-     * <p>Packages which don't have a AppFunctionService will not have an entry in the returned map.
-     *
      * @param packageManager the {@link PackageManager} to use to get the schema file path.
      * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
      *     ResolveInfo} for the packages launch activity.
@@ -660,40 +658,83 @@ public final class AppsUtil {
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
             PackageInfo packageInfo = entry.getKey();
             ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
-            if (resolveInfo == null) {
-                continue;
-            }
 
-            String assetFilePath = null;
-            try {
-                PackageManager.Property property =
-                        packageManager.getProperty(
-                                /* propertyName= */ "android.app.appfunctions.schema",
-                                new ComponentName(
-                                        resolveInfo.serviceInfo.packageName,
-                                        resolveInfo.serviceInfo.name));
-                assetFilePath = property.getString();
-            } catch (PackageManager.NameNotFoundException e) {
-                if (LogUtil.DEBUG) {
-                    Log.d(
-                            TAG,
-                            "getDynamicAppFunctionSchemasForPackages: Failed to get schema "
-                                    + "property for package: "
-                                    + resolveInfo.serviceInfo.packageName,
-                            e);
-                }
-            }
+            String assetFilePath =
+                    getDynamicSchemaAssetPath(packageManager, packageInfo, resolveInfo);
 
+            String packageName = packageInfo.packageName;
             if (assetFilePath != null) {
                 schemasPerPackage.put(
-                        packageInfo.packageName,
-                        parser.parseAndCreateSchemas(
-                                packageManager, packageInfo.packageName, assetFilePath));
+                        packageName,
+                        parser.parseAndCreateSchemas(packageManager, packageName, assetFilePath));
             } else {
-                schemasPerPackage.put(packageInfo.packageName, Collections.emptyMap());
+                schemasPerPackage.put(packageName, Collections.emptyMap());
             }
         }
 
         return schemasPerPackage;
+    }
+
+    /**
+     * Retrieves the asset path for the dynamic app function schema from package properties.
+     *
+     * <p>It first checks for an application-level property, and if not found, falls back to a
+     * service-level property.
+     *
+     * @return The asset file path as a string, or {@code null} if not found.
+     */
+    @Nullable
+    private static String getDynamicSchemaAssetPath(
+            @NonNull PackageManager packageManager,
+            @NonNull PackageInfo packageInfo,
+            @Nullable ResolveInfo resolveInfo) {
+        final String dynamicSchemaPropertyName = "android.app.appfunctions.schema";
+        final String packageName = packageInfo.packageName;
+
+        // First, try to get the schema path from the application-level property.
+        // TODO(b/447127837): require at least Android C once finalised here and in the test
+        if (android.app.appfunctions.flags.Flags.enableDynamicAppFunctions()
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            try {
+                PackageManager.Property property =
+                        packageManager.getProperty(dynamicSchemaPropertyName, packageName);
+                if (property.isString()) {
+                    return property.getString();
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                if (LogUtil.DEBUG) {
+                    Log.d(
+                            TAG,
+                            "No application-level schema property found for package: "
+                                    + packageName,
+                            e);
+                }
+            }
+        }
+
+        // If not found at the application level, fall back to the service-level property.
+        if (resolveInfo == null) {
+            return null;
+        }
+        try {
+            ComponentName serviceComponent =
+                    new ComponentName(
+                            resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name);
+            PackageManager.Property property =
+                    packageManager.getProperty(dynamicSchemaPropertyName, serviceComponent);
+            if (property.isString()) {
+                return property.getString();
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            if (LogUtil.DEBUG) {
+                Log.d(
+                        TAG,
+                        "No service-level schema property found for component: "
+                                + resolveInfo.serviceInfo.name,
+                        e);
+            }
+        }
+
+        return null;
     }
 }

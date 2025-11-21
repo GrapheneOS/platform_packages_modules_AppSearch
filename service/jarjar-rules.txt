@@ -21,3 +21,7 @@ rule com.android.appsearch.flags.Flags com.android.server.appsearch.flags.Flags
 rule android.permission.flags.*FeatureFlags* com.android.server.appsearch.permission.flags.@1FeatureFlags@2
 rule android.permission.flags.FeatureFlags* com.android.server.appsearch.permission.flags.FeatureFlags@1
 rule android.permission.flags.Flags com.android.server.appsearch.permission.flags.Flags
+
+rule android.app.appfunctions.flags.*FeatureFlags* com.android.server.appsearch.appfunctions.flags.@1FeatureFlags@2
+rule android.app.appfunctions.flags.FeatureFlags* com.android.server.appsearch.appfunctions.flags.FeatureFlags@1
+rule android.app.appfunctions.flags.Flags com.android.server.appsearch.appfunctions.flags.Flags

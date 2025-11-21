@@ -1218,6 +1218,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
         assertThat(mSingleThreadedExecutor.getCompletedTaskCount()).isEqualTo(1);
 
         // Schedule even more sync
+        Mockito.reset(mMockPackageManager);
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(numOfNotifications),
@@ -1345,6 +1346,7 @@ public class AppsIndexerUserInstanceTest extends AppsIndexerTestBase {
                 searchHelper.getAppsLastUpdatedTimeAndAppFunctionServiceEnabledFromAppSearch();
         assertThat(appIds.size()).isEqualTo(10);
 
+        Mockito.reset(mMockPackageManager);
         setupMockPackageManager(
                 mMockPackageManager,
                 createFakePackageInfos(6),
