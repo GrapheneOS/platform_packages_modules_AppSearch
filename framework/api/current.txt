@@ -817,6 +817,7 @@ package android.app.appsearch {
     method @NonNull public java.util.Set<java.lang.String> getSchemasNotDisplayedBySystem();
     method @FlaggedApi("com.android.appsearch.flags.enable_set_schema_visible_to_configs") @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.SchemaVisibilityConfig>> getSchemasVisibleToConfigs();
     method @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.PackageIdentifier>> getSchemasVisibleToPackages();
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public java.util.Map<java.lang.String,java.util.Set<java.lang.String>> getSchemasWipeoutAccountPropertyPaths();
     method @IntRange(from=1) public int getVersion();
     method public boolean isForceOverride();
     field public static final int READ_ASSISTANT_APP_SEARCH_DATA = 6; // 0x6
@@ -845,6 +846,7 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_set_publicly_visible_schema") @NonNull public android.app.appsearch.SetSchemaRequest.Builder setPubliclyVisibleSchema(@NonNull String, @Nullable android.app.appsearch.PackageIdentifier);
     method @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeDisplayedBySystem(@NonNull String, boolean);
     method @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeVisibilityForPackage(@NonNull String, boolean, @NonNull android.app.appsearch.PackageIdentifier);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeWipeoutAccountPropertyPaths(@NonNull String, @NonNull java.util.Collection<android.app.appsearch.PropertyPath>, boolean);
     method @NonNull public android.app.appsearch.SetSchemaRequest.Builder setVersion(@IntRange(from=1) int);
   }
 

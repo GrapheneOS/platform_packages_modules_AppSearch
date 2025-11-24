@@ -31,7 +31,8 @@ import java.util.Objects;
  * <p>See {@link GlobalSearchSession#reportSystemUsage} for a detailed description of usage
  * reporting.
  */
-// TODO(b/384721898): Switch to JSpecify annotations
+// TODO(b/384721898): Switching to JSpecify annotations changes APIs once synced to platform.
+//  Do not switch unless you've checked that no APIs are affected.
 @SuppressWarnings("JSpecifyNullness")
 public final class ReportSystemUsageRequest {
     private final String mPackageName;

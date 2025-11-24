@@ -44,7 +44,8 @@ import java.util.Objects;
  */
 @FlaggedApi(Flags.FLAG_ENABLE_SCHEMA_EMBEDDING_PROPERTY_CONFIG)
 @SafeParcelable.Class(creator = "EmbeddingVectorCreator")
-// TODO(b/384721898): Switch to JSpecify annotations
+// TODO(b/384721898): Switching to JSpecify annotations changes APIs once synced to platform.
+//  Do not switch until this is resolved.
 @SuppressWarnings({"HiddenSuperclass", "JSpecifyNullness"})
 public final class EmbeddingVector extends AbstractSafeParcelable {
 

@@ -520,6 +520,13 @@ public class IsolatedStorageServiceManager {
                         nonProtectedAppSearchVmEnabled
                                 ? PAYLOAD_WAIT_TIMEOUT_SECONDS_CF
                                 : PAYLOAD_WAIT_TIMEOUT_SECONDS;
+                if (isValidShutdown()) {
+                    Log.i(
+                            TAG,
+                            "System initiated valid shutdown request. Abort attempting to"
+                                    + " reconnect.");
+                    return;
+                }
                 VmStartResult result =
                         mIsolatedStorageService.startVm(serviceConfig, timeout, forceVmRestart);
                 if (statsBuilder != null) {

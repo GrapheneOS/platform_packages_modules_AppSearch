@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.ApplicationInfo;
@@ -55,6 +56,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -70,6 +72,28 @@ public class AppsUtilTest {
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
     private final PackageManager mMockPackageManager = mock(PackageManager.class);
     private final Context mContext = ApplicationProvider.getApplicationContext();
+
+    private PackageInfo mPackageInfo;
+    private ResolveInfo mLaunchResolveInfo;
+    private ResolveInfo mAppFunctionResolveInfo;
+    private Map<PackageInfo, ResolveInfos> mPackageMapping;
+
+    @Before
+    public void setUp() throws Exception {
+        mPackageInfo = createFakePackageInfo(0);
+        mLaunchResolveInfo = createFakeLaunchResolveInfo(0);
+        mAppFunctionResolveInfo = createFakeAppFunctionResolveInfo(0);
+        mPackageMapping = new ArrayMap<>();
+
+        // Common mocking for icon uri and application label to avoid NPEs during build
+        Resources res = Mockito.mock(Resources.class);
+        when(res.getResourcePackageName(anyInt())).thenReturn("package");
+        when(res.getResourceTypeName(anyInt())).thenReturn("type");
+        when(mMockPackageManager.getResourcesForApplication((ApplicationInfo) any()))
+                .thenReturn(res);
+        when(mMockPackageManager.getApplicationLabel(any(ApplicationInfo.class)))
+                .thenReturn("Fake App");
+    }
 
     @Test
     public void testBuildAppsFromPackageInfos_ReturnsNonNullList() throws Exception {
@@ -358,5 +382,80 @@ public class AppsUtilTest {
         MobileApplication app = resultApps.get(0);
         assertThat(app.getDisplayName()).isEqualTo(defaultName);
         assertThat(app.getAlternateNames()).asList().containsExactly(frenchName, spanishName);
+    }
+
+    @Test
+    public void testBuildApps_appFunctionServiceComponentEnabled_setsEnabledStatusTrue()
+            throws Exception {
+        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        mPackageMapping.put(mPackageInfo, resolveInfos);
+        when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
+                .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_ENABLED);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isTrue();
+    }
+
+    @Test
+    public void testBuildApps_appFunctionServiceComponentDisabled_setsEnabledStatusFalse()
+            throws Exception {
+        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        mPackageMapping.put(mPackageInfo, resolveInfos);
+        when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
+                .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DISABLED);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
+    }
+
+    @Test
+    public void testBuildApps_appFunctionServiceDefaultAndManifestEnabled_setsEnabledStatusTrue()
+            throws Exception {
+        mAppFunctionResolveInfo.serviceInfo.enabled = true;
+        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        mPackageMapping.put(mPackageInfo, resolveInfos);
+        when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
+                .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DEFAULT);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isTrue();
+    }
+
+    @Test
+    public void testBuildApps_appFunctionServiceDefaultAndManifestDisabled_setsEnabledStatusFalse()
+            throws Exception {
+        mAppFunctionResolveInfo.serviceInfo.enabled = false;
+        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        mPackageMapping.put(mPackageInfo, resolveInfos);
+        when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
+                .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DEFAULT);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
+    }
+
+    @Test
+    public void testBuildApps_noAppFunctionService_setsEnabledStatusFalse() throws Exception {
+        ResolveInfos noAppFunctionResolveInfos = new ResolveInfos(null, mLaunchResolveInfo);
+        mPackageMapping.put(mPackageInfo, noAppFunctionResolveInfos);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        // The builder's default for a boolean is false, which is the expected value.
+        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
     }
 }
