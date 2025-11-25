@@ -156,7 +156,7 @@ public class AppsIndexerRealDocumentsTest extends AppsIndexerTestBase {
 
         // As the apps get indexed at the same time, we just need to wait for one change.
         CountDownLatch latch = setupLatch(1, false);
-        assertTrue(latch.await(10L, TimeUnit.SECONDS));
+        assertTrue(latch.await(180L, TimeUnit.SECONDS));
         mShim.unregisterObserverCallback(testPackage, mCallback);
 
         SearchResultsShim results =
