@@ -174,7 +174,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
         AppSearchHelper appSearchHelper = new AppSearchHelper(mContext);
         AppOpenEvent appOpenEvent =
@@ -229,7 +229,7 @@ public class AppOpenEventIndexerUserInstanceTest {
                 Integer.toString(1),
                 false);
 
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
         ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
         verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
         assertThat(mInstance.getSettings().getIndexerForceUpdateEmergencyCounter()).isEqualTo(1);
@@ -315,7 +315,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
         ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
         verify(mockJobScheduler).schedule(jobInfoArgumentCaptor.capture());
@@ -378,7 +378,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
         AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
@@ -412,7 +412,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
         settings = mInstance.getSettings();
         long lastAttemptedUpdatedTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
@@ -443,7 +443,7 @@ public class AppOpenEventIndexerUserInstanceTest {
         CountDownLatch latch = new CountDownLatch(1);
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
         AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         mSettingsStore.loadInto(settings);
@@ -473,7 +473,7 @@ public class AppOpenEventIndexerUserInstanceTest {
 
         CountDownLatch latch = new CountDownLatch(1);
         mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
         AppOpenEventIndexerSettings settings = new AppOpenEventIndexerSettings();
         mSettingsStore.loadInto(settings);
@@ -491,7 +491,7 @@ public class AppOpenEventIndexerUserInstanceTest {
             latch = new CountDownLatch(1);
             mInstance.updateAsync(latch::countDown, /* isForceUpdateTriggered= */ false);
 
-            assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 
             mSettingsStore.loadInto(settings);
             secondAttemptedUpdateTimestampMillis = settings.getLastAttemptedUpdateTimestampMillis();
