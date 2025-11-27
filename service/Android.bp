@@ -91,6 +91,7 @@ java_defaults {
         "appsearch_flags_java_lib",
         "modules-utils-preconditions",
 
+        "android.app.appfunctions.exported-flags-aconfig-java",
         "android.permission.flags-aconfig-java-export",
     ],
     libs: [
