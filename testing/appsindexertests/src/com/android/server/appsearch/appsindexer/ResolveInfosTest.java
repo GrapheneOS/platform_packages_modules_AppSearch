@@ -19,6 +19,7 @@ package com.android.server.appsearch.appsindexer;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
 import org.junit.Test;
@@ -45,5 +46,32 @@ public class ResolveInfosTest {
         assertThat(resolveInfos.getAppFunctionServiceInfo()).isEqualTo(appFunctionResolveInfo);
         assertThat(resolveInfos.getLaunchActivityResolveInfo())
                 .isEqualTo(launchActivityResolveInfo);
+    }
+
+    @Test
+    public void testBuilder_withProperty() {
+        ResolveInfo appFunctionResolveInfo = new ResolveInfo();
+        appFunctionResolveInfo.activityInfo = new ActivityInfo();
+        appFunctionResolveInfo.activityInfo.packageName = "package1";
+        appFunctionResolveInfo.activityInfo.name = "activity1";
+
+        ResolveInfo launchActivityResolveInfo = new ResolveInfo();
+        launchActivityResolveInfo.activityInfo = new ActivityInfo();
+        launchActivityResolveInfo.activityInfo.packageName = "package1";
+        launchActivityResolveInfo.activityInfo.name = "activity2";
+
+        PackageManager.Property property =
+                new PackageManager.Property("name", "value", "package1", "Class1");
+        ResolveInfos resolveInfos =
+                new ResolveInfos.Builder()
+                        .setAppFunctionServiceResolveInfo(appFunctionResolveInfo)
+                        .setLaunchActivityResolveInfo(launchActivityResolveInfo)
+                        .setAppFunctionAppLevelProperty(property)
+                        .build();
+
+        assertThat(resolveInfos.getAppFunctionServiceInfo()).isEqualTo(appFunctionResolveInfo);
+        assertThat(resolveInfos.getLaunchActivityResolveInfo())
+                .isEqualTo(launchActivityResolveInfo);
+        assertThat(resolveInfos.getAppFunctionAppLevelProperty()).isEqualTo(property);
     }
 }

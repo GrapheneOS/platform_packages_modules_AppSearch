@@ -16,11 +16,11 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.getAppFunctionAppProperty;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
-import android.app.appsearch.AppSearchSchema;
-import android.app.appsearch.GenericDocument;
 import android.app.appsearch.util.LogUtil;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
@@ -34,7 +34,6 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.Signature;
-import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.net.Uri;
@@ -45,21 +44,12 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.appsearch.flags.Flags;
-import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
-import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-import org.xmlpull.v1.XmlPullParserFactory;
-
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -212,7 +202,17 @@ public final class AppsUtil {
                 builder.setAppFunctionServiceResolveInfo(appFunctionServiceInfo);
             }
 
-            if (launchActivityResolveInfo != null || appFunctionServiceInfo != null) {
+            PackageManager.Property appFunctionProperty =
+                    getAppFunctionAppProperty(packageManager, packageInfo.packageName);
+            if (appFunctionProperty != null) {
+                builder.setAppFunctionAppLevelProperty(appFunctionProperty);
+            }
+
+            boolean shouldIndexPackage =
+                    launchActivityResolveInfo != null
+                            || appFunctionServiceInfo != null
+                            || appFunctionProperty != null;
+            if (shouldIndexPackage) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
                     // Populate signatures for P- devices.
                     try {
@@ -256,134 +256,6 @@ public final class AppsUtil {
             }
         }
         return mobileApplications;
-    }
-
-    /**
-     * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
-     * build AppSearch {@link GenericDocument} objects. Info from both are required to build app
-     * documents.
-     *
-     * <p>App documents will be returned as a mapping of packages to a mapping of document ids to
-     * documents. This is useful for determining what has changed during an update.
-     *
-     * <p>The parser will parse app function documents based on schemas if schemasPerPackage is not
-     * null or the map of schemas for a package is not empty, else it will default to predefined
-     * schema properties created by {@link
-     * AppFunctionStaticMetadata#createAppFunctionSchemaForPackage} to create the {@link
-     * AppFunctionStaticMetadata} documents.
-     *
-     * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
-     *     ResolveInfo} for the packages launch activity.
-     * @param indexerPackageName the name of the package performing the indexing. This should be the
-     *     same as the package running the apps indexer so that qualified ids are correctly created.
-     * @param config the app indexer config used to enforce various limits during parsing.
-     * @param schemasPerPackage a mapping of packages to a mapping of schema types to their
-     *     corresponding {@link AppSearchSchema} objects, or null if there are no schemas to
-     *     consider.
-     * @return A mapping of packages to a mapping of document ids to AppFunction GenericDocuments
-     *     conforming the schemas for the corresponding package.
-     */
-    public static Map<String, Map<String, ? extends AppFunctionDocument>>
-            buildAppFunctionDocumentsIntoMap(
-                    @NonNull PackageManager packageManager,
-                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-                    @NonNull String indexerPackageName,
-                    AppsIndexerConfig config,
-                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
-        AppFunctionDocumentParser parser =
-                new AppFunctionDocumentParserImpl(indexerPackageName, config);
-        return buildAppFunctionDocumentsIntoMap(
-                packageManager, packageInfos, parser, schemasPerPackage);
-    }
-
-    /**
-     * Similar to the above {@link #buildAppFunctionStaticMetadata}, but allows the caller to
-     * provide a custom parser. This is for testing purposes.
-     *
-     * @see #buildAppFunctionDocumentsIntoMap(PackageManager, Map, String, AppsIndexerConfig, Map)
-     */
-    private static Map<String, Map<String, ? extends AppFunctionDocument>>
-            buildAppFunctionDocumentsIntoMap(
-                    @NonNull PackageManager packageManager,
-                    @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-                    @NonNull AppFunctionDocumentParser parser,
-                    @Nullable Map<String, Map<String, AppSearchSchema>> schemasPerPackage) {
-        Objects.requireNonNull(packageManager);
-        Objects.requireNonNull(packageInfos);
-        Objects.requireNonNull(parser);
-        Map<String, Map<String, ? extends AppFunctionDocument>> appFunctions = new ArrayMap<>();
-        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
-            PackageInfo packageInfo = entry.getKey();
-            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
-            if (resolveInfo == null) continue;
-            boolean isDynamicSchemaDefined =
-                    schemasPerPackage != null
-                            && !schemasPerPackage
-                                    .getOrDefault(packageInfo.packageName, Collections.emptyMap())
-                                    .isEmpty();
-            // Choose appropriate property name based on schema type
-            String xmlPropertyName =
-                    isDynamicSchemaDefined
-                            ? "android.app.appfunctions.v2"
-                            : "android.app.appfunctions";
-            PackageManager.Property xmlProperty;
-            try {
-                xmlProperty =
-                        packageManager.getProperty(
-                                xmlPropertyName,
-                                new ComponentName(
-                                        resolveInfo.serviceInfo.packageName,
-                                        resolveInfo.serviceInfo.name));
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.w(TAG, "Failed to get property for: " + packageInfo.packageName, e);
-                continue;
-            }
-
-            if (!isDynamicSchemaDefined && xmlProperty.isString()) {
-                Map<String, ? extends AppFunctionDocument> parsedMap =
-                        parser.parseIntoMap(
-                                packageManager,
-                                packageInfo.packageName,
-                                Objects.requireNonNull(xmlProperty.getString()));
-                appFunctions.put(packageInfo.packageName, parsedMap);
-                continue;
-            }
-
-            // Parse with dynamic schema
-            try {
-                Resources resources =
-                        packageManager.getResourcesForApplication(packageInfo.packageName);
-                XmlPullParser xmlPullParser;
-
-                if (xmlProperty.isResourceId()) {
-                    xmlPullParser = resources.getXml(xmlProperty.getResourceId());
-                } else if (xmlProperty.isString()) {
-                    AssetManager assetManager = resources.getAssets();
-                    xmlPullParser = XmlPullParserFactory.newInstance().newPullParser();
-                    xmlPullParser.setInput(
-                            new InputStreamReader(
-                                    assetManager.open(
-                                            Objects.requireNonNull(xmlProperty.getString()))));
-                } else {
-                    continue;
-                }
-
-                Map<String, ? extends AppFunctionDocument> parsedMap =
-                        parser.parseIntoMapForGivenSchemas(
-                                packageManager,
-                                packageInfo.packageName,
-                                xmlPullParser,
-                                schemasPerPackage.get(packageInfo.packageName));
-                appFunctions.put(packageInfo.packageName, parsedMap);
-
-            } catch (PackageManager.NameNotFoundException
-                    | XmlPullParserException
-                    | IOException e) {
-                Log.w(TAG, "Failed to parse dynamic XML for: " + packageInfo.packageName, e);
-            }
-        }
-
-        return appFunctions;
     }
 
     /**
@@ -631,110 +503,5 @@ public final class AppsUtil {
                         : currentAppFunctionServiceState
                                 == PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
         return isAppFunctionServiceEnabled;
-    }
-
-    /**
-     * Creates dynamic app function schemas defined by the app per package.
-     *
-     * @param packageManager the {@link PackageManager} to use to get the schema file path.
-     * @param packageInfos a mapping of {@link PackageInfo}s and their corresponding {@link
-     *     ResolveInfo} for the packages launch activity.
-     * @param maxAllowedAppFunctionSchemasPerPackage the max number of schema definitions allowed
-     *     per package.
-     * @return A mapping of packages to a mapping of schema types to their corresponding {@link
-     *     AppSearchSchema} objects or an empty map for a package if there's an error during parsing
-     *     or no schema file is found.
-     */
-    @NonNull
-    public static Map<String, Map<String, AppSearchSchema>> getDynamicAppFunctionSchemasForPackages(
-            @NonNull PackageManager packageManager,
-            @NonNull Map<PackageInfo, ResolveInfos> packageInfos,
-            int maxAllowedAppFunctionSchemasPerPackage) {
-        Objects.requireNonNull(packageInfos);
-
-        Map<String, Map<String, AppSearchSchema>> schemasPerPackage = new ArrayMap<>();
-        AppFunctionSchemaParser parser =
-                new AppFunctionSchemaParser(maxAllowedAppFunctionSchemasPerPackage);
-        for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
-            PackageInfo packageInfo = entry.getKey();
-            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
-
-            String assetFilePath =
-                    getDynamicSchemaAssetPath(packageManager, packageInfo, resolveInfo);
-
-            String packageName = packageInfo.packageName;
-            if (assetFilePath != null) {
-                schemasPerPackage.put(
-                        packageName,
-                        parser.parseAndCreateSchemas(packageManager, packageName, assetFilePath));
-            } else {
-                schemasPerPackage.put(packageName, Collections.emptyMap());
-            }
-        }
-
-        return schemasPerPackage;
-    }
-
-    /**
-     * Retrieves the asset path for the dynamic app function schema from package properties.
-     *
-     * <p>It first checks for an application-level property, and if not found, falls back to a
-     * service-level property.
-     *
-     * @return The asset file path as a string, or {@code null} if not found.
-     */
-    @Nullable
-    private static String getDynamicSchemaAssetPath(
-            @NonNull PackageManager packageManager,
-            @NonNull PackageInfo packageInfo,
-            @Nullable ResolveInfo resolveInfo) {
-        final String dynamicSchemaPropertyName = "android.app.appfunctions.schema";
-        final String packageName = packageInfo.packageName;
-
-        // First, try to get the schema path from the application-level property.
-        // TODO(b/447127837): require at least Android C once finalised here and in the test
-        if (android.app.appfunctions.flags.Flags.enableDynamicAppFunctions()
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-            try {
-                PackageManager.Property property =
-                        packageManager.getProperty(dynamicSchemaPropertyName, packageName);
-                if (property.isString()) {
-                    return property.getString();
-                }
-            } catch (PackageManager.NameNotFoundException e) {
-                if (LogUtil.DEBUG) {
-                    Log.d(
-                            TAG,
-                            "No application-level schema property found for package: "
-                                    + packageName,
-                            e);
-                }
-            }
-        }
-
-        // If not found at the application level, fall back to the service-level property.
-        if (resolveInfo == null) {
-            return null;
-        }
-        try {
-            ComponentName serviceComponent =
-                    new ComponentName(
-                            resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name);
-            PackageManager.Property property =
-                    packageManager.getProperty(dynamicSchemaPropertyName, serviceComponent);
-            if (property.isString()) {
-                return property.getString();
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            if (LogUtil.DEBUG) {
-                Log.d(
-                        TAG,
-                        "No service-level schema property found for component: "
-                                + resolveInfo.serviceInfo.name,
-                        e);
-            }
-        }
-
-        return null;
     }
 }

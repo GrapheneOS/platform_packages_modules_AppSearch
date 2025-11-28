@@ -211,6 +211,26 @@ class TestUtils {
                     + "    </xs:documentType>"
                     + "</xs:schema>";
 
+    /** Test appfunctions XML with print function. */
+    public static final String APP_FUNCTION_XML_WITH_PRINT =
+            "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                    + "<appfunctions>\n"
+                    + "  <AppFunctionStaticMetadata>\n"
+                    + "    <id>com.appLevelSchema.utils#print</id>\n"
+                    + "    <functionId>com.appLevelSchema.utils#print</functionId>\n"
+                    + "  </AppFunctionStaticMetadata>\n"
+                    + "</appfunctions>";
+
+    /** Test appfunctions XML with search function. */
+    public static final String APP_FUNCTION_XML_WITH_SEARCH =
+            "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                    + "<appfunctions>\n"
+                    + "  <AppFunctionStaticMetadata>\n"
+                    + "    <id>com.appLevelSchema.utils#search</id>\n"
+                    + "    <functionId>com.appLevelSchema.utils#search</functionId>\n"
+                    + "  </AppFunctionStaticMetadata>\n"
+                    + "</appfunctions>";
+
     /**
      * Creates a fake {@link PackageInfo} object.
      *
