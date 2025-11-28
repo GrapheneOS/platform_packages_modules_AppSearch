@@ -15,6 +15,8 @@
  */
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchSchema;
@@ -295,7 +297,8 @@ public class AppFunctionsIndexerUtil {
                     parser.parseIntoMap(
                             packageManager,
                             packageName,
-                            Objects.requireNonNull(xmlProperty.getString())));
+                            Objects.requireNonNull(xmlProperty.getString()),
+                            resolveInfo.serviceInfo.name));
         }
     }
 
@@ -321,7 +324,11 @@ public class AppFunctionsIndexerUtil {
         if (xmlPullParser != null) {
             packageAppFunctions.putAll(
                     parser.parseIntoMapForGivenSchemas(
-                            packageManager, packageName, xmlPullParser, schemas));
+                            packageManager,
+                            packageName,
+                            xmlPullParser,
+                            schemas,
+                            resolveInfo.serviceInfo.name));
         }
     }
 
@@ -347,11 +354,15 @@ public class AppFunctionsIndexerUtil {
                     continue;
                 }
                 XmlPullParser xmlPullParser =
-                        createXmlParserFromAsset(packageName, trimmedAssetPath, packageManager);
+                        createXmlParserFromAsset(packageName, assetPath, packageManager);
                 if (xmlPullParser != null) {
                     packageAppFunctions.putAll(
                             parser.parseIntoMapForGivenSchemas(
-                                    packageManager, packageName, xmlPullParser, schemas));
+                                    packageManager,
+                                    packageName,
+                                    xmlPullParser,
+                                    schemas,
+                                    APPLICATION_LEVEL_SERVICE_NAME));
                 }
             }
         } else { // isResourceId()
@@ -359,7 +370,11 @@ public class AppFunctionsIndexerUtil {
             if (xmlPullParser != null) {
                 packageAppFunctions.putAll(
                         parser.parseIntoMapForGivenSchemas(
-                                packageManager, packageName, xmlPullParser, schemas));
+                                packageManager,
+                                packageName,
+                                xmlPullParser,
+                                schemas,
+                                APPLICATION_LEVEL_SERVICE_NAME));
             }
         }
     }

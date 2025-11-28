@@ -42,6 +42,9 @@ public interface AppFunctionDocumentParser {
      * @param packageManager The PackageManager used to access app resources.
      * @param packageName The package name of the app whose assets contain the XML file.
      * @param assetFilePath The path to the XML file within the app's assets.
+     * @param serviceName the full name of the service class under which app functions are declared
+     *     or {@link AppFunctionStaticMetadata#APPLICATION_LEVEL_SERVICE_NAME} if app functions are
+     *     declared on the application level.
      * @return A mapping of document ids to their corresponding {@link AppFunctionStaticMetadata}
      *     objects representing the parsed App Functions. An empty map is returned if there's an
      *     error during parsing.
@@ -50,7 +53,8 @@ public interface AppFunctionDocumentParser {
     Map<String, AppFunctionStaticMetadata> parseIntoMap(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
-            @NonNull String assetFilePath);
+            @NonNull String assetFilePath,
+            @NonNull String serviceName);
 
     /**
      * Parses metadata about App Functions from the given XML parser, using type information from
@@ -64,12 +68,15 @@ public interface AppFunctionDocumentParser {
      *       `mobileApplicationQualifiedId` for easy retrievals.
      * </ul>
      *
-     * @param packageManager the PackageManager used to access app resources.
+     * @param packageManager PackageManager used to access app resources.
      * @param packageName the package name of the app for which app functions are being indexed.
      * @param xmlParser an {@link XmlPullParser} instance that can be used to read the app function
      *     documents serialized as XML in the app's APK.
      * @param schemas the mapping of schema types to their corresponding {@link AppSearchSchema}
      *     objects.
+     * @param serviceName the full name of the service class under which app functions are declared
+     *     or {@link AppFunctionStaticMetadata#APPLICATION_LEVEL_SERVICE_NAME} if app functions are
+     *     declared on the application level.
      * @return a mapping of document IDs to their corresponding {@link AppFunctionDocument} objects.
      *     The returned document's schema type will match one of the provided schemas. Returns an
      *     empty map if there's an error during parsing or if no `id` tags are found.
@@ -79,5 +86,6 @@ public interface AppFunctionDocumentParser {
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull XmlPullParser xmlParser,
-            @NonNull Map<String, AppSearchSchema> schemas);
+            @NonNull Map<String, AppSearchSchema> schemas,
+            @NonNull String serviceName);
 }
