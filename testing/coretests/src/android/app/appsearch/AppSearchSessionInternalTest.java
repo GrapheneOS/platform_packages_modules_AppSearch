@@ -20,17 +20,25 @@ import static android.app.appsearch.testutil.AppSearchTestUtils.convertSearchRes
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.appsearch.AppSearchSchema.PropertyConfig;
 import android.app.appsearch.AppSearchSchema.StringPropertyConfig;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
 import android.content.Context;
+import android.os.SystemClock;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.annotation.NonNull;
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
+
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import org.junit.Test;
@@ -42,6 +50,7 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
 
     // Based on {@link GenericDocument.PARENT_TYPES_SYNTHETIC_PROPERTY}
     private static final String PARENT_TYPES_SYNTHETIC_PROPERTY = "$$__AppSearch__parentTypes";
+    private final Context mContext = ApplicationProvider.getApplicationContext();
 
     @Override
     protected ListenableFuture<AppSearchSessionShim> createSearchSessionAsync(
@@ -53,9 +62,8 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
     @Override
     protected ListenableFuture<AppSearchSessionShim> createSearchSessionAsync(
             @NonNull String dbName, @NonNull ExecutorService executor) {
-        Context context = ApplicationProvider.getApplicationContext();
         return AppSearchSessionShimImpl.createSearchSessionAsync(
-                context, new AppSearchManager.SearchContext.Builder(dbName).build(), executor);
+                mContext, new AppSearchManager.SearchContext.Builder(dbName).build(), executor);
     }
 
     // TODO(b/371610934): Remove this test once GenericDocument#setParentTypes is removed.
@@ -189,5 +197,196 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                         artistDocWithParent,
                         musicianDocWithParent,
                         messageDocWithParent);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SCHEMAS_WIPEOUT_ACCOUNT_PROPERTY_PATHS)
+    public void testWipeoutAccount_remove() throws Exception {
+        AccountManager accountManager = AccountManager.get(mContext);
+        Account account =
+                new Account(MockAccountService.ACCOUNT_NAME, MockAccountService.ACCOUNT_TYPE);
+        accountManager.addAccountExplicitly(account, null, null);
+        Account[] accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
+        assertThat(accounts).asList().containsExactly(account);
+        AppSearchSchema email =
+                new AppSearchSchema.Builder("Email")
+                        .addProperty(
+                                new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                                "account", AppSearchAccount.SCHEMA_TYPE)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setShouldIndexNestedProperties(false)
+                                        .build())
+                        .build();
+
+        SetSchemaRequest request =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(email, AppSearchAccount.SCHEMA)
+                        .setSchemaTypeWipeoutAccountPropertyPaths(
+                                "Email",
+                                ImmutableSet.of(new PropertyPath("account")),
+                                /* autoWipeout= */ true)
+                        .build();
+
+        mDb1.setSchemaAsync(request).get();
+
+        // Put a documents with account property, should pass.
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id1", "Email")
+                        .setPropertyDocument(
+                                "account",
+                                new AppSearchAccount.Builder("namespace", "account1")
+                                        .setAccountId("accountId")
+                                        .setAccountType(MockAccountService.ACCOUNT_TYPE)
+                                        .setAccountName(MockAccountService.ACCOUNT_NAME)
+                                        .build())
+                        .build();
+
+        checkIsBatchResultSuccess(
+                mDb1.putAsync(
+                        new PutDocumentsRequest.Builder().addGenericDocuments(document).build()));
+
+        AppSearchBatchResult<String, GenericDocument> getResult =
+                mDb1.getByDocumentIdAsync(
+                                new GetByDocumentIdRequest.Builder("namespace")
+                                        .addIds("id1")
+                                        .build())
+                        .get();
+        assertTrue(getResult.isSuccess());
+        assertThat(getResult.getSuccesses()).hasSize(1);
+        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document);
+
+        accountManager.removeAccountExplicitly(account);
+        accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
+        assertThat(accounts).isEmpty();
+
+        // Wait for the AppSearch background thread to finish data pruning.
+        // Use a simple polling mechanism: check every 100ms, for up to 5 seconds.
+        for (int i = 0; i < 50; i++) {
+            getResult =
+                    mDb1.getByDocumentIdAsync(
+                                    new GetByDocumentIdRequest.Builder("namespace")
+                                            .addIds("id1")
+                                            .build())
+                            .get();
+            // Verify the reference document is removed.
+            if (!getResult.isSuccess()
+                    && getResult.getFailures().containsKey("id1")
+                    && getResult.getFailures().get("id1").getResultCode()
+                            == AppSearchResult.RESULT_NOT_FOUND) {
+                break;
+            }
+            // Wait 0.1 second to invoke on account update listener.
+            SystemClock.sleep(100);
+        }
+        assertThat(getResult.isSuccess()).isFalse();
+        assertThat(getResult.getFailures()).containsKey("id1");
+        assertThat(getResult.getFailures().get("id1").getResultCode())
+                .isEqualTo(AppSearchResult.RESULT_NOT_FOUND);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SCHEMAS_WIPEOUT_ACCOUNT_PROPERTY_PATHS)
+    public void testWipeoutAccount_rename() throws Exception {
+        AccountManager accountManager = AccountManager.get(mContext);
+        Account account =
+                new Account(MockAccountService.ACCOUNT_NAME, MockAccountService.ACCOUNT_TYPE);
+        accountManager.addAccountExplicitly(account, null, null);
+        Account[] accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
+        assertThat(accounts).asList().containsExactly(account);
+        AppSearchSchema email =
+                new AppSearchSchema.Builder("Email")
+                        .addProperty(
+                                new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                                "account", AppSearchAccount.SCHEMA_TYPE)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setShouldIndexNestedProperties(false)
+                                        .build())
+                        .build();
+
+        SetSchemaRequest request =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(email, AppSearchAccount.SCHEMA)
+                        .setSchemaTypeWipeoutAccountPropertyPaths(
+                                "Email",
+                                ImmutableSet.of(new PropertyPath("account")),
+                                /* autoWipeout= */ true)
+                        .build();
+
+        mDb1.setSchemaAsync(request).get();
+
+        // Put a documents with account property, should pass.
+        GenericDocument document =
+                new GenericDocument.Builder<>("namespace", "id1", "Email")
+                        .setPropertyDocument(
+                                "account",
+                                new AppSearchAccount.Builder("namespace", "account1")
+                                        .setAccountId("accountId")
+                                        .setAccountType(MockAccountService.ACCOUNT_TYPE)
+                                        .setAccountName(MockAccountService.ACCOUNT_NAME)
+                                        .build())
+                        .build();
+
+        checkIsBatchResultSuccess(
+                mDb1.putAsync(
+                        new PutDocumentsRequest.Builder().addGenericDocuments(document).build()));
+
+        // Verify the document
+        AppSearchBatchResult<String, GenericDocument> getResult =
+                mDb1.getByDocumentIdAsync(
+                                new GetByDocumentIdRequest.Builder("namespace")
+                                        .addIds("id1")
+                                        .build())
+                        .get();
+        assertTrue(getResult.isSuccess());
+        assertThat(getResult.getSuccesses()).hasSize(1);
+        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document);
+
+        // Rename account, the document should remain.
+        accountManager
+                .renameAccount(account, "newName", /* callback= */ null, /* handler= */ null)
+                .getResult();
+        Account renamedAccount = new Account("newName", MockAccountService.ACCOUNT_TYPE);
+        accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
+        assertThat(accounts).asList().containsExactly(renamedAccount);
+        getResult =
+                mDb1.getByDocumentIdAsync(
+                                new GetByDocumentIdRequest.Builder("namespace")
+                                        .addIds("id1")
+                                        .build())
+                        .get();
+        assertTrue(getResult.isSuccess());
+        assertThat(getResult.getSuccesses()).hasSize(1);
+        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document);
+
+        // Remove the renamed account, the document should be removed.
+        accountManager.removeAccountExplicitly(renamedAccount);
+        accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
+        assertThat(accounts).isEmpty();
+
+        // Wait for the AppSearch background thread to finish data pruning.
+        // Use a simple polling mechanism: check every 100ms, for up to 5 seconds.
+        for (int i = 0; i < 50; i++) {
+            getResult =
+                    mDb1.getByDocumentIdAsync(
+                                    new GetByDocumentIdRequest.Builder("namespace")
+                                            .addIds("id1")
+                                            .build())
+                            .get();
+            // Verify the reference document is removed.
+            if (!getResult.isSuccess()
+                    && getResult.getFailures().containsKey("id1")
+                    && getResult.getFailures().get("id1").getResultCode()
+                            == AppSearchResult.RESULT_NOT_FOUND) {
+                break;
+            }
+            // Wait 0.1 second to invoke on account update listener.
+            SystemClock.sleep(100);
+        }
+        assertThat(getResult.isSuccess()).isFalse();
+        assertThat(getResult.getFailures()).containsKey("id1");
+        assertThat(getResult.getFailures().get("id1").getResultCode())
+                .isEqualTo(AppSearchResult.RESULT_NOT_FOUND);
     }
 }

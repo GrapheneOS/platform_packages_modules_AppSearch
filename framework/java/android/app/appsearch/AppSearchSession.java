@@ -53,6 +53,7 @@ import android.app.appsearch.stats.SchemaMigrationStats;
 import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.SchemaMigrationUtil;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -218,15 +219,31 @@ public final class AppSearchSession implements Closeable {
         // Extract a List<VisibilityConfig> from the request
         List<InternalVisibilityConfig> visibilityConfigs =
                 InternalVisibilityConfig.toInternalVisibilityConfigs(request);
+        Map<String, Set<String>> accountPropertyPaths =
+                request.getSchemasWipeoutAccountPropertyPaths();
+        Bundle accountPropertyBundle = null;
+        if (!accountPropertyPaths.isEmpty()) {
+            accountPropertyBundle = new Bundle();
+            for (Map.Entry<String, Set<String>> entry : accountPropertyPaths.entrySet()) {
+                accountPropertyBundle.putStringArrayList(
+                        entry.getKey(), new ArrayList<>(entry.getValue()));
+            }
+        }
         // No need to trigger migration if user never set migrator
         if (request.getMigrators().isEmpty()) {
             setSchemaNoMigrations(
-                    request, schemaList, visibilityConfigs, callbackExecutor, callback);
+                    request,
+                    schemaList,
+                    visibilityConfigs,
+                    accountPropertyBundle,
+                    callbackExecutor,
+                    callback);
         } else {
             setSchemaWithMigrations(
                     request,
                     schemaList,
                     visibilityConfigs,
+                    accountPropertyBundle,
                     workExecutor,
                     callbackExecutor,
                     callback);
@@ -1231,6 +1248,7 @@ public final class AppSearchSession implements Closeable {
             @NonNull SetSchemaRequest request,
             @NonNull List<AppSearchSchema> schemas,
             @NonNull List<InternalVisibilityConfig> visibilityConfigs,
+            @Nullable Bundle accountPropertyBundle,
             @NonNull @CallbackExecutor Executor executor,
             @NonNull Consumer<AppSearchResult<SetSchemaResponse>> callback) {
         try {
@@ -1244,7 +1262,8 @@ public final class AppSearchSession implements Closeable {
                             request.getVersion(),
                             mUserHandle,
                             /* binderCallStartTimeMillis= */ SystemClock.elapsedRealtime(),
-                            SchemaMigrationStats.NO_MIGRATION);
+                            SchemaMigrationStats.NO_MIGRATION,
+                            accountPropertyBundle);
             AppSearchResultCallback<InternalSetSchemaResponse> callbackBase =
                     new AppSearchResultCallback<>() {
                 @Override
@@ -1324,6 +1343,7 @@ public final class AppSearchSession implements Closeable {
             @NonNull SetSchemaRequest request,
             @NonNull List<AppSearchSchema> schemas,
             @NonNull List<InternalVisibilityConfig> visibilityConfigs,
+            @Nullable Bundle accountPropertyBundle,
             @NonNull Executor workExecutor,
             @NonNull @CallbackExecutor Executor callbackExecutor,
             @NonNull Consumer<AppSearchResult<SetSchemaResponse>> callback) {
@@ -1406,6 +1426,7 @@ public final class AppSearchSession implements Closeable {
                                     request,
                                     schemas,
                                     visibilityConfigs,
+                                    accountPropertyBundle,
                                     callbackExecutor,
                                     callback);
                             return;
@@ -1429,14 +1450,16 @@ public final class AppSearchSession implements Closeable {
                                         mUserHandle,
                                         /* binderCallStartTimeMillis= */ SystemClock
                                                 .elapsedRealtime(),
-                                        SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE);
+                                        SchemaMigrationStats.FIRST_CALL_GET_INCOMPATIBLE,
+                                        accountPropertyBundle);
                         mService.setSchema(
                                 setSchemaAidlRequest,
                                 new AppSearchResultCallback<InternalSetSchemaResponse>() {
                                     @Override
                                     public void onResult(
-                                            @NonNull AppSearchResult<InternalSetSchemaResponse>
-                                                    result) {
+                                            @NonNull
+                                                    AppSearchResult<InternalSetSchemaResponse>
+                                                            result) {
                                         setSchemaResultRef.set(result);
                                         setSchemaLatch.countDown();
                                     }
@@ -1527,13 +1550,17 @@ public final class AppSearchSession implements Closeable {
                                                 mUserHandle,
                                                 /* binderCallStartTimeMillis= */ SystemClock
                                                         .elapsedRealtime(),
-                                                SchemaMigrationStats.SECOND_CALL_APPLY_NEW_SCHEMA);
+                                                SchemaMigrationStats.SECOND_CALL_APPLY_NEW_SCHEMA,
+                                                accountPropertyBundle);
                                 mService.setSchema(
                                         setSchemaAidlRequest1,
                                         new AppSearchResultCallback<InternalSetSchemaResponse>() {
                                             @Override
-                                            public void onResult(@NonNull AppSearchResult<
-                                                    InternalSetSchemaResponse> result) {
+                                            public void onResult(
+                                                    @NonNull
+                                                            AppSearchResult<
+                                                                            InternalSetSchemaResponse>
+                                                                    result) {
                                                 setSchema2ResultRef.set(result);
                                                 setSchema2Latch.countDown();
                                             }

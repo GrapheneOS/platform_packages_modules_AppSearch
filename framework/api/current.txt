@@ -1,6 +1,23 @@
 // Signature format: 2.0
 package android.app.appsearch {
 
+  @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") public final class AppSearchAccount extends android.app.appsearch.GenericDocument {
+    ctor public AppSearchAccount(@NonNull android.app.appsearch.GenericDocument);
+    method @Nullable public String getAccountId();
+    method @Nullable public String getAccountName();
+    method @Nullable public String getAccountType();
+    field public static final android.app.appsearch.AppSearchSchema SCHEMA;
+    field public static final String SCHEMA_TYPE = "builtin:Account";
+  }
+
+  public static final class AppSearchAccount.Builder extends android.app.appsearch.GenericDocument.Builder<android.app.appsearch.AppSearchAccount.Builder> {
+    ctor public AppSearchAccount.Builder(@NonNull String, @NonNull String);
+    method @NonNull public android.app.appsearch.AppSearchAccount build();
+    method @NonNull public android.app.appsearch.AppSearchAccount.Builder setAccountId(@NonNull String);
+    method @NonNull public android.app.appsearch.AppSearchAccount.Builder setAccountName(@NonNull String);
+    method @NonNull public android.app.appsearch.AppSearchAccount.Builder setAccountType(@NonNull String);
+  }
+
   public final class AppSearchBatchResult<KeyType, ValueType> {
     method @NonNull public java.util.Map<KeyType,android.app.appsearch.AppSearchResult<ValueType>> getAll();
     method @NonNull public java.util.Map<KeyType,android.app.appsearch.AppSearchResult<ValueType>> getFailures();
@@ -349,6 +366,7 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_set_schema_visible_to_configs") @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.SchemaVisibilityConfig>> getSchemaTypesVisibleToConfigs();
     method @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.PackageIdentifier>> getSchemaTypesVisibleToPackages();
     method @NonNull public java.util.Set<android.app.appsearch.AppSearchSchema> getSchemas();
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.PropertyPath>> getSchemasWipeoutAccountPropertyPaths();
     method @IntRange(from=0) public int getVersion();
     method @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") public void writeToParcel(@NonNull android.os.Parcel, int);
     field @FlaggedApi("com.android.appsearch.flags.enable_safe_parcelable_2") @NonNull public static final android.os.Parcelable.Creator<android.app.appsearch.GetSchemaResponse> CREATOR;
@@ -365,11 +383,13 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeNotDisplayedBySystem(@NonNull String);
     method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeVisibleToConfigs(@NonNull String);
     method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeVisibleToPackages(@NonNull String);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemaTypeWipeoutAccountPropertyPaths(@NonNull String);
     method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.GetSchemaResponse.Builder clearSchemas();
     method @FlaggedApi("com.android.appsearch.flags.enable_set_publicly_visible_schema") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setPubliclyVisibleSchema(@NonNull String, @NonNull android.app.appsearch.PackageIdentifier);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setRequiredPermissionsForSchemaTypeVisibility(@NonNull String, @NonNull java.util.Set<java.util.Set<java.lang.Integer>>);
     method @FlaggedApi("com.android.appsearch.flags.enable_set_schema_visible_to_configs") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeVisibleToConfigs(@NonNull String, @NonNull java.util.Set<android.app.appsearch.SchemaVisibilityConfig>);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeVisibleToPackages(@NonNull String, @NonNull java.util.Set<android.app.appsearch.PackageIdentifier>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeWipeoutAccountPropertyPaths(@NonNull String, @NonNull java.util.Collection<android.app.appsearch.PropertyPath>);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setVersion(@IntRange(from=0) int);
   }
 

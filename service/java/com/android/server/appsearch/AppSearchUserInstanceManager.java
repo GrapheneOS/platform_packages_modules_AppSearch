@@ -19,21 +19,29 @@ package com.android.server.appsearch;
 import static android.app.appsearch.AppSearchResult.RESULT_OK;
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.accounts.OnAccountsUpdateListener;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
+import android.app.appsearch.util.ExceptionUtil;
 import android.app.appsearch.util.LogUtil;
 import android.content.Context;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.SystemService;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 import com.android.server.appsearch.external.localstorage.AppSearchLogger;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
@@ -51,6 +59,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -93,7 +102,27 @@ public final class AppSearchUserInstanceManager {
     private final Map<UserHandle, ScheduledFuture<?>> mPerUserMigrationFutureLocked =
             new ArrayMap();
 
-    public AppSearchUserInstanceManager() {}
+    /**
+     * A dedicated handler for processing background tasks, such as account updates and other
+     * I/O-intensive operations.
+     *
+     * <p>Since AppSearch is a mainline module, it cannot access the shared system {@code
+     * com.android.internal.os.BackgroundThread}. Therefore, a private instance is required to
+     * ensure these operations do not block the system server's main thread.
+     */
+    private final @Nullable Handler mBackgroundHandler;
+
+    private static final String BACKGROUND_HANDLER_THREAD_NAME = "AppSearchBackgroundThread";
+
+    public AppSearchUserInstanceManager() {
+        if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+            HandlerThread handlerThread = new HandlerThread(BACKGROUND_HANDLER_THREAD_NAME);
+            handlerThread.start();
+            mBackgroundHandler = new Handler(handlerThread.getLooper());
+        } else {
+            mBackgroundHandler = null;
+        }
+    }
 
     /**
      * Gets an instance of AppSearchUserInstanceManager to be used.
@@ -419,7 +448,20 @@ public final class AppSearchUserInstanceManager {
                     getOrCreateUserStorageInfoInstance(userContext, userHandle);
             userStorageInfo.updateStorageInfoFile(appSearchImpl);
 
-            return new AppSearchUserInstance(logger, appSearchImpl, visibilityCheckerImpl);
+            // Create the AccountManager and OnAccountUpdateListener for the user to monitoring
+            // account updates.
+            AccountManager accountManager = null;
+            OnAccountsUpdateListener listener = null;
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                accountManager =
+                        Objects.requireNonNull(userContext.getSystemService(AccountManager.class));
+                listener =
+                        createOnAccountsUpdateListenerForInstance(
+                                userContext, appSearchImpl, userHandle);
+            }
+
+            return new AppSearchUserInstance(
+                    logger, appSearchImpl, visibilityCheckerImpl, accountManager, listener);
         } catch (AppSearchException e) {
             AppSearchResult<Void> failedResult = throwableToFailedResult(e);
             statusCode = failedResult.getResultCode();
@@ -499,6 +541,77 @@ public final class AppSearchUserInstanceManager {
                     "User Instance creation for: " + userHandle + " was cancelled.",
                     e);
         }
+    }
+
+    /**
+     * Creates and registers an {@link OnAccountsUpdateListener} to monitor and handle account
+     * changes.
+     *
+     * @param context The context used to retrieve the {@link AccountManager} system service.
+     * @param appsearchImpl The {@link AppSearchImpl} containing the state to be updated.
+     * @param user The {@link SystemService.TargetUser} representing the user associated with these
+     *     accounts.
+     */
+    private OnAccountsUpdateListener createOnAccountsUpdateListenerForInstance(
+            @NonNull Context context,
+            @NonNull AppSearchImpl appsearchImpl,
+            @NonNull UserHandle user) {
+        AccountManager accountManager =
+                Objects.requireNonNull(context.getSystemService(AccountManager.class));
+
+        // Create OnAccountsUpdateListener for the user and set to
+        // AppSearchManager
+        OnAccountsUpdateListener listener =
+                accounts -> {
+                    try {
+                        updateAccount(accountManager, appsearchImpl, accounts);
+                    } catch (AppSearchException e) {
+                        Log.e(TAG, "Unable to update account for " + user, e);
+                        ExceptionUtil.handleException(e);
+                    }
+                };
+        // Use a dedicated background handler for account updates. Since
+        // AppSearch is a mainline module, it cannot access internal system
+        // threads. Performing this off the main thread prevents ANRs during
+        // database I/O.
+        // Set updateImmediately = true to update appsearch account cache
+        // immediately.
+        accountManager.addOnAccountsUpdatedListener(
+                listener, mBackgroundHandler, /* updateImmediately= */ true);
+        return listener;
+    }
+
+    /**
+     * Updates the AppSearch internal state to reflect the current list of Android system accounts.
+     *
+     * <p>This method retrieves the current list of accounts from {@link AccountManager}. It detects
+     * any accounts that have been renamed by checking {@link
+     * AccountManager#getPreviousName(Account)}. Finally, it propagates the set of current accounts
+     * and the map of renamed accounts to the underlying implementation to perform necessary cleanup
+     * (removing data for deleted accounts) or migration (updating data owner for renamed accounts).
+     *
+     * @param accountManager The {@link AccountManager} system service to get account update
+     *     information.
+     * @param appsearchImpl The {@link AppSearchImpl} to update.
+     * @throws AppSearchException If an error occurs within the AppSearch implementation while
+     *     updating the account mapping.
+     */
+    private static void updateAccount(
+            @NonNull AccountManager accountManager,
+            @NonNull AppSearchImpl appsearchImpl,
+            @NonNull Account[] aliveAccounts)
+            throws AppSearchException {
+        Set<Account> allExistingAccounts = new ArraySet<>(aliveAccounts.length);
+        Map<Account, Account> renamedAccounts = new ArrayMap<>();
+        for (int i = 0; i < aliveAccounts.length; i++) {
+            String oldName = accountManager.getPreviousName(aliveAccounts[i]);
+            if (oldName != null) {
+                Account oldAccount = new Account(aliveAccounts[i].type, oldName);
+                renamedAccounts.put(oldAccount, aliveAccounts[i]);
+            }
+            allExistingAccounts.add(aliveAccounts[i]);
+        }
+        appsearchImpl.updateAccountStore(allExistingAccounts, renamedAccounts);
     }
 
     /**
@@ -594,7 +707,13 @@ public final class AppSearchUserInstanceManager {
         if (instanceFuture != null) {
             if (instanceFuture.isDone()) {
                 try {
-                    AppSearchImpl appSearchImpl = instanceFuture.get().getAppSearchImpl();
+                    AppSearchUserInstance instance = instanceFuture.get();
+                    if (instance.getAccountManager() != null) {
+                        instance.getAccountManager()
+                                .removeOnAccountsUpdatedListener(
+                                        instance.getOnAccountsUpdateListener());
+                    }
+                    AppSearchImpl appSearchImpl = instance.getAppSearchImpl();
                     if (removeUserData) {
                         appSearchImpl.clearAndDestroy();
                     } else {
@@ -625,6 +744,10 @@ public final class AppSearchUserInstanceManager {
                 instance.getAppSearchImpl().clearAndDestroy();
             } else {
                 instance.getAppSearchImpl().close();
+            }
+            if (instance.getAccountManager() != null) {
+                instance.getAccountManager()
+                        .removeOnAccountsUpdatedListener(instance.getOnAccountsUpdateListener());
             }
         }
     }

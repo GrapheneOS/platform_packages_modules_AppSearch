@@ -26,7 +26,6 @@ import android.accounts.Account;
 import android.app.appsearch.AppSearchAccount;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.exceptions.AppSearchException;
-import android.util.ArraySet;
 
 import com.android.server.appsearch.appsearch.proto.AccountProto;
 import com.android.server.appsearch.external.localstorage.converter.AccountToProtoConverter;
@@ -156,7 +155,7 @@ public class AccountStoreTest {
 
         // USE API to add initial data
         store.putAccounts(ImmutableSet.of(proto1, proto2));
-        assertThat(store.mAllExistingAccounts).isNull();
+        assertThat(store.getAllExistingAccounts()).isNull();
         assertThat(store.mAppSearchAccountProtos).containsExactly(proto1, proto2);
         assertTrue(store.mFileNeedsPersist);
 
@@ -165,10 +164,11 @@ public class AccountStoreTest {
 
         // Delete account 2
         Set<AccountProto> deletedProtos =
-                store.updateAccounts(ImmutableSet.of(ACCOUNT_1), Collections.emptyMap());
+                store.updateAccounts(
+                        ImmutableSet.of(ACCOUNT_1), /* renamedAccounts= */ Collections.emptyMap());
 
         // 1. Verify mAppSearchAccountProtos state (Account 2 should be removed)
-        assertThat(store.mAllExistingAccounts).containsExactly(ACCOUNT_1);
+        assertThat(store.getAllExistingAccounts()).containsExactly(ACCOUNT_1);
         assertThat(store.mAppSearchAccountProtos).containsExactly(proto1);
         assertTrue(store.mFileNeedsPersist);
         assertThat(deletedProtos).containsExactly(proto2);
@@ -185,7 +185,7 @@ public class AccountStoreTest {
         // USE API to add initial data
         store.putAccounts(ImmutableSet.of(oldProto));
         assertThat(store.mAppSearchAccountProtos).containsExactly(oldProto);
-        assertThat(store.mAllExistingAccounts).isNull();
+        assertThat(store.getAllExistingAccounts()).isNull();
         assertTrue(store.mFileNeedsPersist);
 
         // Call persistToDisk to reset mHasMutated to false (and persist initial state)
@@ -204,7 +204,7 @@ public class AccountStoreTest {
         // Expected new proto
         AccountProto expectedNewProto = oldProto.toBuilder().setAccountName("newName").build();
         assertThat(store.mAppSearchAccountProtos).containsExactly(expectedNewProto);
-        assertThat(store.mAllExistingAccounts).containsExactly(newAccount);
+        assertThat(store.getAllExistingAccounts()).containsExactly(newAccount);
         assertTrue(store.mFileNeedsPersist);
 
         // 2. Verify no accounts were reported as deleted (it was a rename)
@@ -213,13 +213,8 @@ public class AccountStoreTest {
 
     @Test
     public void testVerifyAccountExists() throws Exception {
-
-        AccountStore store = AccountStore.create(mIcingDir);
-        ArraySet<AccountProto> newAddingAccounts = new ArraySet<>();
-
         // Setup 1: Define what accounts the system currently has (ACCOUNT_1 and ACCOUNT_2)
         Set<Account> allExistingAccounts = ImmutableSet.of(ACCOUNT_1, ACCOUNT_2);
-        store.updateAccounts(allExistingAccounts, Collections.emptyMap());
 
         // Setup 2: Define which schemas have account properties
         Map<String, Set<String>> pathsMap =
@@ -237,7 +232,8 @@ public class AccountStoreTest {
                         .setPropertyDocument(ACCOUNT_PROPERTY_PATH_1, account1)
                         .build();
 
-        store.verifyAccountExists(pathsMap, PREFIX, doc1, newAddingAccounts);
+        Set<AccountProto> newAddingAccounts =
+                AccountStore.verifyAccountExists(allExistingAccounts, pathsMap, PREFIX, doc1);
         // Verify the expected proto was created and added
         assertThat(newAddingAccounts)
                 .containsExactly(
@@ -256,7 +252,8 @@ public class AccountStoreTest {
                         .setPropertyDocument(ACCOUNT_PROPERTY_PATH_1, account1, account2)
                         .build();
 
-        store.verifyAccountExists(pathsMap, PREFIX, doc2, newAddingAccounts);
+        newAddingAccounts =
+                AccountStore.verifyAccountExists(allExistingAccounts, pathsMap, PREFIX, doc2);
         // Verify both expected protos were created and added
         assertThat(newAddingAccounts)
                 .containsExactly(
@@ -277,14 +274,10 @@ public class AccountStoreTest {
                         .setPropertyDocument(ACCOUNT_PROPERTY_PATH_2, nonExist)
                         .build();
 
-        store.verifyAccountExists(pathsMap, PREFIX, doc3, newAddingAccounts);
+        newAddingAccounts =
+                AccountStore.verifyAccountExists(allExistingAccounts, pathsMap, PREFIX, doc3);
         // Verify nonExist account doesn't added.
-        assertThat(newAddingAccounts)
-                .containsExactly(
-                        createAccountProto(
-                                TEST_ACCOUNT_TYPE_1, TEST_ACCOUNT_NAME_1, TEST_ACCOUNT_ID_1),
-                        createAccountProto(
-                                TEST_ACCOUNT_TYPE_2, TEST_ACCOUNT_NAME_2, TEST_ACCOUNT_ID_2));
+        assertThat(newAddingAccounts).isNull();
 
         // --- 4. Invalid Cases: Account does not exist in the system
         GenericDocument doc4 =
@@ -294,7 +287,9 @@ public class AccountStoreTest {
         AppSearchException e =
                 assertThrows(
                         AppSearchException.class,
-                        () -> store.verifyAccountExists(pathsMap, PREFIX, doc4, newAddingAccounts));
+                        () ->
+                                AccountStore.verifyAccountExists(
+                                        allExistingAccounts, pathsMap, PREFIX, doc4));
         assertThat(e.getMessage()).containsMatch("doesn't exist");
 
         // --- 5. Invalid Cases: Account document is missing Account Type field
@@ -310,7 +305,9 @@ public class AccountStoreTest {
         e =
                 assertThrows(
                         AppSearchException.class,
-                        () -> store.verifyAccountExists(pathsMap, PREFIX, doc5, newAddingAccounts));
+                        () ->
+                                AccountStore.verifyAccountExists(
+                                        allExistingAccounts, pathsMap, PREFIX, doc5));
         assertThat(e.getMessage()).containsMatch("account type");
 
         // --- 6. Invalid Cases:Account document is missing Account Name field
@@ -326,37 +323,10 @@ public class AccountStoreTest {
         e =
                 assertThrows(
                         AppSearchException.class,
-                        () -> store.verifyAccountExists(pathsMap, PREFIX, doc6, newAddingAccounts));
+                        () ->
+                                AccountStore.verifyAccountExists(
+                                        allExistingAccounts, pathsMap, PREFIX, doc6));
         assertThat(e.getMessage()).containsMatch("account name");
-    }
-
-    @Test
-    public void testVerifyAccountExists_skipVerification() throws Exception {
-        AccountStore store = AccountStore.create(mIcingDir);
-        ArraySet<AccountProto> newAddingAccounts = new ArraySet<>();
-
-        // Only setup account property path and never update existing accounts
-        Map<String, Set<String>> pathsMap =
-                ImmutableMap.of(PREFIXED_SCHEMA_TYPE, ImmutableSet.of(ACCOUNT_PROPERTY_PATH_1));
-
-        // Document with a non-existent account
-        AppSearchAccount nonExist =
-                new AppSearchAccount.Builder(NAMESPACE, ID)
-                        .setAccountType(TEST_ACCOUNT_TYPE_3)
-                        .setAccountId(TEST_ACCOUNT_ID_3)
-                        .setAccountName(TEST_ACCOUNT_NAME_3)
-                        .build();
-        GenericDocument doc1 =
-                new GenericDocument.Builder<>(NAMESPACE, "doc1", "schema")
-                        .setPropertyDocument(ACCOUNT_PROPERTY_PATH_1, nonExist)
-                        .build();
-
-        // The verification should be skipped and no exception should be thrown,
-        // even though the account doesn't exist.
-        store.verifyAccountExists(pathsMap, PREFIX, doc1, newAddingAccounts);
-
-        // New accounts should NOT be added since verification was skipped.
-        assertThat(newAddingAccounts).isEmpty();
     }
 
     @Test
@@ -366,11 +336,13 @@ public class AccountStoreTest {
         // Setup initial state in memory
         AccountProto proto1 =
                 createAccountProto(TEST_ACCOUNT_TYPE_1, TEST_ACCOUNT_NAME_1, TEST_ACCOUNT_ID_1);
-        Map<String, Set<String>> pathsMap =
-                ImmutableMap.of(PREFIXED_SCHEMA_TYPE, ImmutableSet.of(ACCOUNT_PROPERTY_PATH_1));
 
         store.putAccounts(ImmutableSet.of(proto1));
-        store.mAllExistingAccounts = ImmutableSet.of(ACCOUNT_1); // Simulate update
+        store.updateAccounts(
+                ImmutableSet.of(ACCOUNT_1), /* renamedAccounts= */ Collections.emptyMap());
+
+        assertThat(store.mAppSearchAccountProtos).containsExactly(proto1);
+        assertThat(store.getAllExistingAccounts()).containsExactly(ACCOUNT_1);
         assertTrue(store.mFileNeedsPersist);
 
         // Action: Reset
@@ -378,7 +350,7 @@ public class AccountStoreTest {
 
         // Verification
         assertThat(store.mAppSearchAccountProtos).isEmpty();
-        assertThat(store.mAllExistingAccounts).isNull();
+        assertThat(store.getAllExistingAccounts()).isNull();
         assertFalse(store.mFileNeedsPersist);
     }
 
@@ -402,5 +374,38 @@ public class AccountStoreTest {
         // 3. Verification: Create Store 3. If reset worked, Store 3 should start empty.
         AccountStore store3 = AccountStore.create(mIcingDir);
         assertThat(store3.mAppSearchAccountProtos).isEmpty();
+    }
+
+    @Test
+    public void testBuildRemovalQuery_complexCasesLiteral() {
+        // Deleted Account 1: Has Account ID (ID Preferred)
+        AccountProto deletedProto1 =
+                createAccountProto(TEST_ACCOUNT_TYPE_1, TEST_ACCOUNT_NAME_1, TEST_ACCOUNT_ID_1);
+
+        // Deleted Account 2: Missing Account ID (Name Fallback)
+        AccountProto deletedProto2 =
+                AccountToProtoConverter.toAccountProto(
+                        new AppSearchAccount.Builder(NAMESPACE, ID)
+                                .setAccountType(TEST_ACCOUNT_TYPE_2)
+                                .setAccountName(TEST_ACCOUNT_NAME_2)
+                                .build());
+
+        Set<AccountProto> deletedAccounts = ImmutableSet.of(deletedProto1, deletedProto2);
+        Set<String> propertyPaths =
+                ImmutableSet.of(ACCOUNT_PROPERTY_PATH_1, ACCOUNT_PROPERTY_PATH_2);
+
+        String query = AccountStore.buildRemovalQuery(deletedAccounts, propertyPaths);
+
+        String expectedQueryString =
+                "(((((accountProperty1.accountType:(\"com.example.type1\")) "
+                        + "AND (accountProperty1.accountId:(\"accountId1\"))) "
+                        + "OR ((nested.accountProperty2.accountType:(\"com.example.type1\")) "
+                        + "AND (nested.accountProperty2.accountId:(\"accountId1\")))) "
+                        + "OR ((accountProperty1.accountType:(\"com.example.type2\")) "
+                        + "AND (accountProperty1.accountId:(\"user2@example.com\")))) "
+                        + "OR ((nested.accountProperty2.accountType:(\"com.example.type2\")) "
+                        + "AND (nested.accountProperty2.accountId:(\"user2@example.com\"))))";
+
+        assertThat(expectedQueryString).isEqualTo(query);
     }
 }

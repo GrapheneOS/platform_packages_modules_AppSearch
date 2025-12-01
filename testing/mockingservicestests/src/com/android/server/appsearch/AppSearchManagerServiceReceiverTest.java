@@ -70,6 +70,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
+import java.util.Collections;
 
 /** Tests for broadcast receivers of AppSearchManagerService. */
 public class AppSearchManagerServiceReceiverTest {
@@ -215,6 +216,7 @@ public class AppSearchManagerServiceReceiverTest {
                         DATABASE_NAME,
                         ImmutableList.of(AppSearchEmail.SCHEMA),
                         /* visibilityConfigs= */ ImmutableList.of(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ 0,
                         /* setSchemaStatsBuilder= */ null,
@@ -283,6 +285,7 @@ public class AppSearchManagerServiceReceiverTest {
                         DATABASE_NAME,
                         ImmutableList.of(AppSearchEmail.SCHEMA),
                         /* visibilityConfigs= */ ImmutableList.of(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ 0,
                         /* setSchemaStatsBuilder= */ null,
@@ -357,6 +360,7 @@ public class AppSearchManagerServiceReceiverTest {
                         DATABASE_NAME,
                         ImmutableList.of(AppSearchEmail.SCHEMA),
                         /* visibilityConfigs= */ ImmutableList.of(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ 0,
                         /* setSchemaStatsBuilder= */ null,
@@ -428,6 +432,7 @@ public class AppSearchManagerServiceReceiverTest {
                         DATABASE_NAME,
                         ImmutableList.of(AppSearchEmail.SCHEMA),
                         /* visibilityConfigs= */ ImmutableList.of(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ 0,
                         /* setSchemaStatsBuilder= */ null,
@@ -505,6 +510,7 @@ public class AppSearchManagerServiceReceiverTest {
                         DATABASE_NAME,
                         ImmutableList.of(AppSearchEmail.SCHEMA),
                         /* visibilityConfigs= */ ImmutableList.of(),
+                        /* accountPropertyPaths= */ Collections.emptyMap(),
                         /* forceOverride= */ true,
                         /* version= */ 0,
                         /* setSchemaStatsBuilder= */ null,

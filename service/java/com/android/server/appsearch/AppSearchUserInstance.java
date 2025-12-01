@@ -15,7 +15,10 @@
  */
 package com.android.server.appsearch;
 
+import android.accounts.AccountManager;
+import android.accounts.OnAccountsUpdateListener;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
@@ -31,14 +34,20 @@ public final class AppSearchUserInstance {
     private volatile InternalAppSearchLogger mLogger;
     private final AppSearchImpl mAppSearchImpl;
     private final VisibilityChecker mVisibilityChecker;
+    @Nullable private AccountManager mAccountManager;
+    @Nullable private OnAccountsUpdateListener mOnAccountsUpdateListener;
 
     AppSearchUserInstance(
             @NonNull InternalAppSearchLogger logger,
             @NonNull AppSearchImpl appSearchImpl,
-            @NonNull VisibilityChecker visibilityChecker) {
+            @NonNull VisibilityChecker visibilityChecker,
+            @Nullable AccountManager accountManager,
+            @Nullable OnAccountsUpdateListener onAccountsUpdateListener) {
         mLogger = Objects.requireNonNull(logger);
         mAppSearchImpl = Objects.requireNonNull(appSearchImpl);
         mVisibilityChecker = Objects.requireNonNull(visibilityChecker);
+        mAccountManager = accountManager;
+        mOnAccountsUpdateListener = onAccountsUpdateListener;
     }
 
     @NonNull
@@ -54,6 +63,23 @@ public final class AppSearchUserInstance {
     @NonNull
     public VisibilityChecker getVisibilityChecker() {
         return mVisibilityChecker;
+    }
+
+    /**
+     * Gets the {@link AccountManager} that is used to retrieve account update information service.
+     */
+    @Nullable
+    public AccountManager getAccountManager() {
+        return mAccountManager;
+    }
+
+    /**
+     * Gets the {@link OnAccountsUpdateListener} that is used to listen for account changes. Null if
+     * the feature is disabled.
+     */
+    @Nullable
+    public OnAccountsUpdateListener getOnAccountsUpdateListener() {
+        return mOnAccountsUpdateListener;
     }
 
     /** Whether the pVM is enabled in AppSearch */

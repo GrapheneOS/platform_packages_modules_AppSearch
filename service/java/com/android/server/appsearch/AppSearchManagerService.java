@@ -108,6 +108,7 @@ import android.content.pm.PackageStats;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.Process;
@@ -715,12 +716,21 @@ public class AppSearchManagerService extends SystemService {
                 int operationFailureCount = 0;
                 try {
                     instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
+                    Bundle accountPropertyBundle = request.getSchemasWipeoutAccountPropertyPaths();
+                    Map<String, Set<String>> accountPropertyPaths = new ArrayMap<>();
+                    if (accountPropertyBundle != null) {
+                        for (String key : accountPropertyBundle.keySet()) {
+                            accountPropertyPaths.put(key,
+                                    new ArraySet<>(accountPropertyBundle.getStringArrayList(key)));
+                        }
+                    }
                     InternalSetSchemaResponse internalSetSchemaResponse =
                             instance.getAppSearchImpl().setSchema(
                                     callingPackageName,
                                     request.getDatabaseName(),
                                     request.getSchemas(),
                                     request.getVisibilityConfigs(),
+                                    accountPropertyPaths,
                                     request.isForceOverride(),
                                     request.getSchemaVersion(),
                                     setSchemaStatsBuilder,
