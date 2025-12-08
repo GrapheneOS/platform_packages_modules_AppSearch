@@ -191,9 +191,9 @@ public final class AppsIndexerImpl implements Closeable {
         Map<String, Map<String, AppSearchSchema>> dynamicAppFunctionSchemasForPackages = null;
         if (Flags.enableAppFunctionsSchemaParser()) {
             // TODO(b/382254638): Skip XML parsing for packages that were not updated by using
-            // AppSearchSessio#getSchema.
+            // AppSearchSession#getSchema.
             dynamicAppFunctionSchemasForPackages =
-                    AppsUtil.getDynamicAppFunctionSchemasForPackages(
+                    AppFunctionsIndexerUtil.getDynamicAppFunctionSchemasForPackages(
                             packageManager,
                             packagesToIndex,
                             mAppsIndexerConfig.getMaxAllowedAppFunctionSchemasPerPackage());
@@ -202,7 +202,7 @@ public final class AppsIndexerImpl implements Closeable {
         // Parse and build all necessary AppFunctionStaticMetadata from PackageManager.
         Map<String, Map<String, ? extends AppFunctionDocument>>
                 currentAppFunctionsForAddedUpdatedPackages =
-                        AppsUtil.buildAppFunctionDocumentsIntoMap(
+                        AppFunctionsIndexerUtil.buildAppFunctionDocumentsIntoMap(
                                 packageManager,
                                 packagesToBeAddedOrUpdated,
                                 /* indexerPackageName= */ mContext.getPackageName(),
@@ -393,7 +393,6 @@ public final class AppsIndexerImpl implements Closeable {
             return true;
         }
 
-
         if (appFunctionServiceResolveInfo == null) {
             // appFunctionServiceResolveInfo being null means the service is disabled/does not
             // exist, hence the package status is determined by the stored state.
@@ -438,14 +437,18 @@ public final class AppsIndexerImpl implements Closeable {
             packageIdentifiers.add(packageIdentifier);
             // Check if the package was updated and all app functions were removed. The map only
             // contains entries for packages that updated or newly added, for packages with no
-            // change we would rely solely on presence of AppFunctionServiceInfo to decide if it's
-            // an app function package.
+            // change we would rely solely on presence of AppFunctionServiceInfo or
+            // AppFunctionAppLevelProperty to decide if it's an app function package.
             boolean appFunctionsRemoved =
                     currentAppFunctionsForAddedUpdatedPackages.containsKey(packageInfo.packageName)
                             && currentAppFunctionsForAddedUpdatedPackages
                                     .get(packageInfo.packageName)
                                     .isEmpty();
-            if (entry.getValue().getAppFunctionServiceInfo() != null && !appFunctionsRemoved) {
+            boolean hasAppFunctions = entry.getValue().getAppFunctionServiceInfo() != null;
+            if (android.app.appfunctions.flags.Flags.enableDynamicAppFunctions()) {
+                hasAppFunctions |= entry.getValue().getAppFunctionAppLevelProperty() != null;
+            }
+            if (hasAppFunctions && !appFunctionsRemoved) {
                 packageIdentifiersWithAppFunctions.add(packageIdentifier);
             }
         }

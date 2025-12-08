@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
 import java.util.Objects;
@@ -29,6 +30,7 @@ import java.util.Objects;
  */
 public class ResolveInfos {
     @Nullable private final ResolveInfo mAppFunctionServiceInfo;
+    @Nullable private final PackageManager.Property mAppFunctionPropertyConfig;
     @Nullable private final ResolveInfo mLaunchActivityResolveInfo;
 
     public ResolveInfos(
@@ -36,6 +38,16 @@ public class ResolveInfos {
             @Nullable ResolveInfo launchActivityResolveInfo) {
         mAppFunctionServiceInfo = appFunctionServiceInfo;
         mLaunchActivityResolveInfo = launchActivityResolveInfo;
+        mAppFunctionPropertyConfig = null;
+    }
+
+    public ResolveInfos(
+            @Nullable ResolveInfo appFunctionServiceInfo,
+            @Nullable ResolveInfo launchActivityResolveInfo,
+            @Nullable PackageManager.Property appFunctionPropertyConfig) {
+        mAppFunctionServiceInfo = appFunctionServiceInfo;
+        mLaunchActivityResolveInfo = launchActivityResolveInfo;
+        mAppFunctionPropertyConfig = appFunctionPropertyConfig;
     }
 
     /**
@@ -48,6 +60,15 @@ public class ResolveInfos {
     }
 
     /**
+     * Return {@link PackageManager.Property} for the application defined. If {@code null}, it means
+     * this app doesn't have an application level app functions.
+     */
+    @Nullable
+    public PackageManager.Property getAppFunctionAppLevelProperty() {
+        return mAppFunctionPropertyConfig;
+    }
+
+    /**
      * Return {@link ResolveInfo} for the packages launch activity. If {@code null}, it means this
      * app doesn't have a launch activity.
      */
@@ -56,10 +77,12 @@ public class ResolveInfos {
         return mLaunchActivityResolveInfo;
     }
 
+
     /** Builder for {@link ResolveInfos}. */
     public static class Builder {
         @Nullable private ResolveInfo mAppFunctionServiceInfo;
         @Nullable private ResolveInfo mLaunchActivityResolveInfo;
+        @Nullable private PackageManager.Property mAppFunctionPropertyConfig;
 
         /** Sets the {@link ResolveInfo} for the packages AppFunction service */
         @NonNull
@@ -75,10 +98,20 @@ public class ResolveInfos {
             return this;
         }
 
+        /** Sets the {@link PackageManager.Property} for the application defined. */
+        @NonNull
+        public Builder setAppFunctionAppLevelProperty(@NonNull PackageManager.Property property) {
+            mAppFunctionPropertyConfig = Objects.requireNonNull(property);
+            return this;
+        }
+
         /** Builds the {@link ResolveInfos} object. */
         @NonNull
         public ResolveInfos build() {
-            return new ResolveInfos(mAppFunctionServiceInfo, mLaunchActivityResolveInfo);
+            return new ResolveInfos(
+                    mAppFunctionServiceInfo,
+                    mLaunchActivityResolveInfo,
+                    mAppFunctionPropertyConfig);
         }
     }
 }
