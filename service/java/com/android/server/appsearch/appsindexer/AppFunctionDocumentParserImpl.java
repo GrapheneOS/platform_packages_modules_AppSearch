@@ -15,6 +15,8 @@
  */
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
+
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSchema.DocumentPropertyConfig;
@@ -71,13 +73,17 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
     public Map<String, AppFunctionStaticMetadata> parseIntoMap(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
-            @NonNull String assetFilePath) {
+            @NonNull String assetFilePath,
+            @NonNull String serviceName) {
         Objects.requireNonNull(packageManager);
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(assetFilePath);
+        Objects.requireNonNull(serviceName);
         try {
             return parseAppFunctionsIntoMap(
-                    initializeParser(packageManager, packageName, assetFilePath), packageName);
+                    initializeParser(packageManager, packageName, assetFilePath),
+                    packageName,
+                    serviceName);
         } catch (Exception ex) {
             // The code parses an XML file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
@@ -120,7 +126,7 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
      */
     @NonNull
     private Map<String, AppFunctionStaticMetadata> parseAppFunctionsIntoMap(
-            @NonNull XmlPullParser parser, @NonNull String packageName)
+            @NonNull XmlPullParser parser, @NonNull String packageName, @NonNull String serviceName)
             throws XmlPullParserException, IOException {
         Map<String, AppFunctionStaticMetadata> appFunctions = new ArrayMap<>();
 
@@ -129,7 +135,8 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
         while (eventType != XmlPullParser.END_DOCUMENT) {
             String tagName = parser.getName();
             if (eventType == XmlPullParser.START_TAG && XML_TAG_APPFUNCTION.equals(tagName)) {
-                AppFunctionStaticMetadata appFunction = parseAppFunction(parser, packageName);
+                AppFunctionStaticMetadata appFunction =
+                        parseAppFunction(parser, packageName, serviceName);
                 appFunctions.put(appFunction.getId(), appFunction);
                 if (appFunctions.size() >= mMaxAppFunctions) {
                     Log.d(TAG, "Exceeding the max number of app functions: " + packageName);
@@ -150,7 +157,7 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
      */
     @NonNull
     private AppFunctionStaticMetadata parseAppFunction(
-            @NonNull XmlPullParser parser, @NonNull String packageName)
+            @NonNull XmlPullParser parser, @NonNull String packageName, @NonNull String serviceName)
             throws XmlPullParserException, IOException {
         String functionId = null;
         String schemaName = null;
@@ -217,6 +224,9 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
         if (displayNameStringRes != null) {
             builder.setDisplayNameStringRes(displayNameStringRes);
         }
+        if (isAppLevelAppFunctionsEnabled()) {
+            builder.setServiceName(serviceName);
+        }
         return builder.build();
     }
 
@@ -226,14 +236,15 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull XmlPullParser xmlPullParser,
-            @NonNull Map<String, AppSearchSchema> schemas) {
-        Objects.requireNonNull(packageManager);
+            @NonNull Map<String, AppSearchSchema> schemas,
+            @NonNull String serviceName) {
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(xmlPullParser);
         Objects.requireNonNull(schemas);
-
+        Objects.requireNonNull(serviceName);
         try {
-            return parseAppFunctionsIntoMapForGivenSchemas(xmlPullParser, packageName, schemas);
+            return parseAppFunctionsIntoMapForGivenSchemas(
+                    xmlPullParser, packageName, schemas, serviceName);
         } catch (Exception ex) {
             // The code parses an XML file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
@@ -246,11 +257,13 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
     private Map<String, AppFunctionDocument> parseAppFunctionsIntoMapForGivenSchemas(
             @NonNull XmlPullParser parser,
             @NonNull String packageName,
-            @NonNull Map<String, AppSearchSchema> schemas)
+            @NonNull Map<String, AppSearchSchema> schemas,
+            @NonNull String serviceName)
             throws XmlPullParserException, IOException {
         Objects.requireNonNull(parser);
         Objects.requireNonNull(packageName);
         Objects.requireNonNull(schemas);
+        Objects.requireNonNull(serviceName);
 
         Map<String, AppFunctionDocument> appFnMetadatas = new ArrayMap<>();
 
@@ -271,9 +284,8 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                     AppFunctionDocument.getSchemaNameForPackage(packageName, schemaType);
             if (eventType == XmlPullParser.START_TAG && schemas.containsKey(schemaNameForPackage)) {
                 // Id of the document will be set after parsing the value from xml.
-                AppFunctionDocument.Builder appFnDocBuilder =
-                        new AppFunctionDocument.Builder(
-                                packageName, "", mIndexerPackageName, schemaType);
+                AppFunctionDocument.Builder<?> appFnDocBuilder =
+                        getAppFnDocBuilder(packageName, schemaType, serviceName);
                 buildGenericDocumentFromXmlElement(
                         parser,
                         packageName,
@@ -293,6 +305,26 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
             eventType = parser.next();
         }
         return appFnMetadatas;
+    }
+
+    @NonNull
+    private AppFunctionDocument.Builder<?> getAppFnDocBuilder(
+            @NonNull String packageName, @NonNull String schemaType, @NonNull String serviceName) {
+        AppFunctionDocument.Builder<?> appFnDocBuilder;
+        if (isAppLevelAppFunctionsEnabled()
+                && schemaType.equals(AppFunctionStaticMetadata.SCHEMA_TYPE)) {
+            AppFunctionStaticMetadata.Builder staticMetadataBuilder =
+                    new AppFunctionStaticMetadata.Builder(
+                            packageName, /* functionId= */ "", mIndexerPackageName);
+            staticMetadataBuilder.setServiceName(serviceName);
+            appFnDocBuilder = staticMetadataBuilder;
+        } else {
+            // Instantiate the generic builder for other document types.
+            appFnDocBuilder =
+                    new AppFunctionDocument.Builder<>(
+                            packageName, /* documentId= */ "", mIndexerPackageName, schemaType);
+        }
+        return appFnDocBuilder;
     }
 
     /**

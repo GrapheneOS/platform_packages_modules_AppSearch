@@ -92,10 +92,9 @@ public class IsolatedStorageServiceManager {
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
+    private static final String SYSTEM_PROPERTY_HW_TIMEOUT_MULTIPLIER = "ro.hw_timeout_multiplier";
     private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 61;
-    // Wait up to 5 minutes for CF
-    private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS_CF = 300;
     private static final int MAX_VM_START_RETRIES = 3;
     private static final int MAX_REINITIALIZATION_RETRIES = 9;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
@@ -516,10 +515,6 @@ public class IsolatedStorageServiceManager {
         try {
             for (int i = 0; i < numRetries; i++) {
                 boolean nonProtectedAppSearchVmEnabled = isNonProtectedVmEnabled();
-                int timeout =
-                        nonProtectedAppSearchVmEnabled
-                                ? PAYLOAD_WAIT_TIMEOUT_SECONDS_CF
-                                : PAYLOAD_WAIT_TIMEOUT_SECONDS;
                 if (isValidShutdown()) {
                     Log.i(
                             TAG,
@@ -527,6 +522,12 @@ public class IsolatedStorageServiceManager {
                                     + " reconnect.");
                     return;
                 }
+                int timeoutMultiplier =
+                        SystemProperties.getInt(
+                                SYSTEM_PROPERTY_HW_TIMEOUT_MULTIPLIER, /* def= */ 1);
+                // Square the timeout multiplier to ensure ample time for VMs in emulators, which
+                // are known to run slower, and even slower for nested virtualization.
+                int timeout = PAYLOAD_WAIT_TIMEOUT_SECONDS * timeoutMultiplier * timeoutMultiplier;
                 VmStartResult result =
                         mIsolatedStorageService.startVm(serviceConfig, timeout, forceVmRestart);
                 if (statsBuilder != null) {

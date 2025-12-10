@@ -15,6 +15,9 @@
  */
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.SERVICE_PROPERTY_CONFIG;
+
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSchema.BooleanPropertyConfig;
@@ -198,10 +201,17 @@ public class AppFunctionSchemaParser {
                                                     packageName, documentTypeName));
 
                             // All AppFunctionStaticMetadata schemas defined in packages will
-                            // inherit from AppFunctionStaticMetadata#PARENT_TYPE_APPSEARCH_SCHEMA.
-                            if (documentTypeName.equals(AppFunctionStaticMetadata.SCHEMA_TYPE)
-                                    && AppFunctionStaticMetadata.shouldSetParentType()) {
-                                schemaBuilder.addParentType(AppFunctionStaticMetadata.SCHEMA_TYPE);
+                            // inherit from AppFunctionStaticMetadata#PARENT_TYPE_APPSEARCH_SCHEMA,
+                            // must have compatible properties.
+                            if (documentTypeName.equals(AppFunctionStaticMetadata.SCHEMA_TYPE)) {
+                                if (AppFunctionStaticMetadata.shouldSetParentType()) {
+                                    schemaBuilder.addParentType(
+                                            AppFunctionStaticMetadata.SCHEMA_TYPE);
+                                }
+
+                                if (isAppLevelAppFunctionsEnabled()) {
+                                    schemaBuilder.addProperty(SERVICE_PROPERTY_CONFIG);
+                                }
                             }
                         }
                     } else if (XML_TAG_ELEMENT.equals(parser.getName()) && schemaBuilder != null) {

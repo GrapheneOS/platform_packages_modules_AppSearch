@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import android.annotation.IntDef;
+import android.app.appfunctions.flags.Flags;
 
 /** Defines constants and annotations for managing App Indexer versions. */
 public final class AppIndexerVersions {
@@ -27,8 +28,19 @@ public final class AppIndexerVersions {
     /** Represents the App Indexer version where dynamic schema support is enabled. */
     private static final int APP_INDEXER_DYNAMIC_SCHEMA_ENABLED_VERSION = 1;
 
+    /**
+     * Represents the App Indexer version where app-level app functions are indexed and serviceName
+     * field is populated.
+     */
+    private static final int APP_INDEXER_APP_LEVEL_APP_FUNCTIONS_ENABLED_VERSION = 2;
+
     /** Annotation to restrict values to valid App Indexer versions. */
-    @IntDef(value = {APP_INDEXER_VERSION_UNKNOWN, APP_INDEXER_DYNAMIC_SCHEMA_ENABLED_VERSION})
+    @IntDef(
+            value = {
+                APP_INDEXER_VERSION_UNKNOWN,
+                APP_INDEXER_DYNAMIC_SCHEMA_ENABLED_VERSION,
+                APP_INDEXER_APP_LEVEL_APP_FUNCTIONS_ENABLED_VERSION
+            })
     public @interface AppIndexerVersion {}
 
     /**
@@ -37,7 +49,10 @@ public final class AppIndexerVersions {
      * of whether there was a corresponding package update or not.
      */
     @AppIndexerVersion
-    public static final int CURR_APP_INDEXER_VERSION = APP_INDEXER_DYNAMIC_SCHEMA_ENABLED_VERSION;
+    public static final int CURR_APP_INDEXER_VERSION =
+            Flags.enableDynamicAppFunctions()
+                    ? APP_INDEXER_APP_LEVEL_APP_FUNCTIONS_ENABLED_VERSION
+                    : APP_INDEXER_DYNAMIC_SCHEMA_ENABLED_VERSION;
 
     private AppIndexerVersions() {}
 }

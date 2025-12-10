@@ -197,8 +197,7 @@ public class AppSearchHelper implements Closeable {
      * @param mobileAppPkgs A list of {@link PackageIdentifier}s for which to set {@link
      *     MobileApplication} schemas for.
      * @param appFunctionPkgs A list of {@link PackageIdentifier}s for which to set {@link
-     *     AppFunctionStaticMetadata} schemas for. These are packages with an AppFunctionService. It
-     *     is always a subset of `mobileAppPkgs`.
+     *     AppFunctionStaticMetadata} schemas for. It is always a subset of `mobileAppPkgs`.
      * @param dynamicAppFunctionSchemasForPackages A map of package name to a map of schema name to
      *     {@link AppSearchSchema} for dynamic app functions.
      */

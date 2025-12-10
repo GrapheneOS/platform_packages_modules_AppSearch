@@ -17,6 +17,7 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.when;
 
 import android.app.appsearch.AppSearchSchema;
@@ -24,6 +25,8 @@ import android.app.appsearch.GenericDocument;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.os.Build;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.annotation.NonNull;
 
@@ -84,6 +87,17 @@ public class AppFunctionDocumentParserImplTest {
                                             .build())
                             .build());
 
+    private static final String TEST_PRINT_APPFUNCTION_XML =
+            "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                    + "<appfunctions>\n"
+                    + "  <AppFunctionStaticMetadata>\n"
+                    + "    <id>com.example.utils#print</id>\n"
+                    + "    <functionId>com.example.utils#print</functionId>\n"
+                    + "    <enabledByDefault>true</enabledByDefault>\n"
+                    + "    <schemaVersion>10</schemaVersion>\n"
+                    + "  </AppFunctionStaticMetadata>\n"
+                    + "</appfunctions>";
+
     @Mock private PackageManager mPackageManager;
     @Mock private Resources mResources;
     @Mock private AssetManager mAssetManager;
@@ -108,21 +122,11 @@ public class AppFunctionDocumentParserImplTest {
     @Test
     public void parseIntoMapForGivenSchemas_singleAppFunctionWithPrimitiveProperties()
             throws Exception {
-        XmlPullParser xmlPullParser =
-                getXmlPullParser(
-                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                                + "<appfunctions>\n"
-                                + "  <AppFunctionStaticMetadata>\n"
-                                + "    <id>com.example.utils#print</id>\n"
-                                + "    <functionId>com.example.utils#print</functionId>\n"
-                                + "    <enabledByDefault>true</enabledByDefault>\n"
-                                + "    <schemaVersion>10</schemaVersion>\n"
-                                + "  </AppFunctionStaticMetadata>\n"
-                                + "</appfunctions>");
+        XmlPullParser xmlPullParser = getXmlPullParser(TEST_PRINT_APPFUNCTION_XML);
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -139,6 +143,29 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(actualAppFunction.getPropertyString("packageName")).isEqualTo(TEST_PACKAGE_NAME);
         assertThat(actualAppFunction.getPropertyString("mobileApplicationQualifiedId"))
                 .isEqualTo("com.android.test.indexer$apps-db/apps#com.example.app");
+    }
+
+    @Test
+    @RequiresFlagsEnabled({android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS})
+    public void parseIntoMapForGivenSchemas_withNotNullServiceName_servicePropertyIsSet()
+            throws Exception {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA);
+        XmlPullParser xmlPullParser = getXmlPullParser(TEST_PRINT_APPFUNCTION_XML);
+        final String testXmlService = "com.android.TestAppFunctionsService";
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager,
+                        TEST_PACKAGE_NAME,
+                        xmlPullParser,
+                        TEST_SCHEMAS,
+                        testXmlService);
+
+        assertThat(appFunctions).hasSize(1);
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
+        assertThat(actualAppFunction.getPropertyString("serviceName")).isEqualTo(testXmlService);
     }
 
     @NonNull
@@ -170,7 +197,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(2);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -196,7 +223,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).isEmpty();
     }
@@ -239,7 +266,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(2);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print1");
@@ -266,7 +293,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -308,7 +335,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -347,7 +374,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(2);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -382,7 +409,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).isEmpty();
     }
@@ -413,7 +440,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -450,7 +477,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(1);
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
@@ -487,7 +514,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).isEmpty();
     }
@@ -514,7 +541,7 @@ public class AppFunctionDocumentParserImplTest {
 
         Map<String, AppFunctionDocument> appFunctions =
                 mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS);
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).isEmpty();
     }

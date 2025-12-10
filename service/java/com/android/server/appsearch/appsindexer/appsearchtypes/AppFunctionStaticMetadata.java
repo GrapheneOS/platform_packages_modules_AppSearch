@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer.appsearchtypes;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringRes;
@@ -43,12 +45,24 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
     public static final String APP_FUNCTION_NAMESPACE = "app_functions";
     public static final String PROPERTY_FUNCTION_ID = "functionId";
     public static final String PROPERTY_SCHEMA_NAME = "schemaName";
+    public static final String PROPERTY_SERVICE_NAME = "serviceName";
     public static final String PROPERTY_SCHEMA_VERSION = "schemaVersion";
     public static final String PROPERTY_SCHEMA_CATEGORY = "schemaCategory";
     public static final String PROPERTY_DISPLAY_NAME_STRING_RES = "displayNameStringRes";
     public static final String PROPERTY_ENABLED_BY_DEFAULT = "enabledByDefault";
     public static final String PROPERTY_RESTRICT_CALLERS_WITH_EXECUTE_APP_FUNCTIONS =
             "restrictCallersWithExecuteAppFunctions";
+
+    /** Service name for app functions which are defined on the application level. */
+    public static final String APPLICATION_LEVEL_SERVICE_NAME = "@null";
+
+    public static final AppSearchSchema.StringPropertyConfig SERVICE_PROPERTY_CONFIG =
+            new AppSearchSchema.StringPropertyConfig.Builder(PROPERTY_SERVICE_NAME)
+                    .setCardinality(AppSearchSchema.StringPropertyConfig.CARDINALITY_OPTIONAL)
+                    .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
+                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM)
+                    .build();
+
     public static final AppSearchSchema PARENT_TYPE_APPSEARCH_SCHEMA =
             createAppFunctionSchemaForPackage(/* packageName= */ null);
 
@@ -70,6 +84,11 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
             // This is a child schema, setting the parent type.
             builder.addParentType(SCHEMA_TYPE);
         }
+
+        if (isAppLevelAppFunctionsEnabled()) {
+            builder.addProperty(SERVICE_PROPERTY_CONFIG);
+        }
+
         return builder.addProperty(
                         new AppSearchSchema.StringPropertyConfig.Builder(PROPERTY_FUNCTION_ID)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
@@ -300,6 +319,21 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
         @NonNull
         public Builder setEnabledByDefault(boolean enabled) {
             setPropertyBoolean(PROPERTY_ENABLED_BY_DEFAULT, enabled);
+            return this;
+        }
+
+        /**
+         * Sets the classpath for the service that executes this function.
+         *
+         * @param serviceName The service classpath, or the string {@link
+         *     #APPLICATION_LEVEL_SERVICE_NAME} if no service is required.
+         */
+        @NonNull
+        public Builder setServiceName(@NonNull String serviceName) {
+            Objects.requireNonNull(serviceName);
+            if (!serviceName.isEmpty()) {
+                setPropertyString(PROPERTY_SERVICE_NAME, serviceName);
+            }
             return this;
         }
 
