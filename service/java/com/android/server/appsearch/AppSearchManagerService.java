@@ -289,7 +289,7 @@ public class AppSearchManagerService extends SystemService {
         UserHandle userHandle = UserHandle.SYSTEM;
         mExecutorManager.executeLambdaForUserNoCallbackAsync(
                 userHandle,
-                /* isReadOnly= */ true,
+                /* isReadOnly= */ !Flags.enableIsolatedStorageConnectionFix(),
                 () -> {
                     Log.i(TAG, "Initializing isolated storage service");
                     try {
@@ -508,10 +508,19 @@ public class AppSearchManagerService extends SystemService {
             }
         }
         if (mIsolatedStorageServiceManager != null) {
-            SHARED_EXECUTOR.execute(
-                    () ->
-                            mIsolatedStorageServiceManager.onUserUnlocking(
-                                    mAppSearchConfig, userHandle));
+            if (Flags.enableIsolatedStorageConnectionFix()) {
+                mExecutorManager.executeLambdaForUserNoCallbackAsync(
+                        userHandle,
+                        /* isReadOnly= */ false,
+                        () ->
+                                mIsolatedStorageServiceManager.onUserUnlocking(
+                                        mAppSearchConfig, userHandle));
+            } else {
+                SHARED_EXECUTOR.execute(
+                        () ->
+                                mIsolatedStorageServiceManager.onUserUnlocking(
+                                        mAppSearchConfig, userHandle));
+            }
         }
 
         // Only schedule task if AppSearch exists for this user.
