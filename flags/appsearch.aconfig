@@ -891,3 +891,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_app_function_service_permission_check"
+    namespace: "appsearch"
+    description: "Enables checking the app function service permission when indexing an appfunction package."
+    bug: "467994958"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
