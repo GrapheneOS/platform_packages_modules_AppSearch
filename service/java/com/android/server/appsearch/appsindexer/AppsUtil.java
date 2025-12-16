@@ -18,8 +18,11 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.getAppFunctionAppProperty;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
+import android.app.appfunctions.AppFunctionService;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.util.LogUtil;
 import android.app.usage.UsageEvents;
@@ -58,6 +61,20 @@ import java.util.Objects;
 /** Utility class for pulling apps details from package manager. */
 public final class AppsUtil {
     public static final String TAG = "AppSearchAppsUtil";
+
+    @SuppressLint(
+            // AppFunctionService.SERVICE_INTERFACE is only available on API 36+. But it's just a
+            // string literal so it should be fine to use.
+            "NewApi")
+    private static final String APP_FUNCTION_SERVICE_INTERFACE =
+            AppFunctionService.SERVICE_INTERFACE;
+
+    @SuppressLint(
+            // Manifest.permission.BIND_APP_FUNCTION_SERVICE is only available on API 36+. But it's
+            // just a string literal so it should be fine to use.
+            "NewApi")
+    private static final String APP_FUNCTION_SERVICE_PERMISSION_STRING =
+            Manifest.permission.BIND_APP_FUNCTION_SERVICE;
 
     private AppsUtil() {}
 
@@ -171,16 +188,18 @@ public final class AppsUtil {
                 packageNameToLauncher.put(packageName, resolveInfo);
             }
         }
-
-        // This is to workaround the android lint check.
-        // AppFunctionService.SERVICE_INTERFACE is defined in API 36 but also it is just a string
-        // literal.
-        Intent appFunctionServiceIntent = new Intent("android.app.appfunctions.AppFunctionService");
+        Intent appFunctionServiceIntent = new Intent(APP_FUNCTION_SERVICE_INTERFACE);
         Map<String, ResolveInfo> packageNameToAppFunctionServiceInfo = new ArrayMap<>();
         List<ResolveInfo> services =
                 packageManager.queryIntentServices(appFunctionServiceIntent, /* flags= */ 0);
         for (int i = 0; i < services.size(); i++) {
             ResolveInfo resolveInfo = services.get(i);
+            if (Flags.enableAppFunctionServicePermissionCheck()
+                    && (resolveInfo.serviceInfo == null
+                            || !APP_FUNCTION_SERVICE_PERMISSION_STRING.equals(
+                                    resolveInfo.serviceInfo.permission))) {
+                continue;
+            }
             packageNameToAppFunctionServiceInfo.put(
                     resolveInfo.serviceInfo.packageName, resolveInfo);
         }

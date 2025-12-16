@@ -23,8 +23,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import android.Manifest;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
+import android.annotation.SuppressLint;
+import android.app.appfunctions.AppFunctionService;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSessionShim;
@@ -303,6 +306,10 @@ class TestUtils {
      * @param variant adds variation in the mocked ResolveInfo so we can index multiple fake apps.
      */
     @NonNull
+    @SuppressLint(
+            // Manifest.permission.BIND_APP_FUNCTION_SERVICE is only available on API 36+. But it's
+            // just a string literal so it should be fine to use.
+            "NewApi")
     public static ResolveInfo createFakeAppFunctionResolveInfo(int variant) {
         String pkgName = FAKE_PACKAGE_PREFIX + variant;
         ResolveInfo mockResolveInfo = new ResolveInfo();
@@ -310,6 +317,7 @@ class TestUtils {
         mockResolveInfo.serviceInfo.applicationInfo = new ApplicationInfo();
         mockResolveInfo.serviceInfo.packageName = pkgName;
         mockResolveInfo.serviceInfo.name = pkgName + ".FakeActivity";
+        mockResolveInfo.serviceInfo.permission = Manifest.permission.BIND_APP_FUNCTION_SERVICE;
 
         return mockResolveInfo;
     }

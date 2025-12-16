@@ -32,6 +32,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import android.annotation.SuppressLint;
+import android.Manifest;
 import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
@@ -457,5 +459,107 @@ public class AppsUtilTest {
         assertThat(resultApps).hasSize(1);
         // The builder's default for a boolean is false, which is the expected value.
         assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
+    }
+
+    @Test
+    @SuppressLint(
+            // Manifest.permission.BIND_APP_FUNCTION_SERVICE is only available on API 36+. But it's
+            // just a string literal so it should be fine to use.
+            "NewApi")
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_FUNCTION_SERVICE_PERMISSION_CHECK)
+    public void testGetPackagesToIndex_withPermissionCheck_correctPermission() throws Exception {
+        PackageManager pm = Mockito.mock(PackageManager.class);
+        Context mockContext =
+                new ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm;
+                    }
+                };
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
+        // Package with correct permission
+        PackageInfo packageWithPermission = createFakePackageInfo(0);
+        fakePackages.add(packageWithPermission);
+        fakeActivities.add(createFakeLaunchResolveInfo(0));
+        ResolveInfo serviceWithPermission = createFakeAppFunctionResolveInfo(0);
+        serviceWithPermission.serviceInfo.permission =
+                Manifest.permission.BIND_APP_FUNCTION_SERVICE;
+        fakeAppFunctionServices.add(serviceWithPermission);
+        setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Map<PackageInfo, ResolveInfos> packageActivityMapping =
+                AppsUtil.getPackagesToIndex(mockContext, pm);
+
+        assertThat(packageActivityMapping).hasSize(1);
+        ResolveInfos resolveInfosWithPermission = packageActivityMapping.get(packageWithPermission);
+        assertThat(resolveInfosWithPermission.getAppFunctionServiceInfo()).isNotNull();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_FUNCTION_SERVICE_PERMISSION_CHECK)
+    public void testGetPackagesToIndex_withPermissionCheck_wrongPermission() throws Exception {
+        PackageManager pm = Mockito.mock(PackageManager.class);
+        Context mockContext =
+                new ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm;
+                    }
+                };
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
+        // Package with wrong permission
+        PackageInfo packageWithoutPermission = createFakePackageInfo(0);
+        fakePackages.add(packageWithoutPermission);
+        fakeActivities.add(createFakeLaunchResolveInfo(0));
+        ResolveInfo serviceWithoutPermission = createFakeAppFunctionResolveInfo(0);
+        serviceWithoutPermission.serviceInfo.permission = "some.other.permission";
+        fakeAppFunctionServices.add(serviceWithoutPermission);
+        setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Map<PackageInfo, ResolveInfos> packageActivityMapping =
+                AppsUtil.getPackagesToIndex(mockContext, pm);
+
+        assertThat(packageActivityMapping).hasSize(1);
+        ResolveInfos resolveInfosWithoutPermission =
+                packageActivityMapping.get(packageWithoutPermission);
+        // Service with wrong permission IS filtered.
+        assertThat(resolveInfosWithoutPermission.getAppFunctionServiceInfo()).isNull();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APP_FUNCTION_SERVICE_PERMISSION_CHECK)
+    public void testGetPackagesToIndex_withPermissionCheck_nullPermission() throws Exception {
+        PackageManager pm = Mockito.mock(PackageManager.class);
+        Context mockContext =
+                new ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm;
+                    }
+                };
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
+        // Package with null permission
+        PackageInfo packageWithNullPermission = createFakePackageInfo(0);
+        fakePackages.add(packageWithNullPermission);
+        fakeActivities.add(createFakeLaunchResolveInfo(0));
+        ResolveInfo serviceWithNullPermission = createFakeAppFunctionResolveInfo(0);
+        serviceWithNullPermission.serviceInfo.permission = null;
+        fakeAppFunctionServices.add(serviceWithNullPermission);
+        setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Map<PackageInfo, ResolveInfos> packageActivityMapping =
+                AppsUtil.getPackagesToIndex(mockContext, pm);
+
+        assertThat(packageActivityMapping).hasSize(1);
+        ResolveInfos resolveInfosWithNullPermission =
+                packageActivityMapping.get(packageWithNullPermission);
+        // Service with null permission IS filtered.
+        assertThat(resolveInfosWithNullPermission.getAppFunctionServiceInfo()).isNull();
     }
 }
