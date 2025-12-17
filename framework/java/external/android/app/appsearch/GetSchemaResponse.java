@@ -118,10 +118,8 @@ public final class GetSchemaResponse extends AbstractSafeParcelable {
     private @Nullable Map<String, Set<SchemaVisibilityConfig>> mSchemasVisibleToConfigsCached;
 
     /**
-     * This map contains a mapping from schema types to a set of {@link PropertyPath}, where each
-     * PropertyPath indicates that the property is an {@link AppSearchAccount}. This is a lazily
-     * initialized cache, populated from {@link #mSchemasWipeoutAccountPropertyPathsBundle}. It will
-     * be created when you first time fetch it.
+     * This map contains a mapping from schema types to an set of strings, where each string is a
+     * property path indicating that the property is an {@link AppSearchAccount}.
      */
     private @Nullable Map<String, Set<PropertyPath>> mSchemasWipeoutAccountPropertyPathsCached;
 

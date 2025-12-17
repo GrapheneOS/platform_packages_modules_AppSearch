@@ -30,8 +30,8 @@ import com.android.server.appsearch.util.MemInfoReader;
 import com.google.android.icing.IcingSearchEngineInterface;
 import com.google.android.icing.proto.BatchGetResultProto;
 import com.google.android.icing.proto.BatchPutResultProto;
-import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.BlobInfoProto;
+import com.google.android.icing.proto.BlobProto;
 import com.google.android.icing.proto.DebugInfoResultProto;
 import com.google.android.icing.proto.DebugInfoVerbosity;
 import com.google.android.icing.proto.DeleteByNamespaceResultProto;
@@ -46,6 +46,7 @@ import com.google.android.icing.proto.GetResultProto;
 import com.google.android.icing.proto.GetResultSpecProto;
 import com.google.android.icing.proto.GetSchemaResultProto;
 import com.google.android.icing.proto.GetSchemaTypeResultProto;
+import com.google.android.icing.proto.HandleExpiredDocumentsResultProto;
 import com.google.android.icing.proto.IcingSearchEngineOptions;
 import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.OptimizeResultProto;
@@ -792,6 +793,43 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
         } finally {
             mManager.signalActivityEnds();
         }
+    }
+
+    @NonNull
+    @Override
+    public HandleExpiredDocumentsResultProto handleExpiredDocuments() {
+        byte[] resultData;
+        long getVmStartTimestampMillis = System.currentTimeMillis();
+        try {
+            mManager.signalActivityStarts();
+            resultData =
+                    mManager.getOrCreateVmIcingInstanceAsync(mUserHandle)
+                            .get(GET_VM_ICING_INSTANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .handleExpiredDocuments();
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            return HandleExpiredDocumentsResultProto.newBuilder()
+                    .setStatus(futureGetFailureStatus(e))
+                    .build();
+        } catch (OutOfMemoryError e) {
+            Log.w(TAG, "Got out of memory in handleExpiredDocuments");
+            logFreeMemoryInfo(e);
+
+            return HandleExpiredDocumentsResultProto.newBuilder()
+                    .setStatus(oomExceptionStatus(e))
+                    .build();
+        } catch (RemoteException e) {
+            return HandleExpiredDocumentsResultProto.newBuilder()
+                    .setStatus(remoteExceptionStatus(e))
+                    .build();
+        } finally {
+            mManager.signalActivityEnds();
+        }
+
+        int getVmLatencyMillis = (int) (System.currentTimeMillis() - getVmStartTimestampMillis);
+        return getResponseProtoFromRawData(
+                resultData,
+                HandleExpiredDocumentsResultProto.getDefaultInstance(),
+                status -> HandleExpiredDocumentsResultProto.newBuilder().setStatus(status).build());
     }
 
     @NonNull

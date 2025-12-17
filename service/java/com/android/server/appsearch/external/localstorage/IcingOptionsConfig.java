@@ -367,6 +367,9 @@ public interface IcingOptionsConfig {
                 .setEnableOptimizeImprovements(Flags.enableOptimizeImprovements())
                 .setEnableRepeatedFieldJoins(enableRepeatedFieldJoins())
                 .setEnableNonExistentQualifiedIdJoin(Flags.enableNonExistentQualifiedIdJoin())
+                .setEnableSkipSetSchemaTypeEqualityCheck(
+                        Flags.enableSkipSetSchemaTypeEqualityCheck())
+                .setEnableEmbedQueryOptimization(Flags.enableEmbedQueryOptimization())
                 .build();
     }
 }
