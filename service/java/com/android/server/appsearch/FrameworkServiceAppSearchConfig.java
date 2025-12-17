@@ -132,6 +132,10 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             "isolated_storage_migration_disabled";
     public static final String KEY_ISOLATED_STORAGE_DELETE_CE_VMS =
             "isolated_storage_delete_ce_vms";
+
+    public static final String KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION =
+            "isolated_storage_enable_unfreezing_migration";
+
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
     public static final String KEY_CHECK_OPTIMIZE_DELAY_MILLIS = "check_optimize_delay_millis";
@@ -781,6 +785,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_DELETE_CE_VMS,
                 IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS);
+    }
+
+    @Override
+    public boolean getIsolatedStorageEnableUnfreezingMigration() {
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION,
+                IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION);
     }
 
     @Override

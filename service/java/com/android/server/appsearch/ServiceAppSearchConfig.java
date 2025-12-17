@@ -363,6 +363,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN;
     }
 
+    /** Returns whether or not we need to clean up old CE VMs */
+    default boolean getIsolatedStorageEnableUnfreezingMigration() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION;
+    }
+
     /**
      * Closes this {@link AppSearchConfig}.
      *

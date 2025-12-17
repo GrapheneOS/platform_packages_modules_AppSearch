@@ -17,6 +17,7 @@ package com.android.server.appsearch;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION;
 import static com.android.server.appsearch.stats.VmStartAttemptStats.VM_START_STATUS_ERROR;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -47,6 +48,7 @@ import android.content.pm.ServiceInfo;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.provider.DeviceConfig;
 import android.util.Log;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -321,6 +323,11 @@ public class AppSearchUserInstanceManagerTest {
     public void cancelUserCreation_beforeISSConnection_cancelsCreation()
             throws InterruptedException {
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION,
+                Boolean.toString(true),
+                false);
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         ContextWrapper blockingContext = setupContextThatCancels(manager);
         try {
@@ -351,6 +358,11 @@ public class AppSearchUserInstanceManagerTest {
     public void cancelUserCreation_duringVMConnection_cancelsCreation()
             throws RemoteException, InterruptedException {
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION,
+                Boolean.toString(true),
+                false);
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         com.android.server.appsearch.isolated_storage_service.IIsolatedStorageService
                 isolatedStorageService =
@@ -397,6 +409,11 @@ public class AppSearchUserInstanceManagerTest {
     public void cancelUserCreation_afterVMConnection_cancelsCreation()
             throws AppSearchException, RemoteException, InterruptedException {
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION,
+                Boolean.toString(true),
+                false);
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
 
         IsolatedStorageServiceManager isolatedStorageServiceManager =
