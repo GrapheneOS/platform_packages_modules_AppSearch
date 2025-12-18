@@ -881,6 +881,21 @@ public final class AppSearchUserInstanceManager {
         Objects.requireNonNull(isolatedStorageServiceManager);
         Objects.requireNonNull(logger);
 
+        final File appSearchDir =
+                AppSearchEnvironmentFactory.getEnvironmentInstance()
+                        .getAppSearchDir(userContext, userHandle);
+        // Check whether this is the first time VM is booted after the feature is enabled.
+        boolean vmFirstRun = !DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir);
+        if (vmFirstRun && !config.getIsolatedStorageEnableUnfreezingMigration()) {
+            // This device hasn't switched to IsolatedStorage yet and migrations are not unfrozen.
+            // Do not migrate and just start the normal Icing.
+            Log.i(
+                    TAG,
+                    "Device has not migrated to isolated storage and migration is disabled."
+                     + " Falling back to regular AppSearch.");
+            return null;
+        }
+
         IcingSearchEngineInterface isolatedIcingInterface =
                 new IcingSearchEngine(
                         isolatedStorageServiceManager,
@@ -895,14 +910,8 @@ public final class AppSearchUserInstanceManager {
             Log.e(TAG, "Failed to initialize IsolatedStorageService", e);
         }
 
-        final File appSearchDir =
-                AppSearchEnvironmentFactory.getEnvironmentInstance()
-                        .getAppSearchDir(userContext, userHandle);
         // Check whether this is the first time VM is booted after the feature is enabled.
-        boolean vmFirstRun = true;
-        if (DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir)) {
-            vmFirstRun = false;
-        } else {
+        if (vmFirstRun) {
             // We always create the migration file if vm is created. It will be empty until data
             // migration actually runs(migration might not needed so it will remain empty). With
             // this file created, it can help us to remove the vm if

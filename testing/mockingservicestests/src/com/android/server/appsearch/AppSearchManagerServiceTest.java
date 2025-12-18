@@ -25,6 +25,7 @@ import static android.system.OsConstants.O_WRONLY;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_DENYLIST;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ISOLATED_STORAGE_DISABLED;
+import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_API_COSTS;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_ENABLED;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_RATE_LIMIT_TASK_QUEUE_PER_PACKAGE_CAPACITY_PERCENTAGE;
@@ -1519,6 +1520,11 @@ public class AppSearchManagerServiceTest {
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_DISABLED,
                 Boolean.toString(false),
+                false);
+        DeviceConfig.setProperty(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION,
+                Boolean.toString(true),
                 false);
         assumeTrue(
                 IsolatedStorageServiceManager.isIsolatedStorageAvailable(context, appSearchConfig));

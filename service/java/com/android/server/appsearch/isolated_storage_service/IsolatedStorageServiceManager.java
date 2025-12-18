@@ -88,6 +88,7 @@ public class IsolatedStorageServiceManager {
     public static final boolean DEFAULT_ISOLATED_STORAGE_DISABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_MIGRATION_DISABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS = false;
+    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
