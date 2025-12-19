@@ -918,3 +918,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "always_set_enabled_by_default_to_true"
+    namespace: "appsearch"
+    description: "Set enabledByDefault to true for App Functions v2 definition format."
+    bug: "469386543"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
