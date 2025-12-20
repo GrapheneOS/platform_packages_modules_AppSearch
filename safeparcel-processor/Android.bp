@@ -47,6 +47,7 @@ java_plugin {
     // the turbine output that can be produced much faster.
     generates_api: true,
     visibility: [
+        "//packages/apps/PersonalContext:__subpackages__",
         "//packages/modules/AppSearch:__subpackages__",
         "//vendor:__subpackages__",
     ],
