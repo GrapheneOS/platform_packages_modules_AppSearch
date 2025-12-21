@@ -92,6 +92,7 @@ java_sdk_library {
     apex_available: ["com.android.appsearch"],
     impl_library_visibility: [
         "//cts/tests/appsearch:__subpackages__",
+        "//packages/apps/PersonalContext:__subpackages__",
         "//packages/modules/AppSearch/service:__subpackages__",
         "//packages/modules/AppSearch/testing:__subpackages__",
         "//vendor:__subpackages__",
