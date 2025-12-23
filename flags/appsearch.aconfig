@@ -544,6 +544,7 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+    is_exported: true
 }
 
 flag {
@@ -608,6 +609,7 @@ flag {
     namespace: "appsearch"
     description: "Enables the AppSearchResult#RESULT_UNAVAILABLE."
     bug: "404210068"
+    is_exported: true
 }
 
 flag {
@@ -873,6 +875,7 @@ flag {
     namespace: "appsearch"
     description: "Enables delete propagation API. It replaces the original read-only flag enable_delete_propagation_type."
     bug: "376913014"
+    is_exported: true
 }
 
 flag {
@@ -880,6 +883,7 @@ flag {
     namespace: "appsearch"
     description: "Enables wipe out documents under specific property paths when an account is removed."
     bug: "413089233"
+    is_exported: true
 }
 
 flag {
