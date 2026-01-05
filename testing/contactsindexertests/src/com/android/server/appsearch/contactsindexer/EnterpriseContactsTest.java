@@ -124,8 +124,8 @@ public class EnterpriseContactsTest {
     @Rule
     public static final DeviceState sDeviceState = new DeviceState();
 
-    private static final String TEST_ACCOUNT_TYPE = "AppSearchTestAccountType";
-    private static final String TEST_ACCOUNT_NAME = "AppSearchTestAccountName";
+    private static final String TEST_ACCOUNT_TYPE = "com.google";
+    private static final String TEST_ACCOUNT_NAME = "EnterpriseContactsAppSearchTestAccountName";
     private static final long ENTERPRISE_CONTACT_ID_BASE = 1000000000;
 
     private final Executor mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
