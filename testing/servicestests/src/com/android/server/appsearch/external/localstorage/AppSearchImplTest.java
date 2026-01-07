@@ -51,6 +51,7 @@ import android.app.appsearch.Features;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
+import android.app.appsearch.InternalPutDocumentResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.JoinSpec;
@@ -1619,7 +1620,7 @@ public class AppSearchImplTest {
         // Insert no documents
         List<GenericDocument> documents = new ArrayList<>();
 
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package1",
@@ -1665,15 +1666,22 @@ public class AppSearchImplTest {
         assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
 
         // Insert three package1 documents
+        long currentTimeMillis = System.currentTimeMillis();
         GenericDocument document1 =
-                new GenericDocument.Builder<>("namespace", "id1", "schema1").build();
+                new GenericDocument.Builder<>("namespace", "id1", "schema1")
+                        .setCreationTimestampMillis(currentTimeMillis)
+                        .setTtlMillis(10000)
+                        .build();
         GenericDocument document2 =
-                new GenericDocument.Builder<>("namespace", "id2", "schema1").build();
+                new GenericDocument.Builder<>("namespace", "id2", "schema1")
+                        .setCreationTimestampMillis(currentTimeMillis)
+                        .setTtlMillis(5000)
+                        .build();
         GenericDocument document3 =
                 new GenericDocument.Builder<>("namespace", "id3", "schema1").build();
         List<GenericDocument> documents = Arrays.asList(document1, document2, document3);
 
-        AppSearchBatchResult.Builder<String, Void> batchResultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package1",
@@ -1684,12 +1692,17 @@ public class AppSearchImplTest {
                 /* logger= */ null,
                 PersistType.Code.LITE,
                 /* callStatsBuilder= */ null);
-        AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
+        AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                batchResultBuilder.build();
 
         // Check batchResult
-        assertThat(batchResult.getSuccesses())
-                .containsExactly("id1", null, "id2", null, "id3", null)
-                .inOrder();
+        assertThat(batchResult.getSuccesses().keySet()).containsExactly("id1", "id2", "id3");
+        assertThat(batchResult.getSuccesses().get("id1").getDocumentExpirationTimestampMillis())
+                .isEqualTo(currentTimeMillis + 10000);
+        assertThat(batchResult.getSuccesses().get("id2").getDocumentExpirationTimestampMillis())
+                .isEqualTo(currentTimeMillis + 5000);
+        assertThat(batchResult.getSuccesses().get("id3").getDocumentExpirationTimestampMillis())
+                .isEqualTo(Long.MAX_VALUE);
 
         SearchSpec searchSpec =
                 new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
@@ -1735,7 +1748,7 @@ public class AppSearchImplTest {
                 new GenericDocument.Builder<>("namespace", "id3", "schema1").build();
         List<GenericDocument> documents = Arrays.asList(document1, document2, document3);
 
-        AppSearchBatchResult.Builder<String, Void> batchResultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package1",
@@ -1747,12 +1760,11 @@ public class AppSearchImplTest {
                 // Specify UNKNOWN PersistType to indicate not to call persistToDisk at the end.
                 PersistType.Code.UNKNOWN,
                 /* callStatsBuilder= */ null);
-        AppSearchBatchResult<String, Void> batchResult = batchResultBuilder.build();
+        AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                batchResultBuilder.build();
 
         // Check batchResult
-        assertThat(batchResult.getSuccesses())
-                .containsExactly("id1", null, "id2", null, "id3", null)
-                .inOrder();
+        assertThat(batchResult.getSuccesses().keySet()).containsExactly("id1", "id2", "id3");
 
         SearchSpec searchSpec =
                 new SearchSpec.Builder().setTermMatch(TermMatchType.Code.PREFIX_VALUE).build();
@@ -7549,7 +7561,7 @@ public class AppSearchImplTest {
 
         List<GenericDocument> documents = new ArrayList<>();
         documents.add(document);
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package1",
@@ -7657,7 +7669,7 @@ public class AppSearchImplTest {
 
         List<GenericDocument> documents = new ArrayList<>();
         documents.add(document);
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package1",
@@ -7769,7 +7781,7 @@ public class AppSearchImplTest {
                 };
         List<GenericDocument> documents = new ArrayList<>();
         documents.add(document);
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         callStatsBuilder = new CallStats.Builder();
         mAppSearchImpl.batchPutDocuments(
@@ -8079,7 +8091,7 @@ public class AppSearchImplTest {
         documents.add(document1);
         documents.add(document2);
         documents.add(document3);
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package",
@@ -13535,7 +13547,7 @@ public class AppSearchImplTest {
                                         .build())
                         .build();
 
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package",
@@ -13546,7 +13558,8 @@ public class AppSearchImplTest {
                 /* logger= */ null,
                 PersistType.Code.LITE,
                 /* callStatsBuilder= */ null);
-        AppSearchBatchResult<String, Void> batchResult = resultBuilder.build();
+        AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                resultBuilder.build();
         AppSearchResult<?> result1 = batchResult.getAll().get("id1");
         assertFalse(result1.isSuccess());
         assertThat(result1.getErrorMessage())
@@ -13912,7 +13925,7 @@ public class AppSearchImplTest {
                                         .setAccountName("accountName")
                                         .build())
                         .build();
-        AppSearchBatchResult.Builder<String, Void> resultBuilder =
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> resultBuilder =
                 new AppSearchBatchResult.Builder<>();
         mAppSearchImpl.batchPutDocuments(
                 "package",
@@ -13923,8 +13936,9 @@ public class AppSearchImplTest {
                 /* logger= */ null,
                 PersistType.Code.LITE,
                 /* callStatsBuilder= */ null);
-        AppSearchBatchResult<String, Void> batchResult = resultBuilder.build();
-        assertThat(batchResult.getSuccesses()).containsExactly("id1", null, "id2", null);
+        AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                resultBuilder.build();
+        assertThat(batchResult.getSuccesses().keySet()).containsExactly("id1", "id2");
 
         // Verify the documents exists
         GenericDocument outDocument1 =

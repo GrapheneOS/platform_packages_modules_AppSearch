@@ -20,10 +20,12 @@ import static android.app.appsearch.AppSearchResult.RESULT_NOT_FOUND;
 import static com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityToDocumentConverter.ANDROID_V_OVERLAY_NAMESPACE;
 import static com.android.server.appsearch.external.localstorage.visibilitystore.VisibilityToDocumentConverter.VISIBILITY_DOCUMENT_NAMESPACE;
 
+import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetSchemaResponse;
+import android.app.appsearch.InternalPutDocumentResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.SearchResult;
@@ -267,12 +269,14 @@ public class VisibilityStore {
         }
 
         if (Flags.enableBatchPutVisibilityDocuments() && !visibilityDocuments.isEmpty()) {
+            AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
+                    new AppSearchBatchResult.Builder<>();
             if (!overlayDocuments.isEmpty()) {
                 mAppSearchImpl.batchPutDocuments(
                         VISIBILITY_PACKAGE_NAME,
                         mAndroidVOverlayDatabaseName,
                         overlayDocuments,
-                        /* batchResultBuilder= */ null,
+                        batchResultBuilder,
                         /* sendChangeNotifications= */ false,
                         /* logger= */ null,
                         PersistType.Code.UNKNOWN,
@@ -284,11 +288,20 @@ public class VisibilityStore {
                     VISIBILITY_PACKAGE_NAME,
                     mDatabaseName,
                     visibilityDocuments,
-                    /* batchResultBuilder= */ null,
+                    batchResultBuilder,
                     /* sendChangeNotifications= */ false,
                     /* logger= */ null,
                     PersistType.Code.LITE,
                     callStatsBuilder);
+
+            if (Flags.enableDeletePropagationRw()) {
+                AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                        batchResultBuilder.build();
+                if (!batchResult.getFailures().isEmpty()) {
+                    throw new AppSearchException(
+                            AppSearchResult.RESULT_INTERNAL_ERROR, batchResult.toString());
+                }
+            }
         }
     }
 
@@ -498,15 +511,26 @@ public class VisibilityStore {
             }
         }
         if (Flags.enableBatchPutVisibilityDocuments() && !migratedVisibilityDocuments.isEmpty()) {
+            AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
+                    new AppSearchBatchResult.Builder<>();
             mAppSearchImpl.batchPutDocuments(
                     VISIBILITY_PACKAGE_NAME,
                     mDatabaseName,
                     migratedVisibilityDocuments,
-                    /* batchResultBuilder= */ null,
+                    batchResultBuilder,
                     /* sendChangeNotifications= */ false,
                     /* logger= */ null,
                     PersistType.Code.UNKNOWN,
                     callStatsBuilder);
+
+            if (Flags.enableDeletePropagationRw()) {
+                AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                        batchResultBuilder.build();
+                if (!batchResult.getFailures().isEmpty()) {
+                    throw new AppSearchException(
+                            AppSearchResult.RESULT_INTERNAL_ERROR, batchResult.toString());
+                }
+            }
         }
     }
 

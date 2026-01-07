@@ -39,6 +39,7 @@ import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
+import android.app.appsearch.InternalPutDocumentResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.JoinSpec;
@@ -1882,7 +1883,8 @@ public final class AppSearchImpl implements Closeable {
             @NonNull String packageName,
             @NonNull String databaseName,
             @NonNull List<GenericDocument> documents,
-            AppSearchBatchResult.@Nullable Builder<String, Void> batchResultBuilder,
+            AppSearchBatchResult.@NonNull Builder<String, InternalPutDocumentResponse>
+                    batchResultBuilder,
             boolean sendChangeNotifications,
             @Nullable AppSearchLogger logger,
             PersistType.@NonNull Code persistType,
@@ -1921,10 +1923,7 @@ public final class AppSearchImpl implements Closeable {
                         newlyAddedAccounts.addAll(accounts);
                     }
                 } catch (AppSearchException e) {
-                    if (batchResultBuilder != null) {
-                        batchResultBuilder.setResult(
-                                documents.get(i).getId(), e.toAppSearchResult());
-                    }
+                    batchResultBuilder.setResult(documents.get(i).getId(), e.toAppSearchResult());
                     continue;
                 }
             }
@@ -1998,7 +1997,8 @@ public final class AppSearchImpl implements Closeable {
             @NonNull String databaseName,
             @NonNull List<DocumentProto> documents,
             @NonNull List<PutDocumentStats.Builder> statsBuilders,
-            AppSearchBatchResult.@Nullable Builder<String, Void> batchResultBuilder,
+            AppSearchBatchResult.@NonNull Builder<String, InternalPutDocumentResponse>
+                    batchResultBuilder,
             boolean sendChangeNotifications,
             @Nullable AppSearchLogger logger,
             PersistType.@NonNull Code persistType,
@@ -2048,9 +2048,7 @@ public final class AppSearchImpl implements Closeable {
                     putRequestBuilder.addDocuments(finalDocument);
                     statsNotFilteredOut.add(pStatsBuilder);
                 } catch (Throwable t) {
-                    if (batchResultBuilder != null) {
-                        batchResultBuilder.setResult(docId, throwableToFailedResult(t));
-                    }
+                    batchResultBuilder.setResult(docId, throwableToFailedResult(t));
                 }
             }
 
@@ -2101,9 +2099,10 @@ public final class AppSearchImpl implements Closeable {
                     // If it is a failure, it will throw and the catch section will
                     // set generated result
                     checkSuccess(putResultProto.getStatus());
-                    if (batchResultBuilder != null) {
-                        batchResultBuilder.setSuccess(docId, /* value= */ null);
-                    }
+                    batchResultBuilder.setSuccess(
+                            docId,
+                            new InternalPutDocumentResponse(
+                                    putResultProto.getDocumentExpirationTimestampMs()));
 
                     // Don't need to check the index here, as request doc list size should
                     // definitely be bigger than response doc list size.
@@ -2147,11 +2146,7 @@ public final class AppSearchImpl implements Closeable {
                                 mVisibilityCheckerLocked);
                     }
                 } catch (Throwable t) {
-                    if (batchResultBuilder != null) {
-                        batchResultBuilder.setResult(docId, throwableToFailedResult(t));
-                    } else {
-                        throw t;
-                    }
+                    batchResultBuilder.setResult(docId, throwableToFailedResult(t));
                 }
             }
 
@@ -2192,13 +2187,14 @@ public final class AppSearchImpl implements Closeable {
      * @param document The document to index.
      * @param sendChangeNotifications Whether to dispatch {@link DocumentChangeInfo} messages to
      *     observers for this change.
+     * @return {@link InternalPutDocumentResponse}
      * @throws AppSearchException on IcingSearchEngine error.
      * @deprecated use {@link #batchPutDocuments(String, String, List, AppSearchBatchResult.Builder,
      *     boolean, AppSearchLogger)}
      */
     // TODO(b/394875109) keep this for now to make code sync easier.
     @Deprecated
-    public void putDocument(
+    public @NonNull InternalPutDocumentResponse putDocument(
             @NonNull String packageName,
             @NonNull String databaseName,
             @NonNull GenericDocument document,
@@ -2328,6 +2324,8 @@ public final class AppSearchImpl implements Closeable {
                         mDocumentVisibilityStoreLocked,
                         mVisibilityCheckerLocked);
             }
+            return new InternalPutDocumentResponse(
+                    putResultProto.getDocumentExpirationTimestampMs());
         } finally {
             logWriteOperationLatencyLocked(
                     totalLatencyStartMillis,
