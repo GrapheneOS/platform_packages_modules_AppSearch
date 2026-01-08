@@ -215,7 +215,7 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                                 "account", AppSearchAccount.SCHEMA_TYPE)
                                         .setCardinality(
                                                 AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                        .setShouldIndexNestedProperties(false)
+                                        .setShouldIndexNestedProperties(true)
                                         .build())
                         .build();
 
@@ -241,10 +241,24 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                         .setAccountName(MockAccountService.ACCOUNT_NAME)
                                         .build())
                         .build();
+        // Wait for the AppSearch background thread to receive account updates.
+        // Use a simple polling mechanism: check every 100ms, for up to 2 seconds.
+        AppSearchBatchResult<String, Void> putResult = null;
+        for (int i = 0; i < 20; i++) {
+            putResult =
+                    mDb1.putAsync(
+                                    new PutDocumentsRequest.Builder()
+                                            .addGenericDocuments(document)
+                                            .build())
+                            .get();
+            if (putResult.isSuccess()) {
+                break;
+            }
 
-        checkIsBatchResultSuccess(
-                mDb1.putAsync(
-                        new PutDocumentsRequest.Builder().addGenericDocuments(document).build()));
+            // Wait 0.1 second to invoke on account update listener.
+            SystemClock.sleep(100);
+        }
+        assertTrue(putResult.isSuccess());
 
         AppSearchBatchResult<String, GenericDocument> getResult =
                 mDb1.getByDocumentIdAsync(
@@ -301,7 +315,7 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                                 "account", AppSearchAccount.SCHEMA_TYPE)
                                         .setCardinality(
                                                 AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                        .setShouldIndexNestedProperties(false)
+                                        .setShouldIndexNestedProperties(true)
                                         .build())
                         .build();
 
@@ -328,9 +342,24 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                         .build())
                         .build();
 
-        checkIsBatchResultSuccess(
-                mDb1.putAsync(
-                        new PutDocumentsRequest.Builder().addGenericDocuments(document).build()));
+        // Wait for the AppSearch background thread to receive account updates.
+        // Use a simple polling mechanism: check every 100ms, for up to 2 seconds.
+        AppSearchBatchResult<String, Void> putResult = null;
+        for (int i = 0; i < 20; i++) {
+            putResult =
+                    mDb1.putAsync(
+                                    new PutDocumentsRequest.Builder()
+                                            .addGenericDocuments(document)
+                                            .build())
+                            .get();
+            if (putResult.isSuccess()) {
+                break;
+            }
+
+            // Wait 0.1 second to invoke on account update listener.
+            SystemClock.sleep(100);
+        }
+        assertTrue(putResult.isSuccess());
 
         // Verify the document
         AppSearchBatchResult<String, GenericDocument> getResult =
