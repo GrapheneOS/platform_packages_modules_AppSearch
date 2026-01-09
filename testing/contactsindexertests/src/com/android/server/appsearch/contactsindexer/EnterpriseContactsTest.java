@@ -23,6 +23,7 @@ import static com.android.bedstead.enterprise.EnterpriseDeviceStateExtensionsKt.
 import static com.android.bedstead.enterprise.EnterpriseDeviceStateExtensionsKt.workProfile;
 import static com.android.bedstead.harrier.UserType.WORK_PROFILE;
 import static com.android.bedstead.permissions.CommonPermissions.INTERACT_ACROSS_USERS_FULL;
+import static com.android.bedstead.permissions.CommonPermissions.READ_CONTACTS;
 import static com.android.bedstead.permissions.CommonPermissions.WRITE_CONTACTS;
 import static com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint.CONTACT_POINT_PROPERTY_ADDRESS;
 import static com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint.CONTACT_POINT_PROPERTY_EMAIL;
@@ -116,7 +117,7 @@ import java.util.concurrent.TimeUnit;
  * {@link android.app.appsearch.EnterpriseGlobalSearchSession} behaves the same regardless of this
  * permission.
  */
-@EnsureHasPermission({INTERACT_ACROSS_USERS_FULL, WRITE_CONTACTS})
+@EnsureHasPermission({INTERACT_ACROSS_USERS_FULL, READ_CONTACTS, WRITE_CONTACTS})
 @EnsureHasWorkProfile
 @RunWith(BedsteadJUnit4.class)
 public class EnterpriseContactsTest {
@@ -124,8 +125,8 @@ public class EnterpriseContactsTest {
     @Rule
     public static final DeviceState sDeviceState = new DeviceState();
 
-    private static final String TEST_ACCOUNT_TYPE = "com.google";
-    private static final String TEST_ACCOUNT_NAME = "EnterpriseContactsAppSearchTestAccountName";
+    private static final String TEST_ACCOUNT_TYPE = "AppSearchTestAccountType";
+    private static final String TEST_ACCOUNT_NAME = "AppSearchTestAccountName";
     private static final long ENTERPRISE_CONTACT_ID_BASE = 1000000000;
 
     private final Executor mSingleThreadedExecutor = Executors.newSingleThreadExecutor();
