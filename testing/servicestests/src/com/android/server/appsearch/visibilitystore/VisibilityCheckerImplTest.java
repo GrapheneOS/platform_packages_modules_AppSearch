@@ -50,6 +50,7 @@ import android.app.appsearch.testutil.FakeAppSearchConfig;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
+import android.os.Process;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
@@ -90,6 +91,7 @@ public class VisibilityCheckerImplTest {
     private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS = 9;
     private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_TRUSTED = 10;
     private static final int SET_SCHEMA_REQUEST_PACKAGE_USAGE_STATS = 11;
+    private static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12;
 
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
@@ -814,6 +816,114 @@ public class VisibilityCheckerImplTest {
                         mVisibilityChecker.isSchemaSearchableByCaller(
                                 new FrameworkCallerAccess(
                                         mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isFalse();
+    }
+
+    @Test
+    public void testSetSchema_visibleToPrivateComputeCoreUid() throws Exception {
+        String prefix = PrefixUtil.createPrefix("package", "database");
+
+        // Create a doc that requires PRIVATE_COMPUTE_CORE_UID_ACCESS permission.
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
+                        .addVisibleToPermissions(ImmutableSet.of(PRIVATE_COMPUTE_CORE_UID_ACCESS))
+                        .build();
+        mVisibilityStore.setVisibility(
+                ImmutableList.of(visibilityConfig), /* callStatsBuilder= */ null);
+
+        // Caller is a PCC UID, should have access.
+        int pccUid = Process.FIRST_PCC_UID;
+        doReturn(true).when(mVisibilityChecker).isPrivateComputeCoreUid(pccUid);
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        new AppSearchAttributionSource(
+                                                "package", pccUid, /* callingPid= */ 1),
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isTrue();
+
+        // Caller is NOT a PCC UID, should NOT have access.
+        int nonPccUid = 1000;
+        doReturn(false).when(mVisibilityChecker).isPrivateComputeCoreUid(nonPccUid);
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        new AppSearchAttributionSource(
+                                                "package", nonPccUid, /* callingPid= */ 1),
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isFalse();
+    }
+
+    @Test
+    public void testSetSchema_visibleToPrivateComputeCoreUidAndReadSms() throws Exception {
+        String prefix = PrefixUtil.createPrefix("package", "database");
+
+        // Create a doc that requires BOTH PRIVATE_COMPUTE_CORE_UID_ACCESS and READ_SMS.
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
+                        .addVisibleToPermissions(
+                                ImmutableSet.of(
+                                        PRIVATE_COMPUTE_CORE_UID_ACCESS, SetSchemaRequest.READ_SMS))
+                        .build();
+        mVisibilityStore.setVisibility(
+                ImmutableList.of(visibilityConfig), /* callStatsBuilder= */ null);
+
+        int pccUid = Process.FIRST_PCC_UID;
+        doReturn(true).when(mVisibilityChecker).isPrivateComputeCoreUid(pccUid);
+
+        // Caller is a PCC UID but doesn't have READ_SMS, should NOT have access.
+        doReturn(false)
+                .when(mVisibilityChecker)
+                .checkPermissionForDataDeliveryGranted(eq(READ_SMS), any(), any());
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        new AppSearchAttributionSource(
+                                                "package", pccUid, /* callingPid= */ 1),
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isFalse();
+
+        // Caller is a PCC UID and has READ_SMS, should have access.
+        doReturn(true)
+                .when(mVisibilityChecker)
+                .checkPermissionForDataDeliveryGranted(eq(READ_SMS), any(), any());
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        new AppSearchAttributionSource(
+                                                "package", pccUid, /* callingPid= */ 1),
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isTrue();
+
+        // Caller has READ_SMS but is NOT a PCC UID, should NOT have access.
+        int nonPccUid = 1000;
+        doReturn(false).when(mVisibilityChecker).isPrivateComputeCoreUid(nonPccUid);
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        new AppSearchAttributionSource(
+                                                "package", nonPccUid, /* callingPid= */ 1),
                                         /* callerHasSystemAccess= */ false,
                                         /* isForEnterprise= */ false),
                                 "package",
