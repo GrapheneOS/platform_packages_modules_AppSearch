@@ -114,6 +114,7 @@ public final class SetSchemaRequest {
                 EXECUTE_APP_FUNCTIONS,
                 PACKAGE_USAGE_STATS,
                 PRIVATE_COMPUTE_CORE_UID_ACCESS,
+                READ_APP_FUNCTION_METADATA
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AppSearchSupportedPermission {}
@@ -216,6 +217,15 @@ public final class SetSchemaRequest {
      */
     @FlaggedApi(Flags.FLAG_ENABLE_PRIVATE_COMPUTE_CORE_UID_ACCESS)
     public static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12;
+
+    /**
+     * The {@link android.Manifest.permission#READ_APP_FUNCTION_METADATA} AppSearch supported in
+     * {@link SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility}.
+     *
+     * @hide
+     */
+    @FlaggedApi(android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
+    public static final int READ_APP_FUNCTION_METADATA = 13;
 
     private final Set<AppSearchSchema> mSchemas;
     private final Set<String> mSchemasNotDisplayedBySystem;
@@ -587,8 +597,13 @@ public final class SetSchemaRequest {
             Objects.requireNonNull(schemaType);
             Objects.requireNonNull(permissions);
             for (int permission : permissions) {
-                Preconditions.checkArgumentInRange(
-                        permission, READ_SMS, PRIVATE_COMPUTE_CORE_UID_ACCESS, "permission");
+                if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
+                    Preconditions.checkArgumentInRange(
+                            permission, READ_SMS, READ_APP_FUNCTION_METADATA, "permission");
+                } else {
+                    Preconditions.checkArgumentInRange(
+                            permission, READ_SMS, PRIVATE_COMPUTE_CORE_UID_ACCESS, "permission");
+                }
             }
             resetIfBuilt();
             Set<Set<Integer>> visibleToPermissions = mSchemasVisibleToPermissions.get(schemaType);

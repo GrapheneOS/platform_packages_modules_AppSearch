@@ -19,6 +19,7 @@ package com.android.server.appsearch.visibilitystore;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
+import static android.Manifest.permission.READ_APP_FUNCTION_METADATA;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
@@ -30,6 +31,7 @@ import static android.permission.PermissionManager.PERMISSION_GRANTED;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresApi;
+import android.annotation.SuppressLint;
 import android.app.appfunctions.AppFunctionManager;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.PackageIdentifier;
@@ -68,6 +70,9 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
     private final PolicyChecker mPolicyChecker;
 
     private final AppFunctionCompat mAppFunctionCompat;
+
+    @SuppressLint("NewApi")
+    private static final String READ_APP_FUNCTION_METADATA_PERMISSION = READ_APP_FUNCTION_METADATA;
 
     public VisibilityCheckerImpl(@NonNull Context userContext) {
         this(userContext, new PolicyCheckerImpl(userContext));
@@ -120,8 +125,10 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             Set<SchemaVisibilityConfig> visibleToConfigs =
                     internalVisibilityConfig.getVisibleToConfigs();
             for (SchemaVisibilityConfig visibleToConfig : visibleToConfigs) {
-                if (checkMatchAllVisibilityConfig(frameworkCallerAccess,
-                        visibleToConfig, /* checkEnterpriseAccess= */ true)) {
+                if (checkMatchAllVisibilityConfig(
+                        frameworkCallerAccess,
+                        visibleToConfig,
+                        /* checkEnterpriseAccess= */ true)) {
                     return true;
                 }
             }
@@ -153,8 +160,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         Set<SchemaVisibilityConfig> visibleToConfigs =
                 internalVisibilityConfig.getVisibleToConfigs();
         for (SchemaVisibilityConfig visibleToConfig : visibleToConfigs) {
-            if (checkMatchAllVisibilityConfig(frameworkCallerAccess,
-                    visibleToConfig, /* checkEnterpriseAccess= */ false)) {
+            if (checkMatchAllVisibilityConfig(
+                    frameworkCallerAccess, visibleToConfig, /* checkEnterpriseAccess= */ false)) {
                 return true;
             }
         }
@@ -355,6 +362,7 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 case SetSchemaRequest.READ_HOME_APP_SEARCH_DATA:
                 case SetSchemaRequest.READ_ASSISTANT_APP_SEARCH_DATA:
                 case SetSchemaRequest.PACKAGE_USAGE_STATS:
+                case SetSchemaRequest.READ_APP_FUNCTION_METADATA:
                     if (!doesCallerHavePermissionForDataDelivery(
                             requiredPermission, callerAttributionSource)) {
                         // The calling package doesn't have this required permission, return false.
@@ -441,6 +449,13 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 break;
             case SetSchemaRequest.PACKAGE_USAGE_STATS:
                 permission = PACKAGE_USAGE_STATS;
+                break;
+            case SetSchemaRequest.READ_APP_FUNCTION_METADATA:
+                if (!android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
+                    // Returning false as is this permission does not exist.
+                    return false;
+                }
+                permission = READ_APP_FUNCTION_METADATA_PERMISSION;
                 break;
             case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
                 // Deprecated. Returning false as is this permission does not exist.

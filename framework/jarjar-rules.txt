@@ -10,3 +10,7 @@ rule com.android.internal.util.Preconditions* android.app.appsearch.internal.uti
 rule com.android.appsearch.flags.*FeatureFlags* android.app.appsearch.flags.@1FeatureFlags@2
 rule com.android.appsearch.flags.FeatureFlags* android.app.appsearch.flags.FeatureFlags@1
 rule com.android.appsearch.flags.Flags android.app.appsearch.flags.Flags
+
+rule android.app.appfunctions.flags.*FeatureFlags* android.app.appsearch.appfunctions.flags.@1FeatureFlags@2
+rule android.app.appfunctions.flags.FeatureFlags* android.app.appsearch.appfunctions.flags.FeatureFlags@1
+rule android.app.appfunctions.flags.Flags android.app.appsearch.appfunctions.flags.Flags
