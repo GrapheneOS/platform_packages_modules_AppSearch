@@ -379,6 +379,11 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
         Account renamedAccount = new Account("newName", MockAccountService.ACCOUNT_TYPE);
         accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
         assertThat(accounts).asList().containsExactly(renamedAccount);
+
+        // TODO(b/413089233) find a better way to verify the listener is invoked for rename than
+        //  sleep. An unchanged state is ambiguous: it could mean the listener was never triggered,
+        //  or it was triggered but failed to perform the expected action (not to removing the
+        //  account). It means we may miss catch issues in the listener.
         getResult =
                 mDb1.getByDocumentIdAsync(
                                 new GetByDocumentIdRequest.Builder("namespace")
