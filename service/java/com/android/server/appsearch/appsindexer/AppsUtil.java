@@ -366,7 +366,6 @@ public final class AppsUtil {
 
         MobileApplication.Builder builder =
                 new MobileApplication.Builder(packageInfo.packageName, certificate)
-                        // TODO(b/275592563): Populate with nicknames from various sources
                         .setCreationTimestampMillis(packageInfo.firstInstallTime)
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
