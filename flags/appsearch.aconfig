@@ -871,6 +871,14 @@ flag {
 }
 
 flag {
+    name: "enable_private_compute_core_uid_access"
+    namespace: "appsearch"
+    description: "Enables visibility access for Private Compute Core UIDs."
+    bug: "463863587"
+    is_exported: true
+}
+
+flag {
     name: "enable_delete_propagation_rw"
     namespace: "appsearch"
     description: "Enables delete propagation API. It replaces the original read-only flag enable_delete_propagation_type."

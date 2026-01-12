@@ -840,6 +840,7 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public java.util.Map<java.lang.String,java.util.Set<java.lang.String>> getSchemasWipeoutAccountPropertyPaths();
     method @IntRange(from=1) public int getVersion();
     method public boolean isForceOverride();
+    field @FlaggedApi("com.android.appsearch.flags.enable_private_compute_core_uid_access") public static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12; // 0xc
     field public static final int READ_ASSISTANT_APP_SEARCH_DATA = 6; // 0x6
     field public static final int READ_CALENDAR = 2; // 0x2
     field public static final int READ_CONTACTS = 3; // 0x3

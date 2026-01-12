@@ -40,6 +40,7 @@ import android.content.AttributionSource;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Process;
 import android.os.UserHandle;
 import android.permission.PermissionManager;
 
@@ -389,6 +390,11 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                     // This permission is not an actual permission; it marks the permission set as
                     // enterprise and is checked at the top of this method so just skip it here
                     break;
+                case SetSchemaRequest.PRIVATE_COMPUTE_CORE_UID_ACCESS:
+                    if (!isPrivateComputeCoreUid(callerAttributionSource.getUid())) {
+                        return false;
+                    }
+                    break;
                 default:
                     throw new UnsupportedOperationException(
                             "The required permission is unsupported in AppSearch : "
@@ -477,6 +483,15 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                         .getPackageManager()
                         .checkPermission(READ_GLOBAL_APP_SEARCH_DATA, callerPackageName)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @Override
+    public boolean isPrivateComputeCoreUid(int uid) {
+        if (Flags.enablePrivateComputeCoreUidAccess()
+                && android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+            return Process.isPrivateComputeCoreUid(uid);
+        }
+        return false;
     }
 
     /**
