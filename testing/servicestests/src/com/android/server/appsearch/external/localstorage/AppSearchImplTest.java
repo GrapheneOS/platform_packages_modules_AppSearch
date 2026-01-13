@@ -104,6 +104,7 @@ import com.android.server.appsearch.icing.proto.DebugInfoVerbosity;
 import com.android.server.appsearch.icing.proto.DocumentProto;
 import com.android.server.appsearch.icing.proto.GetOptimizeInfoResultProto;
 import com.android.server.appsearch.icing.proto.GetSchemaResultProto;
+import com.android.server.appsearch.icing.proto.HandleExpiredDocumentsResultProto;
 import com.android.server.appsearch.icing.proto.IcingSearchEngineOptions;
 import com.android.server.appsearch.icing.proto.InitializeResultProto;
 import com.android.server.appsearch.icing.proto.PersistToDiskResultProto;
@@ -14975,6 +14976,267 @@ public class AppSearchImplTest {
 
         mAppSearchImpl.setBlobNamespaceVisibility(
                 "package", "db1", ImmutableList.of(config), /* callStatsBuilder= */ null);
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
+    public void testHandleExpiredDocuments() throws AppSearchException, InterruptedException {
+        AppSearchConfig customConfig =
+                new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()) {
+                    @Override
+                    public boolean enableIcingBackgroundTaskScheduler() {
+                        return false;
+                    }
+
+                    @Override
+                    public long getExpiredDocumentPurgingThresholdMillis() {
+                        return 0;
+                    }
+                };
+        mAppSearchImpl.close();
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        customConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        AppSearchSchema personSchema = new AppSearchSchema.Builder("Person").build();
+        AppSearchSchema emailSchema =
+                new AppSearchSchema.Builder("Email")
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder("sender")
+                                        .setJoinableValueType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .JOINABLE_VALUE_TYPE_QUALIFIED_ID)
+                                        .setDeletePropagationType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .DELETE_PROPAGATION_TYPE_PROPAGATE_FROM)
+                                        .build())
+                        .build();
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        ImmutableList.of(personSchema, emailSchema),
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* accountPropertyPaths= */ ImmutableMap.of(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert documents.
+        long docCreationTimeMillis = System.currentTimeMillis();
+        GenericDocument person1 =
+                new GenericDocument.Builder<>("namespace", "Alice", "Person")
+                        .setCreationTimestampMillis(docCreationTimeMillis)
+                        .setTtlMillis(10000_000) // Expires in 10000 seconds.
+                        .build();
+        GenericDocument person2 =
+                new GenericDocument.Builder<>("namespace", "Bob", "Person")
+                        .setCreationTimestampMillis(docCreationTimeMillis)
+                        .setTtlMillis(20) // Expires in 20 ms.
+                        .build();
+        GenericDocument person3 =
+                new GenericDocument.Builder<>("namespace", "Eve", "Person")
+                        .setCreationTimestampMillis(docCreationTimeMillis)
+                        .setTtlMillis(20000_000) // Expires in 20000 seconds.
+                        .build();
+        GenericDocument email1 =
+                new GenericDocument.Builder<>("namespace", "email1", "Email") // Never expires.
+                        .setPropertyString("sender", "package$database/namespace#Eve")
+                        .build();
+        GenericDocument email2 =
+                new GenericDocument.Builder<>("namespace", "email2", "Email") // Never expires.
+                        .setPropertyString("sender", "package$database/namespace#Alice")
+                        .build();
+        GenericDocument email3 =
+                new GenericDocument.Builder<>("namespace", "email3", "Email") // Never expires.
+                        .setPropertyString("sender", "package$database/namespace#Bob")
+                        .build();
+
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package",
+                "database",
+                ImmutableList.of(person1, person2, person3, email1, email2, email3),
+                batchResultBuilder,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                PersistType.Code.UNKNOWN,
+                /* callStatsBuilder= */ null);
+        AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                batchResultBuilder.build();
+        assertThat(batchResult.getSuccesses().keySet())
+                .containsExactly("Alice", "Bob", "Eve", "email1", "email2", "email3");
+
+        // Document "Bob" expires at t = docCreationTimeMillis + 20. We chose 20ms as the TTL
+        // because:
+        // - In the unit test, the waiting time (via sleep) should be as short as possible.
+        // - However, put API rejects an already expired document, so the TTL should also consider
+        //   the delay before the batch put request is sent to Icing and proceeded.
+        // - Therefore, pick 20ms as the TTL.
+        //
+        // Sleep until document "Bob" expires and call handleExpiredDocuments to purge it and
+        // propagate deletion to its child document "email3".
+        Thread.sleep(Long.max(docCreationTimeMillis + 20 - System.currentTimeMillis(), 0));
+        HandleExpiredDocumentsResultProto resultProto = mAppSearchImpl.handleExpiredDocuments();
+
+        // Both "Bob" and "email3" should be purged. Although email3 was not expired, the parent
+        // document "Bob" was expired, so delete propagation should be applied to email3.
+        assertThat(resultProto.getNumExpiredDocuments()).isEqualTo(1);
+        assertThat(resultProto.getNumPropagatedDeletedDocuments()).isEqualTo(1);
+        assertThat(resultProto.getNextExpirationTimestampMs())
+                .isEqualTo(docCreationTimeMillis + 10000_000);
+        String prefix = PrefixUtil.createPrefix("package", "database");
+        assertThat(resultProto.getDeletedDocumentsCount()).isEqualTo(2);
+        assertThat(resultProto.getDeletedDocuments(0).getSchema()).isEqualTo(prefix + "Person");
+        assertThat(resultProto.getDeletedDocuments(0).getNameSpace())
+                .isEqualTo(prefix + "namespace");
+        assertThat(resultProto.getDeletedDocuments(0).getUrisList()).containsExactly("Bob");
+        assertThat(resultProto.getDeletedDocuments(1).getSchema()).isEqualTo(prefix + "Email");
+        assertThat(resultProto.getDeletedDocuments(1).getNameSpace())
+                .isEqualTo(prefix + "namespace");
+        assertThat(resultProto.getDeletedDocuments(1).getUrisList()).containsExactly("email3");
+
+        // Verify email3 document is not retrievable.
+        AppSearchException e =
+                assertThrows(
+                        AppSearchException.class,
+                        () ->
+                                mAppSearchImpl.getDocument(
+                                        "package",
+                                        "database",
+                                        "namespace",
+                                        "email3",
+                                        /* typePropertyPaths= */ Collections.emptyMap(),
+                                        /* callStatsBuilder= */ null));
+        assertThat(e.getMessage()).endsWith("not found.");
+
+        // Sanity check that email1 and email2 still exist.
+        GenericDocument email1Fetched =
+                mAppSearchImpl.getDocument(
+                        "package",
+                        "database",
+                        "namespace",
+                        "email1",
+                        /* typePropertyPaths= */ Collections.emptyMap(),
+                        /* callStatsBuilder= */ null);
+        assertThat(email1Fetched).isEqualTo(email1);
+
+        GenericDocument email2Fetched =
+                mAppSearchImpl.getDocument(
+                        "package",
+                        "database",
+                        "namespace",
+                        "email2",
+                        /* typePropertyPaths= */ Collections.emptyMap(),
+                        /* callStatsBuilder= */ null);
+        assertThat(email2Fetched).isEqualTo(email2);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
+    public void testHandleExpiredDocuments_shouldSetNeedsPersistToDiskCorrectly()
+            throws AppSearchException, InterruptedException {
+        AppSearchConfig customConfig =
+                new AppSearchConfigImpl(
+                        new UnlimitedLimitConfig(), new LocalStorageIcingOptionsConfig()) {
+                    @Override
+                    public boolean enableIcingBackgroundTaskScheduler() {
+                        return false;
+                    }
+
+                    @Override
+                    public long getExpiredDocumentPurgingThresholdMillis() {
+                        return 0;
+                    }
+                };
+        mAppSearchImpl.close();
+        mAppSearchImpl =
+                AppSearchImpl.create(
+                        mAppSearchDir,
+                        customConfig,
+                        /* initStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null,
+                        /* visibilityChecker= */ null,
+                        /* revocableFileDescriptorStore= */ null,
+                        /* icingSearchEngine= */ null,
+                        ALWAYS_OPTIMIZE);
+
+        AppSearchSchema personSchema = new AppSearchSchema.Builder("Person").build();
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mAppSearchImpl.setSchema(
+                        "package",
+                        "database",
+                        ImmutableList.of(personSchema),
+                        /* visibilityConfigs= */ Collections.emptyList(),
+                        /* accountPropertyPaths= */ ImmutableMap.of(),
+                        /* forceOverride= */ false,
+                        /* version= */ 0,
+                        /* setSchemaStatsBuilder= */ null,
+                        /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        // Insert document.
+        long docCreationTimeMillis = System.currentTimeMillis();
+        GenericDocument person =
+                new GenericDocument.Builder<>("namespace", "Bob", "Person")
+                        .setCreationTimestampMillis(docCreationTimeMillis)
+                        .setTtlMillis(100) // Expires in 100 ms.
+                        .build();
+        AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
+                new AppSearchBatchResult.Builder<>();
+        mAppSearchImpl.batchPutDocuments(
+                "package",
+                "database",
+                ImmutableList.of(person),
+                batchResultBuilder,
+                /* sendChangeNotifications= */ false,
+                /* logger= */ null,
+                PersistType.Code.UNKNOWN,
+                /* callStatsBuilder= */ null);
+        AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                batchResultBuilder.build();
+        assertThat(batchResult.getSuccesses().keySet()).containsExactly("Bob");
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
+
+        // Call handleExpiredDocuments immediately. Nothing was purged.
+        HandleExpiredDocumentsResultProto resultProto1 = mAppSearchImpl.handleExpiredDocuments();
+        assertThat(resultProto1.getNumExpiredDocuments()).isEqualTo(0);
+        assertThat(resultProto1.getNumPropagatedDeletedDocuments()).isEqualTo(0);
+        assertThat(resultProto1.getNextExpirationTimestampMs())
+                .isEqualTo(docCreationTimeMillis + 100);
+        // NeedsPersistToDisk should be false.
+        assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isFalse();
+
+        // Document expires at t = docCreationTimeMillis + 100. We chose 100ms as the TTL because:
+        // - In the unit test, the waiting time (via sleep) should be as short as possible.
+        // - However, put API rejects an already expired document, so the TTL should also consider
+        //   the delay before the batch put request is sent to Icing and proceeded.
+        // - Also in this test, the 1st call of handleExpiredDocuments (see above) must be done
+        //   earlier than the document expiration time, in order to simulate the scenario "no
+        //   expired document was purged". So the TTL should cover the entire delay between document
+        //   creation time and the 1st call of handleExpiredDocuments. This includes the end-to-end
+        //   latency of batchPutDocuments which is usually up to several ten milliseconds.
+        // - Therefore, pick 100ms as the TTL.
+        //
+        // Sleep until the document expires and call handleExpiredDocuments for the 2nd time to
+        // purge it.
+        Thread.sleep(docCreationTimeMillis + 100 - System.currentTimeMillis());
+        HandleExpiredDocumentsResultProto resultProto2 = mAppSearchImpl.handleExpiredDocuments();
+
+        // One document was expired and purged. NeedsPersistToDisk should be set to true.
+        assertThat(resultProto2.getNumExpiredDocuments()).isEqualTo(1);
         assertThat(mAppSearchImpl.getAndResetNeedPersistToDisk()).isTrue();
     }
 

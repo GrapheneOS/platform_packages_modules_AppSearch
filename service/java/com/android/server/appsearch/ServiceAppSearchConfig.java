@@ -369,6 +369,40 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
     }
 
     /**
+     * Returns whether enabling Icing background task scheduler or not.
+     *
+     * <p>Should always be false on AppSearch system service.
+     */
+    default boolean enableIcingBackgroundTaskScheduler() {
+        return false;
+    }
+
+    /**
+     * Returns the time threshold for an expired document to be purged.
+     *
+     * <ul>
+     *   <li>Since we schedule a task to purge expired documents according to the next expiration
+     *       time of the documents, it is possible that some documents expire within a small time
+     *       window and the task executes too frequently.
+     *   <li>Therefore, we use this flag to purge more documents that also expire in a short period
+     *       of time after the current time.
+     * </ul>
+     *
+     * <p>For example, if the value is 1000 ms and the current time is 10000 ms:
+     *
+     * <ul>
+     *   <li>All documents that are expired before 10000 ms will be purged, since they are already
+     *       expired.
+     *   <li>Additionally, we will also purge documents that expire in the next 1000 ms, i.e.
+     *       (10000, 11000] ms.
+     * </ul>
+     */
+    @Override
+    default long getExpiredDocumentPurgingThresholdMillis() {
+        return DEFAULT_EXPIRED_DOCUMENT_PURGING_THRESHOLD_MILLIS;
+    }
+
+    /**
      * Closes this {@link AppSearchConfig}.
      *
      * <p>This close() operation does not throw an exception.

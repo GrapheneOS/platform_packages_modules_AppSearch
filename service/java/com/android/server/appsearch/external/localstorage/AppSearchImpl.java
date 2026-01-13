@@ -112,6 +112,7 @@ import com.google.android.icing.proto.GetOptimizeInfoResultProto;
 import com.google.android.icing.proto.GetResultProto;
 import com.google.android.icing.proto.GetResultSpecProto;
 import com.google.android.icing.proto.GetSchemaResultProto;
+import com.google.android.icing.proto.HandleExpiredDocumentsResultProto;
 import com.google.android.icing.proto.IcingSearchEngineOptions;
 import com.google.android.icing.proto.InitializeResultProto;
 import com.google.android.icing.proto.InitializeStatsProto;
@@ -4056,6 +4057,36 @@ public final class AppSearchImpl implements Closeable {
                     BaseStats.CALL_TYPE_INVALIDATE_NEXT_PAGE_TOKEN,
                     callStatsBuilder);
             mReadWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Handles expired documents.
+     *
+     * <p>The job will purge expired documents and propagate deletion to child documents with delete
+     * propagation enabled.
+     *
+     * @return a {@link HandleExpiredDocumentsResultProto} object with success code
+     * @throws AppSearchException if Icing failed to handle expired documents
+     */
+    public HandleExpiredDocumentsResultProto handleExpiredDocuments() throws AppSearchException {
+        mReadWriteLock.writeLock().lock();
+        try {
+            throwIfClosedLocked();
+
+            HandleExpiredDocumentsResultProto resultProto =
+                    mIcingSearchEngineLocked.handleExpiredDocuments();
+            checkSuccess(resultProto.getStatus());
+
+            // PersistToDisk is needed if any document was purged.
+            if (resultProto.getNumExpiredDocuments() > 0
+                    || resultProto.getNumPropagatedDeletedDocuments() > 0) {
+                mNeedsPersistToDisk.set(true);
+            }
+
+            return resultProto;
+        } finally {
+            mReadWriteLock.writeLock().unlock();
         }
     }
 
