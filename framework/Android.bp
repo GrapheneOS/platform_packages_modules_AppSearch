@@ -64,6 +64,7 @@ java_sdk_library {
     static_libs: [
         // This list must be kept in sync with jarjar.txt
         "appsearch_flags_java_lib",
+        "android.app.appfunctions.exported-flags-aconfig-java",
         "modules-utils-preconditions",
     ],
     optimize: {
