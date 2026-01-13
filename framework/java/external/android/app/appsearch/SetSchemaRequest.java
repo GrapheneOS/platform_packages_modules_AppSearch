@@ -113,6 +113,7 @@ public final class SetSchemaRequest {
                 MANAGED_PROFILE_CONTACTS_ACCESS,
                 EXECUTE_APP_FUNCTIONS,
                 PACKAGE_USAGE_STATS,
+                PRIVATE_COMPUTE_CORE_UID_ACCESS,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AppSearchSupportedPermission {}
@@ -202,6 +203,19 @@ public final class SetSchemaRequest {
      * @hide
      */
     public static final int PACKAGE_USAGE_STATS = 11;
+
+    /**
+     * The visibility access for Private Compute Core.
+     *
+     * <p>A schema with this permission requires callers to have a UID for which {@link
+     * android.os.Process#isPrivateComputeCoreUid} returns true to access the data.
+     *
+     * <p>This permission can be combined with other permissions in the same set. In such cases, the
+     * caller must both have a Private Compute Core UID and hold all other permissions in the set to
+     * gain access.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PRIVATE_COMPUTE_CORE_UID_ACCESS)
+    public static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12;
 
     private final Set<AppSearchSchema> mSchemas;
     private final Set<String> mSchemasNotDisplayedBySystem;
@@ -574,7 +588,7 @@ public final class SetSchemaRequest {
             Objects.requireNonNull(permissions);
             for (int permission : permissions) {
                 Preconditions.checkArgumentInRange(
-                        permission, READ_SMS, PACKAGE_USAGE_STATS, "permission");
+                        permission, READ_SMS, PRIVATE_COMPUTE_CORE_UID_ACCESS, "permission");
             }
             resetIfBuilt();
             Set<Set<Integer>> visibleToPermissions = mSchemasVisibleToPermissions.get(schemaType);

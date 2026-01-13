@@ -93,6 +93,7 @@ java_defaults {
 
         "android.app.appfunctions.exported-flags-aconfig-java",
         "android.permission.flags-aconfig-java-export",
+        "android.app.privatecompute.flags-aconfig-java-export",
     ],
     libs: [
         "framework-appsearch.impl",
