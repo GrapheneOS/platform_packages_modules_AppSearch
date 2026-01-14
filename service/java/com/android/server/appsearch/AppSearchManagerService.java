@@ -1321,6 +1321,13 @@ public class AppSearchManagerService extends SystemService {
                         }
                     }
 
+                    // Reset handleExpiredDocuments task alarm.
+                    if (Flags.enableDeletePropagationRw()
+                            && instance.getHandleExpiredDocumentsAlarmListener() != null) {
+                        instance.getHandleExpiredDocumentsAlarmListener()
+                                .maybeReset(batchResult.getSuccesses().values());
+                    }
+
                     invokeCallbackOnResult(
                             callback,
                             AppSearchBatchResultParcel.fromStringToVoid(

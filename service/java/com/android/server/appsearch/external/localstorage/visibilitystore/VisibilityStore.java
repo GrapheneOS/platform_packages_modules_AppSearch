@@ -295,6 +295,8 @@ public class VisibilityStore {
                     callStatsBuilder);
 
             if (Flags.enableDeletePropagationRw()) {
+                // Note: visibility documents never expire, so we don't have to reset handle expired
+                //   documents task alarm.
                 AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
                         batchResultBuilder.build();
                 if (!batchResult.getFailures().isEmpty()) {
@@ -510,6 +512,7 @@ public class VisibilityStore {
                         callStatsBuilder);
             }
         }
+
         if (Flags.enableBatchPutVisibilityDocuments() && !migratedVisibilityDocuments.isEmpty()) {
             AppSearchBatchResult.Builder<String, InternalPutDocumentResponse> batchResultBuilder =
                     new AppSearchBatchResult.Builder<>();
@@ -524,6 +527,8 @@ public class VisibilityStore {
                     callStatsBuilder);
 
             if (Flags.enableDeletePropagationRw()) {
+                // Note: visibility documents never expire, so we don't have to reset handle expired
+                //   documents task alarm.
                 AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
                         batchResultBuilder.build();
                 if (!batchResult.getFailures().isEmpty()) {

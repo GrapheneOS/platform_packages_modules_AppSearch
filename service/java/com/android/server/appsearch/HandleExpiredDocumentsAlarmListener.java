@@ -18,6 +18,7 @@ package com.android.server.appsearch;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.app.AlarmManager;
+import android.app.appsearch.InternalPutDocumentResponse;
 import android.app.appsearch.util.LogUtil;
 import android.os.Handler;
 import android.os.UserHandle;
@@ -28,6 +29,7 @@ import com.android.server.appsearch.external.localstorage.AppSearchImpl;
 
 import com.google.android.icing.proto.HandleExpiredDocumentsResultProto;
 
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -117,6 +119,26 @@ public class HandleExpiredDocumentsAlarmListener implements AlarmManager.OnAlarm
                                 + mUserHandle.getIdentifier());
             }
         }
+    }
+
+    /**
+     * Resets handle expired documents alarm according to the given collection of {@link
+     * InternalPutDocumentResponse}.
+     *
+     * <p>It will get the minimum expiration timestamp among all {@link InternalPutDocumentResponse}
+     * and use it as {@code triggerAtMillis} to reset. See {@link #maybeReset(long)}.
+     *
+     * @param putDocumentResponses collection of {@link InternalPutDocumentResponse}
+     */
+    public void maybeReset(@NonNull Collection<InternalPutDocumentResponse> putDocumentResponses) {
+        long minExpTsMillis = Long.MAX_VALUE;
+        for (InternalPutDocumentResponse putDocumentResponse : putDocumentResponses) {
+            long newDocExpTsMillis = putDocumentResponse.getDocumentExpirationTimestampMillis();
+            if (newDocExpTsMillis >= 0) {
+                minExpTsMillis = Long.min(minExpTsMillis, newDocExpTsMillis);
+            }
+        }
+        maybeReset(minExpTsMillis);
     }
 
     /**
