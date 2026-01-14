@@ -1639,8 +1639,6 @@ public class AppSearchManagerServiceTest {
         // No error.
         assertThat(callback1.get()).isNull();
         // Verify handle expired documents alarm was reset with the desired timestamp.
-        verify(mAlarmManager.getAlarmManager(), never())
-                .cancel(any(AlarmManager.OnAlarmListener.class));
         verify(mAlarmManager.getAlarmManager(), times(1))
                 .set(
                         eq(AlarmManager.RTC),

@@ -115,6 +115,17 @@ public final class AppSearchUserInstanceManager {
 
     private static final String BACKGROUND_HANDLER_THREAD_NAME = "AppSearchBackgroundThread";
 
+    /**
+     * The default delay for resetting handle expired documents alarm (via {@link
+     * HandleExpiredDocumentsAlarmListener}) during {@link AppSearchUserInstance} creation.
+     *
+     * <p>{@link AppSearchUserInstance} should schedule the 1st handle expired documents alarm after
+     * creation and initialization in order to kick off the background task cycle, and the task
+     * itself will keep rescheduling the next alarm for the next expiration time.
+     */
+    private static final long HANDLE_EXPIRED_DOCUMENTS_ALARM_RESET_AT_CREATION_DELAY_MILLIS =
+            60 * 1000; // 1 minute
+
     public AppSearchUserInstanceManager() {
         if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
             HandlerThread handlerThread = new HandlerThread(BACKGROUND_HANDLER_THREAD_NAME);
@@ -483,14 +494,23 @@ public final class AppSearchUserInstanceManager {
                                 appSearchImpl);
             }
 
-            return new AppSearchUserInstance(
-                    logger,
-                    appSearchImpl,
-                    visibilityCheckerImpl,
-                    accountManager,
-                    listener,
-                    alarmHandlerThread,
-                    handleExpiredDocumentsAlarmListener);
+            AppSearchUserInstance userInstance =
+                    new AppSearchUserInstance(
+                            logger,
+                            appSearchImpl,
+                            visibilityCheckerImpl,
+                            accountManager,
+                            listener,
+                            alarmHandlerThread,
+                            handleExpiredDocumentsAlarmListener);
+            if (Flags.enableDeletePropagationRw()
+                    && userInstance.getHandleExpiredDocumentsAlarmListener() != null) {
+                long triggerAtMillis =
+                        System.currentTimeMillis()
+                                + HANDLE_EXPIRED_DOCUMENTS_ALARM_RESET_AT_CREATION_DELAY_MILLIS;
+                userInstance.getHandleExpiredDocumentsAlarmListener().maybeReset(triggerAtMillis);
+            }
+            return userInstance;
         } catch (AppSearchException e) {
             AppSearchResult<Void> failedResult = throwableToFailedResult(e);
             statusCode = failedResult.getResultCode();
