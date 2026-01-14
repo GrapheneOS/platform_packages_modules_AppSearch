@@ -606,7 +606,7 @@ public final class AppSearchUserInstanceManager {
         for (int i = 0; i < aliveAccounts.length; i++) {
             String oldName = accountManager.getPreviousName(aliveAccounts[i]);
             if (oldName != null) {
-                Account oldAccount = new Account(aliveAccounts[i].type, oldName);
+                Account oldAccount = new Account(oldName, aliveAccounts[i].type);
                 renamedAccounts.put(oldAccount, aliveAccounts[i]);
             }
             allExistingAccounts.add(aliveAccounts[i]);
