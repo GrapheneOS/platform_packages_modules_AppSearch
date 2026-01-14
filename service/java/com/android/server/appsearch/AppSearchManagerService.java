@@ -46,6 +46,7 @@ import android.app.appsearch.CommitBlobResponse;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
+import android.app.appsearch.InternalPutDocumentResponse;
 import android.app.appsearch.InternalSetSchemaResponse;
 import android.app.appsearch.InternalVisibilityConfig;
 import android.app.appsearch.OpenBlobForReadResponse;
@@ -163,7 +164,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1120,8 +1120,9 @@ public class AppSearchManagerService extends SystemService {
                 List<GenericDocument> takenActionGenericDocuments = null;
 
                 try {
-                    AppSearchBatchResult.Builder<String, Void> resultBuilder =
-                            new AppSearchBatchResult.Builder<>();
+                    AppSearchBatchResult.Builder<
+                            String, InternalPutDocumentResponse> resultBuilder =
+                                    new AppSearchBatchResult.Builder<>();
                     instance = mAppSearchUserInstanceManager.getUserInstance(targetUser);
                     List<GenericDocumentParcel> documentParcels =
                             request.getDocumentsParcel().getDocumentParcels();
@@ -1138,19 +1139,21 @@ public class AppSearchManagerService extends SystemService {
                         for (int i = 0; i < documentParcels.size(); i++) {
                             GenericDocument document = new GenericDocument(documentParcels.get(i));
                             try {
-                                instance.getAppSearchImpl().putDocument(
-                                        callingPackageName,
-                                        request.getDatabaseName(),
-                                        document,
-                                        /* sendChangeNotifications= */ true,
-                                        instance.getLogger(),
-                                        callStatsBuilder);
-                                resultBuilder.setSuccess(document.getId(), /* value= */ null);
+                                InternalPutDocumentResponse putDocumentResponse =
+                                        instance.getAppSearchImpl().putDocument(
+                                                callingPackageName,
+                                                request.getDatabaseName(),
+                                                document,
+                                                /* sendChangeNotifications= */ true,
+                                                instance.getLogger(),
+                                                callStatsBuilder);
+                                resultBuilder.setSuccess(document.getId(), putDocumentResponse);
                                 ++operationSuccessCount;
                             } catch (AppSearchException | RuntimeException e) {
                                 // We don't rethrow here, so we can keep trying with the
                                 // following documents.
-                                AppSearchResult<Void> result = throwableToFailedResult(e);
+                                AppSearchResult<InternalPutDocumentResponse> result =
+                                        throwableToFailedResult(e);
                                 resultBuilder.setResult(document.getId(), result);
                                 // Since we can only include one status code in the atom,
                                 // for failures, we would just save the one for the last failure
@@ -1164,19 +1167,21 @@ public class AppSearchManagerService extends SystemService {
                                     new GenericDocument(takenActionDocumentParcels.get(i));
                             takenActionGenericDocuments.add(document);
                             try {
-                                instance.getAppSearchImpl().putDocument(
-                                        callingPackageName,
-                                        request.getDatabaseName(),
-                                        document,
-                                        /* sendChangeNotifications= */ true,
-                                        instance.getLogger(),
-                                        callStatsBuilder);
-                                resultBuilder.setSuccess(document.getId(), /* value= */ null);
+                                InternalPutDocumentResponse putDocumentResponse =
+                                        instance.getAppSearchImpl().putDocument(
+                                                callingPackageName,
+                                                request.getDatabaseName(),
+                                                document,
+                                                /* sendChangeNotifications= */ true,
+                                                instance.getLogger(),
+                                                callStatsBuilder);
+                                resultBuilder.setSuccess(document.getId(), putDocumentResponse);
                                 ++operationSuccessCount;
                             } catch (AppSearchException | RuntimeException e) {
                                 // We don't rethrow here, so we can keep trying with the
                                 // following documents.
-                                AppSearchResult<Void> result = throwableToFailedResult(e);
+                                AppSearchResult<InternalPutDocumentResponse> result =
+                                        throwableToFailedResult(e);
                                 resultBuilder.setResult(document.getId(), result);
                                 // Since we can only include one status code in the atom,
                                 // for failures, we would just save the one for the last failure
@@ -1297,14 +1302,16 @@ public class AppSearchManagerService extends SystemService {
 
                     // For batch put, we need to set the right operations metrics from
                     // the batchResult.
-                    AppSearchBatchResult<String, Void> batchResult = resultBuilder.build();
+                    AppSearchBatchResult<String, InternalPutDocumentResponse> batchResult =
+                            resultBuilder.build();
                     if (Flags.enableBatchPut()) {
                         // reports the success/failure count. For batchPut, those two are not set
                         // at this point.
                         operationSuccessCount += batchResult.getSuccesses().size();
 
                         // Handle failures.
-                        Map<String, AppSearchResult<Void>> failures = batchResult.getFailures();
+                        Map<String, AppSearchResult<InternalPutDocumentResponse>> failures =
+                                batchResult.getFailures();
                         operationFailureCount += failures.size();
                         // Previously we use the last failure to set the status code,
                         // now we use the first id we get from the map.
@@ -1314,8 +1321,17 @@ public class AppSearchManagerService extends SystemService {
                         }
                     }
 
-                    invokeCallbackOnResult(callback, AppSearchBatchResultParcel
-                            .fromStringToVoid(batchResult));
+                    // Reset handleExpiredDocuments task alarm.
+                    if (Flags.enableDeletePropagationRw()
+                            && instance.getHandleExpiredDocumentsAlarmListener() != null) {
+                        instance.getHandleExpiredDocumentsAlarmListener()
+                                .maybeReset(batchResult.getSuccesses().values());
+                    }
+
+                    invokeCallbackOnResult(
+                            callback,
+                            AppSearchBatchResultParcel.fromStringToVoid(
+                                    batchResult.toVoidBatchResult()));
 
                     // Schedule a task to dispatch change notifications. See requirements for where
                     // the method is called documented in the method description.

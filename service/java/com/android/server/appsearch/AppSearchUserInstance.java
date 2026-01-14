@@ -19,6 +19,7 @@ import android.accounts.AccountManager;
 import android.accounts.OnAccountsUpdateListener;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.HandlerThread;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.external.localstorage.AppSearchImpl;
@@ -36,18 +37,24 @@ public final class AppSearchUserInstance {
     private final VisibilityChecker mVisibilityChecker;
     @Nullable private AccountManager mAccountManager;
     @Nullable private OnAccountsUpdateListener mOnAccountsUpdateListener;
+    @Nullable private HandlerThread mAlarmHandlerThread;
+    @Nullable private HandleExpiredDocumentsAlarmListener mHandleExpiredDocumentsAlarmListener;
 
     AppSearchUserInstance(
             @NonNull InternalAppSearchLogger logger,
             @NonNull AppSearchImpl appSearchImpl,
             @NonNull VisibilityChecker visibilityChecker,
             @Nullable AccountManager accountManager,
-            @Nullable OnAccountsUpdateListener onAccountsUpdateListener) {
+            @Nullable OnAccountsUpdateListener onAccountsUpdateListener,
+            @Nullable HandlerThread alarmHandlerThread,
+            @Nullable HandleExpiredDocumentsAlarmListener handleExpiredDocumentsAlarmListener) {
         mLogger = Objects.requireNonNull(logger);
         mAppSearchImpl = Objects.requireNonNull(appSearchImpl);
         mVisibilityChecker = Objects.requireNonNull(visibilityChecker);
         mAccountManager = accountManager;
         mOnAccountsUpdateListener = onAccountsUpdateListener;
+        mAlarmHandlerThread = alarmHandlerThread;
+        mHandleExpiredDocumentsAlarmListener = handleExpiredDocumentsAlarmListener;
     }
 
     @NonNull
@@ -80,6 +87,28 @@ public final class AppSearchUserInstance {
     @Nullable
     public OnAccountsUpdateListener getOnAccountsUpdateListener() {
         return mOnAccountsUpdateListener;
+    }
+
+    /**
+     * Gets the {@link HandleExpiredDocumentsAlarmListener} that is used to reset alarm for handle
+     * expired documents background task. Null if delete propagation feature is disabled.
+     */
+    @Nullable
+    public HandleExpiredDocumentsAlarmListener getHandleExpiredDocumentsAlarmListener() {
+        return mHandleExpiredDocumentsAlarmListener;
+    }
+
+    /** Cancels all alarms and quits the thread. */
+    public void cancelAllAlarms() {
+        // Cancel handleExpiredDocuments alarm.
+        if (mHandleExpiredDocumentsAlarmListener != null) {
+            mHandleExpiredDocumentsAlarmListener.terminate();
+        }
+
+        // Finally, quit the alarm handler thread.
+        if (mAlarmHandlerThread != null) {
+            mAlarmHandlerThread.quit();
+        }
     }
 
     /** Whether the pVM is enabled in AppSearch */

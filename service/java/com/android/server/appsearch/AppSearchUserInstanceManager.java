@@ -24,6 +24,7 @@ import android.accounts.AccountManager;
 import android.accounts.OnAccountsUpdateListener;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.AlarmManager;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.exceptions.AppSearchException;
@@ -113,6 +114,17 @@ public final class AppSearchUserInstanceManager {
     private final @Nullable Handler mBackgroundHandler;
 
     private static final String BACKGROUND_HANDLER_THREAD_NAME = "AppSearchBackgroundThread";
+
+    /**
+     * The default delay for resetting handle expired documents alarm (via {@link
+     * HandleExpiredDocumentsAlarmListener}) during {@link AppSearchUserInstance} creation.
+     *
+     * <p>{@link AppSearchUserInstance} should schedule the 1st handle expired documents alarm after
+     * creation and initialization in order to kick off the background task cycle, and the task
+     * itself will keep rescheduling the next alarm for the next expiration time.
+     */
+    private static final long HANDLE_EXPIRED_DOCUMENTS_ALARM_RESET_AT_CREATION_DELAY_MILLIS =
+            60 * 1000; // 1 minute
 
     public AppSearchUserInstanceManager() {
         if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
@@ -460,8 +472,45 @@ public final class AppSearchUserInstanceManager {
                                 userContext, appSearchImpl, userHandle);
             }
 
-            return new AppSearchUserInstance(
-                    logger, appSearchImpl, visibilityCheckerImpl, accountManager, listener);
+            // Create alarm handler thread and HandleExpiredDocuments alarm listener.
+            HandlerThread alarmHandlerThread = null;
+            HandleExpiredDocumentsAlarmListener handleExpiredDocumentsAlarmListener = null;
+            if (Flags.enableDeletePropagationRw()) {
+                alarmHandlerThread =
+                        new HandlerThread(
+                                "AppSearchUserInstance_alarmHandlerThread_user"
+                                        + userHandle.getIdentifier());
+                alarmHandlerThread.start();
+
+                AlarmManager alarmManager =
+                        (AlarmManager)
+                                Objects.requireNonNull(
+                                        userContext.getSystemService(Context.ALARM_SERVICE));
+                handleExpiredDocumentsAlarmListener =
+                        new HandleExpiredDocumentsAlarmListener(
+                                alarmManager,
+                                new Handler(alarmHandlerThread.getLooper()),
+                                userHandle,
+                                appSearchImpl);
+            }
+
+            AppSearchUserInstance userInstance =
+                    new AppSearchUserInstance(
+                            logger,
+                            appSearchImpl,
+                            visibilityCheckerImpl,
+                            accountManager,
+                            listener,
+                            alarmHandlerThread,
+                            handleExpiredDocumentsAlarmListener);
+            if (Flags.enableDeletePropagationRw()
+                    && userInstance.getHandleExpiredDocumentsAlarmListener() != null) {
+                long triggerAtMillis =
+                        System.currentTimeMillis()
+                                + HANDLE_EXPIRED_DOCUMENTS_ALARM_RESET_AT_CREATION_DELAY_MILLIS;
+                userInstance.getHandleExpiredDocumentsAlarmListener().maybeReset(triggerAtMillis);
+            }
+            return userInstance;
         } catch (AppSearchException e) {
             AppSearchResult<Void> failedResult = throwableToFailedResult(e);
             statusCode = failedResult.getResultCode();
@@ -713,6 +762,10 @@ public final class AppSearchUserInstanceManager {
                                 .removeOnAccountsUpdatedListener(
                                         instance.getOnAccountsUpdateListener());
                     }
+
+                    // Cancel alarms before destroying AppSearchImpl.
+                    instance.cancelAllAlarms();
+
                     AppSearchImpl appSearchImpl = instance.getAppSearchImpl();
                     if (removeUserData) {
                         appSearchImpl.clearAndDestroy();
@@ -740,6 +793,9 @@ public final class AppSearchUserInstanceManager {
             mInstanceMapLock.unlock();
         }
         if (instance != null) {
+            // Cancel alarms before destroying AppSearchImpl.
+            instance.cancelAllAlarms();
+
             if (removeUserData) {
                 instance.getAppSearchImpl().clearAndDestroy();
             } else {
