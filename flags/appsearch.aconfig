@@ -940,10 +940,3 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
-
-flag {
-    name: "enable_aiseal_isolated_storage"
-    namespace: "appsearch"
-    description: "Use AiSeal isolated storage service for storing user data."
-    bug: "465465109"
-}
