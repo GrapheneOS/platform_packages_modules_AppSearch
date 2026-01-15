@@ -28,13 +28,16 @@ import android.os.IBinder;
 
 /**
  * A Service containing a Mock Authenticator, used for testing account functions in CTS/Unit Tests.
+ * This version supports multiple mock accounts for isolation testing.
  */
 public class MockAccountService extends Service {
 
-    // 1. Define the account type here. It MUST match exactly with the one in
-    // res/xml/authenticator.xml!
+    // The account type MUST match the one defined in res/xml/authenticator.xml
     public static final String ACCOUNT_TYPE = "com.android.appsearch.coretests.account";
-    public static final String ACCOUNT_NAME = "appsearch_test_user";
+
+    // Define constants for two separate test accounts
+    public static final String ACCOUNT_NAME_1 = "appsearch_test_user_1";
+    public static final String ACCOUNT_NAME_2 = "appsearch_test_user_2";
 
     private MockAccountAuthenticator mAuthenticator;
 
@@ -58,11 +61,16 @@ public class MockAccountService extends Service {
             super(context);
         }
 
-        private Bundle createResultBundle() {
+        /**
+         * Creates a result bundle for the specified account name.
+         *
+         * @param accountName The name of the account to be included in the response.
+         */
+        private Bundle createResultBundle(String accountName) {
             Bundle result = new Bundle();
-            result.putString(AccountManager.KEY_ACCOUNT_NAME, ACCOUNT_NAME);
+            result.putString(AccountManager.KEY_ACCOUNT_NAME, accountName);
             result.putString(AccountManager.KEY_ACCOUNT_TYPE, ACCOUNT_TYPE);
-            result.putString(AccountManager.KEY_AUTHTOKEN, "mockToken");
+            result.putString(AccountManager.KEY_AUTHTOKEN, "mockToken_" + accountName);
             return result;
         }
 
@@ -74,29 +82,35 @@ public class MockAccountService extends Service {
                 String[] requiredFeatures,
                 Bundle options)
                 throws NetworkErrorException {
-            // Return success directly to simulate account addition
-            return createResultBundle();
+            // Check if a specific account name was requested via options
+            String name =
+                    (options != null && options.containsKey(AccountManager.KEY_ACCOUNT_NAME))
+                            ? options.getString(AccountManager.KEY_ACCOUNT_NAME)
+                            : ACCOUNT_NAME_1;
+
+            return createResultBundle(name);
+        }
+
+        @Override
+        public Bundle getAuthToken(AccountAuthenticatorResponse r, Account a, String s, Bundle b) {
+            // Return token based on the provided Account object
+            return createResultBundle(a.name);
         }
 
         @Override
         public Bundle editProperties(AccountAuthenticatorResponse r, String s) {
-            return createResultBundle();
+            return createResultBundle(ACCOUNT_NAME_1);
         }
 
         @Override
         public Bundle updateCredentials(
                 AccountAuthenticatorResponse r, Account a, String s, Bundle b) {
-            return createResultBundle();
+            return createResultBundle(a.name);
         }
 
         @Override
         public Bundle confirmCredentials(AccountAuthenticatorResponse r, Account a, Bundle b) {
-            return createResultBundle();
-        }
-
-        @Override
-        public Bundle getAuthToken(AccountAuthenticatorResponse r, Account a, String s, Bundle b) {
-            return createResultBundle();
+            return createResultBundle(a.name);
         }
 
         @Override
@@ -106,7 +120,7 @@ public class MockAccountService extends Service {
 
         @Override
         public Bundle hasFeatures(AccountAuthenticatorResponse r, Account a, String[] s) {
-            return createResultBundle();
+            return createResultBundle(a.name);
         }
     }
 }
