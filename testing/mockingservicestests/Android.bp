@@ -28,6 +28,7 @@ android_test {
         "appsearch-apk-for-tests",
         "appsearch_flags_java_lib",
         "flag-junit",
+        "frameworks-base-testutils",
         "mockito-target-minus-junit4",
         "service-appsearch-for-tests",
         "services.core",

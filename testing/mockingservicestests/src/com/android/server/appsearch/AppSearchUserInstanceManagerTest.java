@@ -28,16 +28,23 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.app.AlarmManager;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.flags.Flags;
 import android.app.appsearch.testutil.AppSearchTestUtils;
+import android.app.test.TestAlarmManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -45,6 +52,7 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.os.Handler;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsEnabled;
@@ -93,6 +101,7 @@ public class AppSearchUserInstanceManagerTest {
 
     private ServiceAppSearchConfig mServiceConfig;
     private ExecutorManager mExecutorManager;
+    private TestAlarmManager mAlarmManager;
 
     @Before
     public void setUp() throws Exception {
@@ -113,6 +122,7 @@ public class AppSearchUserInstanceManagerTest {
         mServiceConfig = FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, mContext);
         mExecutorManager =
                 new ExecutorManager(mServiceConfig, /* isIsolatedStorageAvailable= */ true);
+        mAlarmManager = new TestAlarmManager();
     }
 
     @After
@@ -205,6 +215,33 @@ public class AppSearchUserInstanceManagerTest {
             AppSearchUserInstance newInstance = newInstanceFuture.get();
             assertThat(originalInstance).isSameInstanceAs(newInstance);
         }
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_DELETE_PROPAGATION_RW)
+    @Test
+    public void getOrCreateUserInstance_createShouldResetHandleExpiredDocumentsAlarm()
+            throws AppSearchException {
+        AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
+
+        AppSearchUserInstance instance =
+                manager.getOrCreateUserInstance(
+                        setupContextWithMockAlarmManager(mContext, mAlarmManager.getAlarmManager()),
+                        mUserHandle,
+                        mServiceConfig,
+                        mExecutorManager,
+                        null);
+        assertThat(instance).isNotNull();
+
+        // Verify handle expired documents alarm was reset.
+        verify(mAlarmManager.getAlarmManager(), never())
+                .cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mAlarmManager.getAlarmManager(), times(1))
+                .set(
+                        eq(AlarmManager.RTC),
+                        anyLong(),
+                        eq("handleExpiredDocumentsAlarm_user" + mUserHandle.getIdentifier()),
+                        any(AlarmManager.OnAlarmListener.class),
+                        any(Handler.class));
     }
 
     @Test
@@ -498,6 +535,15 @@ public class AppSearchUserInstanceManagerTest {
                         manager.cancelUserCreation(mUserHandle);
                         return true;
                     }
+
+                    // Also simulate cancellation before connecting to AiSeal.
+                    @Override
+                    public Object getSystemService(String name) {
+                        if (name.equals(Context.AISEAL_HOST_SERVICE)) {
+                            manager.cancelUserCreation(mUserHandle);
+                        }
+                        return getBaseContext().getSystemService(name);
+                    }
                 };
 
         // Mock package name return. This is so that when the VM tries to bind to isolated storage
@@ -511,6 +557,20 @@ public class AppSearchUserInstanceManagerTest {
                 .when(blockingContext.getPackageManager())
                 .queryIntentServices(any(), any());
         return blockingContext;
+    }
+
+    private static ContextWrapper setupContextWithMockAlarmManager(
+            Context context, AlarmManager alarmManager) {
+        return new ContextWrapper(context) {
+            @Nullable
+            @Override
+            public Object getSystemService(String name) {
+                if (Context.ALARM_SERVICE.equals(name)) {
+                    return alarmManager;
+                }
+                return super.getSystemService(name);
+            }
+        };
     }
 
     /**
