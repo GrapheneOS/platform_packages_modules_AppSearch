@@ -18,6 +18,7 @@ package com.android.server.appsearch.isolated_storage_service;
 import static android.app.appsearch.AppSearchResult.RESULT_INTERNAL_ERROR;
 import static android.app.appsearch.AppSearchResult.RESULT_UNAVAILABLE;
 
+import android.aiseal.AiSealManager;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
@@ -37,6 +38,7 @@ import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.system.virtualmachine.VirtualMachine;
+import android.system.virtualmachine.VirtualMachineException;
 import android.system.virtualmachine.VirtualMachineManager;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -83,6 +85,7 @@ public class IsolatedStorageServiceManager {
             "ro.appsearch.feature.enable_isolated_storage";
     public static final String SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM =
             "ro.enable.nonprotected_appsearch_vm";
+    public static final String SYSTEM_PROPERTY_ENABLE_AISEAL = "ro.appsearch.feature.enable_aiseal";
     public static final String SYS_SHUTDOWN_REASON = "sys.shutdown.requested";
     public static final long DEFAULT_MEMORY_BYTES = 79 * 1024 * 1024;
     public static final boolean DEFAULT_ISOLATED_STORAGE_DISABLED = false;
@@ -93,6 +96,7 @@ public class IsolatedStorageServiceManager {
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
             "com.android.server.appsearch.isolated_storage_service.IsolatedStorageService";
+    private static final String ISOLATED_STORAGE_AISEAL_SERVICE = "isolated_storage_service";
     private static final String SYSTEM_PROPERTY_HW_TIMEOUT_MULTIPLIER = "ro.hw_timeout_multiplier";
     private static final int BINDING_WAIT_TIMEOUT_SECONDS = 10;
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 61;
@@ -122,6 +126,10 @@ public class IsolatedStorageServiceManager {
     // The isolated storage service implemented by the apk to manage VM and pass VM connections.
     private volatile IIsolatedStorageService mIsolatedStorageService;
     private volatile boolean mIsReconnecting = false;
+
+    // The isolated storage service could be hosted by AiSealManager instead of the isolated
+    // storage service apk.
+    private volatile AiSealManager mAiSealManager;
 
     // The isolated storage service implemented by the VM to access icing.
     @GuardedBy("mLock")
@@ -159,11 +167,13 @@ public class IsolatedStorageServiceManager {
     private void checkVmStatus() {
         if (mLock.tryLock()) {
             try {
-                if (mIsolatedStorageService == null) {
+                if (mIsolatedStorageService == null && mVmIsolatedStorageServiceLocked == null) {
                     Log.i(TAG, "Isolated storage service not connected");
-                } else {
+                } else if (mIsolatedStorageService != null) {
                     int status = mIsolatedStorageService.getVmStatus();
                     Log.i(TAG, "Isolated storage service VM status: " + status);
+                } else {
+                    Log.i(TAG, "Isolated storage service is connected");
                 }
             } catch (Exception | OutOfMemoryError e) {
                 Log.e(TAG, "Unable to get VM status", e);
@@ -180,9 +190,14 @@ public class IsolatedStorageServiceManager {
             @NonNull Context context, @NonNull ServiceAppSearchConfig appSearchConfig) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(appSearchConfig);
-        return !appSearchConfig.getIsolatedStorageDisabled()
-                && isolatedStorageFlagsSet()
-                && deviceSupportsVmsAndNewApis(context);
+        if (appSearchConfig.getIsolatedStorageDisabled() || !isolatedStorageFlagsSet()) {
+            return false;
+        }
+        if (isAiSealEnabled()) {
+            return isAiSealAvailable(context);
+        } else {
+            return deviceSupportsVmsAndNewApis(context);
+        }
     }
 
     /** Gets whether isolated storage flags are all set. */
@@ -218,6 +233,20 @@ public class IsolatedStorageServiceManager {
     public static boolean isNonProtectedVmEnabled() {
         return SystemProperties.getBoolean(
                 SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM, /* def= */ false);
+    }
+
+    private static boolean isAiSealEnabled() {
+        return Flags.enableAisealIsolatedStorage()
+                && SystemProperties.getBoolean(SYSTEM_PROPERTY_ENABLE_AISEAL, /* def= */ false);
+    }
+
+    private static boolean isAiSealAvailable(@NonNull Context context) {
+        Objects.requireNonNull(context);
+        if (context.getSystemService(AiSealManager.class) == null) {
+            Log.w(TAG, "AiSeal is enabled, but AiSealManager is not available");
+            return false;
+        }
+        return true;
     }
 
     /** Cleans up the isolated storage service related data. */
@@ -301,7 +330,15 @@ public class IsolatedStorageServiceManager {
             throws AppSearchException {
         synchronized (mLock) {
             if (mIsolatedStorageService == null) {
-                bindIsolatedStorageServiceLocked();
+                if (isAiSealEnabled()) {
+                    mAiSealManager = mContext.getSystemService(AiSealManager.class);
+                    if (mAiSealManager == null) {
+                        throw new AppSearchException(
+                                RESULT_INTERNAL_ERROR, "Unable to get AiSealManager");
+                    }
+                } else {
+                    bindIsolatedStorageServiceLocked();
+                }
             }
             if (mVmIsolatedStorageServiceLocked == null) {
                 VmInitializationStats.Builder statsBuilder =
@@ -422,7 +459,10 @@ public class IsolatedStorageServiceManager {
             return;
         }
         Log.i(TAG, "Connecting to vm");
-        waitForVmPayloadReadyLocked(forceVmRestart, numRetriesForVmStart, statsBuilder);
+        // Wait for VM payload to be ready if using isolated storage service instead of AiSeal.
+        if (mIsolatedStorageService != null) {
+            waitForVmPayloadReadyLocked(forceVmRestart, numRetriesForVmStart, statsBuilder);
+        }
         connectToVmBinderWithRetryLocked(numRetriesForVmConnect);
         Log.i(TAG, "Successfully connected to vm");
     }
@@ -444,20 +484,15 @@ public class IsolatedStorageServiceManager {
     @GuardedBy("mLock")
     private boolean connectToVmBinderLocked() {
         try {
-            IBinder iBinder =
-                    VirtualMachine.binderFromPreconnectedClient(
-                            () -> {
-                                try {
-                                    ParcelFileDescriptor pfd = getVmConnectionLocked();
-                                    if (pfd == null) {
-                                        throw new NullPointerException("Null PFD VM connection");
-                                    }
-                                    return pfd;
-                                } catch (Exception e) {
-                                    Log.e(TAG, "Unable to get vm connection", e);
-                                    throw new RuntimeException(e);
-                                }
-                            });
+            IBinder iBinder;
+            if (mIsolatedStorageService != null) {
+                iBinder = connectToIsolatedStorageServiceVmBinderLocked();
+            } else if (mAiSealManager != null) {
+                iBinder = mAiSealManager.connectService(ISOLATED_STORAGE_AISEAL_SERVICE);
+            } else {
+                Log.e(TAG, "Isolated storage is not connected and AiSeal is not available");
+                return false;
+            }
             if (iBinder == null) {
                 throw new NullPointerException("Null binder when connecting to VM");
             }
@@ -476,6 +511,23 @@ public class IsolatedStorageServiceManager {
             return false;
         }
         return true;
+    }
+
+    @GuardedBy("mLock")
+    private IBinder connectToIsolatedStorageServiceVmBinderLocked() throws VirtualMachineException {
+        return VirtualMachine.binderFromPreconnectedClient(
+                () -> {
+                    try {
+                        ParcelFileDescriptor pfd = getVmConnectionLocked();
+                        if (pfd == null) {
+                            throw new NullPointerException("Null PFD VM connection");
+                        }
+                        return pfd;
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unable to get vm connection", e);
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     /**
