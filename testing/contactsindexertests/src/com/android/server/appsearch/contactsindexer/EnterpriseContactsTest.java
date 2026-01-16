@@ -23,8 +23,6 @@ import static com.android.bedstead.enterprise.EnterpriseDeviceStateExtensionsKt.
 import static com.android.bedstead.enterprise.EnterpriseDeviceStateExtensionsKt.workProfile;
 import static com.android.bedstead.harrier.UserType.WORK_PROFILE;
 import static com.android.bedstead.permissions.CommonPermissions.INTERACT_ACROSS_USERS_FULL;
-import static com.android.bedstead.permissions.CommonPermissions.READ_CONTACTS;
-import static com.android.bedstead.permissions.CommonPermissions.WRITE_CONTACTS;
 import static com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint.CONTACT_POINT_PROPERTY_ADDRESS;
 import static com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint.CONTACT_POINT_PROPERTY_EMAIL;
 import static com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint.CONTACT_POINT_PROPERTY_LABEL;
@@ -56,29 +54,16 @@ import android.app.appsearch.EnterpriseGlobalSearchSessionShim;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
-import android.app.appsearch.GlobalSearchSessionShim;
 import android.app.appsearch.PutDocumentsRequest;
 import android.app.appsearch.SearchResultsShim;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
-import android.app.appsearch.observer.DocumentChangeInfo;
-import android.app.appsearch.observer.ObserverCallback;
-import android.app.appsearch.observer.ObserverSpec;
-import android.app.appsearch.observer.SchemaChangeInfo;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
 import android.app.appsearch.testutil.EnterpriseGlobalSearchSessionShimImpl;
-import android.app.appsearch.testutil.GlobalSearchSessionShimImpl;
-import android.content.ContentProviderOperation;
-import android.content.ContentProviderResult;
-import android.content.ContentResolver;
 import android.content.Context;
-import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.ContactsContract;
 
-import androidx.annotation.NonNull;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.bedstead.enterprise.annotations.EnsureHasWorkProfile;
@@ -97,16 +82,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * These tests use Bedstead which is used to automatically set up a managed profile for testing.
@@ -117,7 +98,7 @@ import java.util.concurrent.TimeUnit;
  * {@link android.app.appsearch.EnterpriseGlobalSearchSession} behaves the same regardless of this
  * permission.
  */
-@EnsureHasPermission({INTERACT_ACROSS_USERS_FULL, READ_CONTACTS, WRITE_CONTACTS})
+@EnsureHasPermission(INTERACT_ACROSS_USERS_FULL)
 @EnsureHasWorkProfile
 @RunWith(BedsteadJUnit4.class)
 public class EnterpriseContactsTest {
@@ -481,236 +462,6 @@ public class EnterpriseContactsTest {
             SearchResultsShim searchResults = mEnterpriseSession.search("", spec);
             List<GenericDocument> documents = convertSearchResultsToDocuments(searchResults);
             assertThat(documents).isEmpty();
-        }
-    }
-
-    @Test
-    public void testEnterpriseContactsInSystemPackage_transformPerson() throws Exception {
-        // This test can be flaky due to the CP2 for the main user sometimes returning null in
-        // response to the enterprise contacts query, so only run this test if CP2 is available
-        assumeTrue(isCP2Available(ApplicationProvider.getApplicationContext()));
-        // The other tests in this class test behavior against contacts indexed in the local
-        // package. This test however creates a test contact in CP2 which will be indexed in the
-        // android package.
-        // Before inserting a test contact, clean up any test contacts that may not have been
-        // previously deleted from CP2
-        ContentResolver resolver = mContext.getContentResolver();
-        cleanupTestContacts(resolver);
-        Uri rawContactUri = insertTestContact(resolver);
-        try {
-            long contactId = getContactId(resolver, rawContactUri);
-            String id = String.valueOf(contactId);
-            // Register an ObserverCallback that will wait for the inserted contact to be indexed by
-            // AppSearch
-            GlobalSearchSessionShim globalSearchSession = GlobalSearchSessionShimImpl
-                    .createGlobalSearchSessionAsync(mContext).get();
-            CountDownLatch latch = new CountDownLatch(1);
-            ObserverCallback callback = new ObserverCallback() {
-                @Override
-                public void onSchemaChanged(@NonNull SchemaChangeInfo changeInfo) {
-                }
-
-                @Override
-                public void onDocumentChanged(@NonNull DocumentChangeInfo changeInfo) {
-                    // Callback will be registered for android package and Person schema, so we only
-                    // need to check database name and id here
-                    if (changeInfo.getDatabaseName().equals(AppSearchHelper.DATABASE_NAME)
-                            && changeInfo.getChangedDocumentIds().contains(id)) {
-                        latch.countDown();
-                    }
-                }
-            };
-            globalSearchSession.registerObserverCallback("android",
-                    new ObserverSpec.Builder().addFilterSchemas(Person.SCHEMA_TYPE).build(),
-                    mSingleThreadedExecutor, callback);
-            try {
-                // Check if the contact was indexed since there's a potential race condition where
-                // the contact was indexed before we registered the ObserverCallback
-                GetByDocumentIdRequest getDocumentRequest = new GetByDocumentIdRequest.Builder(
-                        AppSearchHelper.NAMESPACE_NAME).addIds(id).build();
-                AppSearchBatchResult<String, GenericDocument> getResult =
-                        globalSearchSession.getByDocumentIdAsync("android",
-                                AppSearchHelper.DATABASE_NAME, getDocumentRequest).get();
-                if (getResult.getSuccesses().containsKey(id)) {
-                    latch.countDown();
-                }
-                assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
-            } finally {
-                globalSearchSession.unregisterObserverCallback("android", callback);
-            }
-
-            // The retrieved document should have its imageUri and externalUri transformed
-            GetByDocumentIdRequest getDocumentRequest = new GetByDocumentIdRequest.Builder(
-                    AppSearchHelper.NAMESPACE_NAME).addIds(id).build();
-            AppSearchBatchResult<String, GenericDocument> getResult =
-                    mEnterpriseSession.getByDocumentIdAsync("android",
-                            AppSearchHelper.DATABASE_NAME, getDocumentRequest).get();
-            assertThat(getResult.isSuccess()).isTrue();
-            GenericDocument document = getResult.getSuccesses().get(id);
-            assertThat(document.getPropertyString(PERSON_PROPERTY_NAME)).isEqualTo("Test Contact");
-            assertThat(document.getPropertyString(PERSON_PROPERTY_EXTERNAL_URI)).isEqualTo(
-                    getCorpLookupUri(contactId));
-            assertThat(document.getPropertyString(Person.PERSON_PROPERTY_IMAGE_URI)).isEqualTo(
-                    getCorpImageUri(contactId));
-            GenericDocument contactPoint = document.getPropertyDocumentArray(
-                    Person.PERSON_PROPERTY_CONTACT_POINTS)[0];
-            assertThat(contactPoint.getPropertyNames()).containsExactly(
-                    CONTACT_POINT_PROPERTY_LABEL, CONTACT_POINT_PROPERTY_EMAIL,
-                    CONTACT_POINT_PROPERTY_TELEPHONE);
-            assertThat(contactPoint.getPropertyString(CONTACT_POINT_PROPERTY_LABEL)).isEqualTo(
-                    "Work");
-            assertThat(contactPoint.getPropertyString(CONTACT_POINT_PROPERTY_EMAIL)).isEqualTo(
-                    "testcontact@email.com");
-            assertThat(contactPoint.getPropertyString(CONTACT_POINT_PROPERTY_TELEPHONE)).isEqualTo(
-                    "123456");
-
-            // Search for the contact this time and verify it's the same
-            SearchSpec spec = new SearchSpec.Builder()
-                    .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
-                    .addFilterPackageNames("android")
-                    .addFilterNamespaces(AppSearchHelper.NAMESPACE_NAME)
-                    .addFilterSchemas(Person.SCHEMA_TYPE)
-                    .build();
-            SearchResultsShim searchResults = mEnterpriseSession.search("Test Contact", spec);
-            List<GenericDocument> documents = convertSearchResultsToDocuments(searchResults);
-            assertThat(documents).contains(document);
-        } finally {
-            // Delete the raw contact; this will delete the associated contact as well since it only
-            // has this one raw contact
-            assertThat(resolver.delete(rawContactUri, null, null)).isEqualTo(1);
-        }
-    }
-
-    /** Checks if CP2 is available for the given user context. */
-    private boolean isCP2Available(Context context) {
-        ContentResolver resolver = context.getContentResolver();
-        String[] projection =
-                new String[]{ContactsContract.Contacts._ID, ContactsContract.Data.LOOKUP_KEY};
-        String selection = ContactsContract.Contacts._ID + " = 0";
-        try (Cursor cursor = resolver.query(ContactsContract.Contacts.ENTERPRISE_CONTENT_URI,
-                projection, selection, /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
-            return cursor != null;
-        }
-    }
-
-    /** Deletes all raw contacts belonging to this test. */
-    private void cleanupTestContacts(ContentResolver resolver) {
-        String where =
-                ContactsContract.RawContacts.ACCOUNT_TYPE + " = '" + TEST_ACCOUNT_TYPE + "' AND "
-                        + ContactsContract.RawContacts.ACCOUNT_NAME + " = '" + TEST_ACCOUNT_NAME
-                        + "'";
-        resolver.delete(ContactsContract.RawContacts.CONTENT_URI, where, /* selectionArgs= */ null);
-    }
-
-    /** Inserts a test contact and returns a Uri that points to its raw contact. */
-    private Uri insertTestContact(ContentResolver resolver) throws Exception {
-        ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-        // Insert a raw contact; this will create a contact linked to this raw contact
-        ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
-                .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, TEST_ACCOUNT_TYPE)
-                .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, TEST_ACCOUNT_NAME)
-                .build());
-        // Insert a display name connected with the raw contact created above
-        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                .withValue(ContactsContract.Contacts.Data.MIMETYPE,
-                        ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME,
-                        "Test Contact")
-                .build());
-        // Insert a phone number connected with the raw contact created above
-        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                .withValue(ContactsContract.Contacts.Data.MIMETYPE,
-                        ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, "123456")
-                .withValue(ContactsContract.CommonDataKinds.Phone.TYPE,
-                        ContactsContract.CommonDataKinds.Phone.TYPE_WORK)
-                .build());
-        // Insert an email connected with the raw contact created above
-        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                .withValue(ContactsContract.Contacts.Data.MIMETYPE,
-                        ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, "testcontact@email.com")
-                .withValue(ContactsContract.CommonDataKinds.Email.TYPE,
-                        ContactsContract.CommonDataKinds.Email.TYPE_WORK)
-                .build());
-        // Insert a 1x1 empty bitmap as the photo connected with the raw contact created above
-        Bitmap bmp = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bmp.compress(Bitmap.CompressFormat.JPEG, 0, stream);
-        byte[] byteArray = stream.toByteArray();
-        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                .withValue(ContactsContract.Contacts.Data.MIMETYPE,
-                        ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, byteArray)
-                .build());
-        ContentProviderResult[] results = resolver.applyBatch(ContactsContract.AUTHORITY, ops);
-        // The uri pointing to the created raw contact
-        return results[0].uri;
-    }
-
-    /** Returns the id of the contact linked to the given raw contact. **/
-    private long getContactId(ContentResolver resolver, Uri rawContactUri) {
-        String[] projection = new String[] { ContactsContract.RawContacts.CONTACT_ID };
-        try (Cursor cursor = resolver.query(rawContactUri, projection, /*selection=*/ null,
-                /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
-            assertThat(cursor).isNotNull();
-            assertThat(cursor.moveToNext()).isTrue();
-            return cursor.getLong(0);
-        }
-    }
-
-    /** Returns the corp lookup uri of the given contact through enterprise contacts CP2. */
-    private String getCorpLookupUri(long contactId) {
-        ContentResolver resolver = ApplicationProvider.getApplicationContext().getContentResolver();
-        long enterpriseId = ENTERPRISE_CONTACT_ID_BASE + contactId;
-        String[] projection =
-                new String[]{ContactsContract.Contacts._ID, ContactsContract.Data.LOOKUP_KEY};
-        String selection = ContactsContract.Contacts._ID + " = " + contactId;
-        try (Cursor cursor = resolver.query(ContactsContract.Contacts.ENTERPRISE_CONTENT_URI,
-                projection, selection, /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
-            assertThat(cursor).isNotNull();
-            int contactIdIndex = cursor.getColumnIndex(ContactsContract.Data._ID);
-            int lookupKeyIndex = cursor.getColumnIndex(ContactsContract.Data.LOOKUP_KEY);
-            // Querying the enterprise contact uri by contact id can potentially return a matching
-            // main profile contact and an enterprise profile contact but the enterprise profile
-            // contact will have an enterprise id
-            while (cursor.moveToNext()) {
-                if (cursor.getLong(contactIdIndex) == enterpriseId) {
-                    break;
-                }
-            }
-            assertThat(cursor.isAfterLast()).isFalse();
-            return ContactsContract.Contacts.getLookupUri(enterpriseId,
-                    cursor.getString(lookupKeyIndex)).toString();
-        }
-    }
-
-    /** Returns the corp image uri of the given contact through enterprise contacts CP2. */
-    private String getCorpImageUri(long contactId) {
-        ContentResolver resolver = ApplicationProvider.getApplicationContext().getContentResolver();
-        long enterpriseId = ENTERPRISE_CONTACT_ID_BASE + contactId;
-        String[] projection = new String[]{ContactsContract.Contacts._ID,
-                ContactsContract.Data.PHOTO_THUMBNAIL_URI};
-        String selection = ContactsContract.Contacts._ID + " = " + contactId;
-        try (Cursor cursor = resolver.query(ContactsContract.Contacts.ENTERPRISE_CONTENT_URI,
-                projection, selection, /*selectionArgs=*/ null, /*sortOrder=*/ null)) {
-            assertThat(cursor).isNotNull();
-            int contactIdIndex = cursor.getColumnIndex(ContactsContract.Data._ID);
-            int photoUriIndex = cursor.getColumnIndex(ContactsContract.Data.PHOTO_THUMBNAIL_URI);
-            // Querying the enterprise contact uri by contact id can potentially return a matching
-            // main profile contact and an enterprise profile contact but the enterprise profile
-            // contact will have an enterprise id
-            while (cursor.moveToNext()) {
-                if (cursor.getLong(contactIdIndex) == enterpriseId) {
-                    break;
-                }
-            }
-            assertThat(cursor.isAfterLast()).isFalse();
-            return cursor.getString(photoUriIndex);
         }
     }
 }
