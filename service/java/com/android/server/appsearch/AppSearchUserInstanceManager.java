@@ -942,7 +942,13 @@ public final class AppSearchUserInstanceManager {
                         .getAppSearchDir(userContext, userHandle);
         // Check whether this is the first time VM is booted after the feature is enabled.
         boolean vmFirstRun = !DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir);
-        if (vmFirstRun && !config.getIsolatedStorageEnableUnfreezingMigration()) {
+        // Force migration to the VM if the override_isolated_storage_migration_freeze
+        // system_property is set
+        boolean overrideMigrationFreeze =
+                IsolatedStorageServiceManager.overrideIsolatedStorageMigrationFreeze();
+        if (vmFirstRun
+                && !config.getIsolatedStorageEnableUnfreezingMigration()
+                && !overrideMigrationFreeze) {
             // This device hasn't switched to IsolatedStorage yet and migrations are not unfrozen.
             // Do not migrate and just start the normal Icing.
             Log.i(
