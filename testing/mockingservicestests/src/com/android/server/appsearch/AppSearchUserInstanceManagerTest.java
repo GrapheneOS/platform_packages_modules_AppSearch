@@ -535,15 +535,6 @@ public class AppSearchUserInstanceManagerTest {
                         manager.cancelUserCreation(mUserHandle);
                         return true;
                     }
-
-                    // Also simulate cancellation before connecting to AiSeal.
-                    @Override
-                    public Object getSystemService(String name) {
-                        if (name.equals(Context.AISEAL_HOST_SERVICE)) {
-                            manager.cancelUserCreation(mUserHandle);
-                        }
-                        return getBaseContext().getSystemService(name);
-                    }
                 };
 
         // Mock package name return. This is so that when the VM tries to bind to isolated storage
