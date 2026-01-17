@@ -204,7 +204,7 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
     public void testWipeoutAccount_remove() throws Exception {
         AccountManager accountManager = AccountManager.get(mContext);
         Account account =
-                new Account(MockAccountService.ACCOUNT_NAME, MockAccountService.ACCOUNT_TYPE);
+                new Account(MockAccountService.ACCOUNT_NAME_1, MockAccountService.ACCOUNT_TYPE);
         accountManager.addAccountExplicitly(account, null, null);
         Account[] accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
         assertThat(accounts).asList().containsExactly(account);
@@ -238,7 +238,7 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                                 new AppSearchAccount.Builder("namespace", "account1")
                                         .setAccountId("accountId")
                                         .setAccountType(MockAccountService.ACCOUNT_TYPE)
-                                        .setAccountName(MockAccountService.ACCOUNT_NAME)
+                                        .setAccountName(MockAccountService.ACCOUNT_NAME_1)
                                         .build())
                         .build();
         // Wait for the AppSearch background thread to receive account updates.
@@ -303,11 +303,14 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SCHEMAS_WIPEOUT_ACCOUNT_PROPERTY_PATHS)
     public void testWipeoutAccount_rename() throws Exception {
         AccountManager accountManager = AccountManager.get(mContext);
-        Account account =
-                new Account(MockAccountService.ACCOUNT_NAME, MockAccountService.ACCOUNT_TYPE);
-        accountManager.addAccountExplicitly(account, null, null);
+        Account account1 =
+                new Account(MockAccountService.ACCOUNT_NAME_1, MockAccountService.ACCOUNT_TYPE);
+        accountManager.addAccountExplicitly(account1, null, null);
+        Account account2 =
+                new Account(MockAccountService.ACCOUNT_NAME_2, MockAccountService.ACCOUNT_TYPE);
+        accountManager.addAccountExplicitly(account2, null, null);
         Account[] accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
-        assertThat(accounts).asList().containsExactly(account);
+        assertThat(accounts).asList().containsExactly(account1, account2);
         AppSearchSchema email =
                 new AppSearchSchema.Builder("Email")
                         .addProperty(
@@ -330,28 +333,38 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
 
         mDb1.setSchemaAsync(request).get();
 
-        // Put a documents with account property, should pass.
-        GenericDocument document =
+        // Put two documents with account property, should pass.
+        GenericDocument document1 =
                 new GenericDocument.Builder<>("namespace", "id1", "Email")
                         .setPropertyDocument(
                                 "account",
                                 new AppSearchAccount.Builder("namespace", "account1")
-                                        .setAccountId("accountId")
+                                        .setAccountId("accountId1")
                                         .setAccountType(MockAccountService.ACCOUNT_TYPE)
-                                        .setAccountName(MockAccountService.ACCOUNT_NAME)
+                                        .setAccountName(MockAccountService.ACCOUNT_NAME_1)
+                                        .build())
+                        .build();
+        GenericDocument document2 =
+                new GenericDocument.Builder<>("namespace", "id2", "Email")
+                        .setPropertyDocument(
+                                "account",
+                                new AppSearchAccount.Builder("namespace", "account1")
+                                        .setAccountId("accountId2")
+                                        .setAccountType(MockAccountService.ACCOUNT_TYPE)
+                                        .setAccountName(MockAccountService.ACCOUNT_NAME_2)
                                         .build())
                         .build();
 
         // Wait for the AppSearch background thread to receive account updates.
         // Use a simple polling mechanism: check every 100ms, for up to 2 seconds.
+        PutDocumentsRequest putDocumentsRequest =
+                new PutDocumentsRequest.Builder()
+                        .addGenericDocuments(document1)
+                        .addGenericDocuments(document2)
+                        .build();
         AppSearchBatchResult<String, Void> putResult = null;
         for (int i = 0; i < 20; i++) {
-            putResult =
-                    mDb1.putAsync(
-                                    new PutDocumentsRequest.Builder()
-                                            .addGenericDocuments(document)
-                                            .build())
-                            .get();
+            putResult = mDb1.putAsync(putDocumentsRequest).get();
             if (putResult.isSuccess()) {
                 break;
             }
@@ -361,29 +374,51 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
         }
         assertTrue(putResult.isSuccess());
 
-        // Verify the document
+        // Verify the documents
         AppSearchBatchResult<String, GenericDocument> getResult =
                 mDb1.getByDocumentIdAsync(
                                 new GetByDocumentIdRequest.Builder("namespace")
-                                        .addIds("id1")
+                                        .addIds("id1", "id2")
                                         .build())
                         .get();
         assertTrue(getResult.isSuccess());
-        assertThat(getResult.getSuccesses()).hasSize(1);
-        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document);
-
-        // Rename account, the document should remain.
+        assertThat(getResult.getSuccesses()).hasSize(2);
+        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document1);
+        assertThat(getResult.getSuccesses().get("id2")).isEqualTo(document2);
+        // Rename account1, the document should remain. We remove account2 to create an observable
+        // action.
         accountManager
-                .renameAccount(account, "newName", /* callback= */ null, /* handler= */ null)
+                .renameAccount(account1, "newName", /* callback= */ null, /* handler= */ null)
                 .getResult();
+        accountManager.removeAccountExplicitly(account2);
+
         Account renamedAccount = new Account("newName", MockAccountService.ACCOUNT_TYPE);
         accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
         assertThat(accounts).asList().containsExactly(renamedAccount);
 
-        // TODO(b/413089233) find a better way to verify the listener is invoked for rename than
-        //  sleep. An unchanged state is ambiguous: it could mean the listener was never triggered,
-        //  or it was triggered but failed to perform the expected action (not to removing the
-        //  account). It means we may miss catch issues in the listener.
+        // Wait for the AppSearch background thread to finish data pruning. We are verifying the
+        // document2 is removed which is an evidence for AppSearch already handled the account
+        // remove event. And this means the previous rename event is also handled.
+        GetByDocumentIdRequest getByDocumentIdRequest =
+                new GetByDocumentIdRequest.Builder("namespace").addIds("id2").build();
+        for (int i = 0; i < 50; i++) {
+            getResult = mDb1.getByDocumentIdAsync(getByDocumentIdRequest).get();
+            // Verify the reference document is removed.
+            if (!getResult.isSuccess()
+                    && getResult.getFailures().containsKey("id2")
+                    && getResult.getFailures().get("id2").getResultCode()
+                            == AppSearchResult.RESULT_NOT_FOUND) {
+                break;
+            }
+            // Wait 0.1 second to invoke on account update listener.
+            SystemClock.sleep(100);
+        }
+        assertThat(getResult.isSuccess()).isFalse();
+        assertThat(getResult.getFailures()).containsKey("id2");
+        assertThat(getResult.getFailures().get("id2").getResultCode())
+                .isEqualTo(AppSearchResult.RESULT_NOT_FOUND);
+
+        // Now we could verify the document1 is remained after the rename event.
         getResult =
                 mDb1.getByDocumentIdAsync(
                                 new GetByDocumentIdRequest.Builder("namespace")
@@ -392,22 +427,19 @@ public class AppSearchSessionInternalTest extends AppSearchSessionInternalTestBa
                         .get();
         assertTrue(getResult.isSuccess());
         assertThat(getResult.getSuccesses()).hasSize(1);
-        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document);
+        assertThat(getResult.getSuccesses().get("id1")).isEqualTo(document1);
 
-        // Remove the renamed account, the document should be removed.
+        // Remove the renamed account, the document1 should be removed.
         accountManager.removeAccountExplicitly(renamedAccount);
         accounts = accountManager.getAccountsByType(MockAccountService.ACCOUNT_TYPE);
         assertThat(accounts).isEmpty();
 
         // Wait for the AppSearch background thread to finish data pruning.
         // Use a simple polling mechanism: check every 100ms, for up to 5 seconds.
+        getByDocumentIdRequest =
+                new GetByDocumentIdRequest.Builder("namespace").addIds("id1").build();
         for (int i = 0; i < 50; i++) {
-            getResult =
-                    mDb1.getByDocumentIdAsync(
-                                    new GetByDocumentIdRequest.Builder("namespace")
-                                            .addIds("id1")
-                                            .build())
-                            .get();
+            getResult = mDb1.getByDocumentIdAsync(getByDocumentIdRequest).get();
             // Verify the reference document is removed.
             if (!getResult.isSuccess()
                     && getResult.getFailures().containsKey("id1")
