@@ -50,6 +50,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.Manifest;
 import android.annotation.NonNull;
@@ -117,6 +118,7 @@ import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ParcelFileDescriptor;
@@ -134,6 +136,9 @@ import com.android.appsearch.flags.Flags;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.ServiceTestUtil.MockServiceManager;
+import com.android.server.appsearch.contactsindexer.AppSearchHelper;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
@@ -1522,6 +1527,74 @@ public class AppSearchManagerServiceTest {
                 /* isForEnterprise= */ true));
         // No CallStats logged since we returned early
         verify(mLogger, timeout(1000).times(0)).logStats(any(CallStats.class));
+    }
+
+    @Test
+    public void testEnterpriseGetDocumentsInSystemPackage_transformsPerson() throws Exception {
+        // Set Person schema
+        List<AppSearchSchema> schemas = Arrays.asList(Person.getSchema(), ContactPoint.SCHEMA);
+        InternalSetSchemaResponse internalSetSchemaResponse =
+                mUserInstance
+                        .getAppSearchImpl()
+                        .setSchema(
+                                mContext.getPackageName(),
+                                AppSearchHelper.DATABASE_NAME,
+                                schemas,
+                                /* visibilityDocuments= */ Collections.emptyList(),
+                                /* accountPropertyPaths= */ Collections.emptyMap(),
+                                /* forceOverride= */ false,
+                                /* version= */ 0,
+                                /* setSchemaStatsBuilder= */ null,
+                                /* callStatsBuilder= */ null);
+        assertThat(internalSetSchemaResponse.isSuccess()).isTrue();
+
+        final String id = "1";
+        Person person = new Person.Builder(AppSearchHelper.NAMESPACE_NAME, id,
+                "Test Contact").setExternalUri(
+                Uri.parse("content://com.android.contacts/contacts/lookup/key/1")).setImageUri(
+                Uri.parse("imageUri")).setCreationTimestampMillis(123).build();
+        List<GenericDocumentParcel> genericDocumentParcels =
+                Arrays.asList(GenericDocumentParcel.fromGenericDocument(person));
+
+        TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
+        mAppSearchManagerServiceStub.putDocuments(
+                new PutDocumentsAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        AppSearchHelper.DATABASE_NAME,
+                        new DocumentsParcel(
+                                Collections.emptyList(), genericDocumentParcels),
+                        mUserHandle,
+                        BINDER_CALL_START_TIME),
+                callback);
+        assertThat(callback.get()).isNull(); // null means there wasn't an error
+
+        callback = new TestBatchResultErrorCallback();
+        GetDocumentsAidlRequest request = spy(new GetDocumentsAidlRequest(
+                AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                mContext.getPackageName(), AppSearchHelper.DATABASE_NAME,
+                new GetByDocumentIdRequest.Builder(AppSearchHelper.NAMESPACE_NAME).addIds(/* ids= */
+                        Arrays.asList(id)).build(), mUserHandle,
+                BINDER_CALL_START_TIME, /* isForEnterprise= */ false));
+        // Pretend to be an enterprise request after getUserToQuery and isGlobalCall
+        when(request.isForEnterprise()).thenCallRealMethod().thenCallRealMethod().thenReturn(true);
+        // Pretend to be for the "android" package after isGlobalCall and batchGetDocuments
+        when(request.getTargetPackageName()).thenCallRealMethod().thenCallRealMethod().thenReturn(
+                "android");
+        mAppSearchManagerServiceStub.getDocuments(request, callback);
+        assertThat(callback.get()).isNull(); // null means there wasn't an error
+        AppSearchBatchResult<String, GenericDocumentParcel> batchResult =
+                (AppSearchBatchResult<String, GenericDocumentParcel>) callback.getBatchResult();
+        assertThat(batchResult.isSuccess()).isTrue();
+        Person expectedPerson =
+                new Person.Builder(AppSearchHelper.NAMESPACE_NAME, id, "Test Contact")
+                        .setExternalUri(Uri.parse(
+                                "content://com.android.contacts/contacts/lookup/c-key/1000000001"))
+                        .setImageUri(Uri.parse(
+                                "content://com.android.contacts/contacts_corp/1/photo"))
+                        .setCreationTimestampMillis(123)
+                        .build();
+        assertThat(batchResult.getSuccesses().get(id)).isEqualTo(
+                GenericDocumentParcel.fromGenericDocument(expectedPerson));
     }
 
     @Test
