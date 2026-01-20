@@ -40,6 +40,7 @@ sdk {
 apex {
     name: "com.android.appsearch",
     manifest: "apex_manifest.json",
+    androidManifest: "AndroidManifest.xml",
     bootclasspath_fragments: ["com.android.appsearch-bootclasspath-fragment"],
     systemserverclasspath_fragments: ["com.android.appsearch-systemserverclasspath-fragment"],
     key: "com.android.appsearch.key",
