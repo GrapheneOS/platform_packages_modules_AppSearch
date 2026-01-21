@@ -19,7 +19,7 @@ package com.android.server.appsearch.visibilitystore;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
-import static android.Manifest.permission.READ_APP_FUNCTION_METADATA;
+import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
@@ -88,7 +88,8 @@ public class VisibilityCheckerImplTest {
     private static final OptimizeStrategy ALWAYS_OPTIMIZE = optimizeInfo -> true;
 
     @SuppressLint("NewApi")
-    private static final String READ_APP_FUNCTION_METADATA_PERMISSION = READ_APP_FUNCTION_METADATA;
+    private static final String DISCOVER_APP_FUNCTIONS_PERMISSION =
+            DISCOVER_APP_FUNCTIONS;
 
     // These constants are hidden in SetSchemaRequest
     private static final int ENTERPRISE_ACCESS = 7;
@@ -97,7 +98,7 @@ public class VisibilityCheckerImplTest {
     private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_TRUSTED = 10;
     private static final int SET_SCHEMA_REQUEST_PACKAGE_USAGE_STATS = 11;
     private static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12;
-    private static final int SET_SCHEMA_REQUEST_READ_APP_FUNCTION_METADATA = 13;
+    private static final int SET_SCHEMA_REQUEST_DISCOVER_APP_FUNCTIONS = 13;
 
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
@@ -1847,12 +1848,12 @@ public class VisibilityCheckerImplTest {
         InternalVisibilityConfig visibilityConfig =
                 new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
                         .addVisibleToPermissions(
-                                ImmutableSet.of(SET_SCHEMA_REQUEST_READ_APP_FUNCTION_METADATA))
+                                ImmutableSet.of(SET_SCHEMA_REQUEST_DISCOVER_APP_FUNCTIONS))
                         .build();
         mVisibilityStore.setVisibility(
                 ImmutableList.of(visibilityConfig), /* callStatsBuilder= */ null);
 
-        // Not holding the READ_APP_FUNCTION_METADATA permission, schema is not visible.
+        // Not holding the DISCOVER_APP_FUNCTIONS permission, schema is not visible.
         assertThat(
                         mVisibilityChecker.isSchemaSearchableByCaller(
                                 new FrameworkCallerAccess(
@@ -1864,8 +1865,8 @@ public class VisibilityCheckerImplTest {
                                 mVisibilityStore))
                 .isFalse();
 
-        // Holding the READ_APP_FUNCTION_METADATA permission, schema is visible.
-        mUiAutomation.adoptShellPermissionIdentity(READ_APP_FUNCTION_METADATA_PERMISSION);
+        // Holding the DISCOVER_APP_FUNCTIONS permission, schema is visible.
+        mUiAutomation.adoptShellPermissionIdentity(DISCOVER_APP_FUNCTIONS_PERMISSION);
         try {
             assertThat(
                             mVisibilityChecker.isSchemaSearchableByCaller(

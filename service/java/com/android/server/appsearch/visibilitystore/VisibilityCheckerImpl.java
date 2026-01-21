@@ -19,7 +19,7 @@ package com.android.server.appsearch.visibilitystore;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
-import static android.Manifest.permission.READ_APP_FUNCTION_METADATA;
+import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
@@ -72,7 +72,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
     private final AppFunctionCompat mAppFunctionCompat;
 
     @SuppressLint("NewApi")
-    private static final String READ_APP_FUNCTION_METADATA_PERMISSION = READ_APP_FUNCTION_METADATA;
+    private static final String DISCOVER_APP_FUNCTIONS_PERMISSION =
+            DISCOVER_APP_FUNCTIONS;
 
     public VisibilityCheckerImpl(@NonNull Context userContext) {
         this(userContext, new PolicyCheckerImpl(userContext));
@@ -362,7 +363,7 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                 case SetSchemaRequest.READ_HOME_APP_SEARCH_DATA:
                 case SetSchemaRequest.READ_ASSISTANT_APP_SEARCH_DATA:
                 case SetSchemaRequest.PACKAGE_USAGE_STATS:
-                case SetSchemaRequest.READ_APP_FUNCTION_METADATA:
+                case SetSchemaRequest.DISCOVER_APP_FUNCTIONS:
                     if (!doesCallerHavePermissionForDataDelivery(
                             requiredPermission, callerAttributionSource)) {
                         // The calling package doesn't have this required permission, return false.
@@ -450,12 +451,12 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             case SetSchemaRequest.PACKAGE_USAGE_STATS:
                 permission = PACKAGE_USAGE_STATS;
                 break;
-            case SetSchemaRequest.READ_APP_FUNCTION_METADATA:
+            case SetSchemaRequest.DISCOVER_APP_FUNCTIONS:
                 if (!android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
                     // Returning false as is this permission does not exist.
                     return false;
                 }
-                permission = READ_APP_FUNCTION_METADATA_PERMISSION;
+                permission = DISCOVER_APP_FUNCTIONS_PERMISSION;
                 break;
             case SetSchemaRequest.EXECUTE_APP_FUNCTIONS_TRUSTED:
                 // Deprecated. Returning false as is this permission does not exist.
