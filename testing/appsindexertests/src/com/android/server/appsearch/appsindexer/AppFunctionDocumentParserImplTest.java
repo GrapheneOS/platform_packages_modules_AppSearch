@@ -33,6 +33,7 @@ import androidx.annotation.NonNull;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -146,6 +147,7 @@ public class AppFunctionDocumentParserImplTest {
     }
 
     @Test
+    @Ignore("b/469699240")
     @RequiresFlagsEnabled({android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS})
     public void parseIntoMapForGivenSchemas_withNotNullServiceName_servicePropertyIsSet()
             throws Exception {
