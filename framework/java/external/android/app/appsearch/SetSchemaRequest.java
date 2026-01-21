@@ -224,8 +224,15 @@ public final class SetSchemaRequest {
      *
      * @hide
      */
-    @FlaggedApi(android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
     public static final int DISCOVER_APP_FUNCTIONS = 13;
+
+    /**
+     * The {@link android.Manifest.permission#EXECUTE_APP_FUNCTIONS_SYSTEM} AppSearch supported in
+     * {@link SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility}.
+     *
+     * @hide
+     */
+    public static final int EXECUTE_APP_FUNCTIONS_SYSTEM = 14;
 
     private final Set<AppSearchSchema> mSchemas;
     private final Set<String> mSchemasNotDisplayedBySystem;
@@ -599,7 +606,7 @@ public final class SetSchemaRequest {
             for (int permission : permissions) {
                 if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
                     Preconditions.checkArgumentInRange(
-                            permission, READ_SMS, DISCOVER_APP_FUNCTIONS, "permission");
+                            permission, READ_SMS, EXECUTE_APP_FUNCTIONS_SYSTEM, "permission");
                 } else {
                     Preconditions.checkArgumentInRange(
                             permission, READ_SMS, PRIVATE_COMPUTE_CORE_UID_ACCESS, "permission");

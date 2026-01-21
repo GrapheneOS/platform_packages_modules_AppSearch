@@ -17,6 +17,7 @@
 package com.android.server.appsearch.visibilitystore;
 
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
+import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_SYSTEM;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
 import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
@@ -91,6 +92,10 @@ public class VisibilityCheckerImplTest {
     private static final String DISCOVER_APP_FUNCTIONS_PERMISSION =
             DISCOVER_APP_FUNCTIONS;
 
+    @SuppressLint("NewApi")
+    private static final String EXECUTE_APP_FUNCTIONS_SYSTEM_PERMISSION =
+            EXECUTE_APP_FUNCTIONS_SYSTEM;
+
     // These constants are hidden in SetSchemaRequest
     private static final int ENTERPRISE_ACCESS = 7;
     private static final int MANAGED_PROFILE_CONTACTS_ACCESS = 8;
@@ -99,6 +104,7 @@ public class VisibilityCheckerImplTest {
     private static final int SET_SCHEMA_REQUEST_PACKAGE_USAGE_STATS = 11;
     private static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12;
     private static final int SET_SCHEMA_REQUEST_DISCOVER_APP_FUNCTIONS = 13;
+    private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_SYSTEM = 14;
 
     @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
 
@@ -1867,6 +1873,51 @@ public class VisibilityCheckerImplTest {
 
         // Holding the DISCOVER_APP_FUNCTIONS permission, schema is visible.
         mUiAutomation.adoptShellPermissionIdentity(DISCOVER_APP_FUNCTIONS_PERMISSION);
+        try {
+            assertThat(
+                            mVisibilityChecker.isSchemaSearchableByCaller(
+                                    new FrameworkCallerAccess(
+                                            mAttributionSource,
+                                            /* callerHasSystemAccess= */ false,
+                                            /* isForEnterprise= */ false),
+                                    "package",
+                                    prefix + "Schema",
+                                    mVisibilityStore))
+                    .isTrue();
+        } finally {
+            mUiAutomation.dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(
+            android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
+    public void
+            testSchema_requiredExecuteAppFunctionSystemPermission_onlyVisibleToPermissionHolder()
+                    throws Exception {
+        String prefix = PrefixUtil.createPrefix("package", "database");
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
+                        .addVisibleToPermissions(
+                                ImmutableSet.of(SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_SYSTEM))
+                        .build();
+        mVisibilityStore.setVisibility(
+                ImmutableList.of(visibilityConfig), /* callStatsBuilder= */ null);
+
+        // Not holding the EXECUTE_APP_FUNCTIONS_SYSTEM permission, schema is not visible.
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isFalse();
+
+        // Holding the EXECUTE_APP_FUNCTIONS_SYSTEM permission, schema is visible.
+        mUiAutomation.adoptShellPermissionIdentity(EXECUTE_APP_FUNCTIONS_SYSTEM_PERMISSION);
         try {
             assertThat(
                             mVisibilityChecker.isSchemaSearchableByCaller(
