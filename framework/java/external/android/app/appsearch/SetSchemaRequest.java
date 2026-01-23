@@ -114,7 +114,7 @@ public final class SetSchemaRequest {
                 EXECUTE_APP_FUNCTIONS,
                 PACKAGE_USAGE_STATS,
                 PRIVATE_COMPUTE_CORE_UID_ACCESS,
-                READ_APP_FUNCTION_METADATA
+                DISCOVER_APP_FUNCTIONS
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AppSearchSupportedPermission {}
@@ -219,13 +219,20 @@ public final class SetSchemaRequest {
     public static final int PRIVATE_COMPUTE_CORE_UID_ACCESS = 12;
 
     /**
-     * The {@link android.Manifest.permission#READ_APP_FUNCTION_METADATA} AppSearch supported in
+     * The {@link android.Manifest.permission#DISCOVER_APP_FUNCTIONS} AppSearch supported in
      * {@link SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility}.
      *
      * @hide
      */
-    @FlaggedApi(android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
-    public static final int READ_APP_FUNCTION_METADATA = 13;
+    public static final int DISCOVER_APP_FUNCTIONS = 13;
+
+    /**
+     * The {@link android.Manifest.permission#EXECUTE_APP_FUNCTIONS_SYSTEM} AppSearch supported in
+     * {@link SetSchemaRequest.Builder#addRequiredPermissionsForSchemaTypeVisibility}.
+     *
+     * @hide
+     */
+    public static final int EXECUTE_APP_FUNCTIONS_SYSTEM = 14;
 
     private final Set<AppSearchSchema> mSchemas;
     private final Set<String> mSchemasNotDisplayedBySystem;
@@ -599,7 +606,7 @@ public final class SetSchemaRequest {
             for (int permission : permissions) {
                 if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
                     Preconditions.checkArgumentInRange(
-                            permission, READ_SMS, READ_APP_FUNCTION_METADATA, "permission");
+                            permission, READ_SMS, EXECUTE_APP_FUNCTIONS_SYSTEM, "permission");
                 } else {
                     Preconditions.checkArgumentInRange(
                             permission, READ_SMS, PRIVATE_COMPUTE_CORE_UID_ACCESS, "permission");
