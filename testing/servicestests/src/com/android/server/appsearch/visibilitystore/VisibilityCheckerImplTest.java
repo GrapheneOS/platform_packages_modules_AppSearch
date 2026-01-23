@@ -16,11 +16,11 @@
 
 package com.android.server.appsearch.visibilitystore;
 
+import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_SYSTEM;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
-import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
@@ -31,6 +31,7 @@ import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import static com.android.appsearch.flags.Flags.FLAG_ENABLE_APP_FUNCTION_AGENT_ALLOWLIST_CHECK;
+import static com.android.appsearch.flags.Flags.FLAG_ENABLE_RESTRICT_VISIBILITY_ON_EMPTY_PERMISSIONS;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -651,6 +652,53 @@ public class VisibilityCheckerImplTest {
                                 prefix + "Schema",
                                 mVisibilityStore))
                 .isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_RESTRICT_VISIBILITY_ON_EMPTY_PERMISSIONS)
+    public void testSetSchema_visibleToPermissions_emptySet() throws Exception {
+        String prefix = PrefixUtil.createPrefix("package", "database");
+
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
+                        .addVisibleToPermissions(ImmutableSet.of())
+                        .build();
+        mVisibilityStore.setVisibility(
+                ImmutableList.of(visibilityConfig), /* callStatsBuilder= */ null);
+
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isFalse();
+    }
+
+    @Test
+    @RequiresFlagsDisabled(FLAG_ENABLE_RESTRICT_VISIBILITY_ON_EMPTY_PERMISSIONS)
+    public void testSetSchema_visibleToPermissions_emptySet_disableFlag() throws Exception {
+        String prefix = PrefixUtil.createPrefix("package", "database");
+        InternalVisibilityConfig visibilityConfig =
+                new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
+                        .addVisibleToPermissions(ImmutableSet.of())
+                        .build();
+        mVisibilityStore.setVisibility(
+                ImmutableList.of(visibilityConfig), /* callStatsBuilder= */ null);
+
+        assertThat(
+                        mVisibilityChecker.isSchemaSearchableByCaller(
+                                new FrameworkCallerAccess(
+                                        mAttributionSource,
+                                        /* callerHasSystemAccess= */ false,
+                                        /* isForEnterprise= */ false),
+                                "package",
+                                prefix + "Schema",
+                                mVisibilityStore))
+                .isTrue();
     }
 
     @Test
