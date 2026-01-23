@@ -958,11 +958,12 @@ public class IsolatedStorageServiceManager {
                 // TODO(b/421272017): add logs that will cover how many retries we're attempting
                 // and whether they actually recover eventually.
                 if (!reinitializeWithRetryLocked()) {
-                    Log.wtf(
+                    LogUtil.criticalError(
                             TAG,
                             "failed to re-initialize after "
                                     + MAX_REINITIALIZATION_RETRIES
-                                    + " retries");
+                                    + " retries",
+                            /* tr= */ null);
                     return;
                 }
 
@@ -1009,7 +1010,8 @@ public class IsolatedStorageServiceManager {
             Log.i(TAG, "succeeded to re-initialize without forcing vm restart");
             return;
         } catch (Exception e) {
-            Log.wtf(TAG, "failed to re-initialize after without forcing vm restart", e);
+            LogUtil.criticalError(
+                    TAG, "failed to re-initialize after without forcing vm restart", e);
         }
         initialize(
                 /* forceVmRestart= */ true,
@@ -1082,18 +1084,20 @@ public class IsolatedStorageServiceManager {
                         >= CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD) {
                     // keep the vm on debug builds to surface the unlock issues
                     if (IS_DEBUG_BUILD) {
-                        Log.wtf(
+                        LogUtil.criticalError(
                                 TAG,
                                 "Saw at least "
                                         + CONSECUTIVE_VM_DATA_UNLOCK_DOE_ERROR_THRESHOLD
-                                        + " consecutive DOE errors when trying to unlock vm data");
+                                        + " consecutive DOE errors when trying to unlock vm data",
+                                /* tr= */ null);
                     } else {
                         if (mIsolatedStorageService.deleteVm()) {
                             mConsecutiveVmDataUnlockDoeErrorsLocked = 0;
-                            Log.wtf(
+                            LogUtil.criticalError(
                                     TAG,
                                     "Deleted the VM due to consecutive DOE errors when trying to"
-                                            + " unlock vm data");
+                                            + " unlock vm data",
+                                    /* tr= */ null);
                         }
                     }
                 }

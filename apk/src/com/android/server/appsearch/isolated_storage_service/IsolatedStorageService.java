@@ -48,6 +48,7 @@ import androidx.annotation.Nullable;
 
 import com.android.server.appsearch.stats.IsolateStorageServiceLogger;
 import com.android.server.appsearch.stats.VMPayloadStats;
+import com.android.server.appsearch.util.LogUtil;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -239,9 +240,11 @@ public class IsolatedStorageService extends Service {
             if (e.getMessage().contains("Failed to read VM config from file")
                     || e.getMessage().contains("Persisted VM config is invalid")) {
                 deleteVmByName(vmm, VM_NAME);
-                Log.wtf(TAG, "Deleting the vm to recover from vm config failures", e);
+                LogUtil.logCriticalError(
+                        TAG, "Deleting the vm to recover from vm config failures", e);
             } else {
-                Log.wtf(TAG, "Failed to get or create virtual machine " + VM_NAME, e);
+                LogUtil.logCriticalError(
+                        TAG, "Failed to get or create virtual machine " + VM_NAME, e);
             }
             return null;
         } catch (IllegalArgumentException
@@ -287,7 +290,7 @@ public class IsolatedStorageService extends Service {
         Log.i(TAG, "Deleting current VM...");
         if (deleteVmByName(VM_NAME)) {
             if (vmErrorMessage != null) {
-                Log.wtf(TAG, vmErrorMessage);
+                LogUtil.logCriticalError(TAG, vmErrorMessage, /* tr= */ null);
             } else {
                 Log.i(TAG, "Successfully deleted the VM.");
             }

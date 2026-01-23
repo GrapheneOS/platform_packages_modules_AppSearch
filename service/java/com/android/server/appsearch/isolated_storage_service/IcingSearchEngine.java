@@ -17,6 +17,7 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.util.LogUtil;
 import android.os.DeadObjectException;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -1581,16 +1582,18 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                             .get(GET_VM_ISOLATED_STORAGE_SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                             .getAvailableMemory();
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
-            Log.wtf(TAG, "Unable to get vm isolated storage service", e);
+            LogUtil.criticalError(TAG, "Unable to get vm isolated storage service", e);
         } catch (RemoteException e) {
-            Log.wtf(TAG, "Unable to get vm isolated storage free memory size", e);
+            LogUtil.criticalError(TAG, "Unable to get vm isolated storage free memory size", e);
         } catch (OutOfMemoryError e) {
-            Log.wtf(TAG, "Unable to get vm isolated storage free memory size due to OOM error", e);
+            LogUtil.criticalError(
+                    TAG, "Unable to get vm isolated storage free memory size due to OOM error", e);
         } catch (Error e) {
-            Log.wtf(TAG, "Unable to get vm isolated storage free memory size due to error", e);
+            LogUtil.criticalError(
+                    TAG, "Unable to get vm isolated storage free memory size due to error", e);
         }
 
-        Log.wtf(
+        LogUtil.criticalError(
                 TAG,
                 "Android device free memory (from /proc/meminfo): "
                         + deviceFreeMemoryKb
@@ -1598,6 +1601,7 @@ public final class IcingSearchEngine implements IcingSearchEngineInterface {
                         + jvmFreeMemoryKb
                         + " KB, VM isolated storage free memory: "
                         + vmIsolatedStorageFreeMemoryKb
-                        + " KB.", oomError);
+                        + " KB.",
+                oomError);
     }
 }
