@@ -86,6 +86,8 @@ public class IsolatedStorageServiceManager {
     public static final String SYSTEM_PROPERTY_ENABLE_NONPROTECTED_APPSEARCH_VM =
             "ro.enable.nonprotected_appsearch_vm";
     public static final String SYSTEM_PROPERTY_ENABLE_AISEAL = "ro.appsearch.feature.enable_aiseal";
+    public static final String SYSTEM_PROPERTY_OVERRIDE_ISOLATED_STORAGE_MIGRATION_FREEZE =
+            "ro.appsearch.feature.override_isolated_storage_migration_freeze";
     public static final String SYS_SHUTDOWN_REASON = "sys.shutdown.requested";
     public static final long DEFAULT_MEMORY_BYTES = 79 * 1024 * 1024;
     public static final boolean DEFAULT_ISOLATED_STORAGE_DISABLED = false;
@@ -205,6 +207,12 @@ public class IsolatedStorageServiceManager {
         return Flags.enableIsolatedStorage()
                 && SystemProperties.getBoolean(
                         SYSTEM_PROPERTY_ENABLE_ISOLATED_STORAGE, /* def= */ false);
+    }
+
+    /** Gets whether or not there is an isolated storage migration freeze override */
+    public static boolean overrideIsolatedStorageMigrationFreeze() {
+        return SystemProperties.getBoolean(
+                SYSTEM_PROPERTY_OVERRIDE_ISOLATED_STORAGE_MIGRATION_FREEZE, /* def= */ false);
     }
 
     /** Checks whether the device supports protect VMs, and new FD->IBinder VM APIs. */
