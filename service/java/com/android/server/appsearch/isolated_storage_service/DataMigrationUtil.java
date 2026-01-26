@@ -17,6 +17,7 @@ package com.android.server.appsearch.isolated_storage_service;
 
 import static android.app.appsearch.AppSearchResult.RESULT_OK;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.appsearch.AppSearchEnvironmentFactory;
@@ -56,6 +57,8 @@ import com.google.android.icing.proto.TermMatchType;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * Utils to migrate data from AppSearch to IsolatedStorage.
@@ -73,17 +76,40 @@ public class DataMigrationUtil {
     // For other kinds of failures, we don't respect this limit and will retry until it succeeds.
     public static final int MAX_RETRY_TIMES_FOR_FAILED_PUTS = 3;
 
+    /**
+     * Enums representing current status of data migration between host and VMs.
+     *
+     * @hide
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(
+            value = {
+                MIGRATION_COMPLETED,
+                MIGRATION_TO_AEGIS_NEEDED,
+                MIGRATION_TO_AISEAL_NEEDED,
+                MIGRATION_TO_HOST_NEEDED,
+            })
+    public @interface DataMigrationStatus {}
+
+    public static final int MIGRATION_COMPLETED = 0;
+    public static final int MIGRATION_TO_AEGIS_NEEDED = 1;
+    public static final int MIGRATION_TO_AISEAL_NEEDED = 2;
+    public static final int MIGRATION_TO_HOST_NEEDED = 3;
+
     /** Checks if data migration is needed from AppSearch to Isolated Storage. */
     // TODO(b/407815165) Right now just check if the icing/version on host exists
     //  We can persist a file to save the migration status, so dir deletion could happen later.
-    public static boolean needDataMigration(
-            @NonNull Context userContext,
-            @NonNull UserHandle userHandle) {
+    @DataMigrationStatus
+    public static int needDataMigration(
+            @NonNull Context userContext, @NonNull UserHandle userHandle) {
         File appSearchDir =
                 AppSearchEnvironmentFactory.getEnvironmentInstance()
                         .getAppSearchDir(userContext, userHandle);
         File icingVersion = new File(appSearchDir, "icing/version");
-        return icingVersion.exists();
+        if (icingVersion.exists()) {
+            return MIGRATION_TO_AEGIS_NEEDED;
+        }
+        return MIGRATION_COMPLETED;
     }
 
     /** Checks if the migration status file exists. */
