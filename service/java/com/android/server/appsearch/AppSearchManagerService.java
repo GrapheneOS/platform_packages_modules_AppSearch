@@ -4238,9 +4238,6 @@ public class AppSearchManagerService extends SystemService {
         @Override
         public void augmentStatsForUser(
                 @NonNull PackageStats stats, @NonNull UserHandle userHandle) {
-            // TODO(b/179160886): this implementation could incur many jni calls and a lot of
-            //  in-memory processing from getStorageInfoForPackage. Instead, we can just compute the
-            //  size of the icing dir (or use the overall StorageInfo without interpolating it).
             Objects.requireNonNull(stats);
             Objects.requireNonNull(userHandle);
 
