@@ -130,6 +130,12 @@ public class IsolatedStorageServiceManager {
     private volatile IIsolatedStorageService mIsolatedStorageService;
     private volatile boolean mIsReconnecting = false;
 
+    @GuardedBy("mLock")
+    private IsolatedStorageServiceConnection mIsolatedStorageServiceConnection;
+
+    private volatile boolean mIsBindingToIsolatedStorageService = false;
+    private CompletableFuture<Void> mBindIsolatedStorageServiceFuture = new CompletableFuture<>();
+
     // The isolated storage service could be hosted by AiSealManager instead of the isolated
     // storage service apk.
     private volatile AiSealManager mAiSealManager;
@@ -432,23 +438,57 @@ public class IsolatedStorageServiceManager {
                     RESULT_INTERNAL_ERROR, "Unable to get isolated storage service package name");
         }
 
-        Intent intent = new Intent();
-        intent.setClassName(packageName, ISOLATED_STORAGE_SERVICE_CLASS_NAME);
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        mContext.bindServiceAsUser(
-                intent,
-                new IsolatedStorageServiceConnection(future),
-                Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
-                ISOLATED_STORAGE_USER);
+        Log.i(
+                TAG,
+                "Isolated Storage Service binding status: " + mIsBindingToIsolatedStorageService);
+        if (!Flags.enableIsolatedStorageConnectionFix() || !mIsBindingToIsolatedStorageService) {
+            Intent intent = new Intent();
+            intent.setClassName(packageName, ISOLATED_STORAGE_SERVICE_CLASS_NAME);
+            mBindIsolatedStorageServiceFuture = new CompletableFuture<>();
+
+            if (mIsolatedStorageServiceConnection != null) {
+                Log.i(
+                        TAG,
+                        "Unbinding old Isolated Storage Service connection before creating a"
+                                + " new one");
+                cleanUpIsolatedStorageServiceConnection(mIsolatedStorageServiceConnection);
+            }
+
+            mIsolatedStorageServiceConnection =
+                    new IsolatedStorageServiceConnection(mBindIsolatedStorageServiceFuture);
+            mIsBindingToIsolatedStorageService =
+                    mContext.bindServiceAsUser(
+                            intent,
+                            mIsolatedStorageServiceConnection,
+                            Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT,
+                            ISOLATED_STORAGE_USER);
+        }
+
         try {
-            future.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            mBindIsolatedStorageServiceFuture.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+            // If mIsolatedStorageService is null and we are not actively binding to the service,
+            // there
+            // may have been a binding error. Clean-up the binder connection to avoid exhausting the
+            // service
+            // limit.
+            if (mIsolatedStorageService == null && !mIsBindingToIsolatedStorageService) {
+                cleanUpIsolatedStorageServiceConnection(mIsolatedStorageServiceConnection);
+            }
             throw new AppSearchException(
                     RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
         }
         if (mIsolatedStorageService == null) {
             Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
+            // If mIsolatedStorageService is null and we are not actively binding to the service,
+            // there
+            // may have been a binding error. Clean-up the binder connection to avoid exhausting the
+            // service
+            // limit.
+            if (!mIsBindingToIsolatedStorageService) {
+                cleanUpIsolatedStorageServiceConnection(mIsolatedStorageServiceConnection);
+            }
             throw new AppSearchException(
                     RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
         }
@@ -537,6 +577,41 @@ public class IsolatedStorageServiceManager {
                         throw new RuntimeException(e);
                     }
                 });
+    }
+
+    @GuardedBy("mLock")
+    private void cleanUpIsolatedStorageServiceConnection(
+            IsolatedStorageServiceConnection connectionToUnbind) {
+        if (Flags.enableIsolatedStorageConnectionFix()) {
+            if (mIsolatedStorageServiceConnection == connectionToUnbind
+                    && mIsolatedStorageServiceConnection != null) {
+                // Unbind to avoid exhausting the service connection limit
+                try {
+                    mContext.unbindService(mIsolatedStorageServiceConnection);
+                    Log.i(TAG, "Unbind IsolatedStorageService Connection");
+                } catch (Exception e) {
+                    Log.e(
+                            TAG,
+                            "Unbind IsolatedStorageService Connection failed: " + e.getMessage());
+                }
+                // Reset the current service connection
+                mIsolatedStorageServiceConnection = null;
+            } else {
+                // A mismatched connection is not necessarily an error. For example, when the
+                // service dies or is killed, both onBindingDied and onServiceDisconnected are
+                // called. In order to ensure that the service connection is appropriately unbound
+                // under all circumstances, we must call cleanUpIsolatedStorageServiceConnection()
+                // in both onBindingDied and onServiceDisconnected. Comparing the service connection
+                // here is to ensure that we don't accidentally cleanup a new service connection
+                // that is currently being created.
+                Log.i(
+                        TAG,
+                        "Isolated Storage Service connection does not match or connection is null: "
+                                + (mIsolatedStorageServiceConnection == null));
+            }
+	} else {
+	    Log.i(TAG, "Isolated Storage connection fix not enabled...Skipping connection unbind");
+	}
     }
 
     /**
@@ -854,7 +929,9 @@ public class IsolatedStorageServiceManager {
         public void onServiceConnected(ComponentName className, IBinder service) {
             mScheduledExecutorService.execute(
                     () -> {
+                        Log.i(TAG, "Establishing mIsolatedStorageService interface");
                         mIsolatedStorageService = IIsolatedStorageService.Stub.asInterface(service);
+                        mIsBindingToIsolatedStorageService = false;
                         IBinder binder = mIsolatedStorageService.asBinder();
                         try {
                             binder.linkToDeath(
@@ -878,6 +955,7 @@ public class IsolatedStorageServiceManager {
                     () -> {
                         synchronized (mLock) {
                             mIsolatedStorageService = null;
+                            cleanUpIsolatedStorageServiceConnection(this);
                         }
                         mFuture.cancel(/* mayInterruptIfRunning= */ true);
                     });
@@ -891,6 +969,7 @@ public class IsolatedStorageServiceManager {
                     () -> {
                         synchronized (mLock) {
                             mIsolatedStorageService = null;
+                            cleanUpIsolatedStorageServiceConnection(this);
                         }
                         mFuture.cancel(/* mayInterruptIfRunning= */ true);
                     });
@@ -915,6 +994,8 @@ public class IsolatedStorageServiceManager {
                     () -> {
                         synchronized (mLock) {
                             mIsolatedStorageService = null;
+                            cleanUpIsolatedStorageServiceConnection(
+                                    mIsolatedStorageServiceConnection);
                         }
                         replaceVmIcingInstances();
                     });
