@@ -188,7 +188,9 @@ public class AppSearchManagerServiceReceiverTest {
                                 mUserHandle,
                                 appSearchConfig,
                                 mAppSearchManagerService.getExecutorManager(),
-                                /* isolatedStorageServiceManager= */ null);
+                                /* isolatedStorageServiceManager= */ null,
+                                /* enableIsolatedStorageReverseMigration= */ false,
+                                /* isIsolatedStorageAvailable= */ false);
     }
 
     @After

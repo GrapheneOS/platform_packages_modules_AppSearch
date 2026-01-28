@@ -204,6 +204,8 @@ public class AppSearchManagerService extends SystemService {
     private final ExecutorManager mExecutorManager;
     private final AppSearchEnvironment mAppSearchEnvironment;
     private final ServiceAppSearchConfig mAppSearchConfig;
+    private final boolean mEnableIsolatedStorageReverseMigration;
+    private final boolean mIsIsolatedStorageAvailable;
 
     private PackageManager mPackageManager;
     private RoleManager mRoleManager;
@@ -242,11 +244,11 @@ public class AppSearchManagerService extends SystemService {
         mAppSearchEnvironment = AppSearchEnvironmentFactory.getEnvironmentInstance();
         mAppSearchConfig = AppSearchComponentFactory.getConfigInstance(SHARED_EXECUTOR, mContext);
         mSearchSessionStatsExtractor = new SearchSessionStatsExtractor();
-        boolean isIsolatedStorageAvailable =
+        mIsIsolatedStorageAvailable =
                 IsolatedStorageServiceManager.isIsolatedStorageAvailable(
                         mContext, mAppSearchConfig);
-        mExecutorManager = new ExecutorManager(mAppSearchConfig, isIsolatedStorageAvailable);
-        if (isIsolatedStorageAvailable) {
+        mExecutorManager = new ExecutorManager(mAppSearchConfig, mIsIsolatedStorageAvailable);
+        if (mIsIsolatedStorageAvailable) {
             Log.i(TAG, "Isolated storage is enabled.");
             mIsolatedStorageServiceManager =
                     new IsolatedStorageServiceManager(
@@ -256,6 +258,8 @@ public class AppSearchManagerService extends SystemService {
         } else {
             Log.i(TAG, "Isolated storage is not enabled.");
         }
+        mEnableIsolatedStorageReverseMigration =
+                mAppSearchConfig.getIsolatedStorageEnableReverseMigration();
     }
 
     @VisibleForTesting
@@ -456,7 +460,9 @@ public class AppSearchManagerService extends SystemService {
                                             userHandle,
                                             mAppSearchConfig,
                                             mExecutorManager,
-                                            mIsolatedStorageServiceManager);
+                                            mIsolatedStorageServiceManager,
+                                            mEnableIsolatedStorageReverseMigration,
+                                            mIsIsolatedStorageAvailable);
                             instance.getAppSearchImpl().clearPackageData(packageName);
 
                             if (Flags.enableDelayedPersistToDisk() || instance.isVMEnabled()) {
@@ -485,6 +491,22 @@ public class AppSearchManagerService extends SystemService {
         UserHandle userHandle = user.getUserHandle();
         mServiceImplHelper.setUserIsLocked(userHandle, false);
 
+        if (mEnableIsolatedStorageReverseMigration) {
+            File appSearchDir = mAppSearchEnvironment.getAppSearchDir(mContext, userHandle);
+            if (mIsolatedStorageServiceManager == null
+                    && DataMigrationUtil.migrationStatusFileExists(
+                            IsolatedStorageServiceManager.ISOLATED_STORAGE_USER, appSearchDir)) {
+                // If mIsolatedStorageServiceManager is disabled and data migration file exists
+                // that means VM was running before and migration happened but is not running
+                // anymore
+                // so we need to migrate data back from VM and hence initialize VM again.
+                mIsolatedStorageServiceManager =
+                        new IsolatedStorageServiceManager(
+                                mContext,
+                                mAppSearchConfig,
+                                ExecutorManager.createDefaultScheduledExecutorService());
+            }
+        }
         if (mIsolatedStorageServiceManager != null) {
             SHARED_EXECUTOR.execute(
                     () ->
@@ -501,18 +523,21 @@ public class AppSearchManagerService extends SystemService {
                         // Try to prune garbage package data, this is to recover if user remove a
                         // package and reboot the device before we prune the package data.
                         try {
-                            Context userContext = mAppSearchEnvironment
-                                    .createContextAsUser(mContext, userHandle);
+                            Context userContext =
+                                    mAppSearchEnvironment.createContextAsUser(mContext, userHandle);
                             AppSearchUserInstance instance =
                                     mAppSearchUserInstanceManager.getOrCreateUserInstance(
                                             userContext,
                                             userHandle,
                                             mAppSearchConfig,
                                             mExecutorManager,
-                                            mIsolatedStorageServiceManager);
-                            List<PackageInfo> installedPackageInfos = userContext
-                                    .getPackageManager()
-                                    .getInstalledPackages(/* flags= */ 0);
+                                            mIsolatedStorageServiceManager,
+                                            mEnableIsolatedStorageReverseMigration,
+                                            mIsIsolatedStorageAvailable);
+                            List<PackageInfo> installedPackageInfos =
+                                    userContext
+                                            .getPackageManager()
+                                            .getInstalledPackages(/* flags= */ 0);
                             Set<String> packagesToKeep =
                                     new ArraySet<>(installedPackageInfos.size());
                             for (int i = 0; i < installedPackageInfos.size(); i++) {
@@ -539,7 +564,8 @@ public class AppSearchManagerService extends SystemService {
 
                         // Try to schedule (daily) fully persist job.
                         try {
-                            AppSearchMaintenanceService.scheduleFullyPersistJob(mContext,
+                            AppSearchMaintenanceService.scheduleFullyPersistJob(
+                                    mContext,
                                     userHandle.getIdentifier(),
                                     mAppSearchConfig.getCachedFullyPersistJobIntervalMillis());
                         } catch (RuntimeException e) {
@@ -3833,7 +3859,10 @@ public class AppSearchManagerService extends SystemService {
             }
             CallStats.Builder callStatsBuilder = new CallStats.Builder();
             long waitExecutorStartTimeMillis = SystemClock.elapsedRealtime();
-            mExecutorManager.executeLambdaForUserAsync(targetUser, callback, callingPackageName,
+            mExecutorManager.executeLambdaForUserAsync(
+                    targetUser,
+                    callback,
+                    callingPackageName,
                     BaseStats.CALL_TYPE_INITIALIZE,
                     () -> {
                 long waitExecutorEndTimeMillis = SystemClock.elapsedRealtime();
@@ -3849,7 +3878,9 @@ public class AppSearchManagerService extends SystemService {
                             targetUser,
                             mAppSearchConfig,
                             mExecutorManager,
-                            mIsolatedStorageServiceManager);
+                            mIsolatedStorageServiceManager,
+                            mEnableIsolatedStorageReverseMigration,
+                            mIsIsolatedStorageAvailable);
                     // It is possible that data got modified during initialization (e.g. rebuild),
                     // so we have to check if we need to schedule persistToDisk.
                     if (Flags.enableDelayedPersistToDisk()) {

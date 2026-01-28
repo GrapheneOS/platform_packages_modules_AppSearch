@@ -166,7 +166,13 @@ public class AppSearchUserInstanceManagerTest {
         AppSearchUserInstance userInstance =
                 AppSearchUserInstanceManager.getInstance()
                         .getOrCreateUserInstance(
-                                mContext, mUserHandle, mServiceConfig, mExecutorManager, null);
+                                mContext,
+                                mUserHandle,
+                                mServiceConfig,
+                                mExecutorManager,
+                                null,
+                                /* enableIsolatedStorageReverseMigration= */ false,
+                                /* isIsolatedStorageAvailable= */ false);
 
         assertThat(userInstance).isNotNull();
         assertThat(userInstance.isVMEnabled()).isFalse();
@@ -178,12 +184,24 @@ public class AppSearchUserInstanceManagerTest {
         AppSearchUserInstance originalInstance =
                 AppSearchUserInstanceManager.getInstance()
                         .getOrCreateUserInstance(
-                                mContext, mUserHandle, mServiceConfig, mExecutorManager, null);
+                                mContext,
+                                mUserHandle,
+                                mServiceConfig,
+                                mExecutorManager,
+                                null,
+                                /* enableIsolatedStorageReverseMigration= */ false,
+                                /* isIsolatedStorageAvailable= */ false);
 
         AppSearchUserInstance newInstance =
                 AppSearchUserInstanceManager.getInstance()
                         .getOrCreateUserInstance(
-                                mContext, mUserHandle, mServiceConfig, mExecutorManager, null);
+                                mContext,
+                                mUserHandle,
+                                mServiceConfig,
+                                mExecutorManager,
+                                null,
+                                /* enableIsolatedStorageReverseMigration= */ false,
+                                /* isIsolatedStorageAvailable= */ false);
         assertThat(originalInstance).isSameInstanceAs(newInstance);
     }
 
@@ -200,7 +218,9 @@ public class AppSearchUserInstanceManagerTest {
                                             mUserHandle,
                                             mServiceConfig,
                                             mExecutorManager,
-                                            null));
+                                            null,
+                                            /* enableIsolatedStorageReverseMigration= */ false,
+                                            /* isIsolatedStorageAvailable= */ false));
 
             Future<AppSearchUserInstance> newInstanceFuture =
                     executor.submit(
@@ -210,7 +230,9 @@ public class AppSearchUserInstanceManagerTest {
                                             mUserHandle,
                                             mServiceConfig,
                                             mExecutorManager,
-                                            null));
+                                            null,
+                                            /* enableIsolatedStorageReverseMigration= */ false,
+                                            /* isIsolatedStorageAvailable= */ false));
             AppSearchUserInstance originalInstance = originalInstanceFuture.get();
             AppSearchUserInstance newInstance = newInstanceFuture.get();
             assertThat(originalInstance).isSameInstanceAs(newInstance);
@@ -229,7 +251,9 @@ public class AppSearchUserInstanceManagerTest {
                         mUserHandle,
                         mServiceConfig,
                         mExecutorManager,
-                        null);
+                        null,
+                        /* enableIsolatedStorageReverseMigration= */ false,
+                        /* isIsolatedStorageAvailable= */ false);
         assertThat(instance).isNotNull();
 
         // Verify handle expired documents alarm was reset.
@@ -261,7 +285,13 @@ public class AppSearchUserInstanceManagerTest {
                         AppSearchException.class,
                         () ->
                                 manager.getOrCreateUserInstance(
-                                        mContext, mUserHandle, cancellingConfig, null, null));
+                                        mContext,
+                                        mUserHandle,
+                                        cancellingConfig,
+                                        null,
+                                        null,
+                                        /* enableIsolatedStorageReverseMigration= */ false,
+                                        /* isIsolatedStorageAvailable= */ false));
         assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
         Future<AppSearchUserInstance> cancelledFuture =
                 manager.getUserInstanceCreationFuture(mUserHandle);
@@ -269,7 +299,13 @@ public class AppSearchUserInstanceManagerTest {
         // On second run the cancellingConfig will not cancel user creation.
         AppSearchUserInstance userInstance =
                 manager.getOrCreateUserInstance(
-                        mContext, mUserHandle, cancellingConfig, null, null);
+                        mContext,
+                        mUserHandle,
+                        cancellingConfig,
+                        null,
+                        null,
+                        /* enableIsolatedStorageReverseMigration= */ false,
+                        /* isIsolatedStorageAvailable= */ false);
         assertThat(userInstance).isNotNull();
     }
 
@@ -290,14 +326,27 @@ public class AppSearchUserInstanceManagerTest {
                         AppSearchException.class,
                         () ->
                                 manager.getOrCreateUserInstance(
-                                        mContext, mUserHandle, exceptionConfig, null, null));
+                                        mContext,
+                                        mUserHandle,
+                                        exceptionConfig,
+                                        null,
+                                        null,
+                                        /* enableIsolatedStorageReverseMigration= */ false,
+                                        /* isIsolatedStorageAvailable= */ false));
         assertThat(exception.getCause()).isInstanceOf(ExecutionException.class);
         Future<AppSearchUserInstance> exceptionInstance =
                 manager.getUserInstanceCreationFuture(mUserHandle);
         assertThat(exceptionInstance.isDone()).isTrue();
 
         AppSearchUserInstance instance =
-                manager.getOrCreateUserInstance(mContext, mUserHandle, exceptionConfig, null, null);
+                manager.getOrCreateUserInstance(
+                        mContext,
+                        mUserHandle,
+                        exceptionConfig,
+                        null,
+                        null,
+                        /* enableIsolatedStorageReverseMigration= */ false,
+                        /* isIsolatedStorageAvailable= */ false);
         assertThat(instance).isNotNull();
     }
 
@@ -308,7 +357,13 @@ public class AppSearchUserInstanceManagerTest {
                 List.of(new UserHandle(0), new UserHandle(1), new UserHandle(2));
         for (UserHandle userHandle : userHandles) {
             manager.getOrCreateUserInstance(
-                    mContext, userHandle, mServiceConfig, mExecutorManager, null);
+                    mContext,
+                    userHandle,
+                    mServiceConfig,
+                    mExecutorManager,
+                    null,
+                    /* enableIsolatedStorageReverseMigration= */ false,
+                    /* isIsolatedStorageAvailable= */ false);
         }
         assertThat(manager.getAllUserHandles()).containsExactlyElementsIn(userHandles);
     }
@@ -317,7 +372,13 @@ public class AppSearchUserInstanceManagerTest {
     public void closeAndRemoveUserInstance_removesInstance() throws AppSearchException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         manager.getOrCreateUserInstance(
-                mContext, mUserHandle, mServiceConfig, mExecutorManager, null);
+                mContext,
+                mUserHandle,
+                mServiceConfig,
+                mExecutorManager,
+                null,
+                /* enableIsolatedStorageReverseMigration= */ false,
+                /* isIsolatedStorageAvailable= */ false);
 
         manager.closeAndRemoveUserInstance(mUserHandle, /* removeUserData= */ true);
         assertThat(manager.getAllUserHandles()).doesNotContain(mUserHandle);
@@ -344,7 +405,13 @@ public class AppSearchUserInstanceManagerTest {
             throws AppSearchException, ExecutionException, InterruptedException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
         manager.getOrCreateUserInstance(
-                mContext, mUserHandle, mServiceConfig, mExecutorManager, null);
+                mContext,
+                mUserHandle,
+                mServiceConfig,
+                mExecutorManager,
+                null,
+                /* enableIsolatedStorageReverseMigration= */ false,
+                /* isIsolatedStorageAvailable= */ false);
 
         try (ExecutorService executor = Executors.newFixedThreadPool(1)) {
             manager.lockInstanceMap();
@@ -382,7 +449,9 @@ public class AppSearchUserInstanceManagerTest {
                                                     mServiceConfig,
                                                     mExecutorManager
                                                             .getOrCreateUserScheduledExecutor(
-                                                                    mUserHandle))));
+                                                                    mUserHandle)),
+                                            /* enableIsolatedStorageReverseMigration= */ false,
+                                            /* isIsolatedStorageAvailable= */ false));
             assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
             assertThat(manager.getAllUserHandles()).containsExactly(mUserHandle);
         } finally {
@@ -434,7 +503,9 @@ public class AppSearchUserInstanceManagerTest {
                                             mUserHandle,
                                             mServiceConfig,
                                             mExecutorManager,
-                                            issManager));
+                                            issManager,
+                                            /* enableIsolatedStorageReverseMigration= */ false,
+                                            /* isIsolatedStorageAvailable= */ false));
             assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
         } finally {
             cleanUpUserExecutor(mUserHandle);
@@ -496,7 +567,9 @@ public class AppSearchUserInstanceManagerTest {
                                             mUserHandle,
                                             mServiceConfig,
                                             mExecutorManager,
-                                            spyIsolatedStorageServiceManager));
+                                            spyIsolatedStorageServiceManager,
+                                            /* enableIsolatedStorageReverseMigration= */ false,
+                                            /* isIsolatedStorageAvailable= */ false));
             assertThat(exception.getCause()).isInstanceOf(CancellationException.class);
         } finally {
             cleanUpUserExecutor(mUserHandle);

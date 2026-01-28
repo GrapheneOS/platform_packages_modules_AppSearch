@@ -247,7 +247,13 @@ public class AppSearchManagerServiceTest {
         mUserInstance =
                 AppSearchUserInstanceManager.getInstance()
                         .getOrCreateUserInstance(
-                                mContext, mUserHandle, appSearchConfig, mExecutorManager, null);
+                                mContext,
+                                mUserHandle,
+                                appSearchConfig,
+                                mExecutorManager,
+                                null,
+                                /* enableIsolatedStorageReverseMigration= */ false,
+                                /* isIsolatedStorageAvailable= */ false);
         mLogger = spy(mUserInstance.getLogger());
         mUserInstance.setLoggerForTest(mLogger);
 
@@ -1640,7 +1646,9 @@ public class AppSearchManagerServiceTest {
                                         mUserHandle,
                                         appSearchConfig,
                                         mExecutorManager,
-                                        isolatedStorageServiceManager));
+                                        isolatedStorageServiceManager,
+                                        /* enableIsolatedStorageReverseMigration= */ false,
+                                        /* isIsolatedStorageAvailable= */ false));
     }
 
     @Test
