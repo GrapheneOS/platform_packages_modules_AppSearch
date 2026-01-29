@@ -354,7 +354,8 @@ public class DataMigrationUtilTest {
         File icingVersion = new File(appSearchDir, "icing/version");
 
         assertThat(icingVersion.exists()).isTrue();
-        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle)).isTrue();
+        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle))
+                .isEqualTo(DataMigrationUtil.MIGRATION_TO_AEGIS_NEEDED);
     }
 
     @Test
@@ -386,7 +387,8 @@ public class DataMigrationUtilTest {
 
         assertThat(dataMigrationStatusFile.exists()).isTrue();
         assertThat(icingVersion.exists()).isTrue();
-        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle)).isTrue();
+        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle))
+                .isEqualTo(DataMigrationUtil.MIGRATION_TO_AEGIS_NEEDED);
     }
 
     @Test
@@ -406,7 +408,8 @@ public class DataMigrationUtilTest {
 
         assertThat(icingDir.exists()).isTrue();
         assertThat(icingVersion.exists()).isFalse();
-        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle)).isFalse();
+        assertThat(DataMigrationUtil.needDataMigration(mContext, mUserHandle))
+                .isEqualTo(DataMigrationUtil.MIGRATION_COMPLETED);
     }
 
     @Test

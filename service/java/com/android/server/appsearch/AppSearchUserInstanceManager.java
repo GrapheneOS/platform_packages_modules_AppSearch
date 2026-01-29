@@ -982,7 +982,8 @@ public final class AppSearchUserInstanceManager {
             DataMigrationUtil.writeMigrationStatus(appSearchDir, /* migrationStats= */ null);
         }
 
-        if (!DataMigrationUtil.needDataMigration(userContext, userHandle)) {
+        if (DataMigrationUtil.needDataMigration(userContext, userHandle)
+                == DataMigrationUtil.MIGRATION_COMPLETED) {
             // Data migration is not needed. But we still want to log an entry to
             // indicate that data migration is correctly skipped.
             if (vmFirstRun) {
