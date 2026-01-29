@@ -947,3 +947,13 @@ flag {
     description: "Use AiSeal isolated storage service for storing user data."
     bug: "465465109"
 }
+flag {
+    name: "enable_restrict_visibility_on_empty_permissions"
+    namespace: "appsearch"
+    description: "Prevents an empty set in addRequiredPermissionsForSchemaTypeVisibility from granting visibility to all packages."
+    bug: "460807276"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
