@@ -433,9 +433,6 @@ public class AppFunctionsIndexerUtil {
         try {
             return packageManager.getProperty(propertyName, packageName);
         } catch (PackageManager.NameNotFoundException e) {
-            if (LogUtil.DEBUG) {
-                Log.d(TAG, "Property " + propertyName + " not found for package " + packageName, e);
-            }
             return null;
         }
     }
@@ -448,12 +445,6 @@ public class AppFunctionsIndexerUtil {
         try {
             return packageManager.getProperty(propertyName, componentName);
         } catch (PackageManager.NameNotFoundException e) {
-            if (LogUtil.DEBUG) {
-                Log.d(
-                        TAG,
-                        "Property " + propertyName + " not found for component " + componentName,
-                        e);
-            }
             return null;
         }
     }
