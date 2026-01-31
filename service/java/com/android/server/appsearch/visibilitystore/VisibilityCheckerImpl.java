@@ -16,11 +16,11 @@
 // @exportToGMSCore:skipFile()
 package com.android.server.appsearch.visibilitystore;
 
+import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS;
 import static android.Manifest.permission.EXECUTE_APP_FUNCTIONS_SYSTEM;
 import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static android.Manifest.permission.READ_ASSISTANT_APP_SEARCH_DATA;
-import static android.Manifest.permission.DISCOVER_APP_FUNCTIONS;
 import static android.Manifest.permission.READ_CALENDAR;
 import static android.Manifest.permission.READ_CONTACTS;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
@@ -336,6 +336,7 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
         for (Set<Integer> allRequiredPermissions : visibleToPermissions) {
             // User may set multiple required permission sets. Provider need to hold ALL required
             // permission of ANY of the individual value sets.
+
             if (doesCallerHoldsAllRequiredPermissions(
                     allRequiredPermissions, callerAttributionSource, checkEnterpriseAccess)) {
                 // The calling package has all required permissions in this set, return true.
@@ -351,6 +352,12 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             @NonNull Set<Integer> allRequiredPermissions,
             @NonNull AppSearchAttributionSource callerAttributionSource,
             boolean checkEnterpriseAccess) {
+        if (Flags.enableRestrictVisibilityOnEmptyPermissions()
+                && allRequiredPermissions.isEmpty()) {
+            // An empty set of required permissions does not grant access.
+            return false;
+        }
+
         // A permissions set with ENTERPRISE_ACCESS should only be checked by enterprise calls,
         // and enterprise calls should only check permission sets with ENTERPRISE_ACCESS
         boolean isEnterprisePermissionsSet =
