@@ -266,6 +266,8 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
      * <p>Functions that are defined at the service level in the manifest will default to {@link
      * #SCOPE_GLOBAL} scope. While functions defined at the application level would explicitly need
      * to specify the scope.
+     *
+     * @see android.app.appfunctions.AppFunctionMetadata#getScope()
      */
     @Nullable
     public String getScope() {
