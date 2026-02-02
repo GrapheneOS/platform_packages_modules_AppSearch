@@ -52,12 +52,24 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
     public static final String PROPERTY_ENABLED_BY_DEFAULT = "enabledByDefault";
     public static final String PROPERTY_RESTRICT_CALLERS_WITH_EXECUTE_APP_FUNCTIONS =
             "restrictCallersWithExecuteAppFunctions";
+    public static final String PROPERTY_SCOPE = "scope";
+
+    // TODO: b/479798651 - Use constants from the AppFunctionMetadata API once it's available.
+    public static final String SCOPE_GLOBAL = "global";
+    public static final String SCOPE_ACTIVITY = "activity";
 
     /** Service name for app functions which are defined on the application level. */
     public static final String APPLICATION_LEVEL_SERVICE_NAME = "@null";
 
     public static final AppSearchSchema.StringPropertyConfig SERVICE_PROPERTY_CONFIG =
             new AppSearchSchema.StringPropertyConfig.Builder(PROPERTY_SERVICE_NAME)
+                    .setCardinality(AppSearchSchema.StringPropertyConfig.CARDINALITY_OPTIONAL)
+                    .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
+                    .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM)
+                    .build();
+
+    public static final AppSearchSchema.StringPropertyConfig SCOPE_PROPERTY_CONFIG =
+            new AppSearchSchema.StringPropertyConfig.Builder(PROPERTY_SCOPE)
                     .setCardinality(AppSearchSchema.StringPropertyConfig.CARDINALITY_OPTIONAL)
                     .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
                     .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM)
@@ -73,6 +85,10 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
      * @param packageName The package name to create a schema for. Will create the base schema if it
      *     is null.
      */
+    // LINT.IfChange
+    // IMPORTANT: Any new properties added here must be added to AppFunctionSchemaParser as well
+    // to automatically include them in child types of this schema, preventing apps build with older
+    // dynamic schema to become incompatible.
     @NonNull
     public static AppSearchSchema createAppFunctionSchemaForPackage(@Nullable String packageName) {
         AppSearchSchema.Builder builder =
@@ -87,6 +103,7 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
 
         if (isAppLevelAppFunctionsEnabled()) {
             builder.addProperty(SERVICE_PROPERTY_CONFIG);
+            builder.addProperty(SCOPE_PROPERTY_CONFIG);
         }
 
         return builder.addProperty(
@@ -160,6 +177,8 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
                                 .build())
                 .build();
     }
+
+    // LINT.ThenChange(/packages/modules/AppSearch/service/java/com/android/server/appsearch/appsindexer/AppFunctionSchemaParser.java)
 
     public AppFunctionStaticMetadata(@NonNull GenericDocument genericDocument) {
         super(genericDocument);
@@ -237,6 +256,32 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
     @VisibleForTesting
     public String getMobileApplicationQualifiedId() {
         return getPropertyString(PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID);
+    }
+
+    /**
+     * Returns the scope of the function.
+     *
+     * <p>It can be either {@link #SCOPE_GLOBAL} or {@link #SCOPE_ACTIVITY}.
+     *
+     * <p>Functions that are defined at the service level in the manifest will default to {@link
+     * #SCOPE_GLOBAL} scope. While functions defined at the application level would explicitly need
+     * to specify the scope.
+     */
+    @Nullable
+    public String getScope() {
+        return getPropertyString(PROPERTY_SCOPE);
+    }
+
+    /**
+     * Returns the service name for the function derived from the enclosing service tag where the
+     * function defining XML is specified.
+     *
+     * <p>If the function is defined at the application level, this will be {@link
+     * #APPLICATION_LEVEL_SERVICE_NAME}.
+     */
+    @Nullable
+    public String getServiceName() {
+        return getPropertyString(PROPERTY_SERVICE_NAME);
     }
 
     /** Whether a parent type should be set for {@link AppFunctionStaticMetadata}. */
@@ -331,9 +376,28 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
         @NonNull
         public Builder setServiceName(@NonNull String serviceName) {
             Objects.requireNonNull(serviceName);
+
+            // Service level functions were launched in A16, hence we default to global scope for
+            // them, however functions defined at the application level (to be launched in next
+            // version) need to explicitly specify the scope.
+            if (!APPLICATION_LEVEL_SERVICE_NAME.equals(serviceName)) {
+                setScope(SCOPE_GLOBAL);
+            }
+
             if (!serviceName.isEmpty()) {
                 setPropertyString(PROPERTY_SERVICE_NAME, serviceName);
             }
+            return this;
+        }
+
+        /**
+         * Sets the scope of the function.
+         *
+         * @param scope The scope of the function.
+         */
+        @NonNull
+        public Builder setScope(@NonNull String scope) {
+            setPropertyString(PROPERTY_SCOPE, scope);
             return this;
         }
 
@@ -355,10 +419,41 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
             return this;
         }
 
-        /** Creates the {@link AppFunctionStaticMetadata} GenericDocument. */
+        /**
+         * Creates the {@link AppFunctionStaticMetadata} GenericDocument.
+         *
+         * @throws IllegalStateException if the built document is invalid.
+         */
         @NonNull
         public AppFunctionStaticMetadata build() {
-            return new AppFunctionStaticMetadata(super.build());
+            AppFunctionStaticMetadata appFunctionStaticMetadata =
+                    new AppFunctionStaticMetadata(super.build());
+            if (isAppLevelAppFunctionsEnabled() && !isScopeValid(appFunctionStaticMetadata)) {
+                throw new IllegalStateException(
+                        "Invalid scope: " + appFunctionStaticMetadata.getScope());
+            }
+            return appFunctionStaticMetadata;
+        }
+
+        /**
+         * Checks if the scope is valid.
+         *
+         * <p>The scope must be either {@link #SCOPE_GLOBAL} or {@link #SCOPE_ACTIVITY}. Activity
+         * scope is only valid for application level app functions.
+         */
+        private static boolean isScopeValid(
+                @NonNull AppFunctionStaticMetadata appFunctionStaticMetadata) {
+            final String scope = appFunctionStaticMetadata.getScope();
+            if (SCOPE_GLOBAL.equals(scope)) {
+                return true;
+            }
+            if (SCOPE_ACTIVITY.equals(scope)) {
+                // Activity scope is only valid for application level app functions.
+                return APPLICATION_LEVEL_SERVICE_NAME.equals(
+                        appFunctionStaticMetadata.getServiceName());
+            }
+            // Other scope types are not supported, or scope is not set.
+            return false;
         }
     }
 }

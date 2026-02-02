@@ -17,6 +17,7 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
 import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.SERVICE_PROPERTY_CONFIG;
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.SCOPE_PROPERTY_CONFIG;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
@@ -33,6 +34,7 @@ import android.util.Log;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
+import java.util.List;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -181,6 +183,8 @@ public class AppFunctionSchemaParser {
         parser.setInput(xsdInputStream, null);
 
         AppSearchSchema.Builder schemaBuilder = null;
+        // Keep track of all property names to avoid duplicate properties in the schema.
+        Set<String> seenPropertyNames = new ArraySet<>();
 
         while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
             switch (parser.getEventType()) {
@@ -211,6 +215,9 @@ public class AppFunctionSchemaParser {
 
                                 if (isAppLevelAppFunctionsEnabled()) {
                                     schemaBuilder.addProperty(SERVICE_PROPERTY_CONFIG);
+                                    seenPropertyNames.add(SERVICE_PROPERTY_CONFIG.getName());
+                                    schemaBuilder.addProperty(SCOPE_PROPERTY_CONFIG);
+                                    seenPropertyNames.add(SCOPE_PROPERTY_CONFIG.getName());
                                 }
                             }
                         }
@@ -218,7 +225,11 @@ public class AppFunctionSchemaParser {
                         AppSearchSchema.PropertyConfig propertyConfig =
                                 computePropertyConfigFromXsdType(
                                         parser, packageName, nestedSchemaTypes);
-                        if (propertyConfig != null) schemaBuilder.addProperty(propertyConfig);
+                        if (propertyConfig != null
+                                && !seenPropertyNames.contains(propertyConfig.getName())) {
+                            schemaBuilder.addProperty(propertyConfig);
+                            seenPropertyNames.add(propertyConfig.getName());
+                        }
                     }
                     break;
 
@@ -228,6 +239,7 @@ public class AppFunctionSchemaParser {
                             AppSearchSchema schema = schemaBuilder.build();
                             schemas.put(schema.getSchemaType(), schema);
                             schemaBuilder = null;
+                            seenPropertyNames.clear();
                         }
                     }
                     break;
