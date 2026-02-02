@@ -117,10 +117,14 @@ public class AppFunctionDiffCalculatorTest {
         AppFunctionDocument oldDoc =
                 new AppFunctionStaticMetadata.Builder(TEST_PACKAGE_NAME, "func1", "android")
                         .setEnabledByDefault(false)
+                        .setServiceName("TestAppFunctionService")
+                        .setScope("global")
                         .build();
         AppFunctionDocument newDoc =
                 new AppFunctionStaticMetadata.Builder(TEST_PACKAGE_NAME, "func1", "android")
                         .setEnabledByDefault(true)
+                        .setServiceName("TestAppFunctionService")
+                        .setScope("global")
                         .build();
         Map<String, Map<String, AppFunctionDocument>> stored =
                 Map.of("com.example", Map.of("func1", oldDoc));

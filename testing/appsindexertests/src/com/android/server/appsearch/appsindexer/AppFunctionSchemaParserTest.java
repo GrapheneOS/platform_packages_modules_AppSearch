@@ -307,6 +307,71 @@ public class AppFunctionSchemaParserTest {
         assertThat(schemas).isEmpty();
     }
 
+    @Test
+    public void parse_duplicateProperty_ignoresDuplicate() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
+        String xsd =
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
+                        + APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES
+                        + "        <xs:element name=\"name\" type=\"xs:string\" />"
+                        + "        <xs:element name=\"age\" type=\"xs:int\" />"
+                        + "        <xs:element name=\"name\" type=\"xs:boolean\" />" // duplicate
+                        + "    </xs:documentType>"
+                        + "</xs:schema>";
+        setXmlInput(xsd);
+
+        Map<String, AppSearchSchema> schemas =
+                mParser.parseAndCreateSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+
+        assertThat(schemas).hasSize(1);
+        assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
+                .isEqualTo(
+                        new AppSearchSchema.Builder(
+                                        AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA)
+                                .setSchemaType("AppFunctionStaticMetadata-com.example.app")
+                                .addParentType("AppFunctionStaticMetadata")
+                                .addProperty(new StringPropertyConfig.Builder("name").build())
+                                .addProperty(new LongPropertyConfig.Builder("age").build())
+                                .build());
+    }
+
+    @Test
+    public void parse_duplicateServiceNameAndScope_ignoresDuplicate() throws Exception {
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
+        String xsd =
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
+                        + APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES
+                        // These should be ignored and the ones from AppFunctionStaticMetadata used
+                        // instead.
+                        + "        <xs:element name=\"serviceName\" type=\"xs:string\""
+                        + "             cardinality=\""
+                        + PropertyConfig.CARDINALITY_OPTIONAL
+                        + "\" />"
+                        + "        <xs:element name=\"scope\" type=\"xs:string\""
+                        + "             cardinality=\""
+                        + PropertyConfig.CARDINALITY_REPEATED
+                        + "\" />"
+                        + "    </xs:documentType>"
+                        + "</xs:schema>";
+        setXmlInput(xsd);
+
+        Map<String, AppSearchSchema> schemas =
+                mParser.parseAndCreateSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+
+        assertThat(schemas).hasSize(1);
+        AppSearchSchema expectedSchema =
+                new AppSearchSchema.Builder(AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA)
+                        .setSchemaType("AppFunctionStaticMetadata-com.example.app")
+                        .addParentType("AppFunctionStaticMetadata")
+                        .build();
+        assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
+                .isEqualTo(expectedSchema);
+    }
+
     private void setXmlInput(String xml) throws IOException {
         InputStream inputStream = new ByteArrayInputStream(xml.getBytes());
         when(mAssetManager.open(TEST_XML_ASSET_FILE_PATH)).thenReturn(inputStream);
