@@ -16,6 +16,7 @@
 package com.android.server.appsearch.isolated_storage_service;
 
 import android.annotation.NonNull;
+import android.app.appsearch.util.LogUtil;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -109,7 +110,8 @@ final class VmStateSignaler {
         synchronized (mLock) {
             mNumActivitiesLocked--;
             if (mNumActivitiesLocked < 0) {
-                Log.wtf(TAG, "mNumActivitiesLocked =" + mNumActivitiesLocked);
+                LogUtil.criticalError(
+                        TAG, "mNumActivitiesLocked =" + mNumActivitiesLocked, /* tr= */ null);
             }
             if (mEnabledLocked && mNumActivitiesLocked == 0) {
                 mHandler.postDelayed(mVmStateIdleSetter, INACTIVITY_TIMEOUT_MS);
@@ -125,10 +127,11 @@ final class VmStateSignaler {
         if (mLock.tryLock()) {
             try {
                 if (mNumActivitiesLocked != 0) {
-                    Log.wtf(
+                    LogUtil.criticalError(
                             TAG,
                             "finalizing VmStateSignaler with mNumActivitiesLocked ="
-                                    + mNumActivitiesLocked);
+                                    + mNumActivitiesLocked,
+                            /* tr= */ null);
                 }
             } finally {
                 mLock.unlock();
