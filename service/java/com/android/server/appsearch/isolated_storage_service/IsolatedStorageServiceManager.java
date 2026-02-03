@@ -467,7 +467,12 @@ public class IsolatedStorageServiceManager {
         try {
             mBindIsolatedStorageServiceFuture.get(BINDING_WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
-            Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+            String msg =
+                    "Timed out waiting to bind to "
+                            + ISOLATED_STORAGE_SERVICE
+                            + ". Service binding in progress: "
+                            + mIsBindingToIsolatedStorageService;
+            Log.e(TAG, msg, e);
             // If mIsolatedStorageService is null and we are not actively binding to the service,
             // there
             // may have been a binding error. Clean-up the binder connection to avoid exhausting the
@@ -476,21 +481,24 @@ public class IsolatedStorageServiceManager {
             if (mIsolatedStorageService == null && !mIsBindingToIsolatedStorageService) {
                 cleanUpIsolatedStorageServiceConnection(mIsolatedStorageServiceConnection);
             }
-            throw new AppSearchException(
-                    RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE, e);
+            throw new AppSearchException(RESULT_UNAVAILABLE, msg, e);
         }
         if (mIsolatedStorageService == null) {
-            Log.e(TAG, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
             // If mIsolatedStorageService is null and we are not actively binding to the service,
             // there
             // may have been a binding error. Clean-up the binder connection to avoid exhausting the
             // service
             // limit.
+            String msg;
             if (!mIsBindingToIsolatedStorageService) {
+                msg = "Failed to bind to " + ISOLATED_STORAGE_SERVICE;
+                Log.e(TAG, msg);
                 cleanUpIsolatedStorageServiceConnection(mIsolatedStorageServiceConnection);
+            } else {
+                msg = "Binding to " + ISOLATED_STORAGE_SERVICE + " still in progress";
+                Log.i(TAG, msg);
             }
-            throw new AppSearchException(
-                    RESULT_UNAVAILABLE, "Unable to bind to " + ISOLATED_STORAGE_SERVICE);
+            throw new AppSearchException(RESULT_UNAVAILABLE, msg);
         }
     }
 
