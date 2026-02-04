@@ -221,6 +221,7 @@ class TestUtils {
                     + "  <AppFunctionStaticMetadata>\n"
                     + "    <id>com.appLevelSchema.utils#print</id>\n"
                     + "    <functionId>com.appLevelSchema.utils#print</functionId>\n"
+                    + "    <scope>global</scope>\n"
                     + "  </AppFunctionStaticMetadata>\n"
                     + "</appfunctions>";
 
@@ -231,6 +232,7 @@ class TestUtils {
                     + "  <AppFunctionStaticMetadata>\n"
                     + "    <id>com.appLevelSchema.utils#search</id>\n"
                     + "    <functionId>com.appLevelSchema.utils#search</functionId>\n"
+                    + "    <scope>global</scope>\n"
                     + "  </AppFunctionStaticMetadata>\n"
                     + "</appfunctions>";
 
@@ -536,6 +538,8 @@ class TestUtils {
                         FAKE_PACKAGE_PREFIX + packageVariant,
                         "function_id" + functionVariant,
                         context.getPackageName())
+                .setServiceName("TestAppFunctionService")
+                .setScope("global")
                 .build();
     }
 

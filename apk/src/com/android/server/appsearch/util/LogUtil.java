@@ -1,0 +1,54 @@
+/*
+ * Copyright 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.android.server.appsearch.util;
+
+import android.os.Process;
+import android.util.Log;
+
+/**
+ * Utilities for logging to logcat.
+ *
+ * <p>This class is a modified version of android.app.appsearch.util.LogUtil that is used to avoid
+ * adding framework-appsearch as another build dependency.
+ */
+public class LogUtil {
+
+    // Do not instantiate.
+    private LogUtil() {}
+
+    /**
+     * Logs a severe error at the Log.e level or higher. The error may also, on some backends, be
+     * reported as a crash or tombstone to an error collecting system.
+     *
+     * <p>This method is a version of android.app.appsearch.util.LogUtil that does not check
+     * environment as this code will only run in framework.
+     *
+     * @param tag The tag used for logging.
+     * @param msg The log message to print to logcat.
+     * @param tr Optional exception to associate with the log.
+     */
+    public static void logCriticalError(String tag, String msg, Throwable tr) {
+        // In the system service, Log.wtf messages are reported to the tombstone/crash/system
+        // health aggregation systems. However, on some devices 'wtf' logs may be fatal
+        // (determined by system properties) so avoid using that level on other environments to
+        // avoid crashing apps.
+        if (Process.myUid() == Process.SYSTEM_UID) {
+            Log.wtf(tag, msg, tr);
+        } else {
+            Log.e(tag, msg, tr);
+        }
+    }
+}
