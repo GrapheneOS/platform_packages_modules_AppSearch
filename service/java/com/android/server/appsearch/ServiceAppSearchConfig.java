@@ -368,6 +368,11 @@ public interface ServiceAppSearchConfig extends AppSearchConfig, AutoCloseable {
         return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION;
     }
 
+    /** Returns whether or not we want to enable reverse migration back from VM to host. */
+    default boolean getIsolatedStorageEnableReverseMigration() {
+        return IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLE_REVERSE_MIGRATION;
+    }
+
     /**
      * Returns whether enabling Icing background task scheduler or not.
      *

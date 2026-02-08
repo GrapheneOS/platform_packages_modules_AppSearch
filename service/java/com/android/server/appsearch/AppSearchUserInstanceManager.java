@@ -54,6 +54,7 @@ import com.android.server.appsearch.isolated_storage_service.IsolatedStorageServ
 import com.android.server.appsearch.util.ExecutorManager;
 
 import com.google.android.icing.IcingSearchEngineInterface;
+import com.google.android.icing.proto.IcingSearchEngineOptions;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -172,7 +173,9 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager,
+            boolean enableIsolatedStorageReverseMigration,
+            boolean isIsolatedStorageAvailable)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
@@ -183,14 +186,18 @@ public final class AppSearchUserInstanceManager {
                     userHandle,
                     config,
                     executorManager,
-                    isolatedStorageServiceManager);
+                    isolatedStorageServiceManager,
+                    enableIsolatedStorageReverseMigration,
+                    isIsolatedStorageAvailable);
         } else {
             return internalGetOrCreateUserInstance(
                     userContext,
                     userHandle,
                     config,
                     executorManager,
-                    isolatedStorageServiceManager);
+                    isolatedStorageServiceManager,
+                    enableIsolatedStorageReverseMigration,
+                    isIsolatedStorageAvailable);
         }
     }
 
@@ -366,7 +373,9 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager,
+            boolean enableIsolatedStorageReverseDataMigration,
+            boolean isIsolatedStorageAvailable)
             throws AppSearchException {
         long totalLatencyStartMillis = SystemClock.elapsedRealtime();
         InitializeStats.Builder initStatsBuilder = new InitializeStats.Builder();
@@ -380,10 +389,21 @@ public final class AppSearchUserInstanceManager {
                         .getAppSearchDir(userContext, userHandle);
         File icingDir = new File(appSearchDir, "icing");
         IcingSearchEngineInterface icingInstance = null;
+        // When the aegis flag is disabled but data migration file exists,
+        // isIsolatedStorageAvailable
+        // returns false but isolatedStorageServiceManager will be non-null as we initialized it in
+        // onUserUnlock for reverse migration.
         boolean isVMEnabledForUser =
-                isolatedStorageServiceManager != null
+                (enableIsolatedStorageReverseDataMigration
+                                ? isIsolatedStorageAvailable
+                                : isolatedStorageServiceManager != null)
                         && IsolatedStorageServiceManager.isUserAllowed(userHandle);
-        if (isVMEnabledForUser) {
+        boolean wasVmEnabledBefore =
+                IsolatedStorageServiceManager.isUserAllowed(userHandle)
+                        && DataMigrationUtil.migrationStatusFileExists(userHandle, appSearchDir);
+
+        if (isVMEnabledForUser
+                || (enableIsolatedStorageReverseDataMigration && wasVmEnabledBefore)) {
             if (LogUtil.INFO) {
                 Log.i(
                         TAG,
@@ -397,9 +417,12 @@ public final class AppSearchUserInstanceManager {
                             userHandle,
                             config,
                             executorManager,
+                            /* skipDataMigration= */ !isVMEnabledForUser,
                             isolatedStorageServiceManager,
-                            logger);
-        } else {
+                            logger,
+                            enableIsolatedStorageReverseDataMigration);
+        } else if (!enableIsolatedStorageReverseDataMigration) {
+            // If reverse data migration is enabled we will not clean isolated storage.
             if (LogUtil.INFO) {
                 Log.i(
                         TAG,
@@ -421,6 +444,20 @@ public final class AppSearchUserInstanceManager {
                 DataMigrationUtil.deleteMigrationStatus(userHandle, appSearchDir);
             }
         }
+
+        // Reverse Migration needed.
+        if (enableIsolatedStorageReverseDataMigration
+                && !isVMEnabledForUser
+                && wasVmEnabledBefore) {
+            Log.i(TAG, "Schedule reverse migration.");
+            // icingInstance for VM has been created.
+            if (icingInstance != null) {
+                // We should only try to run reverse migration once when we first detect the VM is
+                // disabled.
+                scheduleReverseDataMigration(userContext, userHandle, config, executorManager);
+            }
+        }
+
         VisibilityChecker visibilityCheckerImpl =
                 AppSearchComponentFactory.createVisibilityCheckerInstance(userContext);
         FrameworkRevocableFileDescriptorStore frameworkRevocableFileDescriptorStore = null;
@@ -543,7 +580,9 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager) {
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager,
+            boolean enableIsolatedStorageReverseMigration,
+            boolean isIsolatedStorageAvailable) {
         return mAppSearchUserInstanceExecutorService.submit(
                 () ->
                         createUserInstance(
@@ -551,7 +590,9 @@ public final class AppSearchUserInstanceManager {
                                 userHandle,
                                 config,
                                 executorManager,
-                                isolatedStorageServiceManager));
+                                isolatedStorageServiceManager,
+                                enableIsolatedStorageReverseMigration,
+                                isIsolatedStorageAvailable));
     }
 
     private AppSearchUserInstance getOrCreateUserInstanceFuture(
@@ -559,7 +600,9 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager,
+            boolean enableIsolatedStorageReverseMigration,
+            boolean isIsolatedStorageAvailable)
             throws AppSearchException {
         Future<AppSearchUserInstance> instanceFuture;
         mFutureInstanceMapLock.lock();
@@ -572,7 +615,9 @@ public final class AppSearchUserInstanceManager {
                                 userHandle,
                                 config,
                                 executorManager,
-                                isolatedStorageServiceManager);
+                                isolatedStorageServiceManager,
+                                enableIsolatedStorageReverseMigration,
+                                isIsolatedStorageAvailable);
                 mFutureInstancesLocked.put(userHandle, instanceFuture);
             }
         } finally {
@@ -720,7 +765,9 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
-            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager)
+            @Nullable IsolatedStorageServiceManager isolatedStorageServiceManager,
+            boolean enableIsolatedStorageReverseMigration,
+            boolean isIsolatedStorageAvailable)
             throws AppSearchException {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
@@ -736,7 +783,9 @@ public final class AppSearchUserInstanceManager {
                                 userHandle,
                                 config,
                                 executorManager,
-                                isolatedStorageServiceManager);
+                                isolatedStorageServiceManager,
+                                enableIsolatedStorageReverseMigration,
+                                isIsolatedStorageAvailable);
                 mInstancesLocked.put(userHandle, instance);
             }
             return instance;
@@ -919,6 +968,14 @@ public final class AppSearchUserInstanceManager {
     /**
      * Gets the isolated icing engine for the user.
      *
+     * @param userContext The calling user's context.
+     * @param userHandle The user handle.
+     * @param config The service configuration.
+     * @param executorManager The executor manager for scheduling tasks.
+     * @param skipDataMigration If true, data migration will be skipped from host to VM.
+     * @param isolatedStorageServiceManager The manager for isolated storage service.
+     * @param logger The AppSearch logger.
+     * @param enableIsolatedStorageReverseDataMigration Whether reverse data migration is enabled.
      * @return IcingSearchEngineInterface or null if isolated storage can't be used right away due
      *     to, e.g. pending data migration.
      */
@@ -928,8 +985,10 @@ public final class AppSearchUserInstanceManager {
             @NonNull UserHandle userHandle,
             @NonNull ServiceAppSearchConfig config,
             @NonNull ExecutorManager executorManager,
+            boolean skipDataMigration,
             @NonNull IsolatedStorageServiceManager isolatedStorageServiceManager,
-            @NonNull AppSearchLogger logger) {
+            @NonNull AppSearchLogger logger,
+            boolean enableIsolatedStorageReverseDataMigration) {
         Objects.requireNonNull(userContext);
         Objects.requireNonNull(userHandle);
         Objects.requireNonNull(config);
@@ -983,7 +1042,8 @@ public final class AppSearchUserInstanceManager {
         }
 
         if (DataMigrationUtil.needDataMigration(userContext, userHandle)
-                == DataMigrationUtil.MIGRATION_COMPLETED) {
+                        == DataMigrationUtil.MIGRATION_COMPLETED
+                || (enableIsolatedStorageReverseDataMigration && skipDataMigration)) {
             // Data migration is not needed. But we still want to log an entry to
             // indicate that data migration is correctly skipped.
             if (vmFirstRun) {
@@ -1036,6 +1096,7 @@ public final class AppSearchUserInstanceManager {
                                                             userHandle,
                                                             instance.getAppSearchImpl(),
                                                             isolatedIcingInterface,
+                                                            /* enableVm= */ true,
                                                             instance.getLogger());
                                                 }
                                             });
@@ -1050,6 +1111,75 @@ public final class AppSearchUserInstanceManager {
         // If we need a migration, return null so that AppSearch will create the non-isolated
         // version of Icing in AppSearchImpl.create.
         return null;
+    }
+
+    // Schedule DataMigration to move data from the VM to host.
+    private void scheduleReverseDataMigration(
+            @NonNull Context userContext,
+            @NonNull UserHandle userHandle,
+            @NonNull ServiceAppSearchConfig config,
+            @NonNull ExecutorManager executorManager) {
+        Runnable doReverseDataMigration =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        AppSearchUserInstance instance = getUserInstanceOrNull(userHandle);
+                        if (instance != null) {
+                            File appSearchDir =
+                                    AppSearchEnvironmentFactory.getEnvironmentInstance()
+                                            .getAppSearchDir(userContext, userHandle);
+                            File icingDir = new File(appSearchDir, "icing");
+                            IcingSearchEngineOptions options =
+                                    config.toIcingSearchEngineOptions(
+                                            icingDir.getAbsolutePath(), /* isVMEnabled= */ false);
+                            // Create an empty Icing instance on destination as data will be
+                            // migrated
+                            // back from VM to this host instance.
+                            IcingSearchEngineInterface hostIcingInstance =
+                                    new com.google.android.icing.IcingSearchEngine(options);
+
+                            DataMigrationUtil.runDataMigrationForUser(
+                                    userContext,
+                                    userHandle,
+                                    instance.getAppSearchImpl(),
+                                    hostIcingInstance,
+                                    /* enableVm= */ false,
+                                    instance.getLogger());
+                            // Delete the VM and data migration status file.
+                            // TODO(b/465465109): Though we don't want to run reverse migration over
+                            // and over if we can't delete the vm.
+                            IsolatedStorageServiceManager.cleanUp(
+                                    userContext,
+                                    unused ->
+                                            DataMigrationUtil.deleteMigrationStatus(
+                                                    userHandle, appSearchDir));
+                        }
+                    }
+                };
+        synchronized (mPerUserMigrationFutureLocked) {
+            ScheduledFuture<?> migrationFuture = mPerUserMigrationFutureLocked.get(userHandle);
+            if (migrationFuture == null) {
+                migrationFuture =
+                        executorManager.scheduleLambdaForUserNoCallbackAsync(
+                                userHandle,
+                                () -> {
+                                    // Run the data migration. This is run on our worker executor.
+                                    // Right now it only has one thread, so it will block
+                                    // other API calls.
+                                    // We need to let the migration happen in AppSearchImpl to
+                                    // grab ReadWrite lock there once multi-threading is enabled.
+                                    executorManager.executeLambdaForUserNoCallbackAsync(
+                                            userHandle,
+                                            /* isReadOnly= */ false,
+                                            doReverseDataMigration);
+                                },
+                                1, // Add a 1 minute delay to avoid migrating immediately after user
+                                // unlock.
+                                TimeUnit.MINUTES);
+                mPerUserMigrationFutureLocked.put(userHandle, migrationFuture);
+                Log.i(TAG, "Reverse Data migration for " + userHandle + " scheduled.");
+            }
+        }
     }
 
     @VisibleForTesting

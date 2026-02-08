@@ -135,6 +135,8 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
 
     public static final String KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION =
             "isolated_storage_enable_unfreezing_migration";
+    public static final String KEY_ISOLATED_STORAGE_ENABLE_REVERSE_MIGRATION =
+            "isolated_storage_enable_reverse_migration";
 
     public static final String KEY_COMPRESSION_THRESHOLD_BYTES = "compression_threshold_bytes";
     public static final String KEY_COMPRESSION_MEM_LEVEL = "compression_mem_level";
@@ -793,6 +795,14 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
                 DeviceConfig.NAMESPACE_APPSEARCH,
                 KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION,
                 IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION);
+    }
+
+    @Override
+    public boolean getIsolatedStorageEnableReverseMigration() {
+        return DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_APPSEARCH,
+                KEY_ISOLATED_STORAGE_ENABLE_REVERSE_MIGRATION,
+                IsolatedStorageServiceManager.DEFAULT_ISOLATED_STORAGE_ENABLE_REVERSE_MIGRATION);
     }
 
     @Override

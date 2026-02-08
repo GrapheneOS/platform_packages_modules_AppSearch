@@ -94,6 +94,7 @@ public class IsolatedStorageServiceManager {
     public static final boolean DEFAULT_ISOLATED_STORAGE_MIGRATION_DISABLED = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_DELETE_CE_VMS = false;
     public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION = false;
+    public static final boolean DEFAULT_ISOLATED_STORAGE_ENABLE_REVERSE_MIGRATION = false;
     private static final String ISOLATED_STORAGE_SERVICE =
             "com.android.appsearch.ISOLATED_STORAGE_SERVICE";
     private static final String ISOLATED_STORAGE_SERVICE_CLASS_NAME =
@@ -108,7 +109,7 @@ public class IsolatedStorageServiceManager {
     private static final long VM_STATUS_CHECK_INITIAL_DELAY_SECONDS = 120; // 2 minutes
     private static final long VM_STATUS_CHECK_INTERVAL_SECONDS = 60; // 1 minute
 
-    private static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
+    public static final UserHandle ISOLATED_STORAGE_USER = UserHandle.SYSTEM;
     private static final String SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD = "ro.debuggable";
     private static final boolean IS_DEBUG_BUILD =
             SystemProperties.getInt(SYSTEM_PROPERTY_ENABLE_DEBUG_BUILD, /* def= */ 0) == 1;

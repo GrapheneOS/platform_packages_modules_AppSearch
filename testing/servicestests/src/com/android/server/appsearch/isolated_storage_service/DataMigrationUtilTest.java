@@ -451,6 +451,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(appSearchImpl.isVMEnabled()).isTrue();
 
@@ -556,6 +557,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(appSearchImpl.isVMEnabled()).isTrue();
 
@@ -658,6 +660,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(appSearchImpl.isVMEnabled()).isTrue();
 
@@ -760,6 +763,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         icingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
 
         // check stats
@@ -840,6 +844,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         icingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
 
         // check stats
@@ -881,6 +886,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         icingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
 
         // check stats
@@ -926,6 +932,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         mAppSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
 
@@ -978,7 +985,12 @@ public class DataMigrationUtilTest {
         populateEmailsInAppSearchImpl(appSearchImpl, "package1", "database1", "id", newDocCount);
 
         DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, appSearchImpl, mVmIcingSearchEngine, /* logger= */ null);
+                mContext,
+                mUserHandle,
+                appSearchImpl,
+                mVmIcingSearchEngine,
+                /* enableVm= */ true,
+                /* logger= */ null);
         assertThat(appSearchImpl.isVMEnabled()).isTrue();
 
         // Check AppSearchImpl after migration
@@ -1037,6 +1049,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         appSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
 
         int okStatusCode = StatusProto.Code.OK.getNumber();
@@ -1097,7 +1110,12 @@ public class DataMigrationUtilTest {
 
         // Migrate the schema.
         DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /* logger= */ null);
+                mContext,
+                mUserHandle,
+                mAppSearchImpl,
+                mVmIcingSearchEngine,
+                /* enableVm= */ true,
+                /* logger= */ null);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isTrue();
 
         Map<String, SchemaTypeConfigProto> schemaTypesAfterMigration =
@@ -1150,7 +1168,12 @@ public class DataMigrationUtilTest {
 
         // Migrate the schema.
         DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /* logger= */ null);
+                mContext,
+                mUserHandle,
+                mAppSearchImpl,
+                mVmIcingSearchEngine,
+                /* enableVm= */ true,
+                /* logger= */ null);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isTrue();
 
         // Set another new schema after migration.
@@ -1223,7 +1246,12 @@ public class DataMigrationUtilTest {
 
         // Migrate the schema.
         DataMigrationUtil.runDataMigrationForUser(
-                mContext, mUserHandle, mAppSearchImpl, mVmIcingSearchEngine, /* logger= */ null);
+                mContext,
+                mUserHandle,
+                mAppSearchImpl,
+                mVmIcingSearchEngine,
+                /* enableVm= */ true,
+                /* logger= */ null);
         assertThat(mAppSearchImpl.useDatabaseScopedSchemaOperations()).isTrue();
 
         // Set the same schema after migration.
@@ -1259,6 +1287,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         mAppSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
 
         assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
@@ -1324,7 +1353,12 @@ public class DataMigrationUtilTest {
         // 6. Run migration from AppSearchImpl to destIcing.
         DataMigrationStats stats =
                 DataMigrationUtil.runDataMigrationForUser(
-                        mContext, mUserHandle, mAppSearchImpl, destIcing, /* logger= */ null);
+                        mContext,
+                        mUserHandle,
+                        mAppSearchImpl,
+                        destIcing,
+                        /* enableVm= */ true,
+                        /* logger= */ null);
 
         assertThat(stats.getDataMigrationStatus()).isEqualTo(okStatus);
         assertThat(stats.getVMInitStatus()).isEqualTo(okStatus);
@@ -1372,6 +1406,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         mAppSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
 
@@ -1455,6 +1490,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         mAppSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
 
@@ -1496,6 +1532,7 @@ public class DataMigrationUtilTest {
                         mUserHandle,
                         mAppSearchImpl,
                         mVmIcingSearchEngine,
+                        /* enableVm= */ true,
                         /* logger= */ null);
         assertThat(mAppSearchImpl.isVMEnabled()).isTrue();
 
