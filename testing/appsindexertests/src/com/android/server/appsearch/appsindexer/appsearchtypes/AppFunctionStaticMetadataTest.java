@@ -140,4 +140,18 @@ public class AppFunctionStaticMetadataTest {
 
         assertThrows(IllegalStateException.class, builder::build);
     }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
+    public void testSetPropertyString_serviceName_throws() {
+        AppFunctionStaticMetadata.Builder builder =
+                new AppFunctionStaticMetadata.Builder("pkg", "id", "android");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        builder.setPropertyString(
+                                AppFunctionStaticMetadata.PROPERTY_SERVICE_NAME,
+                                "some.service.Name"));
+    }
 }

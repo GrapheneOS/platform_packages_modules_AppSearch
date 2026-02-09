@@ -387,7 +387,10 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
             }
 
             if (!serviceName.isEmpty()) {
-                setPropertyString(PROPERTY_SERVICE_NAME, serviceName);
+                // Use the superclass method to set the service name property. The override method
+                // throws an exception if the service name is set. This is to avoid the service name
+                // being accidentally overridden in the XML.
+                super.setPropertyString(PROPERTY_SERVICE_NAME, serviceName);
             }
             return this;
         }
@@ -419,6 +422,18 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
                     PROPERTY_RESTRICT_CALLERS_WITH_EXECUTE_APP_FUNCTIONS,
                     restrictCallersWithExecuteAppFunctions);
             return this;
+        }
+
+        @NonNull
+        @Override
+        public Builder setPropertyString(@NonNull String propertyName, @NonNull String... values) {
+            if (isAppLevelAppFunctionsEnabled()
+                    && propertyName.equals(PROPERTY_SERVICE_NAME)) {
+                throw new IllegalArgumentException(
+                        "Service name cannot be set via the XML. It is derived from the enclosing"
+                                + " service tag where the function defining XML is specified.");
+            }
+            return super.setPropertyString(propertyName, values);
         }
 
         /**
