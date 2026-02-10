@@ -789,6 +789,28 @@ public class AppSearchManagerServiceTest {
     }
 
     @Test
+    public void testRemoveByDocumentIdAddsErrorMessageWhenIdNotFound() throws Exception {
+        final long callReceivedTimestampMillis = System.currentTimeMillis();
+        TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
+        mAppSearchManagerServiceStub.removeByDocumentId(
+                new RemoveByDocumentIdAidlRequest(
+                        AppSearchAttributionSource.createAttributionSource(mContext, mCallingPid),
+                        DATABASE_NAME,
+                        new RemoveByDocumentIdRequest.Builder(NAMESPACE)
+                                .addIds(/* ids= */ Collections.singleton("123"))
+                                .build(),
+                        mUserHandle,
+                        BINDER_CALL_START_TIME),
+                callback);
+        assertThat(callback.get()).isNull();
+        assertThat(callback.getBatchResult().getFailures())
+                .containsExactly(
+                        "123",
+                        AppSearchResult.newFailedResult(
+                                RESULT_NOT_FOUND, "Document id '123' doesn't exist"));
+    }
+
+    @Test
     public void testRemoveByDocumentIdStatsLogging() throws Exception {
         final long callReceivedTimestampMillis = System.currentTimeMillis();
         TestBatchResultErrorCallback callback = new TestBatchResultErrorCallback();
