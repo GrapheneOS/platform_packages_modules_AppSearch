@@ -547,4 +547,44 @@ public class AppFunctionDocumentParserImplTest {
 
         assertThat(appFunctions).isEmpty();
     }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
+    public void parseIntoMapForGivenSchemas_serviceNameInXml_doesNotParseFunction()
+            throws Exception {
+        Map<String, AppSearchSchema> testSchemas =
+                Map.of(
+                        "AppFunctionStaticMetadata-com.example.app",
+                        new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                                        "functionId")
+                                                .build())
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                                        "serviceName")
+                                                .build())
+                                .build());
+
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <serviceName>some.service.Name</serviceName>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager,
+                        TEST_PACKAGE_NAME,
+                        xmlPullParser,
+                        testSchemas,
+                        "correct.service.Name");
+
+        assertThat(appFunctions).isEmpty();
+    }
 }
