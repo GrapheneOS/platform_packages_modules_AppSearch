@@ -389,7 +389,7 @@ package android.app.appsearch {
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setRequiredPermissionsForSchemaTypeVisibility(@NonNull String, @NonNull java.util.Set<java.util.Set<java.lang.Integer>>);
     method @FlaggedApi("com.android.appsearch.flags.enable_set_schema_visible_to_configs") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeVisibleToConfigs(@NonNull String, @NonNull java.util.Set<android.app.appsearch.SchemaVisibilityConfig>);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeVisibleToPackages(@NonNull String, @NonNull java.util.Set<android.app.appsearch.PackageIdentifier>);
-    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeWipeoutAccountPropertyPaths(@NonNull String, @NonNull java.util.Collection<android.app.appsearch.PropertyPath>);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.GetSchemaResponse.Builder setSchemaTypeWipeoutAccountPropertyPaths(@NonNull String, @NonNull java.util.Set<android.app.appsearch.PropertyPath>);
     method @NonNull public android.app.appsearch.GetSchemaResponse.Builder setVersion(@IntRange(from=0) int);
   }
 
@@ -867,7 +867,7 @@ package android.app.appsearch {
     method @FlaggedApi("com.android.appsearch.flags.enable_set_publicly_visible_schema") @NonNull public android.app.appsearch.SetSchemaRequest.Builder setPubliclyVisibleSchema(@NonNull String, @Nullable android.app.appsearch.PackageIdentifier);
     method @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeDisplayedBySystem(@NonNull String, boolean);
     method @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeVisibilityForPackage(@NonNull String, boolean, @NonNull android.app.appsearch.PackageIdentifier);
-    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeWipeoutAccountPropertyPaths(@NonNull String, @NonNull java.util.Collection<android.app.appsearch.PropertyPath>, boolean);
+    method @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") @NonNull public android.app.appsearch.SetSchemaRequest.Builder setSchemaTypeWipeoutAccountPropertyPaths(@NonNull String, @NonNull java.util.Set<android.app.appsearch.PropertyPath>, boolean);
     method @NonNull public android.app.appsearch.SetSchemaRequest.Builder setVersion(@IntRange(from=1) int);
   }
 
