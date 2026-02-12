@@ -3214,7 +3214,9 @@ public class AppSearchManagerService extends SystemService {
                                     resultBuilder.setSuccess(id, /*value=*/null);
                                 } else {
                                     resultBuilder.setResult(id, AppSearchResult.newFailedResult(
-                                            AppSearchResult.RESULT_NOT_FOUND, /*errorMessage=*/null));
+                                            AppSearchResult.RESULT_NOT_FOUND,
+                                            /*errorMessage=*/ "Document id '" + id
+                                                    + "' doesn't exist"));
                                 }
                             }
                         } catch (AppSearchException | RuntimeException e) {

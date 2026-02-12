@@ -796,6 +796,11 @@ public final class SetSchemaRequest {
          * given {@code accountPropertyPaths} within that document must already exist. AppSearch
          * will reject the document if any account specified by these paths is not recognized.
          *
+         * <p>Subsequent calls for the same {@code schemaType} are additive. When {@code
+         * autoWipeout} is {@code true}, new paths are merged into the existing configuration; when
+         * {@code false}, the specified paths are removed. This allows you to incrementally manage
+         * multiple account-associated fields within a single schema.
+         *
          * @param schemaType The name of the schema type being configured (e.g., "Email").
          * @param accountPropertyPaths A collection of property paths (e.g., "sender.account") point
          *     to the field containing the account identifier.
