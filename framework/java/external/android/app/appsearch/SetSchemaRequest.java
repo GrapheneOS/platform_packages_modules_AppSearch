@@ -802,8 +802,8 @@ public final class SetSchemaRequest {
          * multiple account-associated fields within a single schema.
          *
          * @param schemaType The name of the schema type being configured (e.g., "Email").
-         * @param accountPropertyPaths A collection of property paths (e.g., "sender.account") point
-         *     to the field containing the account identifier.
+         * @param accountPropertyPaths A Set of property paths (e.g., "sender.account") point to the
+         *     field containing the account identifier.
          * @param autoWipeout If {@code true}, enables automatic account wipeout for the given
          *     paths. If {@code false}, disables it.
          * @return This {@code Builder} instance.
@@ -818,7 +818,7 @@ public final class SetSchemaRequest {
         @FlaggedApi(Flags.FLAG_ENABLE_SCHEMAS_WIPEOUT_ACCOUNT_PROPERTY_PATHS)
         public @NonNull Builder setSchemaTypeWipeoutAccountPropertyPaths(
                 @NonNull String schemaType,
-                @NonNull Collection<PropertyPath> accountPropertyPaths,
+                @NonNull Set<PropertyPath> accountPropertyPaths,
                 boolean autoWipeout) {
             Objects.requireNonNull(schemaType);
             Objects.requireNonNull(accountPropertyPaths);
