@@ -1235,83 +1235,26 @@ public class AppSearchManagerService extends SystemService {
                         }
                     } else {
                         if (!documentParcels.isEmpty() || !takenActionDocumentParcels.isEmpty()) {
-                            if (Flags.enableRemoveDocCountBatchingForBatchPut()
-                                    || instance.isVMEnabled()) {
-                                List<GenericDocument> docs = new ArrayList<>();
-                                for (int i = 0; i < documentParcels.size(); i++) {
-                                    docs.add(new GenericDocument(documentParcels.get(i)));
-                                }
-                                for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
-                                    GenericDocument document = new GenericDocument(
-                                        takenActionDocumentParcels.get(i));
-                                    docs.add(document);
-                                    takenActionGenericDocuments.add(document);
-                                }
-                                instance.getAppSearchImpl().batchPutDocuments(
-                                        callingPackageName,
-                                        request.getDatabaseName(),
-                                        docs,
-                                        resultBuilder,
-                                        /* sendChangeNotifications=*/ true,
-                                        instance.getLogger(),
-                                        PersistType.Code.UNKNOWN,
-                                        callStatsBuilder);
-                            } else {
-                                // List to hold the current batch.
-                                List<GenericDocument> currentBatch = new ArrayList<>();
-                                // The lock is held in AppSearchImpl.batchPutDocuments. To
-                                // avoid holding it for too long, we divide the documents
-                                // into smaller batches. We flush whenever we
-                                // reach MAX_NUMBER_OF_DOCS_BUFFERED.
-                                // We also need to limit the # of bytes we send to the
-                                // isolated_storage_service, and it is currently done in
-                                // AppSearchImpl as it is easier to get the byte size
-                                // from the proto directly.
-                                for (int i = 0; i < documentParcels.size(); i++) {
-                                    if (currentBatch.size() >= MAX_NUMBER_OF_DOCS_BUFFERED) {
-                                        instance.getAppSearchImpl().batchPutDocuments(
-                                                callingPackageName,
-                                                request.getDatabaseName(),
-                                                currentBatch,
-                                                resultBuilder,
-                                                /* sendChangeNotifications=*/ true,
-                                                instance.getLogger(),
-                                                PersistType.Code.UNKNOWN,
-                                                callStatsBuilder);
-                                        currentBatch.clear();
-                                    }
-                                    currentBatch.add(new GenericDocument(documentParcels.get(i)));
-                                }
-                                for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
-                                    if (currentBatch.size() >= MAX_NUMBER_OF_DOCS_BUFFERED) {
-                                        instance.getAppSearchImpl().batchPutDocuments(
-                                                callingPackageName,
-                                                request.getDatabaseName(),
-                                                currentBatch,
-                                                resultBuilder,
-                                                /* sendChangeNotifications=*/ true,
-                                                instance.getLogger(),
-                                                PersistType.Code.UNKNOWN,
-                                                callStatsBuilder);
-                                        currentBatch.clear();
-                                    }
-                                    GenericDocument document = new GenericDocument(
-                                            takenActionDocumentParcels.get(i));
-                                    takenActionGenericDocuments.add(document);
-                                    currentBatch.add(document);
-                                }
-                                // flush the last batch with
-                                // mAppSearchConfig.getLightweightPersistType().
-                                instance.getAppSearchImpl().batchPutDocuments(
-                                        callingPackageName,
-                                        request.getDatabaseName(),
-                                        currentBatch,
-                                        resultBuilder,
-                                        /* sendChangeNotifications=*/ true,
-                                        instance.getLogger(),
-                                        PersistType.Code.UNKNOWN,
-                                        callStatsBuilder);
+                            List<GenericDocument> docs = new ArrayList<>();
+                            for (int i = 0; i < documentParcels.size(); i++) {
+                                docs.add(new GenericDocument(documentParcels.get(i)));
                             }
+                            for (int i = 0; i < takenActionDocumentParcels.size(); i++) {
+                                GenericDocument document =
+                                        new GenericDocument(takenActionDocumentParcels.get(i));
+                                docs.add(document);
+                                takenActionGenericDocuments.add(document);
+                            }
+                            instance.getAppSearchImpl()
+                                    .batchPutDocuments(
+                                            callingPackageName,
+                                            request.getDatabaseName(),
+                                            docs,
+                                            resultBuilder,
+                                            /* sendChangeNotifications=*/ true,
+                                            instance.getLogger(),
+                                            PersistType.Code.UNKNOWN,
+                                            callStatsBuilder);
 
                             // BatchPut + schedule persistToDisk were ramped together by
                             // Flags.enableBatchPut(), so no need to check
