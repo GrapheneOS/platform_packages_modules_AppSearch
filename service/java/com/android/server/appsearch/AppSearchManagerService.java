@@ -787,24 +787,12 @@ public class AppSearchManagerService extends SystemService {
                     // deleted as well. We should checkForOptimize for these deletion.
                     SetSchemaResponse setSchemaResponse =
                             internalSetSchemaResponse.getSetSchemaResponse();
-                    if (Flags.enableReduceCheckOptimizeForSetSchema() || instance.isVMEnabled()) {
-                        if (request.isForceOverride() &&
-                                (!setSchemaResponse.getDeletedTypes().isEmpty()
-                                        || !setSchemaResponse.getIncompatibleTypes().isEmpty())) {
-                            // We have deleted and/or incompatible schemas with forceOverride true.
-                            // So we might have documents deleted in this setSchema call, and we
-                            // need to check optimize here.
-                            long checkForOptimizeLatencyStartTimeMillis =
-                                    SystemClock.elapsedRealtime();
-                            checkForOptimize(targetUser, instance);
-                            long checkForOptimizeLatencyEndTimeMillis =
-                                    SystemClock.elapsedRealtime();
-                            setSchemaStatsBuilder
-                                    .setOptimizeLatencyMillis(
-                                            (int) (checkForOptimizeLatencyEndTimeMillis
-                                                    - checkForOptimizeLatencyStartTimeMillis));
-                        }
-                    } else {
+                    if (request.isForceOverride() &&
+                            (!setSchemaResponse.getDeletedTypes().isEmpty()
+                                    || !setSchemaResponse.getIncompatibleTypes().isEmpty())) {
+                        // We have deleted and/or incompatible schemas with forceOverride true.
+                        // So we might have documents deleted in this setSchema call, and we
+                        // need to check optimize here.
                         long checkForOptimizeLatencyStartTimeMillis = SystemClock.elapsedRealtime();
                         checkForOptimize(targetUser, instance);
                         long checkForOptimizeLatencyEndTimeMillis = SystemClock.elapsedRealtime();
