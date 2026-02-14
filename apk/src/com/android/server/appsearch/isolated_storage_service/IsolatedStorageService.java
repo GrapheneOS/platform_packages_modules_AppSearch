@@ -542,6 +542,7 @@ public class IsolatedStorageService extends Service {
                 if (isVmRunningLocked() && isPayloadReadyLocked() && !forceRestart) {
                     // TODO(b/422197198): add VM_START_STATUS_ALREADY_RUNNING constant and atom enum
                     //   for this case.
+                    Log.i(TAG, "VM is running and forceRestart is not set");
                     return VM_START_STATUS_SUCCESS;
                 }
 

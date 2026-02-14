@@ -957,3 +957,12 @@ flag {
     }
 }
 
+flag {
+    name: "enable_isolated_storage_connection_fix"
+    namespace: "appsearch"
+    description: "Enables service cleanup to avoid exhausting the binder connection limit."
+    bug: "477214001"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
