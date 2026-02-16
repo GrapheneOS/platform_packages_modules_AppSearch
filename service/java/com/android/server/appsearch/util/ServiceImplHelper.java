@@ -16,6 +16,7 @@
 package com.android.server.appsearch.util;
 
 import static android.app.appsearch.AppSearchResult.throwableToFailedResult;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 
 import android.Manifest;
 import android.annotation.BinderThread;
@@ -31,9 +32,11 @@ import android.app.appsearch.aidl.AppSearchResultParcelV2;
 import android.app.appsearch.aidl.IAppSearchBatchResultCallback;
 import android.app.appsearch.aidl.IAppSearchResultCallback;
 import android.app.appsearch.annotation.CanIgnoreReturnValue;
+import android.app.privatecompute.flags.Flags;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -249,7 +252,16 @@ public class ServiceImplHelper {
             @NonNull String claimedCallingPackage) {
         int claimedCallingUid =
                 PackageUtil.getPackageUid(actualCallingUserContext, claimedCallingPackage);
-        if (claimedCallingUid != actualCallingUid) {
+
+        // If the caller is a PCC, its defining app's UID is the one that should be checked against
+        // the package's UID.
+        int definingAppUid = actualCallingUid;
+        if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(actualCallingUid)) {
+            definingAppUid =
+                    PackageUtil.getAppUidForPrivateComputeCoreUid(
+                            actualCallingUserContext, actualCallingUid);
+        }
+        if (claimedCallingUid < 0 || claimedCallingUid != definingAppUid) {
             throw new SecurityException(
                     "Specified calling package ["
                             + claimedCallingPackage

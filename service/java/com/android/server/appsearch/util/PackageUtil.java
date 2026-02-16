@@ -45,4 +45,12 @@ public class PackageUtil {
             return INVALID_UID;
         }
     }
+
+    /**
+     * Finds the UID of the app that owns the given {@code pccUid}. Returns {@link
+     * Process#INVALID_UID} if unable to find the UID.
+     */
+    public static int getAppUidForPrivateComputeCoreUid(@NonNull Context context, int pccUid) {
+        return context.getPackageManager().getAppUidForPrivateComputeCoreUid(pccUid);
+    }
 }
