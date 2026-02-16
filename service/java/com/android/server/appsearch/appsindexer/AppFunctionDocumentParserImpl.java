@@ -173,6 +173,7 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                     && !XML_TAG_APPFUNCTION.equals(parser.getName())) {
                 String tagName = parser.getName();
                 switch (tagName) {
+                    case "id":
                     case "function_id":
                         functionId = parser.nextText().trim();
                         break;
