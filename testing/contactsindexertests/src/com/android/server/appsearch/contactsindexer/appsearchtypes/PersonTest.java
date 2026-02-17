@@ -184,7 +184,7 @@ public class PersonTest {
         SignificantDate date2 =
                 new SignificantDate.Builder(namespace, id + "5")
                         .setRawDate("2000-07-01")
-                        .setSignificantDateType(SignificantDate.TYPE_CUSTOM)
+                        .setSignificantDateType(SignificantDate.TYPE_OTHER)
                         .setCustomLabel("customLabel")
                         .build();
         ContactRelation structuredRelation1 =

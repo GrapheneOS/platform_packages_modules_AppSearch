@@ -16,13 +16,16 @@
 
 package com.android.server.appsearch.contactsindexer;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.appsearch.GenericDocument;
 import android.app.appsearch.util.IndentingStringBuilder;
 import android.app.appsearch.util.LogUtil;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
@@ -37,6 +40,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Helper class to help build the {@link Person}.
@@ -58,7 +62,9 @@ public final class PersonBuilderHelper {
     private final String mId;
     private final Person.Builder mBuilder;
     private long mCreationTimestampMillis = -1;
-    private Map<String, ContactPointBuilderHelper> mContactPointBuilderHelpers = new ArrayMap<>();
+    private final Set<String> mRawContactIds = new ArraySet<>();
+    private final Map<String, ContactPointBuilderHelper> mContactPointBuilderHelpers =
+            new ArrayMap<>();
 
     public PersonBuilderHelper(@NonNull String id, @NonNull Person.Builder builder) {
         Objects.requireNonNull(id);
@@ -107,6 +113,12 @@ public final class PersonBuilderHelper {
         Preconditions.checkState(
                 mCreationTimestampMillis >= 0,
                 "creationTimestamp must be explicitly set in the PersonBuilderHelper.");
+
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            for (String rawId : mRawContactIds) {
+                mBuilder.addRawContactId(rawId);
+            }
+        }
 
         for (ContactPointBuilderHelper builderHelper : mContactPointBuilderHelpers.values()) {
             // We don't need to reset it for generating fingerprint. But still set it 0 here to
@@ -182,6 +194,23 @@ public final class PersonBuilderHelper {
     }
 
     @NonNull
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public PersonBuilderHelper addRawContactIdToPerson(@NonNull String rawId) {
+        mRawContactIds.add(Objects.requireNonNull(rawId));
+        return this;
+    }
+
+    @NonNull
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public PersonBuilderHelper setIsContactPointSuperPrimary(
+            @NonNull String label, boolean isPrimary) {
+        getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
+                .mBuilder
+                .setIsSuperPrimary(isPrimary);
+        return this;
+    }
+
+    @NonNull
     public PersonBuilderHelper addAppIdToPerson(@NonNull String label, @NonNull String appId) {
         getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
                 .mBuilder
@@ -189,6 +218,7 @@ public final class PersonBuilderHelper {
         return this;
     }
 
+    @NonNull
     public PersonBuilderHelper addEmailToPerson(@NonNull String label, @NonNull String email) {
         getOrCreateContactPointBuilderHelper(Objects.requireNonNull(label))
                 .mBuilder

@@ -29,11 +29,14 @@ import android.annotation.NonNull;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSessionShim;
 import android.app.appsearch.SetSchemaRequest;
+import android.app.appsearch.flags.Flags;
 import android.app.appsearch.testutil.AppSearchSessionShimImpl;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.database.Cursor;
+import android.database.MatrixCursor;
 import android.provider.ContactsContract;
 import android.test.mock.MockContentResolver;
 import android.util.Pair;
@@ -427,6 +430,73 @@ public class ContactsIndexerImplTest extends FakeContactsProviderTestBase {
         assertThat(mAppSearchHelper.mIndexedContacts).hasSize(batchSize);
         assertThat(batcher.getPendingDiffContactsCount()).isEqualTo(0);
         assertThat(batcher.getPendingIndexContactsCount()).isEqualTo(0);
+    }
+
+    private MatrixCursor makeCursorWithSpecificColumns(String[] columns, ContentValues[] rows) {
+        MatrixCursor cursor = new MatrixCursor(columns);
+        for (ContentValues row : rows) {
+            Object[] rowData = new Object[columns.length];
+            for (int i = 0; i < columns.length; i++) {
+                rowData[i] = row.get(columns[i]);
+            }
+            cursor.addRow(rowData);
+        }
+        return cursor;
+    }
+
+    @Test
+    public void testContactsIndexerImpl_indexContactsFromCursor_checkMetadataFields()
+            throws Exception {
+        ContactsIndexerImpl contactsIndexerImpl = new ContactsIndexerImpl(mContext,
+                mAppSearchHelper);
+        ContactsBatcher contactsBatcher = new ContactsBatcher(mAppSearchHelper,
+                /*batchSize=*/ 1,
+                /*shouldKeepUpdatingOnError=*/ true);
+
+        String[] columns = new String[]{
+                ContactsContract.Data.CONTACT_ID,
+                ContactsContract.Data.DISPLAY_NAME_PRIMARY,
+                ContactsContract.Data.STARRED,
+                ContactsContract.Data.PINNED,
+                ContactsContract.Data.CUSTOM_RINGTONE,
+                ContactsContract.Data.SEND_TO_VOICEMAIL,
+                ContactsContract.Data.MIMETYPE,
+                ContactsContract.Data.DATA1
+        };
+
+        ContentValues value1 = new ContentValues();
+        long contactId = 123L;
+        String name = "John Doe";
+        int pinned = 2;
+        value1.put(ContactsContract.Data.CONTACT_ID, contactId);
+        value1.put(ContactsContract.Data.DISPLAY_NAME_PRIMARY, "John Doe");
+        value1.put(ContactsContract.Data.STARRED, 1);
+        value1.put(ContactsContract.Data.PINNED, 2);
+        value1.put(ContactsContract.Data.CUSTOM_RINGTONE, "content://ringtone/123");
+        value1.put(ContactsContract.Data.SEND_TO_VOICEMAIL, 1);
+
+        // VIP custom Mimetype row
+        ContentValues value2 = new ContentValues();
+        value2.put(ContactsContract.Data.CONTACT_ID, contactId);
+        value2.put(ContactsContract.Data.MIMETYPE, ContactsIndexerImpl.VIP_MIMETYPE);
+        value2.put(ContactsContract.Data.DATA1, 1);
+
+        Cursor cursor = makeCursorWithSpecificColumns(columns, new ContentValues[]{value1, value2});
+        contactsIndexerImpl.indexContactsFromCursorAsync(cursor, mUpdateStats, contactsBatcher,
+                        /*shouldKeepUpdatingOnError=*/ true)
+                .get();
+
+        assertThat(mAppSearchHelper.mIndexedContacts).hasSize(1);
+        Person person = mAppSearchHelper.mIndexedContacts.getFirst();
+        assertThat(person.getId()).isEqualTo(String.valueOf(contactId));
+        assertThat(person.getName()).isEqualTo(name);
+        assertThat(person.isImportant()).isTrue();
+
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            assertThat(person.getPinnedPosition()).isEqualTo(pinned);
+            assertThat(person.hasCustomRingtone()).isTrue();
+            assertThat(person.isVip()).isTrue();
+        }
     }
 
     @Test

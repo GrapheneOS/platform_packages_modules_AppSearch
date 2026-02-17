@@ -16,12 +16,17 @@
 
 package com.android.server.appsearch.contactsindexer;
 
+import static com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate.TYPE_CUSTOM;
+import static com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate.TYPE_OTHER;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.AppSearchAccount;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
+import android.provider.ContactsContract.CommonDataKinds.Event;
 import android.provider.ContactsContract.CommonDataKinds.Nickname;
 import android.provider.ContactsContract.CommonDataKinds.Note;
 import android.provider.ContactsContract.CommonDataKinds.Organization;
@@ -30,12 +35,18 @@ import android.provider.ContactsContract.CommonDataKinds.Relation;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
 import android.provider.ContactsContract.CommonDataKinds.StructuredPostal;
 import android.provider.ContactsContract.Data;
+import android.provider.ContactsContract.RawContacts;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import com.android.appsearch.flags.Flags;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactRelation;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate;
 
+import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -66,6 +77,12 @@ public final class ContactDataHandler {
         mHandlers.put(Organization.CONTENT_ITEM_TYPE, new OrganizationDataHandler());
         mHandlers.put(Relation.CONTENT_ITEM_TYPE, new RelationDataHandler(resources));
         mHandlers.put(Note.CONTENT_ITEM_TYPE, new NoteDataHandler());
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            mHandlers.put(Event.CONTENT_ITEM_TYPE, new EventDataHandler());
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                mHandlers.put(RawContacts.CONTENT_ITEM_TYPE, new AccountDataHandler());
+            }
+        }
 
         // Retrieve all the needed columns from different data handlers.
         Set<String> neededColumns = new ArraySet<>();
@@ -224,6 +241,12 @@ public final class ContactDataHandler {
                 int type = getColumnInt(cursor, mTypeColumn);
                 String label =
                         getTypeLabel(mResources, type, getColumnString(cursor, mLabelColumn));
+                if (Flags.enableContactsIndexerExtendedProperties()) {
+                    boolean isSuperPrimary = getColumnInt(cursor, Data.IS_SUPER_PRIMARY) != 0;
+                    if (isSuperPrimary) {
+                        builderHelper.setIsContactPointSuperPrimary(label, true);
+                    }
+                }
                 addContactPointData(builderHelper, label, data);
             }
         }
@@ -235,8 +258,8 @@ public final class ContactDataHandler {
          * Adds the information in the {@link Person.Builder}.
          *
          * @param builderHelper a helper to build the {@link Person}.
-         * @param label the corresponding label to the {@code type} for the data.
-         * @param data data read from the designed columns in the row.
+         * @param label         the corresponding label to the {@code type} for the data.
+         * @param data          data read from the designed columns in the row.
          */
         protected abstract void addContactPointData(
                 PersonBuilderHelper builderHelper, String label, Map<String, String> data);
@@ -255,10 +278,11 @@ public final class ContactDataHandler {
          * Adds the Email information in the {@link Person.Builder}.
          *
          * @param builderHelper a builder to build the {@link Person}.
-         * @param label The corresponding label to the {@code type}. E.g. {@link
-         *     com.android.internal.R.string#emailTypeHome} to {@link Email#TYPE_HOME} or custom
-         *     label for the data if {@code type} is {@link Email#TYPE_CUSTOM}.
-         * @param data data read from the designed column {@code Email.ADDRESS} in the row.
+         * @param label         The corresponding label to the {@code type}. E.g. {@link
+         *                      com.android.internal.R.string#emailTypeHome} to
+         *                      {@link Email#TYPE_HOME} or custom
+         *                      label for the data if {@code type} is {@link Email#TYPE_CUSTOM}.
+         * @param data          data read from the designed column {@code Email.ADDRESS} in the row.
          */
         @Override
         protected void addContactPointData(
@@ -299,10 +323,11 @@ public final class ContactDataHandler {
          * Adds the phone number information in the {@link Person.Builder}.
          *
          * @param builderHelper helper to build the {@link Person}.
-         * @param label corresponding label to {@code type}. E.g. {@link
-         *     com.android.internal.R.string#phoneTypeHome} to {@link Phone#TYPE_HOME}, or custom
-         *     label for the data if {@code type} is {@link Phone#TYPE_CUSTOM}.
-         * @param data data read from the designed columns {@link Phone#NUMBER} in the row.
+         * @param label         corresponding label to {@code type}. E.g. {@link
+         *                      com.android.internal.R.string#phoneTypeHome} to
+         *                      {@link Phone#TYPE_HOME}, or custom
+         *                      label for the data if {@code type} is {@link Phone#TYPE_CUSTOM}.
+         * @param data          data read from the designed columns {@link Phone#NUMBER} in the row.
          */
         @Override
         protected void addContactPointData(
@@ -362,11 +387,14 @@ public final class ContactDataHandler {
          * Adds the postal address information in the {@link Person.Builder}.
          *
          * @param builderHelper helper to build the {@link Person}.
-         * @param label corresponding label to {@code type}. E.g. {@link
-         *     com.android.internal.R.string#postalTypeHome} to {@link StructuredPostal#TYPE_HOME},
-         *     or custom label for the data if {@code type} is {@link StructuredPostal#TYPE_CUSTOM}.
-         * @param data data read from the designed column {@link StructuredPostal#FORMATTED_ADDRESS}
-         *     in the row.
+         * @param label         corresponding label to {@code type}. E.g. {@link
+         *                      com.android.internal.R.string#postalTypeHome} to
+         *                      {@link StructuredPostal#TYPE_HOME},
+         *                      or custom label for the data if {@code type} is
+         *                      {@link StructuredPostal#TYPE_CUSTOM}.
+         * @param data          data read from the designed column
+         *                      {@link StructuredPostal#FORMATTED_ADDRESS}
+         *                      in the row.
          */
         @Override
         protected void addContactPointData(
@@ -426,6 +454,11 @@ public final class ContactDataHandler {
         public final void addData(@NonNull PersonBuilderHelper builderHelper, Cursor cursor) {
             Objects.requireNonNull(builderHelper);
             String rawContactId = getColumnString(cursor, Data.RAW_CONTACT_ID);
+            if (Flags.enableContactsIndexerExtendedProperties()
+                    && !TextUtils.isEmpty(rawContactId)) {
+                builderHelper.addRawContactIdToPerson(rawContactId);
+            }
+
             String nameRawContactId = getColumnString(cursor, Data.NAME_RAW_CONTACT_ID);
             String givenName = getColumnString(cursor, StructuredName.GIVEN_NAME);
             String familyName = getColumnString(cursor, StructuredName.FAMILY_NAME);
@@ -495,9 +528,7 @@ public final class ContactDataHandler {
 
         @Override
         public void addNeededColumns(Collection<String> columns) {
-            for (String column : COLUMNS) {
-                columns.add(column);
-            }
+            Collections.addAll(columns, COLUMNS);
         }
 
         @Override
@@ -514,6 +545,155 @@ public final class ContactDataHandler {
                 }
             }
             builder.getPersonBuilder().addRelation(relationName);
+
+            if (Flags.enableContactsIndexerExtendedProperties()) {
+                // Extract relation name and label as two separate fields
+                relationName = getColumnString(cursor, Relation.NAME);
+                int type = getColumnInt(cursor, Relation.TYPE);
+                String customLabel = getColumnString(cursor, Relation.LABEL);
+                String relationLabel =
+                        Relation.getTypeLabel(mResources, type, customLabel).toString();
+                if  (TextUtils.isEmpty(relationName) && TextUtils.isEmpty(relationLabel)) {
+                    // Skip if empty
+                    return;
+                }
+
+                ContactRelation.Builder relationBuilder =
+                        new ContactRelation.Builder(
+                                AppSearchHelper.NAMESPACE_NAME,
+                                // doesn't matter for this nested type.
+                                /* id= */ "");
+                if (!TextUtils.isEmpty(relationName)) {
+                    relationBuilder.setRelationName(relationName);
+                }
+                if (!TextUtils.isEmpty(relationLabel)) {
+                    relationBuilder.setRelationLabel(relationLabel);
+                }
+                // Set creationTimestamp to 0 to make our tests easier -- we only need the timestamp
+                // in the outer Person document anyway
+                relationBuilder.setCreationTimestampMillis(0);
+                builder.getPersonBuilder().addStructuredRelation(relationBuilder.build());
+            }
+        }
+    }
+
+    private static final class EventDataHandler extends DataHandler {
+        private static final String[] COLUMNS = {
+            Event.START_DATE, Event.TYPE, Event.LABEL,
+        };
+
+        @Override
+        public void addNeededColumns(Collection<String> columns) {
+            Collections.addAll(columns, COLUMNS);
+        }
+
+        @Override
+        public void addData(@NonNull PersonBuilderHelper builder, Cursor cursor) {
+            Objects.requireNonNull(builder);
+            String rawDateString = getColumnString(cursor, Event.START_DATE);
+            if (TextUtils.isEmpty(rawDateString)) {
+                return;
+            }
+
+            LocalDate localDate = parseDate(rawDateString);
+            if (localDate == null) {
+                return;
+            }
+
+            SignificantDate.Builder dateBuilder =
+                    new SignificantDate.Builder(
+                            AppSearchHelper.NAMESPACE_NAME,
+                            // doesn't matter for this nested type.
+                            /* id= */ "");
+            dateBuilder.setRawDate(rawDateString);
+
+            @SignificantDate.SignificantDateType int eventType = getColumnInt(cursor, Event.TYPE);
+            dateBuilder.setSignificantDateType(eventType);
+            if (eventType == TYPE_OTHER || eventType == TYPE_CUSTOM) {
+                // Populate label if type is custom or other
+                String label = getColumnString(cursor, Event.LABEL);
+                if (!TextUtils.isEmpty(label)) {
+                    dateBuilder.setCustomLabel(label);
+                }
+            }
+
+            // Set creationTimestamp to 0 to make our tests easier -- we only need the timestamp
+            // in the outer Person document anyway
+            dateBuilder.setCreationTimestampMillis(0);
+            builder.getPersonBuilder().addSignificantDate(dateBuilder.build());
+        }
+
+        /**
+         * Parses a raw date string retrieved from (CP2).
+         *
+         * <p>This method handles the two primary ISO 8601 date formats used by CP2:
+         *
+         * <ul>
+         *   <li><b>Full Date:</b> {@code YYYY-MM-DD} (e.g., "1990-05-20")
+         *   <li><b>Yearless Date:</b> {@code --MM-DD} (e.g., "--05-20"). In this case, the year is
+         *       normalized to {@code 0000} to allow parsing into a @link LocalDate}.
+         * </ul>
+         *
+         * @param rawDateString The non-null raw date string from the Contacts database.
+         * @return A {@link LocalDate} object representing the date, or {@code null} if the string
+         *     is malformed or cannot be parsed.
+         */
+        @Nullable
+        private LocalDate parseDate(@NonNull String rawDateString) {
+            Objects.requireNonNull(rawDateString);
+            String dateToParse;
+            if (rawDateString.startsWith("--")) {
+                // Handle dates without a year by using the 0000-MM-DD format
+                dateToParse = rawDateString.replaceFirst("--", "0000-");
+            } else {
+                dateToParse = rawDateString;
+            }
+
+            try {
+                return LocalDate.parse(dateToParse);
+            } catch (DateTimeException e) {
+                return null;
+            }
+        }
+    }
+
+    private static final class AccountDataHandler extends DataHandler {
+        private static final String[] COLUMNS = {
+                RawContacts.ACCOUNT_NAME, RawContacts.ACCOUNT_TYPE,
+        };
+
+        @Override
+        public void addNeededColumns(Collection<String> columns) {
+            for (String column : COLUMNS) {
+                columns.add(column);
+            }
+        }
+
+        @Override
+        public void addData(@NonNull PersonBuilderHelper builder, Cursor cursor) {
+            Objects.requireNonNull(builder);
+            String accountName = getColumnString(cursor, RawContacts.ACCOUNT_NAME);
+            String accountType = getColumnString(cursor, RawContacts.ACCOUNT_TYPE);
+            if (TextUtils.isEmpty(accountName) && TextUtils.isEmpty(accountType)) {
+                // Skip if empty
+                return;
+            }
+
+            AppSearchAccount.Builder accountBuilder =
+                    new AppSearchAccount.Builder(
+                            AppSearchHelper.NAMESPACE_NAME,
+                            // doesn't matter for this nested type.
+                            /* id= */ "");
+            if (!TextUtils.isEmpty(accountName)) {
+                accountBuilder.setAccountName(accountName);
+            }
+            if (!TextUtils.isEmpty(accountType)) {
+                accountBuilder.setAccountType(accountType);
+            }
+            // Set creationTimestamp to 0 to make our tests easier -- we only need the timestamp
+            // in the outer Person document anyway
+            accountBuilder.setCreationTimestampMillis(0);
+            builder.getPersonBuilder().addAccount(accountBuilder.build());
         }
     }
 
