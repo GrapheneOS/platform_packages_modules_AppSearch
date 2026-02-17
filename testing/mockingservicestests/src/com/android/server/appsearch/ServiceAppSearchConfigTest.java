@@ -163,6 +163,24 @@ public class ServiceAppSearchConfigTest {
         }
     }
 
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_MAX_PAGE_BYTES_LIMIT_IN_HOST)
+    @Test
+    public void testGetMaxPageBytesLimit_limitInHostDisabled() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+        assertThat(appSearchConfig.getMaxPageBytesLimit())
+                .isEqualTo(IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_MAX_PAGE_BYTES_LIMIT_IN_HOST)
+    @Test
+    public void testGetMaxPageBytesLimit_limitInHostEnabled() {
+        ServiceAppSearchConfig appSearchConfig =
+                FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
+        assertThat(appSearchConfig.getMaxPageBytesLimit())
+                .isEqualTo(IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+    }
+
     @Test
     public void testDefaultValues_allCachedValue() {
         ServiceAppSearchConfig appSearchConfig =
@@ -219,11 +237,14 @@ public class ServiceAppSearchConfigTest {
         assertThat(appSearchConfig.getUsePersistentHashMap()).isEqualTo(
                 IcingOptionsConfig.DEFAULT_USE_PERSISTENT_HASH_MAP);
         // TODO: b/389105038 - remove this temporary workaround for binder transaction limit.
-        assertThat(appSearchConfig.getMaxPageBytesLimit())
-                .isAnyOf(
-                        IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT,
-                        IsolatedStorageServiceManager
-                                .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
+        if (Flags.enableMaxPageBytesLimitInHost()) {
+            assertThat(appSearchConfig.getMaxPageBytesLimit())
+                    .isEqualTo(IsolatedStorageServiceManager
+                                    .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
+        } else {
+            assertThat(appSearchConfig.getMaxPageBytesLimit())
+                    .isEqualTo(IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+        }
         assertThat(appSearchConfig.getCachedRateLimitEnabled()).isEqualTo(
                 DEFAULT_RATE_LIMIT_ENABLED);
         AppSearchRateLimitConfig rateLimitConfig = appSearchConfig.getCachedRateLimitConfig();
