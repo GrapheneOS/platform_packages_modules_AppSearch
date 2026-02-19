@@ -315,7 +315,13 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
                 @NonNull String functionId,
                 @NonNull String indexerPackageName) {
             super(packageName, Objects.requireNonNull(functionId), indexerPackageName, SCHEMA_TYPE);
-            setPropertyString(PROPERTY_FUNCTION_ID, functionId);
+            // v1 indexer mandates adding <function_id> tag in the XML and a corresponding GD
+            // property because this has usage in previous legacy releases of app function library,
+            // while v2 indexer doesn't. In v2 indexer documents of type other than functions can
+            // also be indexed hence it was replaced by GenericDocument#id.
+            if (!functionId.isEmpty()) {
+                setPropertyString(PROPERTY_FUNCTION_ID, functionId);
+            }
             // Default values of properties.
             setPropertyBoolean(PROPERTY_ENABLED_BY_DEFAULT, true);
         }
@@ -427,8 +433,7 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
         @NonNull
         @Override
         public Builder setPropertyString(@NonNull String propertyName, @NonNull String... values) {
-            if (isAppLevelAppFunctionsEnabled()
-                    && propertyName.equals(PROPERTY_SERVICE_NAME)) {
+            if (isAppLevelAppFunctionsEnabled() && propertyName.equals(PROPERTY_SERVICE_NAME)) {
                 throw new IllegalArgumentException(
                         "Service name cannot be set via the XML. It is derived from the enclosing"
                                 + " service tag where the function defining XML is specified.");
