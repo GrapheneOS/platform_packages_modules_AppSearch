@@ -692,13 +692,6 @@ flag {
 }
 
 flag {
-    name: "enable_reduce_check_optimize_for_set_schema"
-    namespace: "appsearch"
-    description: "Only check optimize if we have deleted or incompatible types for setSchema, and forceOverride is true."
-    bug: "435251329"
-}
-
-flag {
     name: "enable_remove_by_id_uses_query"
     namespace: "appsearch"
     description: "Enable using removeByQuery to implement removeById."
