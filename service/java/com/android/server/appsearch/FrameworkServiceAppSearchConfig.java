@@ -24,6 +24,7 @@ import android.os.Bundle;
 import android.provider.DeviceConfig;
 import android.provider.DeviceConfig.OnPropertiesChangedListener;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.AppOpenEventIndexerConfig;
@@ -611,6 +612,12 @@ public final class FrameworkServiceAppSearchConfig implements ServiceAppSearchCo
             throwIfClosedLocked();
             // TODO: b/389105038 - remove the temporary workaround for binder transaction
             //  limit.
+            if (Flags.enableMaxPageBytesLimitInHost()) {
+                // Reuse the same page size limit (512 KiB) that we used for isolated storage.
+                return mBundleLocked.getInt(
+                        KEY_ICING_MAX_PAGE_BYTES_LIMIT,
+                        DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
+            }
             return mBundleLocked.getInt(
                     KEY_ICING_MAX_PAGE_BYTES_LIMIT,
                     IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);

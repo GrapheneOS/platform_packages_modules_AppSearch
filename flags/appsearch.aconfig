@@ -942,6 +942,15 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+flag {
+    name: "enable_max_page_bytes_limit_in_host"
+    namespace: "appsearch"
+    description: "Limits all search result pages fetches from Icing to 512 KiB. This limit was already in force on Aegis-enabled devices."
+    bug: "483777142"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
 
 flag {
     name: "enable_isolated_storage_connection_fix"
