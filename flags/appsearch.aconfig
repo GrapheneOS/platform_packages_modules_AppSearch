@@ -664,13 +664,6 @@ flag {
 }
 
 flag {
-    name: "enable_remove_doc_count_batching_for_batch_put"
-    namespace: "appsearch"
-    description: "Remove the upper layer batching with document number to improve batchPut performance"
-    bug: "433822099"
-}
-
-flag {
     name: "enable_no_op_manual_persist"
     namespace: "appsearch"
     description: "Makes manual persist to disk calls a no-op."
@@ -696,13 +689,6 @@ flag {
     namespace: "appsearch"
     description: "Enables passing down filters to child iterators for optimized DocHitInfo retrieval"
     bug: "395156795"
-}
-
-flag {
-    name: "enable_reduce_check_optimize_for_set_schema"
-    namespace: "appsearch"
-    description: "Only check optimize if we have deleted or incompatible types for setSchema, and forceOverride is true."
-    bug: "435251329"
 }
 
 flag {
