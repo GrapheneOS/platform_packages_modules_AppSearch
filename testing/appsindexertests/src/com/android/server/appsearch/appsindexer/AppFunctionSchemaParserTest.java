@@ -17,6 +17,8 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.TestUtils.APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES;
 
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assume.assumeTrue;
@@ -339,6 +341,7 @@ public class AppFunctionSchemaParserTest {
 
     @Test
     public void parse_duplicateServiceNameAndScope_ignoresDuplicate() throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
