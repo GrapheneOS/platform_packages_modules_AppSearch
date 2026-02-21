@@ -16,13 +16,14 @@
 
 package com.android.server.appsearch.appsindexer.appsearchtypes;
 
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
 import android.app.appsearch.AppSearchSchema;
 
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import org.junit.Test;
 
 public class AppFunctionStaticMetadataTest {
@@ -81,8 +82,8 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void testScope_global_succeeds() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata appFunction =
                 new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
                         .setScope(AppFunctionStaticMetadata.SCOPE_GLOBAL)
@@ -93,8 +94,8 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void testScope_activity_appLevel_succeeds() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata appFunction =
                 new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
                         .setScope(AppFunctionStaticMetadata.SCOPE_ACTIVITY)
@@ -108,8 +109,8 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void testScope_invalid_throws() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata.Builder builder =
                 new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
                         .setScope("invalid");
@@ -118,8 +119,8 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void testScope_notSet_serviceBased_defaultsToGlobal() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata appFunction =
                 new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
                         .setServiceName("some.service.Name")
@@ -132,8 +133,8 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void testScope_notSet_appLevel_throws() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata.Builder builder =
                 new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
                         .setServiceName(AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME);
@@ -142,8 +143,8 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void testSetPropertyString_serviceName_throws() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata.Builder builder =
                 new AppFunctionStaticMetadata.Builder("pkg", "id", "android");
 

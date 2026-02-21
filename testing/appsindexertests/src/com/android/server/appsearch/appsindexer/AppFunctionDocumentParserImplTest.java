@@ -15,6 +15,8 @@
  */
 package com.android.server.appsearch.appsindexer;
 
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assume.assumeTrue;
@@ -26,7 +28,6 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.os.Build;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.annotation.NonNull;
 
@@ -147,11 +148,9 @@ public class AppFunctionDocumentParserImplTest {
     }
 
     @Test
-    @Ignore("b/469699240")
-    @RequiresFlagsEnabled({android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS})
     public void parseIntoMapForGivenSchemas_withNotNullServiceName_servicePropertyIsSet()
             throws Exception {
-        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA);
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         XmlPullParser xmlPullParser = getXmlPullParser(TEST_PRINT_APPFUNCTION_XML);
         final String testXmlService = "com.android.TestAppFunctionsService";
 
@@ -549,9 +548,9 @@ public class AppFunctionDocumentParserImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)
     public void parseIntoMapForGivenSchemas_serviceNameInXml_doesNotParseFunction()
             throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         Map<String, AppSearchSchema> testSchemas =
                 Map.of(
                         "AppFunctionStaticMetadata-com.example.app",

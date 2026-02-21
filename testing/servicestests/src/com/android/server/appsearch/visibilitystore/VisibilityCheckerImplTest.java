@@ -30,6 +30,8 @@ import static android.Manifest.permission.READ_SMS;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+
 import static com.android.appsearch.flags.Flags.FLAG_ENABLE_APP_FUNCTION_AGENT_ALLOWLIST_CHECK;
 import static com.android.appsearch.flags.Flags.FLAG_ENABLE_RESTRICT_VISIBILITY_ON_EMPTY_PERMISSIONS;
 
@@ -90,8 +92,7 @@ public class VisibilityCheckerImplTest {
     private static final OptimizeStrategy ALWAYS_OPTIMIZE = optimizeInfo -> true;
 
     @SuppressLint("NewApi")
-    private static final String DISCOVER_APP_FUNCTIONS_PERMISSION =
-            DISCOVER_APP_FUNCTIONS;
+    private static final String DISCOVER_APP_FUNCTIONS_PERMISSION = DISCOVER_APP_FUNCTIONS;
 
     @SuppressLint("NewApi")
     private static final String EXECUTE_APP_FUNCTIONS_SYSTEM_PERMISSION =
@@ -1894,10 +1895,10 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(
-            android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
     public void testSchema_requiredReadAppFunctionDataPermission_onlyVisibleToPermissionHolder()
             throws Exception {
+        assumeFlagIsEnabled(
+                android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2);
         String prefix = PrefixUtil.createPrefix("package", "database");
         InternalVisibilityConfig visibilityConfig =
                 new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
@@ -1938,11 +1939,11 @@ public class VisibilityCheckerImplTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(
-            android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
     public void
             testSchema_requiredExecuteAppFunctionSystemPermission_onlyVisibleToPermissionHolder()
                     throws Exception {
+        assumeFlagIsEnabled(
+                android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2);
         String prefix = PrefixUtil.createPrefix("package", "database");
         InternalVisibilityConfig visibilityConfig =
                 new InternalVisibilityConfig.Builder(/* id= */ prefix + "Schema")
