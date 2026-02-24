@@ -39,6 +39,7 @@ import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.SchemaVisibilityConfig;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.aidl.AppSearchAttributionSource;
+import android.app.privatecompute.PccSandboxManager;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -413,7 +414,8 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
                     // enterprise and is checked at the top of this method so just skip it here
                     break;
                 case SetSchemaRequest.PRIVATE_COMPUTE_CORE_UID_ACCESS:
-                    if (!isPrivateComputeCoreUid(callerAttributionSource.getUid())) {
+                    if (!isPrivateComputeCoreUid(callerAttributionSource.getUid())
+                            && !isPccTrustedSystemComponent(callerAttributionSource)) {
                         return false;
                     }
                     break;
@@ -523,9 +525,26 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
 
     @Override
     public boolean isPrivateComputeCoreUid(int uid) {
+        // TODO(b/463863587): Add isAtLeastC() check after C SDK finalization
         if (Flags.enablePrivateComputeCoreUidAccess()
                 && android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
             return Process.isPrivateComputeCoreUid(uid);
+        }
+        return false;
+    }
+
+    @VisibleForTesting
+    protected boolean isPccTrustedSystemComponent(
+            @NonNull AppSearchAttributionSource callerAttributionSource) {
+        // TODO(b/463863587): Add isAtLeastC() check after C SDK finalization
+        if (Flags.enablePrivateComputeCoreUidAccess()
+                && android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+            PccSandboxManager pccSandboxManager =
+                    mUserContext.getSystemService(PccSandboxManager.class);
+            if (pccSandboxManager != null) {
+                return pccSandboxManager.isPccTrustedSystemComponent(
+                        callerAttributionSource.getUid(), callerAttributionSource.getPackageName());
+            }
         }
         return false;
     }

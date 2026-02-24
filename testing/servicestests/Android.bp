@@ -23,6 +23,7 @@ android_test {
     static_libs: [
         "CtsAppSearchTestUtils",
         "android.app.appfunctions.exported-flags-aconfig-java",
+        "android.app.privatecompute.flags-aconfig-java",
         "android.permission.flags-aconfig-java-export",
         "androidx.test.ext.junit",
         "androidx.test.rules",
