@@ -54,6 +54,13 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
             "restrictCallersWithExecuteAppFunctions";
     public static final String PROPERTY_SCOPE = "scope";
 
+    /**
+     * The hash of the package name of the app that owns the function.
+     *
+     * <p>This is to allow the search to sort the results by the package name.
+     */
+    public static final String PROPERTY_PACKAGE_NAME_HASH = "packageNameHash";
+
     // TODO: b/479798651 - Use constants from the AppFunctionMetadata API once it's available.
     public static final String SCOPE_GLOBAL = "global";
     public static final String SCOPE_ACTIVITY = "activity";
@@ -73,6 +80,12 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
                     .setCardinality(AppSearchSchema.StringPropertyConfig.CARDINALITY_OPTIONAL)
                     .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
                     .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM)
+                    .build();
+
+    public static final AppSearchSchema.LongPropertyConfig PACKAGE_NAME_HASH_PROPERTY_CONFIG =
+            new AppSearchSchema.LongPropertyConfig.Builder(PROPERTY_PACKAGE_NAME_HASH)
+                    .setCardinality(AppSearchSchema.LongPropertyConfig.CARDINALITY_OPTIONAL)
+                    .setScoringEnabled(true)
                     .build();
 
     public static final AppSearchSchema PARENT_TYPE_APPSEARCH_SCHEMA =
@@ -104,6 +117,7 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
         if (isAppLevelAppFunctionsEnabled()) {
             builder.addProperty(SERVICE_PROPERTY_CONFIG);
             builder.addProperty(SCOPE_PROPERTY_CONFIG);
+            builder.addProperty(PACKAGE_NAME_HASH_PROPERTY_CONFIG);
         }
 
         return builder.addProperty(
@@ -194,6 +208,11 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
     @NonNull
     public String getPackageName() {
         return Objects.requireNonNull(getPropertyString(PROPERTY_PACKAGE_NAME));
+    }
+
+    /** Returns the hash of the package name of the package that owns this function. */
+    public long getPackageNameHash() {
+        return getPropertyLong(PROPERTY_PACKAGE_NAME_HASH);
     }
 
     /**
@@ -324,6 +343,9 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
             }
             // Default values of properties.
             setPropertyBoolean(PROPERTY_ENABLED_BY_DEFAULT, true);
+            if (isAppLevelAppFunctionsEnabled()) {
+                super.setPropertyLong(PROPERTY_PACKAGE_NAME_HASH, packageName.hashCode());
+            }
         }
 
         /**
@@ -428,6 +450,18 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
                     PROPERTY_RESTRICT_CALLERS_WITH_EXECUTE_APP_FUNCTIONS,
                     restrictCallersWithExecuteAppFunctions);
             return this;
+        }
+
+        @NonNull
+        @Override
+        public Builder setPropertyLong(@NonNull String propertyName, long... values) {
+            if (isAppLevelAppFunctionsEnabled()
+                    && propertyName.equals(PROPERTY_PACKAGE_NAME_HASH)) {
+                throw new IllegalArgumentException(
+                        "Package name hash cannot be set via the XML. It is derived from the"
+                                + " package name directly.");
+            }
+            return super.setPropertyLong(propertyName, values);
         }
 
         @NonNull
