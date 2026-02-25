@@ -60,8 +60,7 @@ public class AppFunctionStaticMetadataTest {
         assertThat(appFunction.getDisplayNameStringRes()).isEqualTo(stringResId);
         assertThat(appFunction.getMobileApplicationQualifiedId())
                 .isEqualTo("android$apps-db/apps#com.example.message");
-        assertThat(appFunction.getScope())
-                .isEqualTo(AppFunctionStaticMetadata.SCOPE_GLOBAL);
+        assertThat(appFunction.getScope()).isEqualTo(AppFunctionStaticMetadata.SCOPE_GLOBAL);
     }
 
     @Test
@@ -89,8 +88,7 @@ public class AppFunctionStaticMetadataTest {
                         .setScope(AppFunctionStaticMetadata.SCOPE_GLOBAL)
                         .build();
 
-        assertThat(appFunction.getScope())
-                .isEqualTo(AppFunctionStaticMetadata.SCOPE_GLOBAL);
+        assertThat(appFunction.getScope()).isEqualTo(AppFunctionStaticMetadata.SCOPE_GLOBAL);
     }
 
     @Test
@@ -102,8 +100,7 @@ public class AppFunctionStaticMetadataTest {
                         .setServiceName(AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME)
                         .build();
 
-        assertThat(appFunction.getScope())
-                .isEqualTo(AppFunctionStaticMetadata.SCOPE_ACTIVITY);
+        assertThat(appFunction.getScope()).isEqualTo(AppFunctionStaticMetadata.SCOPE_ACTIVITY);
         assertThat(appFunction.getServiceName())
                 .isEqualTo(AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME);
     }
@@ -112,8 +109,7 @@ public class AppFunctionStaticMetadataTest {
     public void testScope_invalid_throws() {
         assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata.Builder builder =
-                new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
-                        .setScope("invalid");
+                new AppFunctionStaticMetadata.Builder("pkg", "id", "android").setScope("invalid");
 
         assertThrows(IllegalStateException.class, builder::build);
     }
@@ -126,10 +122,8 @@ public class AppFunctionStaticMetadataTest {
                         .setServiceName("some.service.Name")
                         .build();
 
-        assertThat(appFunction.getScope())
-                .isEqualTo(AppFunctionStaticMetadata.SCOPE_GLOBAL);
-        assertThat(appFunction.getServiceName())
-                .isEqualTo("some.service.Name");
+        assertThat(appFunction.getScope()).isEqualTo(AppFunctionStaticMetadata.SCOPE_GLOBAL);
+        assertThat(appFunction.getServiceName()).isEqualTo("some.service.Name");
     }
 
     @Test
@@ -154,5 +148,27 @@ public class AppFunctionStaticMetadataTest {
                         builder.setPropertyString(
                                 AppFunctionStaticMetadata.PROPERTY_SERVICE_NAME,
                                 "some.service.Name"));
+    }
+
+    @Test
+    public void testPackageNameHash_isSet() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        AppFunctionStaticMetadata appFunction =
+                new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
+                        .setServiceName("some.service.Name")
+                        .build();
+        assertThat(appFunction.getPackageNameHash()).isEqualTo("pkg".hashCode());
+    }
+
+    @Test
+    public void testPackageNameHash_cannotBeSet() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        AppFunctionStaticMetadata.Builder builder =
+                new AppFunctionStaticMetadata.Builder("pkg", "id", "android");
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        builder.setPropertyLong(
+                                AppFunctionStaticMetadata.PROPERTY_PACKAGE_NAME_HASH, 123L));
     }
 }

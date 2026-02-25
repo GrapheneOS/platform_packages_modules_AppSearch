@@ -34,7 +34,6 @@ import androidx.annotation.NonNull;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -52,7 +51,6 @@ import java.util.Map;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AppFunctionDocumentParserImplTest {
-
     private static final String TEST_PACKAGE_NAME = "com.example.app";
     private static final String TEST_INDEXER_PACKAGE_NAME = "com.android.test.indexer";
     private static final String TEST_XML_ASSET_FILE_PATH = "app_functions.xml";
@@ -583,6 +581,47 @@ public class AppFunctionDocumentParserImplTest {
                         xmlPullParser,
                         testSchemas,
                         "correct.service.Name");
+
+        assertThat(appFunctions).isEmpty();
+    }
+
+    @Test
+    public void parseIntoMapForGivenSchemas_packageNameHashInXml_doesNotParseFunction()
+            throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        Map<String, AppSearchSchema> testSchemas =
+                Map.of(
+                        "AppFunctionStaticMetadata-com.example.app",
+                        new AppSearchSchema.Builder("AppFunctionStaticMetadata-com.example.app")
+                                .addProperty(
+                                        new AppSearchSchema.StringPropertyConfig.Builder(
+                                                        "functionId")
+                                                .build())
+                                .addProperty(
+                                        new AppSearchSchema.LongPropertyConfig.Builder(
+                                                        "packageNameHash")
+                                                .build())
+                                .build());
+
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#print</functionId>\n"
+                                // packageNameHash cannot be set by the app.
+                                + "    <packageNameHash>123</packageNameHash>\n"
+                                + "  </AppFunctionStaticMetadata>\n"
+                                + "</appfunctions>");
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager,
+                        TEST_PACKAGE_NAME,
+                        xmlPullParser,
+                        testSchemas,
+                        "service.Name");
 
         assertThat(appFunctions).isEmpty();
     }
