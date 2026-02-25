@@ -229,8 +229,8 @@ public final class PersonBuilderHelper {
         return md.digest();
     }
 
-    @VisibleForTesting
     /** Returns a string presentation of {@link Person} for fingerprinting. */
+    @VisibleForTesting
     static String generateFingerprintStringForPerson(@NonNull Person person) {
         Objects.requireNonNull(person);
 

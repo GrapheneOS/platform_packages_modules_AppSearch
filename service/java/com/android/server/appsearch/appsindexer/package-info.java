@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-package com.android.server.appsearch.appsindexer;
-
-import android.app.appsearch.AppSearchSession;
-
 /**
  * The package contains the implementation of the AppsIndexer used to index metadata about apps and
  * app functions exposed by apps into AppSearch.
@@ -29,3 +25,6 @@ import android.app.appsearch.AppSearchSession;
  * defining one database per app because {@link AppSearchSession#setSchema} was a bottleneck for the
  * inserting schemas into per app database.
  */
+package com.android.server.appsearch.appsindexer;
+
+import android.app.appsearch.AppSearchSession;
