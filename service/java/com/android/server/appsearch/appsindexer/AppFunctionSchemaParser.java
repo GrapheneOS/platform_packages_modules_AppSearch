@@ -16,8 +16,8 @@
 package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
-import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.SERVICE_PROPERTY_CONFIG;
 import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.SCOPE_PROPERTY_CONFIG;
+import static com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata.SERVICE_PROPERTY_CONFIG;
 
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
@@ -32,9 +32,9 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionPackageMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
-import java.util.List;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -218,6 +218,12 @@ public class AppFunctionSchemaParser {
                                     seenPropertyNames.add(SERVICE_PROPERTY_CONFIG.getName());
                                     schemaBuilder.addProperty(SCOPE_PROPERTY_CONFIG);
                                     seenPropertyNames.add(SCOPE_PROPERTY_CONFIG.getName());
+                                }
+                            } else {
+                                if (isAppLevelAppFunctionsEnabled()
+                                        && AppFunctionPackageMetadata.shouldSetParentType()) {
+                                    schemaBuilder.addParentType(
+                                            AppFunctionPackageMetadata.SCHEMA_TYPE);
                                 }
                             }
                         }
