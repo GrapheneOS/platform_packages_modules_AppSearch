@@ -941,3 +941,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_contacts_indexer_extended_properties"
+    namespace: "appsearch"
+    description: "Enables setting and populating more fields in ContactIndexer's Person and ContactPoint schemas."
+    bug: "388074595"
+}

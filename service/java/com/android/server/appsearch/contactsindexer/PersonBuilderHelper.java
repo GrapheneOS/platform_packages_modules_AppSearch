@@ -313,10 +313,9 @@ public final class PersonBuilderHelper {
                 }
                 if (i != propertyArrLength - 1) {
                     builder.append(", ");
-                } else {
-                    builder.append("]");
                 }
             }
+            builder.append("]");
         }
     }
 }

@@ -19,11 +19,15 @@ package com.android.server.appsearch.contactsindexer;
 import static android.app.appsearch.testutil.AppSearchTestUtils.checkIsBatchResultSuccess;
 import static android.app.appsearch.testutil.AppSearchTestUtils.convertSearchResultsToDocuments;
 
+import static com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate.TYPE_ANNIVERSARY;
+import static com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate.TYPE_BIRTHDAY;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 
+import android.app.appsearch.AppSearchAccount;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
@@ -47,7 +51,9 @@ import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactRelation;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate;
 
 import com.google.common.collect.ImmutableSet;
 
@@ -337,12 +343,17 @@ public class AppSearchHelperTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES)
     @Test
     public void testPersonSchema_indexFirstMiddleAndLastNames() throws Exception {
-        SetSchemaRequest setSchemaRequest =
+        SetSchemaRequest.Builder setSchemaRequestBuilder =
                 new SetSchemaRequest.Builder()
-                        .addSchemas(ContactPoint.SCHEMA, Person.getSchema())
-                        .setForceOverride(true)
-                        .build();
-        mDb.setSchemaAsync(setSchemaRequest).get();
+                        .addSchemas(ContactPoint.getSchema(), Person.getSchema())
+                        .setForceOverride(true);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            setSchemaRequestBuilder.addSchemas(SignificantDate.SCHEMA, ContactRelation.SCHEMA);
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                setSchemaRequestBuilder.addSchemas(AppSearchAccount.SCHEMA);
+            }
+        }
+        mDb.setSchemaAsync(setSchemaRequestBuilder.build()).get();
         // Index document
         GenericDocument doc1 =
                 new GenericDocument.Builder<>("namespace", "id1", Person.SCHEMA_TYPE)
@@ -390,12 +401,17 @@ public class AppSearchHelperTest {
     @RequiresFlagsDisabled(Flags.FLAG_ENABLE_CONTACTS_INDEX_FIRST_MIDDLE_AND_LAST_NAMES)
     @Test
     public void testPersonSchema_indexFullNameOnly() throws Exception {
-        SetSchemaRequest setSchemaRequest =
+        SetSchemaRequest.Builder setSchemaRequestBuilder =
                 new SetSchemaRequest.Builder()
-                        .addSchemas(ContactPoint.SCHEMA, Person.getSchema())
-                        .setForceOverride(true)
-                        .build();
-        mDb.setSchemaAsync(setSchemaRequest).get();
+                        .addSchemas(ContactPoint.getSchema(), Person.getSchema())
+                        .setForceOverride(true);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            setSchemaRequestBuilder.addSchemas(SignificantDate.SCHEMA, ContactRelation.SCHEMA);
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                setSchemaRequestBuilder.addSchemas(AppSearchAccount.SCHEMA);
+            }
+        }
+        mDb.setSchemaAsync(setSchemaRequestBuilder.build()).get();
         GenericDocument doc1 =
                 new GenericDocument.Builder<>("namespace", "id1", Person.SCHEMA_TYPE)
                         .setPropertyString(Person.PERSON_PROPERTY_NAME, "新中野")
@@ -435,6 +451,115 @@ public class AppSearchHelperTest {
         searchResults = mDb.search("野", spec);
         documents = convertSearchResultsToDocuments(searchResults);
         assertThat(documents).isEmpty();
+    }
+
+    @Test
+    @RequiresFlagsEnabled({Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES,
+            Flags.FLAG_ENABLE_SCHEMAS_WIPEOUT_ACCOUNT_PROPERTY_PATHS})
+    public void testPersonSchema_extendedProperties() throws Exception {
+        SetSchemaRequest setSchemaRequest =
+                new SetSchemaRequest.Builder()
+                        .addSchemas(
+                                AppSearchAccount.SCHEMA,
+                                ContactRelation.SCHEMA,
+                                SignificantDate.SCHEMA,
+                                ContactPoint.getSchema(),
+                                Person.getSchema())
+                        .setForceOverride(true)
+                        .build();
+        mDb.setSchemaAsync(setSchemaRequest).get();
+
+        GenericDocument dateDoc1 =
+                new GenericDocument.Builder<>("namespace", "id1", SignificantDate.SCHEMA_TYPE)
+                        .setPropertyString(
+                                SignificantDate.SIGNIFICANT_DATE_PROPERTY_RAW_DATE, "2025-01-20")
+                        .setPropertyLong(
+                                SignificantDate.SIGNIFICANT_DATE_PROPERTY_TYPE, TYPE_ANNIVERSARY)
+                        .build();
+        GenericDocument dateDoc2 =
+                new GenericDocument.Builder<>("namespace", "id2", SignificantDate.SCHEMA_TYPE)
+                        .setPropertyString(
+                                SignificantDate.SIGNIFICANT_DATE_PROPERTY_RAW_DATE, "1970-07-31")
+                        .setPropertyLong(
+                                SignificantDate.SIGNIFICANT_DATE_PROPERTY_TYPE, TYPE_BIRTHDAY)
+                        .build();
+        GenericDocument relationDoc1 =
+                new GenericDocument.Builder<>("namespace", "id3", ContactRelation.SCHEMA_TYPE)
+                        .setPropertyString(ContactRelation.RELATION_PROPERTY_NAME, "Lily")
+                        .setPropertyString(ContactRelation.RELATION_PROPERTY_LABEL, "mother")
+                        .build();
+        GenericDocument relationDoc2 =
+                new GenericDocument.Builder<>("namespace", "id4", ContactRelation.SCHEMA_TYPE)
+                        .setPropertyString(ContactRelation.RELATION_PROPERTY_NAME, "James")
+                        .setPropertyString(ContactRelation.RELATION_PROPERTY_LABEL, "father")
+                        .build();
+        AppSearchAccount accountDoc =
+                new AppSearchAccount.Builder("namespace", "id5")
+                        .setAccountName("accountName1")
+                        .setAccountType("accountType1")
+                        .build();
+
+        GenericDocument personDoc =
+                new GenericDocument.Builder<>("namespace", "id6", Person.SCHEMA_TYPE)
+                        .setPropertyString(Person.PERSON_PROPERTY_NAME, "Harry Potter")
+                        .setPropertyString(Person.PERSON_PROPERTY_RELATIONS, "mother", "father")
+                        .setPropertyDocument(
+                                Person.PERSON_PROPERTY_STRUCTURED_RELATIONS, relationDoc1,
+                                relationDoc2)
+                        .setPropertyString(Person.PERSON_PROPERTY_RAW_CONTACT_IDS, "rawId1",
+                                "rawId2")
+                        .setPropertyLong(Person.PERSON_PROPERTY_PINNED_POSITION, 1)
+                        .setPropertyDocument(
+                                Person.PERSON_PROPERTY_SIGNIFICANT_DATES, dateDoc1, dateDoc2)
+                        .setPropertyBoolean(Person.PERSON_PROPERTY_HAS_CUSTOM_RINGTONE, true)
+                        .setPropertyBoolean(Person.PERSON_PROPERTY_SEND_TO_VOICEMAIL, false)
+                        .setPropertyDocument(Person.PERSON_PROPERTY_ACCOUNTS, accountDoc)
+                        .build();
+        checkIsBatchResultSuccess(
+                mDb.putAsync(
+                        new PutDocumentsRequest.Builder()
+                                .addGenericDocuments(personDoc)
+                                .build()));
+
+        SearchSpec spec =
+                new SearchSpec.Builder()
+                        .setTermMatch(SearchSpec.TERM_MATCH_PREFIX)
+                        .setNumericSearchEnabled(true)
+                        .setVerbatimSearchEnabled(true)
+                        .build();
+
+        // Searching by full name returns document
+        SearchResultsShim searchResults = mDb.search("Harry Potter", spec);
+        List<GenericDocument> documents = convertSearchResultsToDocuments(searchResults);
+        assertThat(documents).containsExactly(personDoc);
+
+        // Searching by structured relation returns document
+        searchResults = mDb.search(
+                "structuredRelations.relationName:James AND structuredRelations"
+                        + ".relationLabel:father",
+                spec);
+        documents = convertSearchResultsToDocuments(searchResults);
+        assertThat(documents).containsExactly(personDoc);
+
+        // Searching by significant date returns document
+        searchResults = mDb.search("\"1970-07-31\"", spec);
+        documents = convertSearchResultsToDocuments(searchResults);
+        assertThat(documents).containsExactly(personDoc);
+
+        // Searching by account returns document
+        // account is indexed as Verbatim, so we also need to send a verbatim query
+        searchResults = mDb.search(
+                "accounts.accountName:\"accountName1\" AND accounts.accountType:\"accountType1\" ",
+                spec);
+        documents = convertSearchResultsToDocuments(searchResults);
+        assertThat(documents).containsExactly(personDoc);
+
+        // Other fields are populated
+        Person person = new Person(documents.get(0));
+        assertThat(person.getRawContactIds()).hasLength(2);
+        assertThat(person.getPinnedPosition()).isEqualTo(1);
+        assertThat(person.hasCustomRingtone()).isEqualTo(true);
+        assertThat(person.sendToVoicemail()).isEqualTo(false);
     }
 
     List<Person> generatePersonData(int numContacts) {

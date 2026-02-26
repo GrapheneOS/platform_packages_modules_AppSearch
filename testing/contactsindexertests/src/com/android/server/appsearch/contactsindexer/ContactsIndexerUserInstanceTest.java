@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.annotation.NonNull;
+import android.app.appsearch.AppSearchAccount;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
 import android.app.appsearch.AppSearchSessionShim;
@@ -65,7 +66,9 @@ import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.modules.utils.testing.StaticMockFixture;
 import com.android.modules.utils.testing.TestableDeviceConfig;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactRelation;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate;
 import com.android.server.appsearch.indexer.FrameworkIndexerMaintenanceService;
 import com.android.server.appsearch.indexer.IndexerForceUpdateConfig;
 import com.android.server.appsearch.indexer.IndexerJobHandler;
@@ -973,14 +976,19 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
         AppSearchSessionShim db =
                 AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
-        SetSchemaRequest setSchemaRequest =
+        SetSchemaRequest.Builder setSchemaRequestBuilder =
                 new SetSchemaRequest.Builder()
                         .addSchemas(
                                 TestUtils.CONTACT_POINT_SCHEMA_WITH_APP_IDS_OPTIONAL,
                                 Person.getSchema())
-                        .setForceOverride(true)
-                        .build();
-        db.setSchemaAsync(setSchemaRequest).get();
+                        .setForceOverride(true);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            setSchemaRequestBuilder.addSchemas(SignificantDate.SCHEMA, ContactRelation.SCHEMA);
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                setSchemaRequestBuilder.addSchemas(AppSearchAccount.SCHEMA);
+            }
+        }
+        db.setSchemaAsync(setSchemaRequestBuilder.build()).get();
 
         // Since the current schema is compatible, this won't trigger any delta update and
         // schedule a full update job.
@@ -1025,14 +1033,19 @@ public class ContactsIndexerUserInstanceTest extends FakeContactsProviderTestBas
                 new AppSearchManager.SearchContext.Builder(AppSearchHelper.DATABASE_NAME).build();
         AppSearchSessionShim db =
                 AppSearchSessionShimImpl.createSearchSessionAsync(searchContext).get();
-        SetSchemaRequest setSchemaRequest =
+        SetSchemaRequest.Builder setSchemaRequestBuilder =
                 new SetSchemaRequest.Builder()
                         .addSchemas(
                                 TestUtils.CONTACT_POINT_SCHEMA_WITH_LABEL_REPEATED,
                                 Person.getSchema())
-                        .setForceOverride(true)
-                        .build();
-        db.setSchemaAsync(setSchemaRequest).get();
+                        .setForceOverride(true);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            setSchemaRequestBuilder.addSchemas(SignificantDate.SCHEMA, ContactRelation.SCHEMA);
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                setSchemaRequestBuilder.addSchemas(AppSearchAccount.SCHEMA);
+            }
+        }
+        db.setSchemaAsync(setSchemaRequestBuilder.build()).get();
         // Setup a latch
         CountDownLatch latch = new CountDownLatch(docCount);
         GlobalSearchSessionShim shim =

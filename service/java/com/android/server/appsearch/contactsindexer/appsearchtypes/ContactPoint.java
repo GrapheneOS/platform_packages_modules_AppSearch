@@ -16,10 +16,13 @@
 
 package com.android.server.appsearch.contactsindexer.appsearchtypes;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
+import android.provider.ContactsContract;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -40,69 +43,84 @@ public final class ContactPoint extends GenericDocument {
     public static final String CONTACT_POINT_PROPERTY_ADDRESS = "address";
     public static final String CONTACT_POINT_PROPERTY_EMAIL = "email";
     public static final String CONTACT_POINT_PROPERTY_TELEPHONE = "telephone";
+    public static final String CONTACT_POINT_IS_SUPER_PRIMARY = "isSuperPrimary";
 
-    // Schema
-    public static final AppSearchSchema SCHEMA =
-            new AppSearchSchema.Builder(SCHEMA_TYPE)
-                    .addProperty(
-                            new AppSearchSchema.StringPropertyConfig.Builder(
-                                            CONTACT_POINT_PROPERTY_LABEL)
-                                    .setCardinality(
-                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                    .setIndexingType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .INDEXING_TYPE_PREFIXES)
-                                    .setTokenizerType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .TOKENIZER_TYPE_PLAIN)
-                                    .build())
-                    // appIds
-                    .addProperty(
-                            new AppSearchSchema.StringPropertyConfig.Builder(
-                                            CONTACT_POINT_PROPERTY_APP_ID)
-                                    .setCardinality(
-                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                                    .build())
-                    // address
-                    .addProperty(
-                            new AppSearchSchema.StringPropertyConfig.Builder(
-                                            CONTACT_POINT_PROPERTY_ADDRESS)
-                                    .setCardinality(
-                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                                    .setIndexingType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .INDEXING_TYPE_PREFIXES)
-                                    .setTokenizerType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .TOKENIZER_TYPE_PLAIN)
-                                    .build())
-                    // email
-                    .addProperty(
-                            new AppSearchSchema.StringPropertyConfig.Builder(
-                                            CONTACT_POINT_PROPERTY_EMAIL)
-                                    .setCardinality(
-                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                                    .setIndexingType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .INDEXING_TYPE_PREFIXES)
-                                    .setTokenizerType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .TOKENIZER_TYPE_PLAIN)
-                                    .build())
-                    // telephone
-                    .addProperty(
-                            new AppSearchSchema.StringPropertyConfig.Builder(
-                                            CONTACT_POINT_PROPERTY_TELEPHONE)
-                                    .setCardinality(
-                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                                    .setIndexingType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .INDEXING_TYPE_PREFIXES)
-                                    .setTokenizerType(
-                                            AppSearchSchema.StringPropertyConfig
-                                                    .TOKENIZER_TYPE_PLAIN)
-                                    .build())
-                    .build();
+    /**
+     * Returns the ContactPoint schema based on
+     * {@link Flags#enableContactsIndexerExtendedProperties}
+     */
+    public static AppSearchSchema getSchema() {
+        AppSearchSchema.Builder builder =
+                new AppSearchSchema.Builder(SCHEMA_TYPE)
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                CONTACT_POINT_PROPERTY_LABEL)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        // appIds
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                CONTACT_POINT_PROPERTY_APP_ID)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                        .build())
+                        // address
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                CONTACT_POINT_PROPERTY_ADDRESS)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        // email
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                CONTACT_POINT_PROPERTY_EMAIL)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        // telephone
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                CONTACT_POINT_PROPERTY_TELEPHONE)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build());
+
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            // isSuperPrimary.
+            builder.addProperty(
+                    new AppSearchSchema.BooleanPropertyConfig.Builder(
+                            CONTACT_POINT_IS_SUPER_PRIMARY)
+                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                            .build());
+        }
+        return builder.build();
+    }
 
     /** Constructs a {@link ContactPoint}. */
     @VisibleForTesting
@@ -133,6 +151,28 @@ public final class ContactPoint extends GenericDocument {
     @NonNull
     public String[] getPhones() {
         return getPropertyStringArray(CONTACT_POINT_PROPERTY_TELEPHONE);
+    }
+
+    /**
+     * Returns whether this {@link ContactPoint} contains a super primary entry as represented by
+     * the {@link ContactsContract.Data#IS_SUPER_PRIMARY} field from the Contacts Provider.
+     *
+     * <p>In CP2, a Super Primary entry represents a user-designated or system-selected global
+     * default for an aggregate contact. While a contact may have multiple "Primary" entries (one
+     * per account), it can only have one "Super Primary" entry per data type
+     * (e.g., one default phone number) across all linked accounts.
+     *
+     * <p> When this returns true, the "Super Primary" element is guaranteed to be the first item
+     * in its respective list (e.g., the 0-index entry in {@link #getPhones()} or
+     * {@link #getEmails()}).
+     *
+     * <p> E.g: If "John Doe" has a work number (Primary in Outlook) and a mobile number (Primary
+     * in Gmail), but the user selected "Always use mobile," the mobile number becomes the one
+     * and only Super Primary.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public boolean isSuperPrimary() {
+        return getPropertyBoolean(CONTACT_POINT_IS_SUPER_PRIMARY);
     }
 
     /** Builder for {@link ContactPoint}. */
@@ -191,6 +231,22 @@ public final class ContactPoint extends GenericDocument {
         public Builder addPhone(@NonNull String phone) {
             Objects.requireNonNull(phone);
             mTelephones.add(phone);
+            return this;
+        }
+
+        /**
+         * Sets whether this {@link ContactPoint} contains the super primary data item.
+         *
+         * <p>This represents the {@code ContactsContract.Data.IS_SUPER_PRIMARY} field from
+         * the Contacts Provider. This {@link ContactPoint} is an aggregate of data, but if
+         * {@code isSuperPrimary} is true, the first entry appearing in the specific data
+         * lists (e.g., the first telephone number in the telephone list) is guaranteed
+         * to be the super primary one.
+         */
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder setIsSuperPrimary(boolean isSuperPrimary) {
+            setPropertyBoolean(CONTACT_POINT_IS_SUPER_PRIMARY, isSuperPrimary);
             return this;
         }
 
