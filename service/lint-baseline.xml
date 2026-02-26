@@ -63,4 +63,26 @@
             column="28"/>
     </issue>
 
+    <issue
+        id="NewApi"
+        message="Class requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.app.privatecompute.PccSandboxManager`"
+        errorLine1="                    mUserContext.getSystemService(PccSandboxManager.class);"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/visibilitystore/VisibilityCheckerImpl.java"
+            line="543"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.app.privatecompute.PccSandboxManager#isPccTrustedSystemComponent`"
+        errorLine1="                return pccSandboxManager.isPccTrustedSystemComponent("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/visibilitystore/VisibilityCheckerImpl.java"
+            line="545"
+            column="42"/>
+    </issue>
+
 </issues>
