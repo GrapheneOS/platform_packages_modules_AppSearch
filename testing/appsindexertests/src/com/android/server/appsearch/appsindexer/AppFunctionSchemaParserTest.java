@@ -15,9 +15,10 @@
  */
 package com.android.server.appsearch.appsindexer;
 
-import static com.android.server.appsearch.appsindexer.TestUtils.APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES;
-
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsDisabled;
 import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+
+import static com.android.server.appsearch.appsindexer.TestUtils.APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -157,7 +158,50 @@ public class AppFunctionSchemaParserTest {
     }
 
     @Test
-    public void parse_multipleNestedTypes() throws Exception {
+    public void parse_multipleNestedTypes_withTopLevelSchemaType() throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
+        String xsd =
+                "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"
+                        + "    <xs:documentType name=\"AppFunctionStaticMetadata\">"
+                        + APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES
+                        + "        <xs:element name=\"inner\" type=\"appfn:InnerType\" />"
+                        + "    </xs:documentType>"
+                        + "    <xs:documentType name=\"InnerType\">"
+                        + "        <xs:element name=\"value\" type=\"xs:string\" />"
+                        + "    </xs:documentType>"
+                        + "</xs:schema>";
+        setXmlInput(xsd);
+
+        Map<String, AppSearchSchema> schemas =
+                mParser.parseAndCreateSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, TEST_XML_ASSET_FILE_PATH);
+
+        assertThat(schemas).hasSize(2);
+        assertThat(schemas.get("InnerType-com.example.app"))
+                .isEqualTo(
+                        new AppSearchSchema.Builder("InnerType-com.example.app")
+                                .addParentType("AppFunctionPackageData")
+                                .addProperty(new StringPropertyConfig.Builder("value").build())
+                                .build());
+        assertThat(schemas.get("AppFunctionStaticMetadata-com.example.app"))
+                .isEqualTo(
+                        new AppSearchSchema.Builder(
+                                        AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA)
+                                .setSchemaType("AppFunctionStaticMetadata-com.example.app")
+                                .addParentType("AppFunctionStaticMetadata")
+                                .addProperty(
+                                        new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                                        "inner", "InnerType-com.example.app")
+                                                .setShouldIndexNestedProperties(false)
+                                                .build())
+                                .build());
+    }
+
+    @Test
+    public void parse_multipleNestedTypes_withoutTopLevelSchemaType() throws Exception {
+        assumeFlagIsDisabled(
+                android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
                 "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">"

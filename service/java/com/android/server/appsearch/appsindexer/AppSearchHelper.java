@@ -19,6 +19,8 @@ package com.android.server.appsearch.appsindexer;
 import static android.app.appsearch.AppSearchResult.RESULT_INVALID_ARGUMENT;
 import static android.app.appsearch.AppSearchResult.RESULT_IO_ERROR;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
+
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -45,6 +47,7 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionPackageMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
@@ -257,6 +260,11 @@ public class AppSearchHelper implements Closeable {
 
         if (!appFunctionPkgs.isEmpty() && AppFunctionStaticMetadata.shouldSetParentType()) {
             builder.addSchemas(AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA);
+        }
+        if (isAppLevelAppFunctionsEnabled()
+                && !appFunctionPkgs.isEmpty()
+                && AppFunctionPackageMetadata.shouldSetParentType()) {
+            builder.addSchemas(AppFunctionPackageMetadata.PARENT_TYPE_APPSEARCH_SCHEMA);
         }
 
         for (int i = 0; i < appFunctionPkgs.size(); i++) {
