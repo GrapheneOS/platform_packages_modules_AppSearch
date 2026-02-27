@@ -384,7 +384,7 @@ public class AppFunctionSchemaParserTest {
     }
 
     @Test
-    public void parse_duplicateServiceNameAndScope_ignoresDuplicate() throws Exception {
+    public void parse_duplicatePlatformDefinedProperties_ignoresDuplicate() throws Exception {
         assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         String xsd =
@@ -400,6 +400,10 @@ public class AppFunctionSchemaParserTest {
                         + "        <xs:element name=\"scope\" type=\"xs:string\""
                         + "             cardinality=\""
                         + PropertyConfig.CARDINALITY_REPEATED
+                        + "\" />"
+                        + "        <xs:element name=\"packageNameHash\" type=\"xs:long\""
+                        + "             cardinality=\""
+                        + PropertyConfig.CARDINALITY_OPTIONAL
                         + "\" />"
                         + "    </xs:documentType>"
                         + "</xs:schema>";

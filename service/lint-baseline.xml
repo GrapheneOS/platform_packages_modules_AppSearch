@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.4.0-alpha08" type="baseline" client="" dependencies="true" name="" variant="all" version="8.4.0-alpha08">
-
+<issues
+    format="6"
+    by="lint 8.4.0-alpha08"
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant="all"
+    version="8.4.0-alpha08">
     <issue
         id="NewApi"
         message="Call requires API level 37.1 (current min is 36): `android.app.appfunctions.AppFunctionManager#getValidAgents`"
@@ -10,6 +17,72 @@
             file="packages/modules/AppSearch/service/java/com/android/server/appsearch/visibilitystore/VisibilityCheckerImpl.java"
             line="549"
             column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Class requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.aiseal.AiSealManager`"
+        errorLine1="        if (context.getSystemService(AiSealManager.class) == null) {"
+        errorLine2="                                     ~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/isolated_storage_service/IsolatedStorageServiceManager.java"
+            line="260"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Class requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.aiseal.AiSealManager`"
+        errorLine1="                    mAiSealManager = mContext.getSystemService(AiSealManager.class);"
+        errorLine2="                                                               ~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/isolated_storage_service/IsolatedStorageServiceManager.java"
+            line="349"
+            column="64"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.aiseal.AiSealManager#connectService`"
+        errorLine1="                iBinder = mAiSealManager.connectService(ISOLATED_STORAGE_AISEAL_SERVICE);"
+        errorLine2="                                         ~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/isolated_storage_service/IsolatedStorageServiceManager.java"
+            line="548"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.os.Process#isPrivateComputeCoreUid`"
+        errorLine1="            return Process.isPrivateComputeCoreUid(uid);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/visibilitystore/VisibilityCheckerImpl.java"
+            line="528"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Class requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.app.privatecompute.PccSandboxManager`"
+        errorLine1="                    mUserContext.getSystemService(PccSandboxManager.class);"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/visibilitystore/VisibilityCheckerImpl.java"
+            line="543"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.app.privatecompute.PccSandboxManager#isPccTrustedSystemComponent`"
+        errorLine1="                return pccSandboxManager.isPccTrustedSystemComponent("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/visibilitystore/VisibilityCheckerImpl.java"
+            line="545"
+            column="42"/>
     </issue>
 
 </issues>

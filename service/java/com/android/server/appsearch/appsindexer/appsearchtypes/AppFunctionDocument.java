@@ -26,7 +26,6 @@ import java.util.Objects;
 
 /** Parent type for all top level App Function related documents, providing common properties. */
 public class AppFunctionDocument extends GenericDocument {
-
     public static final String PROPERTY_PACKAGE_NAME = "packageName";
     public static final String PROPERTY_MOBILE_APPLICATION_QUALIFIED_ID =
             "mobileApplicationQualifiedId";
