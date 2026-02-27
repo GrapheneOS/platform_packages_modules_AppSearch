@@ -85,4 +85,26 @@
             column="42"/>
     </issue>
 
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.content.pm.PackageManager#getAppUidForPrivateComputeCoreUid`"
+        errorLine1="        return context.getPackageManager().getAppUidForPrivateComputeCoreUid(pccUid);"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/util/PackageUtil.java"
+            line="54"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level CUR_DEVELOPMENT/10000 (current min is 33): `android.os.Process#isPrivateComputeCoreUid`"
+        errorLine1="        if (enablePccFrameworkSupport() &amp;&amp; Process.isPrivateComputeCoreUid(actualCallingUid)) {"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/AppSearch/service/java/com/android/server/appsearch/util/ServiceImplHelper.java"
+            line="259"
+            column="52"/>
+    </issue>
+
 </issues>
