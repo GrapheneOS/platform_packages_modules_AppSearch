@@ -178,7 +178,9 @@ public class ServiceAppSearchConfigTest {
         ServiceAppSearchConfig appSearchConfig =
                 FrameworkServiceAppSearchConfig.create(DIRECT_EXECUTOR, context);
         assertThat(appSearchConfig.getMaxPageBytesLimit())
-                .isEqualTo(IcingOptionsConfig.DEFAULT_MAX_PAGE_BYTES_LIMIT);
+                .isEqualTo(
+                        IsolatedStorageServiceManager
+                                .DEFAULT_MAX_PAGE_BYTES_LIMIT_FOR_ISOLATED_STORAGE);
     }
 
     @Test
