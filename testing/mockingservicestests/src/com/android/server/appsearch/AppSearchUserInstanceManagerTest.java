@@ -15,6 +15,8 @@
  */
 package com.android.server.appsearch;
 
+import static android.aiseal.Flags.FLAG_AISEAL_HOST_APIS;
+
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 import static com.android.server.appsearch.FrameworkServiceAppSearchConfig.KEY_ISOLATED_STORAGE_ENABLE_UNFREEZING_MIGRATION;
@@ -44,6 +46,7 @@ import android.app.appsearch.FrameworkAppSearchEnvironment;
 import android.app.appsearch.exceptions.AppSearchException;
 import android.app.appsearch.flags.Flags;
 import android.app.appsearch.testutil.AppSearchTestUtils;
+import android.app.appsearch.testutil.FrameworkFlagUtils;
 import android.app.test.TestAlarmManager;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -426,6 +429,7 @@ public class AppSearchUserInstanceManagerTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_beforeISSConnection_cancelsCreation()
             throws InterruptedException {
+        FrameworkFlagUtils.assumeFlagIsEnabled(FLAG_AISEAL_HOST_APIS);
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
@@ -463,6 +467,7 @@ public class AppSearchUserInstanceManagerTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_duringVMConnection_cancelsCreation()
             throws RemoteException, InterruptedException {
+        FrameworkFlagUtils.assumeFlagIsEnabled(FLAG_AISEAL_HOST_APIS);
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
@@ -516,6 +521,7 @@ public class AppSearchUserInstanceManagerTest {
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_afterVMConnection_cancelsCreation()
             throws AppSearchException, RemoteException, InterruptedException {
+        FrameworkFlagUtils.assumeFlagIsEnabled(FLAG_AISEAL_HOST_APIS);
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
         DeviceConfig.setProperty(
                 DeviceConfig.NAMESPACE_APPSEARCH,
