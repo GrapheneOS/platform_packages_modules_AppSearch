@@ -534,13 +534,17 @@ class TestUtils {
     @NonNull
     public static AppFunctionStaticMetadata createFakeAppFunction(
             int packageVariant, int functionVariant, Context context) {
-        return new AppFunctionStaticMetadata.Builder(
+        var builder =
+                new AppFunctionStaticMetadata.Builder(
                         FAKE_PACKAGE_PREFIX + packageVariant,
                         "function_id" + functionVariant,
-                        context.getPackageName())
-                .setServiceName("TestAppFunctionService")
-                .setScope("global")
-                .build();
+                        context.getPackageName());
+
+        if (isFlagEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)) {
+            builder.setServiceName("TestAppFunctionService").setScope("global");
+        }
+
+        return builder.build();
     }
 
     /**
