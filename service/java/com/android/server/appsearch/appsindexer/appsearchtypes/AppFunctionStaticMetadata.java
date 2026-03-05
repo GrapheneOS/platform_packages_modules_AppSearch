@@ -348,6 +348,14 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
             }
         }
 
+        public Builder setId(@NonNull String id) {
+            super.setId(id);
+            // In older platform versions, the runtime metadata sync depends on functionId being
+            // present in the document hence this needs to be set explicitly.
+            setPropertyString(PROPERTY_FUNCTION_ID, id.substring(id.indexOf('/') + 1));
+            return this;
+        }
+
         /**
          * Sets the name of the schema the function uses. The schema name should correspond to a
          * schema defined in the canonical source.

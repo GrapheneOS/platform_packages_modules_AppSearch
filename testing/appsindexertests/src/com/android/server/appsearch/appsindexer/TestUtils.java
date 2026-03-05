@@ -16,12 +16,15 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static android.app.appsearch.testutil.FrameworkFlagUtils.isFlagEnabled;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static com.google.common.truth.Truth.assertThat;
 
 import android.Manifest;
 import android.annotation.CurrentTimeMillisLong;
@@ -31,6 +34,7 @@ import android.app.appfunctions.AppFunctionService;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSessionShim;
+import android.app.appsearch.GenericDocument;
 import android.app.appsearch.GlobalSearchSessionShim;
 import android.app.appsearch.PackageIdentifier;
 import android.app.appsearch.SearchResult;
@@ -606,5 +610,18 @@ class TestUtils {
         e.mTimeStamp = timestamp;
         e.mPackage = packageName;
         return e;
+    }
+
+    /**
+     * Asserts that the app function ID is set correctly in the given {@link GenericDocument}.
+     *
+     * @param appFunction The {@link GenericDocument} representing the app function.
+     * @param packageName The package name of the app.
+     * @param functionId The ID of the app function.
+     */
+    public static void assertAppFunctionIdInGenericDocument(
+            GenericDocument appFunction, String packageName, String functionId) {
+        assertThat(appFunction.getId()).isEqualTo(packageName + "/" + functionId);
+        assertThat(appFunction.getPropertyString("functionId")).isEqualTo(functionId);
     }
 }
