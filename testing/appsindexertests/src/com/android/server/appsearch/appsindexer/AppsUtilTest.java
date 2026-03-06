@@ -231,7 +231,6 @@ public class AppsUtilTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_APPS_INDEXER_USE_FIRST_RESOLVE_INFO)
     public void testMultipleResolveInfosForApp() throws Exception {
         PackageManager pm = Mockito.mock(PackageManager.class);
         List<PackageInfo> fakePackages = new ArrayList<>();
