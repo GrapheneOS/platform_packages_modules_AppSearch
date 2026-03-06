@@ -269,7 +269,6 @@ public class AppSearchUserInstanceManagerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void getOrCreateUserInstanceFuture_futureCancelled_retries()
             throws InterruptedException, AppSearchException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
@@ -310,7 +309,6 @@ public class AppSearchUserInstanceManagerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void getOrCreateUserInstanceFuture_futureEncountersException_retries()
             throws InterruptedException, AppSearchException {
         AppSearchUserInstanceManager manager = AppSearchUserInstanceManager.getInstance();
@@ -423,7 +421,6 @@ public class AppSearchUserInstanceManagerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_beforeISSConnection_cancelsCreation()
             throws InterruptedException {
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
@@ -460,7 +457,6 @@ public class AppSearchUserInstanceManagerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_duringVMConnection_cancelsCreation()
             throws RemoteException, InterruptedException {
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
@@ -513,7 +509,6 @@ public class AppSearchUserInstanceManagerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_USER_INSTANCE_FUTURES)
     public void cancelUserCreation_afterVMConnection_cancelsCreation()
             throws AppSearchException, RemoteException, InterruptedException {
         assumeTrue(IsolatedStorageServiceManager.deviceSupportsVmsAndNewApis(mContext));
