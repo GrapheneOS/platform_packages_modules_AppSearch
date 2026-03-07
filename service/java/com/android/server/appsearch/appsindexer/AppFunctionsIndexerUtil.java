@@ -67,6 +67,9 @@ public class AppFunctionsIndexerUtil {
 
     public static final String TAG = "AppSearchAppFunctionsIndexerUtil";
 
+    private static final String APP_FUNCTION_V2_XML_PROPERTY_NAME = "android.app.appfunctions.v2";
+    private static final String APP_FUNCTION_V1_XML_PROPERTY_NAME = "android.app.appfunctions";
+
     /**
      * Uses {@link PackageManager} and a Map of {@link PackageInfo}s to {@link ResolveInfos}s to
      * build AppSearch {@link GenericDocument} objects. Info from both are required to build app
@@ -116,7 +119,7 @@ public class AppFunctionsIndexerUtil {
     }
 
     /**
-     * Retrieves the application-level {@link PackageManager.Property} for V2 App Functions.
+     * Retrieves the application-level {@link PackageManager.Property} for App Functions.
      *
      * @param packageManager The {@link PackageManager} to query.
      * @param packageName The package to inspect.
@@ -126,7 +129,12 @@ public class AppFunctionsIndexerUtil {
     public static PackageManager.Property getAppFunctionAppProperty(
             @NonNull PackageManager packageManager, @NonNull String packageName) {
         if (isAppLevelAppFunctionsEnabled()) {
-            return getProperty(packageManager, "android.app.appfunctions.v2", packageName);
+            PackageManager.Property appFunctionAppProperty =
+                    getProperty(packageManager, APP_FUNCTION_V2_XML_PROPERTY_NAME, packageName);
+
+            return appFunctionAppProperty != null
+                    ? appFunctionAppProperty
+                    : getProperty(packageManager, APP_FUNCTION_V1_XML_PROPERTY_NAME, packageName);
         }
         return null;
     }
@@ -233,7 +241,9 @@ public class AppFunctionsIndexerUtil {
         Map<String, Map<String, ? extends AppFunctionDocument>> appFunctions = new ArrayMap<>();
         for (Map.Entry<PackageInfo, ResolveInfos> entry : packageInfos.entrySet()) {
             PackageInfo packageInfo = entry.getKey();
-            ResolveInfo resolveInfo = entry.getValue().getAppFunctionServiceInfo();
+            ResolveInfo serviceResolveInfo = entry.getValue().getAppFunctionServiceInfo();
+            PackageManager.Property appFunctionAppLevelProperty =
+                    entry.getValue().getAppFunctionAppLevelProperty();
             String packageName = packageInfo.packageName;
 
             boolean isDynamicSchemaDefined =
@@ -243,32 +253,53 @@ public class AppFunctionsIndexerUtil {
                                     .isEmpty();
 
             Map<String, AppFunctionDocument> packageAppFunctions = new ArrayMap<>();
-            if (isDynamicSchemaDefined) {
-                Map<String, AppSearchSchema> schemas = schemasPerPackage.get(packageName);
 
-                // Try to get property from service component
-                if (resolveInfo != null) {
-                    parseServiceAppFunctionsV2(
-                            packageManager,
-                            packageName,
-                            resolveInfo,
-                            parser,
-                            packageAppFunctions,
-                            schemas);
-                }
-
-                // Try to get property from package
-                if (isAppLevelAppFunctionsEnabled()) {
-                    parseApplicationAppFunctionsV2(
-                            packageManager, packageName, parser, packageAppFunctions, schemas);
-                }
-            } else if (resolveInfo != null) {
-                // Legacy app functions require a service, so resolveInfo must be present.
-                parseLegacyServiceAppFunctions(
-                        packageManager, packageName, resolveInfo, parser, packageAppFunctions);
-            } else {
-                // No app functions defined, skip package.
+            // Handle the base case where there's no dynamic schema and it's below A17.
+            if (!isDynamicSchemaDefined && !isAppLevelAppFunctionsEnabled()
+                    && serviceResolveInfo != null) {
+                parseServiceAppFunctionsUsingXmlTags(
+                        packageManager,
+                        packageName,
+                        serviceResolveInfo,
+                        parser,
+                        packageAppFunctions);
+                appFunctions.put(packageName, packageAppFunctions);
                 continue;
+            }
+
+            // Above A17 or when dynamic schema is defined, the XML will be parsed based on the
+            // schema properties.
+            // If dynamic schema is provided, use properties from those schemas. Otherwise, use the
+            // one defined by platform.
+            Map<String, AppSearchSchema> schemas =
+                    isDynamicSchemaDefined
+                            ? schemasPerPackage.get(packageName)
+                            : Map.of(
+                                    AppFunctionDocument.getSchemaNameForPackage(
+                                            packageName, AppFunctionStaticMetadata.SCHEMA_TYPE),
+                                    AppFunctionStaticMetadata.createAppFunctionSchemaForPackage(
+                                            packageName));
+
+            // Try to get property from service component
+            if (serviceResolveInfo != null) {
+                parseServiceAppFunctionsBasedOnSchema(
+                        packageManager,
+                        packageName,
+                        serviceResolveInfo,
+                        parser,
+                        packageAppFunctions,
+                        schemas);
+            }
+
+            // Try to get property from application component
+            if (isAppLevelAppFunctionsEnabled()) {
+                parseApplicationAppFunctionsBasedOnSchema(
+                        packageManager,
+                        packageName,
+                        parser,
+                        packageAppFunctions,
+                        schemas,
+                        appFunctionAppLevelProperty);
             }
 
             appFunctions.put(packageName, packageAppFunctions);
@@ -277,10 +308,10 @@ public class AppFunctionsIndexerUtil {
     }
 
     /**
-     * Parses and adds legacy app functions (android.app.appfunctions) to the appFunctions map.
-     * Legacy app functions are defined at the service level.
+     * Parses and adds app functions from XML specified by the property (android.app.appfunctions)
+     * to the appFunctions map, using hardcoded XML tags.
      */
-    private static void parseLegacyServiceAppFunctions(
+    private static void parseServiceAppFunctionsUsingXmlTags(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull ResolveInfo resolveInfo,
@@ -289,7 +320,7 @@ public class AppFunctionsIndexerUtil {
         PackageManager.Property xmlProperty =
                 getProperty(
                         packageManager,
-                        "android.app.appfunctions",
+                        APP_FUNCTION_V1_XML_PROPERTY_NAME,
                         new ComponentName(
                                 resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name));
         if (xmlProperty != null && xmlProperty.isString()) {
@@ -302,25 +333,35 @@ public class AppFunctionsIndexerUtil {
         }
     }
 
-    private static void parseServiceAppFunctionsV2(
+    private static void parseServiceAppFunctionsBasedOnSchema(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull ResolveInfo resolveInfo,
             @NonNull AppFunctionDocumentParser parser,
             @NonNull Map<String, AppFunctionDocument> packageAppFunctions,
             @Nullable Map<String, AppSearchSchema> schemas) {
-        PackageManager.Property serviceProperty =
+        PackageManager.Property v2XmlProperty =
                 getProperty(
                         packageManager,
-                        "android.app.appfunctions.v2",
+                        APP_FUNCTION_V2_XML_PROPERTY_NAME,
                         new ComponentName(
                                 resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name));
 
-        if (serviceProperty == null) {
-            return; // Nothing to parse
+        PackageManager.Property serviceXmlProperty =
+                v2XmlProperty != null
+                        ? v2XmlProperty
+                        : getProperty(
+                                packageManager,
+                                APP_FUNCTION_V1_XML_PROPERTY_NAME,
+                                new ComponentName(
+                                        resolveInfo.serviceInfo.packageName,
+                                        resolveInfo.serviceInfo.name));
+        if (serviceXmlProperty == null) {
+            return;
         }
 
-        XmlPullParser xmlPullParser = createXmlParser(packageName, serviceProperty, packageManager);
+        XmlPullParser xmlPullParser =
+                createXmlParser(packageName, serviceXmlProperty, packageManager);
         if (xmlPullParser != null) {
             packageAppFunctions.putAll(
                     parser.parseIntoMapForGivenSchemas(
@@ -332,14 +373,13 @@ public class AppFunctionsIndexerUtil {
         }
     }
 
-    private static void parseApplicationAppFunctionsV2(
+    private static void parseApplicationAppFunctionsBasedOnSchema(
             @NonNull PackageManager packageManager,
             @NonNull String packageName,
             @NonNull AppFunctionDocumentParser parser,
             @NonNull Map<String, AppFunctionDocument> packageAppFunctions,
-            @Nullable Map<String, AppSearchSchema> schemas) {
-        PackageManager.Property appProperty =
-                getAppFunctionAppProperty(packageManager, packageName);
+            @Nullable Map<String, AppSearchSchema> schemas,
+            @Nullable PackageManager.Property appProperty) {
         if (appProperty == null) {
             return;
         }

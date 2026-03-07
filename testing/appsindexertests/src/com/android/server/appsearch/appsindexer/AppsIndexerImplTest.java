@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+import static com.android.server.appsearch.appsindexer.TestUtils.assertAppFunctionIdInGenericDocument;
 
 import static com.android.compatibility.common.util.ApiLevelUtil.isAtLeast;
 import static com.android.server.appsearch.appsindexer.TestUtils.APP_FUNCTION_STATIC_METADATA_PARENT_PROPERTIES;
@@ -1262,8 +1263,8 @@ public class AppsIndexerImplTest {
                 indexedFunctionDocuments
                         .get("com.fake.package0")
                         .get("com.fake.package0/com.dynamicSchemaApp.utils#print");
-        assertThat(fnMetadata.getPropertyString("functionId"))
-                .isEqualTo("com.dynamicSchemaApp.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                fnMetadata, "com.fake.package0", "com.dynamicSchemaApp.utils#print");
         GenericDocument anotherTopLevelDocument =
                 indexedFunctionDocuments
                         .get("com.fake.package0")

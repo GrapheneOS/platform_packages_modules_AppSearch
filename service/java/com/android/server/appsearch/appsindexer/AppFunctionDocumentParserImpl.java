@@ -52,6 +52,7 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
     private static final String XML_TAG_APPFUNCTION = "appfunction";
     private static final String XML_TAG_APPFUNCTIONS_ROOT = "appfunctions";
     private static final String XML_TAG_ID = "id";
+    private static final String XML_TAG_FUNCTION_ID = "functionId";
     private static final String SNAKE_CASE_SEPARATOR = "_";
 
     @NonNull private final String mIndexerPackageName;
@@ -374,7 +375,19 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                                     toLowerCamelCase(parser.getName(), SNAKE_CASE_SEPARATOR));
                     PropertyConfig propertyConfig =
                             qualifiedPropertyNamesToPropertyConfig.get(currentPropertyPath);
-                    if (propertyConfig instanceof DocumentPropertyConfig) {
+
+                    if (parser.getName().equals(XML_TAG_ID)
+                            // Provides compat with v1 format that used function_id tag for denoting
+                            // id.
+                            || (isAppLevelAppFunctionsEnabled()
+                                    && toLowerCamelCase(parser.getName(), SNAKE_CASE_SEPARATOR)
+                                            .equals(XML_TAG_FUNCTION_ID))) {
+                        String id = parser.nextText().trim();
+                        if (!id.isEmpty()) {
+                            docBuilder.setId(packageName + "/" + id);
+                            wasDocIdSet = true;
+                        }
+                    } else if (propertyConfig instanceof DocumentPropertyConfig) {
                         String nestedSchemaType =
                                 ((DocumentPropertyConfig) propertyConfig).getSchemaType();
                         GenericDocument.Builder nestedDoc =
@@ -395,12 +408,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                         primitivePropertyValues
                                 .computeIfAbsent(currentPropertyPath, k -> new ArrayList<>())
                                 .add(parser.nextText().trim());
-                    } else if (parser.getName().equals(XML_TAG_ID)) {
-                        String id = parser.nextText().trim();
-                        if (!id.isEmpty()) {
-                            docBuilder.setId(packageName + "/" + id);
-                            wasDocIdSet = true;
-                        }
                     } else {
                         // Unrecognized start tag, throw an exception.
                         throw new IllegalStateException(

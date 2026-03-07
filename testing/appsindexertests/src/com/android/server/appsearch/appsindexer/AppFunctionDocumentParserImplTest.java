@@ -16,6 +16,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+import static com.android.server.appsearch.appsindexer.TestUtils.assertAppFunctionIdInGenericDocument;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -136,8 +137,8 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(actualAppFunction.getId()).isEqualTo("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getSchemaType())
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
-        assertThat(actualAppFunction.getPropertyString("functionId"))
-                .isEqualTo("com.example.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                actualAppFunction, TEST_PACKAGE_NAME, "com.example.utils#print");
         assertThat(actualAppFunction.getPropertyBoolean("enabledByDefault")).isEqualTo(true);
         assertThat(actualAppFunction.getPropertyLong("schemaVersion")).isEqualTo(10);
         assertThat(actualAppFunction.getPropertyString("packageName")).isEqualTo(TEST_PACKAGE_NAME);
@@ -181,7 +182,7 @@ public class AppFunctionDocumentParserImplTest {
                         "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
                                 + "<appfunctions>\n"
                                 + "  <AppFunctionStaticMetadata>\n"
-                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <id>com.example.utils#print1</id>\n"
                                 + "    <functionId>com.example.utils#print1</functionId>\n"
                                 + "    <enabledByDefault>true</enabledByDefault>\n"
                                 + "    <schemaVersion>10</schemaVersion>\n"
@@ -199,8 +200,8 @@ public class AppFunctionDocumentParserImplTest {
                         mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
         assertThat(appFunctions).hasSize(2);
-        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
-        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print1");
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print2");
     }
 
     @Test
@@ -298,8 +299,8 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
         GenericDocument actualAppFunction =
                 appFunctions.get("com.example.app/com.example.utils#print");
-        assertThat(actualAppFunction.getPropertyString("functionId"))
-                .isEqualTo("com.example.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                actualAppFunction, TEST_PACKAGE_NAME, "com.example.utils#print");
         assertThat(
                         actualAppFunction.getPropertyString(
                                 "appFunctionParameterMetadata.parameterName"))
@@ -340,8 +341,8 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
         GenericDocument actualAppFunction =
                 appFunctions.get("com.example.app/com.example.utils#print");
-        assertThat(actualAppFunction.getPropertyString("functionId"))
-                .isEqualTo("com.example.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                actualAppFunction, TEST_PACKAGE_NAME, "com.example.utils#print");
         assertThat(
                         actualAppFunction.getPropertyString(
                                 "appFunctionParameterMetadata.parameterName"))
@@ -379,8 +380,8 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
         GenericDocument actualAppFunction =
                 appFunctions.get("com.example.app/com.example.utils#print");
-        assertThat(actualAppFunction.getPropertyString("functionId"))
-                .isEqualTo("com.example.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                actualAppFunction, TEST_PACKAGE_NAME, "com.example.utils#print");
         GenericDocument appFunctionParameterMetadataDocument =
                 appFunctions.get("com.example.app/com.example.utils#printParameterMetadata");
         assertThat(appFunctionParameterMetadataDocument.getPropertyString("parameterName"))
@@ -445,8 +446,8 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
         GenericDocument actualAppFunction =
                 appFunctions.get("com.example.app/com.example.utils#print");
-        assertThat(actualAppFunction.getPropertyString("functionId"))
-                .isEqualTo("com.example.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                actualAppFunction, TEST_PACKAGE_NAME, "com.example.utils#print");
         assertThat(
                         Arrays.asList(
                                 actualAppFunction.getPropertyStringArray(
@@ -486,8 +487,8 @@ public class AppFunctionDocumentParserImplTest {
         assertThat(actualAppFunction.getId()).isEqualTo("com.example.app/com.example.utils#print");
         assertThat(actualAppFunction.getSchemaType())
                 .isEqualTo("AppFunctionStaticMetadata-com.example.app");
-        assertThat(actualAppFunction.getPropertyString("functionId"))
-                .isEqualTo("com.example.utils#print");
+        assertAppFunctionIdInGenericDocument(
+                actualAppFunction, TEST_PACKAGE_NAME, "com.example.utils#print");
         assertThat(actualAppFunction.getPropertyBoolean("enabledByDefault")).isEqualTo(true);
         assertThat(actualAppFunction.getPropertyLong("schemaVersion")).isEqualTo(10);
     }
