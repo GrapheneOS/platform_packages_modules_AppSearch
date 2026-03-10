@@ -54,6 +54,11 @@ java_defaults {
     },
 }
 
+filegroup {
+    name: "preinstalled-packages-com.android.appsearch.xml",
+    srcs: ["sysconfig/preinstalled-packages-com.android.appsearch.xml"],
+}
+
 android_app {
     name: "com.android.appsearch.apk",
     sdk_version: "module_current",
@@ -66,6 +71,7 @@ android_app {
     ],
     compile_multilib: "first",
     apex_available: ["com.android.appsearch"],
+    preinstall_allowlist: ":preinstalled-packages-com.android.appsearch.xml",
 }
 
 // A special library created strictly for use by the tests as they need the implementation library
