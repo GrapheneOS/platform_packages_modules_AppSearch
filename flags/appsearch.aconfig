@@ -961,3 +961,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "enable_handling_multiple_app_function_xml"
+    namespace: "appsearch"
+    description: "Enables handling multiple app function xml files from services and app level resources."
+    bug: "468288106"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
