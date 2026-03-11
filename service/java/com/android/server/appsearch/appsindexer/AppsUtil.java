@@ -53,6 +53,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -217,20 +218,20 @@ public final class AppsUtil {
 
             ResolveInfo appFunctionServiceInfo =
                     packageNameToAppFunctionServiceInfo.get(packageInfo.packageName);
-            if (appFunctionServiceInfo != null) {
-                builder.setAppFunctionServiceResolveInfo(appFunctionServiceInfo);
-            }
 
-            PackageManager.Property appFunctionProperty =
-                    getAppFunctionAppProperty(packageManager, packageInfo.packageName);
-            if (appFunctionProperty != null) {
-                builder.setAppFunctionAppLevelProperty(appFunctionProperty);
+            AppFunctionResolveInfo appFunctionResolveInfo =
+                    AppFunctionResolveInfo.create(
+                            packageManager,
+                            packageInfo.packageName,
+                            appFunctionServiceInfo == null
+                                    ? Collections.emptyList()
+                                    : Collections.singletonList(appFunctionServiceInfo));
+            if (appFunctionResolveInfo != null) {
+                builder.setAppFunctionResolveInfo(appFunctionResolveInfo);
             }
 
             boolean shouldIndexPackage =
-                    launchActivityResolveInfo != null
-                            || appFunctionServiceInfo != null
-                            || appFunctionProperty != null;
+                    launchActivityResolveInfo != null || appFunctionResolveInfo != null;
             if (shouldIndexPackage) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
                     // Populate signatures for P- devices.
@@ -369,10 +370,13 @@ public final class AppsUtil {
                         .setCreationTimestampMillis(packageInfo.firstInstallTime)
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
-        ResolveInfo appFunctionServiceResolveInfo = resolveInfos.getAppFunctionServiceInfo();
-        if (appFunctionServiceResolveInfo != null) {
+        AppFunctionResolveInfo appFunctionResolveInfo = resolveInfos.getAppFunctionResolveInfo();
+        if (appFunctionResolveInfo != null
+                && !appFunctionResolveInfo.getAppFunctionServiceResolveInfos().isEmpty()) {
             builder.setIsAppFunctionServiceEnabled(
-                    isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo));
+                    isAppFunctionServiceEnabled(
+                            packageManager,
+                            appFunctionResolveInfo.getAppFunctionServiceResolveInfos().get(0)));
         }
 
         ResolveInfo launchActivityResolveInfo = resolveInfos.getLaunchActivityResolveInfo();

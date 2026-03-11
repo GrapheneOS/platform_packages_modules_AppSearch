@@ -131,8 +131,8 @@ public final class AppsIndexerImpl implements Closeable {
         // First loop, determine the status of apps
         for (Map.Entry<PackageInfo, ResolveInfos> packageEntry : packagesToIndex.entrySet()) {
             PackageInfo packageInfo = packageEntry.getKey();
-            ResolveInfo appFunctionServiceResolveInfo =
-                    packageEntry.getValue().getAppFunctionServiceInfo();
+            AppFunctionResolveInfo appFunctionResolveInfo =
+                    packageEntry.getValue().getAppFunctionResolveInfo();
             packagesToIndexIdSet.add(packageInfo.packageName);
 
             // Update the most recent timestamp as we iterate
@@ -159,7 +159,7 @@ public final class AppsIndexerImpl implements Closeable {
                             packageManager,
                             packageInfo,
                             storedAppUpdateTime,
-                            appFunctionServiceResolveInfo,
+                            appFunctionResolveInfo,
                             storedIsAppFunctionServiceEnabled)
                     || isFullUpdateRequired) {
                 // Package last update timestamp discrepancy between AppSearch and PackageManager
@@ -387,20 +387,24 @@ public final class AppsIndexerImpl implements Closeable {
             PackageManager packageManager,
             @NonNull PackageInfo packageInfo,
             long storedAppUpdateTime,
-            @Nullable ResolveInfo appFunctionServiceResolveInfo,
+            @Nullable AppFunctionResolveInfo appFunctionResolveInfo,
             boolean storedIsAppFunctionServiceEnabled) {
         if (packageInfo.lastUpdateTime != storedAppUpdateTime) {
             return true;
         }
 
-        if (appFunctionServiceResolveInfo == null) {
+        if (appFunctionResolveInfo == null
+                || appFunctionResolveInfo.getAppFunctionServiceResolveInfos().isEmpty()) {
             // appFunctionServiceResolveInfo being null means the service is disabled/does not
             // exist, hence the package status is determined by the stored state.
             return storedIsAppFunctionServiceEnabled;
         }
 
+        // TODO: b/468288106 - Support multiple services per package.
         boolean isAppFunctionServiceEnabled =
-                AppsUtil.isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo);
+                AppsUtil.isAppFunctionServiceEnabled(
+                        packageManager,
+                        appFunctionResolveInfo.getAppFunctionServiceResolveInfos().get(0));
         return isAppFunctionServiceEnabled != storedIsAppFunctionServiceEnabled;
     }
 
@@ -444,10 +448,7 @@ public final class AppsIndexerImpl implements Closeable {
                             && currentAppFunctionsForAddedUpdatedPackages
                                     .get(packageInfo.packageName)
                                     .isEmpty();
-            boolean hasAppFunctions = entry.getValue().getAppFunctionServiceInfo() != null;
-            if (android.app.appfunctions.flags.Flags.enableDynamicAppFunctions()) {
-                hasAppFunctions |= entry.getValue().getAppFunctionAppLevelProperty() != null;
-            }
+            boolean hasAppFunctions = entry.getValue().getAppFunctionResolveInfo() != null;
             if (hasAppFunctions && !appFunctionsRemoved) {
                 packageIdentifiersWithAppFunctions.add(packageIdentifier);
             }

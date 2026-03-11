@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.util.Log;
 
 import java.util.Objects;
 
@@ -29,43 +30,23 @@ import java.util.Objects;
  * @hide
  */
 public class ResolveInfos {
-    @Nullable private final ResolveInfo mAppFunctionServiceInfo;
-    @Nullable private final PackageManager.Property mAppFunctionPropertyConfig;
     @Nullable private final ResolveInfo mLaunchActivityResolveInfo;
+    @Nullable private final AppFunctionResolveInfo mAppFunctionResolveInfo;
 
     public ResolveInfos(
-            @Nullable ResolveInfo appFunctionServiceInfo,
-            @Nullable ResolveInfo launchActivityResolveInfo) {
-        mAppFunctionServiceInfo = appFunctionServiceInfo;
-        mLaunchActivityResolveInfo = launchActivityResolveInfo;
-        mAppFunctionPropertyConfig = null;
-    }
-
-    public ResolveInfos(
-            @Nullable ResolveInfo appFunctionServiceInfo,
             @Nullable ResolveInfo launchActivityResolveInfo,
-            @Nullable PackageManager.Property appFunctionPropertyConfig) {
-        mAppFunctionServiceInfo = appFunctionServiceInfo;
+            @Nullable AppFunctionResolveInfo appFunctionResolveInfo) {
         mLaunchActivityResolveInfo = launchActivityResolveInfo;
-        mAppFunctionPropertyConfig = appFunctionPropertyConfig;
+        mAppFunctionResolveInfo = appFunctionResolveInfo;
     }
 
     /**
-     * Return {@link ResolveInfo} for the packages AppFunction service. If {@code null}, it means
-     * this app doesn't have an app function service.
+     * Return {@link AppFunctionResolveInfo} for the packages AppFunction service. If {@code null},
+     * it means this app doesn't have an app function service or app level app functions defined.
      */
     @Nullable
-    public ResolveInfo getAppFunctionServiceInfo() {
-        return mAppFunctionServiceInfo;
-    }
-
-    /**
-     * Return {@link PackageManager.Property} for the application defined. If {@code null}, it means
-     * this app doesn't have an application level app functions.
-     */
-    @Nullable
-    public PackageManager.Property getAppFunctionAppLevelProperty() {
-        return mAppFunctionPropertyConfig;
+    public AppFunctionResolveInfo getAppFunctionResolveInfo() {
+        return mAppFunctionResolveInfo;
     }
 
     /**
@@ -77,19 +58,10 @@ public class ResolveInfos {
         return mLaunchActivityResolveInfo;
     }
 
-
     /** Builder for {@link ResolveInfos}. */
     public static class Builder {
-        @Nullable private ResolveInfo mAppFunctionServiceInfo;
         @Nullable private ResolveInfo mLaunchActivityResolveInfo;
-        @Nullable private PackageManager.Property mAppFunctionPropertyConfig;
-
-        /** Sets the {@link ResolveInfo} for the packages AppFunction service */
-        @NonNull
-        public Builder setAppFunctionServiceResolveInfo(@NonNull ResolveInfo resolveInfo) {
-            mAppFunctionServiceInfo = Objects.requireNonNull(resolveInfo);
-            return this;
-        }
+        @Nullable private AppFunctionResolveInfo mAppFunctionResolveInfo;
 
         /** Sets the {@link ResolveInfo} for the packages launch activity. */
         @NonNull
@@ -98,20 +70,17 @@ public class ResolveInfos {
             return this;
         }
 
-        /** Sets the {@link PackageManager.Property} for the application defined. */
         @NonNull
-        public Builder setAppFunctionAppLevelProperty(@NonNull PackageManager.Property property) {
-            mAppFunctionPropertyConfig = Objects.requireNonNull(property);
+        public Builder setAppFunctionResolveInfo(
+                @NonNull AppFunctionResolveInfo appFunctionResolveInfo) {
+            mAppFunctionResolveInfo = Objects.requireNonNull(appFunctionResolveInfo);
             return this;
         }
 
         /** Builds the {@link ResolveInfos} object. */
         @NonNull
         public ResolveInfos build() {
-            return new ResolveInfos(
-                    mAppFunctionServiceInfo,
-                    mLaunchActivityResolveInfo,
-                    mAppFunctionPropertyConfig);
+            return new ResolveInfos(mLaunchActivityResolveInfo, mAppFunctionResolveInfo);
         }
     }
 }

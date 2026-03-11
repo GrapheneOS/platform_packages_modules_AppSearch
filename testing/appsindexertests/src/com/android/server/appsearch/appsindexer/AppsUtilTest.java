@@ -77,14 +77,14 @@ public class AppsUtilTest {
 
     private PackageInfo mPackageInfo;
     private ResolveInfo mLaunchResolveInfo;
-    private ResolveInfo mAppFunctionResolveInfo;
+    private ResolveInfo mAppFunctionServiceResolveInfo;
     private Map<PackageInfo, ResolveInfos> mPackageMapping;
 
     @Before
     public void setUp() throws Exception {
         mPackageInfo = createFakePackageInfo(0);
         mLaunchResolveInfo = createFakeLaunchResolveInfo(0);
-        mAppFunctionResolveInfo = createFakeAppFunctionResolveInfo(0);
+        mAppFunctionServiceResolveInfo = createFakeAppFunctionResolveInfo(0);
         mPackageMapping = new ArrayMap<>();
 
         // Common mocking for icon uri and application label to avoid NPEs during build
@@ -115,7 +115,10 @@ public class AppsUtilTest {
         // rest of the existing apps don't need to be re-indexed.
         for (int i = 0; i < 5; i++) {
             packageLaunchActivityMapping.put(
-                    fakePackages.get(i), new ResolveInfos(null, fakeActivities.get(i)));
+                    fakePackages.get(i),
+                    new ResolveInfos(
+                            /* launchActivityResolveInfo= */ fakeActivities.get(i),
+                            /* appFunctionResolveInfo= */ null));
         }
 
         setupMockPackageManager(
@@ -219,10 +222,19 @@ public class AppsUtilTest {
         for (ResolveInfos targetedResolveInfo : packageActivityMapping.values()) {
             assertThat(targetedResolveInfo.getLaunchActivityResolveInfo().activityInfo.packageName)
                     .isEqualTo(
-                            targetedResolveInfo.getAppFunctionServiceInfo()
+                            targetedResolveInfo
+                                    .getAppFunctionResolveInfo()
+                                    .getAppFunctionServiceResolveInfos()
+                                    .get(0)
                                     .serviceInfo
                                     .packageName);
-            assertThat(targetedResolveInfo.getAppFunctionServiceInfo().serviceInfo.packageName)
+            assertThat(
+                            targetedResolveInfo
+                                    .getAppFunctionResolveInfo()
+                                    .getAppFunctionServiceResolveInfos()
+                                    .get(0)
+                                    .serviceInfo
+                                    .packageName)
                     .isEqualTo(
                             targetedResolveInfo.getLaunchActivityResolveInfo()
                                     .activityInfo
@@ -325,7 +337,11 @@ public class AppsUtilTest {
                 .thenReturn(defaultName);
 
         Map<PackageInfo, ResolveInfos> packageMapping = new ArrayMap<>();
-        packageMapping.put(packageInfo, new ResolveInfos(null, resolveInfo));
+        packageMapping.put(
+                packageInfo,
+                new ResolveInfos(
+                        /* launchActivityResolveInfo= */ resolveInfo,
+                        /* appFunctionResolveInfo= */ null));
 
         // Mocking for icon uri related paths
         Resources res = Mockito.mock(Resources.class);
@@ -389,7 +405,13 @@ public class AppsUtilTest {
     @Test
     public void testBuildApps_appFunctionServiceComponentEnabled_setsEnabledStatusTrue()
             throws Exception {
-        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        ResolveInfos resolveInfos =
+                new ResolveInfos(
+                        mLaunchResolveInfo,
+                        new AppFunctionResolveInfo(
+                                mPackageInfo.packageName,
+                                ImmutableList.of(mAppFunctionServiceResolveInfo),
+                                /* appFunctionAppLevelXmlProperty= */ null));
         mPackageMapping.put(mPackageInfo, resolveInfos);
         when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
                 .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_ENABLED);
@@ -404,7 +426,13 @@ public class AppsUtilTest {
     @Test
     public void testBuildApps_appFunctionServiceComponentDisabled_setsEnabledStatusFalse()
             throws Exception {
-        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        ResolveInfos resolveInfos =
+                new ResolveInfos(
+                        mLaunchResolveInfo,
+                        new AppFunctionResolveInfo(
+                                mPackageInfo.packageName,
+                                ImmutableList.of(mAppFunctionServiceResolveInfo),
+                                /* appFunctionAppLevelXmlProperty= */ null));
         mPackageMapping.put(mPackageInfo, resolveInfos);
         when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
                 .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DISABLED);
@@ -419,8 +447,14 @@ public class AppsUtilTest {
     @Test
     public void testBuildApps_appFunctionServiceDefaultAndManifestEnabled_setsEnabledStatusTrue()
             throws Exception {
-        mAppFunctionResolveInfo.serviceInfo.enabled = true;
-        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        mAppFunctionServiceResolveInfo.serviceInfo.enabled = true;
+        ResolveInfos resolveInfos =
+                new ResolveInfos(
+                        mLaunchResolveInfo,
+                        new AppFunctionResolveInfo(
+                                mPackageInfo.packageName,
+                                ImmutableList.of(mAppFunctionServiceResolveInfo),
+                                /* appFunctionAppLevelXmlProperty= */ null));
         mPackageMapping.put(mPackageInfo, resolveInfos);
         when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
                 .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DEFAULT);
@@ -435,8 +469,14 @@ public class AppsUtilTest {
     @Test
     public void testBuildApps_appFunctionServiceDefaultAndManifestDisabled_setsEnabledStatusFalse()
             throws Exception {
-        mAppFunctionResolveInfo.serviceInfo.enabled = false;
-        ResolveInfos resolveInfos = new ResolveInfos(mAppFunctionResolveInfo, mLaunchResolveInfo);
+        mAppFunctionServiceResolveInfo.serviceInfo.enabled = false;
+        ResolveInfos resolveInfos =
+                new ResolveInfos(
+                        mLaunchResolveInfo,
+                        new AppFunctionResolveInfo(
+                                mPackageInfo.packageName,
+                                ImmutableList.of(mAppFunctionServiceResolveInfo),
+                                /* appFunctionAppLevelXmlProperty= */ null));
         mPackageMapping.put(mPackageInfo, resolveInfos);
         when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
                 .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DEFAULT);
@@ -450,7 +490,13 @@ public class AppsUtilTest {
 
     @Test
     public void testBuildApps_noAppFunctionService_setsEnabledStatusFalse() throws Exception {
-        ResolveInfos noAppFunctionResolveInfos = new ResolveInfos(null, mLaunchResolveInfo);
+        ResolveInfos noAppFunctionResolveInfos =
+                new ResolveInfos(
+                        mLaunchResolveInfo,
+                        new AppFunctionResolveInfo(
+                                mPackageInfo.packageName,
+                                ImmutableList.of(),
+                                /* appFunctionAppLevelXmlProperty= */ null));
         mPackageMapping.put(mPackageInfo, noAppFunctionResolveInfos);
 
         List<MobileApplication> resultApps =
@@ -494,7 +540,7 @@ public class AppsUtilTest {
 
         assertThat(packageActivityMapping).hasSize(1);
         ResolveInfos resolveInfosWithPermission = packageActivityMapping.get(packageWithPermission);
-        assertThat(resolveInfosWithPermission.getAppFunctionServiceInfo()).isNotNull();
+        assertThat(resolveInfosWithPermission.getAppFunctionResolveInfo()).isNotNull();
     }
 
     @Test
@@ -527,7 +573,7 @@ public class AppsUtilTest {
         ResolveInfos resolveInfosWithoutPermission =
                 packageActivityMapping.get(packageWithoutPermission);
         // Service with wrong permission IS filtered.
-        assertThat(resolveInfosWithoutPermission.getAppFunctionServiceInfo()).isNull();
+        assertThat(resolveInfosWithoutPermission.getAppFunctionResolveInfo()).isNull();
     }
 
     @Test
@@ -560,6 +606,6 @@ public class AppsUtilTest {
         ResolveInfos resolveInfosWithNullPermission =
                 packageActivityMapping.get(packageWithNullPermission);
         // Service with null permission IS filtered.
-        assertThat(resolveInfosWithNullPermission.getAppFunctionServiceInfo()).isNull();
+        assertThat(resolveInfosWithNullPermission.getAppFunctionResolveInfo()).isNull();
     }
 }
