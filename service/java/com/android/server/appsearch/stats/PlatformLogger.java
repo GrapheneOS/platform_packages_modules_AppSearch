@@ -462,7 +462,8 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     stats.getJavaLockAcquisitionLatencyMillis(), // 24
                     stats.getGetVmLatencyMillis(), // 25
                     stats.getNumIcingCalls(), // 26
-                    stats.getUnblockedAppSearchLatencyMillis()); // 27
+                    stats.getUnblockedAppSearchLatencyMillis(), // 27
+                    stats.getGetUserInstanceLatencyMillis()); // 28
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
