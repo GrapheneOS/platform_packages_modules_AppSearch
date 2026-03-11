@@ -8,7 +8,11 @@
       "package": "apex",
       "name": "com.android.appsearch",
       "min_version": 1,
-      "expected_authority": "",
+      "expected_authority": {
+          "dev-keys": "e326a8d1cf4a3b18b45c530e153bd310b9bff04949e37a8886b526dc546e2baf403c3384fef01c18341b3e5de0566c294c8373aa8f7b92e07dd9c938a96f7e35",
+          "test-keys": "e326a8d1cf4a3b18b45c530e153bd310b9bff04949e37a8886b526dc546e2baf403c3384fef01c18341b3e5de0566c294c8373aa8f7b92e07dd9c938a96f7e35",
+          "release-keys": "e326a8d1cf4a3b18b45c530e153bd310b9bff04949e37a8886b526dc546e2baf403c3384fef01c18341b3e5de0566c294c8373aa8f7b92e07dd9c938a96f7e35"
+      },
       "task": {
           "type": "microdroid_launcher",
           "command": "libicing_anywhere.so"
@@ -18,7 +22,11 @@
       "package": "apex",
       "name": "com.android.i18n",
       "min_version": 1,
-      "expected_authority": ""
+      "expected_authority": {
+          "dev-keys": "668ac67e4b8a00bf5863ee175db92aefa64138eccbc86a7f528d6fdabec3443e781f4f4c5c3db123994d45696e13e07aa207da25bc70709dcaba3a740b679f7b",
+          "test-keys": "668ac67e4b8a00bf5863ee175db92aefa64138eccbc86a7f528d6fdabec3443e781f4f4c5c3db123994d45696e13e07aa207da25bc70709dcaba3a740b679f7b",
+          "release-keys": "668ac67e4b8a00bf5863ee175db92aefa64138eccbc86a7f528d6fdabec3443e781f4f4c5c3db123994d45696e13e07aa207da25bc70709dcaba3a740b679f7b"
+      }
     }
   ],
   "enable_authfs": false,
