@@ -18,6 +18,7 @@ package android.app.appsearch;
 
 import static android.app.appsearch.AppSearchResult.RESULT_INVALID_SCHEMA;
 import static android.os.ParcelFileDescriptor.MODE_READ_ONLY;
+import static android.os.ParcelFileDescriptor.MODE_TRUNCATE;
 import static android.os.ParcelFileDescriptor.MODE_WRITE_ONLY;
 
 import android.annotation.NonNull;
@@ -140,7 +141,7 @@ public class AppSearchMigrationHelper implements Closeable {
                         /* suffix= */ null,
                         mTempDirectoryForSchemaMigration);
         try (ParcelFileDescriptor fileDescriptor =
-                ParcelFileDescriptor.open(queryFile, MODE_WRITE_ONLY)) {
+                ParcelFileDescriptor.open(queryFile, MODE_WRITE_ONLY | MODE_TRUNCATE)) {
             CountDownLatch latch = new CountDownLatch(1);
             AtomicReference<AppSearchResult<Void>> resultReference = new AtomicReference<>();
             mService.writeSearchResultsToFile(
