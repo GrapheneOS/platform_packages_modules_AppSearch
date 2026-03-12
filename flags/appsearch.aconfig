@@ -568,16 +568,6 @@ flag {
 }
 
 flag {
-    name: "enable_user_instance_futures"
-    namespace: "appsearch"
-    description: "Enables using futures to create user instances."
-    bug: "415031127"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_database_scoped_schema_operations"
     namespace: "appsearch"
     description: "Enable database-scoped set and get schema operations for AppSearch internal impl."
@@ -724,16 +714,6 @@ flag {
     namespace: "appsearch"
     description: "Enable checking the app is in agent allowlist when deciding document visibility"
     bug: "420892441"
-}
-
-flag {
-    name: "enable_apps_indexer_use_first_resolve_info"
-    namespace: "appsearch"
-    description: "Uses the first resolve info per package instead of the last"
-    bug: "437400697"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {

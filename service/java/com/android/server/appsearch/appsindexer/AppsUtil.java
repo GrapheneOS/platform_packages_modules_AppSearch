@@ -53,6 +53,7 @@ import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -182,9 +183,8 @@ public final class AppsUtil {
         for (int i = 0; i < activities.size(); i++) {
             ResolveInfo resolveInfo = activities.get(i);
             String packageName = resolveInfo.activityInfo.packageName;
-            if (!Flags.enableAppsIndexerUseFirstResolveInfo()
-                    || !packageNameToLauncher.containsKey(packageName)) {
-                // Only put if we haven't found one previously, or flag isn't enabled
+            if (!packageNameToLauncher.containsKey(packageName)) {
+                // Only put if we haven't found one previously
                 packageNameToLauncher.put(packageName, resolveInfo);
             }
         }
@@ -217,20 +217,20 @@ public final class AppsUtil {
 
             ResolveInfo appFunctionServiceInfo =
                     packageNameToAppFunctionServiceInfo.get(packageInfo.packageName);
-            if (appFunctionServiceInfo != null) {
-                builder.setAppFunctionServiceResolveInfo(appFunctionServiceInfo);
-            }
 
-            PackageManager.Property appFunctionProperty =
-                    getAppFunctionAppProperty(packageManager, packageInfo.packageName);
-            if (appFunctionProperty != null) {
-                builder.setAppFunctionAppLevelProperty(appFunctionProperty);
+            AppFunctionResolveInfo appFunctionResolveInfo =
+                    AppFunctionResolveInfo.create(
+                            packageManager,
+                            packageInfo.packageName,
+                            appFunctionServiceInfo == null
+                                    ? Collections.emptyList()
+                                    : Collections.singletonList(appFunctionServiceInfo));
+            if (appFunctionResolveInfo != null) {
+                builder.setAppFunctionResolveInfo(appFunctionResolveInfo);
             }
 
             boolean shouldIndexPackage =
-                    launchActivityResolveInfo != null
-                            || appFunctionServiceInfo != null
-                            || appFunctionProperty != null;
+                    launchActivityResolveInfo != null || appFunctionResolveInfo != null;
             if (shouldIndexPackage) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
                     // Populate signatures for P- devices.
@@ -369,10 +369,13 @@ public final class AppsUtil {
                         .setCreationTimestampMillis(packageInfo.firstInstallTime)
                         .setUpdatedTimestampMs(packageInfo.lastUpdateTime);
 
-        ResolveInfo appFunctionServiceResolveInfo = resolveInfos.getAppFunctionServiceInfo();
-        if (appFunctionServiceResolveInfo != null) {
+        AppFunctionResolveInfo appFunctionResolveInfo = resolveInfos.getAppFunctionResolveInfo();
+        if (appFunctionResolveInfo != null
+                && !appFunctionResolveInfo.getAppFunctionServiceResolveInfos().isEmpty()) {
             builder.setIsAppFunctionServiceEnabled(
-                    isAppFunctionServiceEnabled(packageManager, appFunctionServiceResolveInfo));
+                    isAppFunctionServiceEnabled(
+                            packageManager,
+                            appFunctionResolveInfo.getAppFunctionServiceResolveInfos().get(0)));
         }
 
         ResolveInfo launchActivityResolveInfo = resolveInfos.getLaunchActivityResolveInfo();
@@ -406,21 +409,19 @@ public final class AppsUtil {
             }
         }
 
-        // Add labels from the ResolveInfos if the corresponding flag is enabled.
-        if (Flags.enableAppsIndexerUseFirstResolveInfo()) {
-            // A package may have multiple ResolveInfos, and these can have different labels. All of
-            // these labels should be added to alternate names if they are different from the
-            // display name to better support matching.
+        // Add labels from the ResolveInfos.
+        // A package may have multiple ResolveInfos, and these can have different labels. All of
+        // these labels should be added to alternate names if they are different from the
+        // display name to better support matching.
 
-            Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
-            launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-            launchIntent.setPackage(packageInfo.packageName);
-            List<ResolveInfo> activities = packageManager.queryIntentActivities(launchIntent, 0);
-            for (int i = 0; i < activities.size(); i++) {
-                ResolveInfo resolveInfo = activities.get(i);
-                String alternateLabel = resolveInfo.loadLabel(packageManager).toString();
-                alternateNames.add(alternateLabel);
-            }
+        Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
+        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        launchIntent.setPackage(packageInfo.packageName);
+        List<ResolveInfo> activities = packageManager.queryIntentActivities(launchIntent, 0);
+        for (int i = 0; i < activities.size(); i++) {
+            ResolveInfo resolveInfo = activities.get(i);
+            String alternateLabel = resolveInfo.loadLabel(packageManager).toString();
+            alternateNames.add(alternateLabel);
         }
 
         // Always add the application label for the default locale as a fallback. This can be

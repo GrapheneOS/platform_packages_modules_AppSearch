@@ -619,10 +619,8 @@ public class AppSearchManagerService extends SystemService {
                 checkOptimizeFuture.cancel(/* mayInterruptIfRunning= */ false);
             }
 
-            if (Flags.enableUserInstanceFutures()) {
-                // Cancel any ongoing user instance creation.
-                mAppSearchUserInstanceManager.cancelUserCreation(userHandle);
-            }
+            // Cancel any ongoing user instance creation.
+            mAppSearchUserInstanceManager.cancelUserCreation(userHandle);
 
             boolean isVMEnabledForUser = isVmEnabledForUser(userHandle);
             if (!isVMEnabledForUser || requiresShutdown) {

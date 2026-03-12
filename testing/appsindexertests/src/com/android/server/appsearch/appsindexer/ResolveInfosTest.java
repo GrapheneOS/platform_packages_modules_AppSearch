@@ -22,15 +22,22 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
+import java.util.Collections;
 import org.junit.Test;
 
 public class ResolveInfosTest {
     @Test
     public void testBuilder() {
-        ResolveInfo appFunctionResolveInfo = new ResolveInfo();
-        appFunctionResolveInfo.activityInfo = new ActivityInfo();
-        appFunctionResolveInfo.activityInfo.packageName = "package1";
-        appFunctionResolveInfo.activityInfo.name = "activity1";
+        ResolveInfo appFunctionServiceResolveInfo = new ResolveInfo();
+        appFunctionServiceResolveInfo.activityInfo = new ActivityInfo();
+        appFunctionServiceResolveInfo.activityInfo.packageName = "package1";
+        appFunctionServiceResolveInfo.activityInfo.name = "activity1";
+
+        AppFunctionResolveInfo appFunctionResolveInfo =
+                new AppFunctionResolveInfo(
+                        "package1",
+                        Collections.singletonList(appFunctionServiceResolveInfo),
+                        /* appFunctionAppLevelXmlProperty= */ null);
 
         ResolveInfo launchActivityResolveInfo = new ResolveInfo();
         launchActivityResolveInfo.activityInfo = new ActivityInfo();
@@ -39,39 +46,44 @@ public class ResolveInfosTest {
 
         ResolveInfos resolveInfos =
                 new ResolveInfos.Builder()
-                        .setAppFunctionServiceResolveInfo(appFunctionResolveInfo)
+                        .setAppFunctionResolveInfo(appFunctionResolveInfo)
                         .setLaunchActivityResolveInfo(launchActivityResolveInfo)
                         .build();
 
-        assertThat(resolveInfos.getAppFunctionServiceInfo()).isEqualTo(appFunctionResolveInfo);
+        assertThat(resolveInfos.getAppFunctionResolveInfo()).isEqualTo(appFunctionResolveInfo);
         assertThat(resolveInfos.getLaunchActivityResolveInfo())
                 .isEqualTo(launchActivityResolveInfo);
     }
 
     @Test
     public void testBuilder_withProperty() {
-        ResolveInfo appFunctionResolveInfo = new ResolveInfo();
-        appFunctionResolveInfo.activityInfo = new ActivityInfo();
-        appFunctionResolveInfo.activityInfo.packageName = "package1";
-        appFunctionResolveInfo.activityInfo.name = "activity1";
+        ResolveInfo appFunctionServiceResolveInfo = new ResolveInfo();
+        appFunctionServiceResolveInfo.activityInfo = new ActivityInfo();
+        appFunctionServiceResolveInfo.activityInfo.packageName = "package1";
+        appFunctionServiceResolveInfo.activityInfo.name = "activity1";
+
+        PackageManager.Property property =
+                new PackageManager.Property("name", "value", "package1", "Class1");
+
+        AppFunctionResolveInfo appFunctionResolveInfo =
+                new AppFunctionResolveInfo(
+                        "package1",
+                        Collections.singletonList(appFunctionServiceResolveInfo),
+                        property);
 
         ResolveInfo launchActivityResolveInfo = new ResolveInfo();
         launchActivityResolveInfo.activityInfo = new ActivityInfo();
         launchActivityResolveInfo.activityInfo.packageName = "package1";
         launchActivityResolveInfo.activityInfo.name = "activity2";
 
-        PackageManager.Property property =
-                new PackageManager.Property("name", "value", "package1", "Class1");
         ResolveInfos resolveInfos =
                 new ResolveInfos.Builder()
-                        .setAppFunctionServiceResolveInfo(appFunctionResolveInfo)
+                        .setAppFunctionResolveInfo(appFunctionResolveInfo)
                         .setLaunchActivityResolveInfo(launchActivityResolveInfo)
-                        .setAppFunctionAppLevelProperty(property)
                         .build();
 
-        assertThat(resolveInfos.getAppFunctionServiceInfo()).isEqualTo(appFunctionResolveInfo);
+        assertThat(resolveInfos.getAppFunctionResolveInfo()).isEqualTo(appFunctionResolveInfo);
         assertThat(resolveInfos.getLaunchActivityResolveInfo())
                 .isEqualTo(launchActivityResolveInfo);
-        assertThat(resolveInfos.getAppFunctionAppLevelProperty()).isEqualTo(property);
     }
 }
