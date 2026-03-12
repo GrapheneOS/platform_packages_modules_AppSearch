@@ -280,20 +280,16 @@ public class AppFunctionsIndexerUtil {
                 AppFunctionResolveInfo.AppFunctionXmlInfo appFunctionXmlInfo =
                         appFunctionXmlInfos.get(i);
                 if (appFunctionXmlInfo.useSchemaForParsing()) {
-                    XmlPullParser xmlParser = appFunctionXmlInfo.createXmlParser(packageManager);
-                    if (xmlParser == null) {
-                        if (LogUtil.DEBUG) {
-                            Log.d(TAG, "Failed to get xml parser for: " + packageInfo.packageName);
-                        }
-                        continue;
-                    }
-                    packageAppFunctions.putAll(
-                            parser.parseIntoMapForGivenSchemas(
-                                    packageManager,
-                                    packageInfo.packageName,
-                                    xmlParser,
-                                    packageSchemas,
-                                    appFunctionXmlInfo.getServiceName()));
+                    appFunctionXmlInfo.runWithXmlParser(
+                            packageManager,
+                            xmlParser ->
+                                    packageAppFunctions.putAll(
+                                            parser.parseIntoMapForGivenSchemas(
+                                                    packageManager,
+                                                    packageInfo.packageName,
+                                                    xmlParser,
+                                                    packageSchemas,
+                                                    appFunctionXmlInfo.getServiceName())));
                 } else {
                     packageAppFunctions.putAll(
                             parser.parseIntoMap(

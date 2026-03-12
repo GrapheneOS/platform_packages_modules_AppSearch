@@ -26,6 +26,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.content.res.XmlResourceParser;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -36,6 +37,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -316,52 +318,32 @@ public class AppFunctionResolveInfo {
             this.mServiceName = Objects.requireNonNull(serviceName);
         }
 
-        @Nullable
-        private static XmlPullParser createXmlParser(
-                @NonNull String packageName,
-                @Nullable XmlFile xmlFile,
-                @NonNull PackageManager packageManager) {
-            if (xmlFile == null) {
-                return null;
-            }
+        /** Executes a task using an XmlPullParser and ensures resources are closed. */
+        public void runWithXmlParser(
+                PackageManager packageManager, Consumer<XmlPullParser> action) {
             try {
-                if (xmlFile.getFileResourceId() != Resources.ID_NULL) {
-                    Resources resources = packageManager.getResourcesForApplication(packageName);
-                    return resources.getXml(xmlFile.getFileResourceId());
-                } else if (xmlFile.getXmlFilePath() != null) {
-                    return createXmlParserFromAsset(
-                            packageName, xmlFile.getXmlFilePath(), packageManager);
-                } else {
-                    return null;
-                }
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.w(TAG, "Failed to parse dynamic XML for: " + packageName, e);
-                return null;
-            }
-        }
+                Resources resources = packageManager.getResourcesForApplication(mPackageName);
 
-        @Nullable
-        private static XmlPullParser createXmlParserFromAsset(
-                @NonNull String packageName,
-                @NonNull String assetPath,
-                @NonNull PackageManager packageManager) {
-            try {
-                Resources resources = packageManager.getResourcesForApplication(packageName);
-                AssetManager assetManager = resources.getAssets();
-                XmlPullParser xmlPullParser = XmlPullParserFactory.newInstance().newPullParser();
-                xmlPullParser.setInput(new InputStreamReader(assetManager.open(assetPath)));
-                return xmlPullParser;
-            } catch (PackageManager.NameNotFoundException
-                    | XmlPullParserException
-                    | IOException e) {
-                Log.w(
-                        TAG,
-                        "Failed to parse dynamic XML from asset: "
-                                + assetPath
-                                + " for: "
-                                + packageName,
-                        e);
-                return null;
+                // Compiled XML Resource
+                if (mXmlFile.getFileResourceId() != Resources.ID_NULL) {
+                    try (XmlResourceParser parser =
+                            resources.getXml(mXmlFile.getFileResourceId())) {
+                        action.accept(parser);
+                    }
+                }
+
+                // Raw Asset XML
+                else if (mXmlFile.getXmlFilePath() != null) {
+                    XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
+                    try (InputStreamReader isr =
+                            new InputStreamReader(
+                                    resources.getAssets().open(mXmlFile.getXmlFilePath()))) {
+                        parser.setInput(isr);
+                        action.accept(parser);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to process XML for: " + mPackageName, e);
             }
         }
 
@@ -400,15 +382,5 @@ public class AppFunctionResolveInfo {
             return isAppLevelAppFunctionsEnabled() || mHasSchemaProperty;
         }
 
-        /**
-         * Gets the {@link XmlPullParser} for the app function XML.
-         *
-         * @param packageManager The {@link PackageManager}.
-         * @return The {@link XmlPullParser}, or {@code null} if the XML file cannot be parsed.
-         */
-        @Nullable
-        public XmlPullParser createXmlParser(PackageManager packageManager) {
-            return createXmlParser(mPackageName, mXmlFile, packageManager);
-        }
     }
 }

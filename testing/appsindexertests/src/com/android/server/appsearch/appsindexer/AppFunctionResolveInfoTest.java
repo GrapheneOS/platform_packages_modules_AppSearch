@@ -241,7 +241,7 @@ public class AppFunctionResolveInfoTest {
     }
 
     @Test
-    public void testGetXmlParser_withResourceId() throws Exception {
+    public void testRunWithXmlParser_withResourceId() throws Exception {
         AppFunctionXmlInfo xmlInfo =
                 new AppFunctionXmlInfo(
                         PACKAGE_NAME, new XmlFile(null, 12345), false, "TestService");
@@ -251,12 +251,19 @@ public class AppFunctionResolveInfoTest {
         when(mPackageManager.getResourcesForApplication(PACKAGE_NAME)).thenReturn(resources);
         when(resources.getXml(12345)).thenReturn(parser);
 
-        XmlPullParser result = xmlInfo.createXmlParser(mPackageManager);
-        assertThat(result).isEqualTo(parser);
+        boolean[] called = new boolean[1];
+        xmlInfo.runWithXmlParser(
+                mPackageManager,
+                result -> {
+                    assertThat(result).isEqualTo(parser);
+                    called[0] = true;
+                });
+        assertThat(called[0]).isTrue();
+        Mockito.verify(parser).close();
     }
 
     @Test
-    public void testGetXmlParser_withFilePath() throws Exception {
+    public void testRunWithXmlParser_withFilePath() throws Exception {
         AppFunctionXmlInfo xmlInfo =
                 new AppFunctionXmlInfo(
                         PACKAGE_NAME,
@@ -269,15 +276,22 @@ public class AppFunctionResolveInfoTest {
         when(mPackageManager.getResourcesForApplication(PACKAGE_NAME)).thenReturn(resources);
         when(resources.getAssets()).thenReturn(assetManager);
 
-        InputStream inputStream = new ByteArrayInputStream("<test></test>".getBytes());
+        InputStream inputStream = Mockito.spy(new ByteArrayInputStream("<test></test>".getBytes()));
         when(assetManager.open("test_path.xml")).thenReturn(inputStream);
 
-        XmlPullParser result = xmlInfo.createXmlParser(mPackageManager);
-        assertThat(result).isNotNull();
+        boolean[] called = new boolean[1];
+        xmlInfo.runWithXmlParser(
+                mPackageManager,
+                result -> {
+                    assertThat(result).isNotNull();
+                    called[0] = true;
+                });
+        assertThat(called[0]).isTrue();
+        Mockito.verify(inputStream).close();
     }
 
     @Test
-    public void testGetXmlParser_nameNotFound() throws Exception {
+    public void testRunWithXmlParser_nameNotFound() throws Exception {
         AppFunctionXmlInfo xmlInfo =
                 new AppFunctionXmlInfo(
                         PACKAGE_NAME, new XmlFile(null, 12345), false, "TestService");
@@ -285,7 +299,8 @@ public class AppFunctionResolveInfoTest {
         when(mPackageManager.getResourcesForApplication(PACKAGE_NAME))
                 .thenThrow(new PackageManager.NameNotFoundException());
 
-        XmlPullParser result = xmlInfo.createXmlParser(mPackageManager);
-        assertThat(result).isNull();
+        boolean[] called = new boolean[1];
+        xmlInfo.runWithXmlParser(mPackageManager, result -> called[0] = true);
+        assertThat(called[0]).isFalse();
     }
 }
