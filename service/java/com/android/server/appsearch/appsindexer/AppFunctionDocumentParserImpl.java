@@ -81,10 +81,15 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
         Objects.requireNonNull(assetFilePath);
         Objects.requireNonNull(serviceName);
         try {
-            return parseAppFunctionsIntoMap(
-                    initializeParser(packageManager, packageName, assetFilePath),
-                    packageName,
-                    serviceName);
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+            factory.setNamespaceAware(true);
+            XmlPullParser parser = factory.newPullParser();
+            AssetManager assetManager =
+                    packageManager.getResourcesForApplication(packageName).getAssets();
+            try (InputStreamReader isr = new InputStreamReader(assetManager.open(assetFilePath))) {
+                parser.setInput(isr);
+                return parseAppFunctionsIntoMap(parser, packageName, serviceName);
+            }
         } catch (Exception ex) {
             // The code parses an XML file from another app's assets, using a broad try-catch to
             // handle potential errors since the XML structure might be unpredictable.
@@ -96,27 +101,6 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                     ex);
         }
         return Collections.emptyMap();
-    }
-
-    /**
-     * Initializes an {@link XmlPullParser} to parse xml based on the packageName and assetFilePath.
-     */
-    @NonNull
-    private XmlPullParser initializeParser(
-            @NonNull PackageManager packageManager,
-            @NonNull String packageName,
-            @NonNull String assetFilePath)
-            throws XmlPullParserException, PackageManager.NameNotFoundException, IOException {
-        Objects.requireNonNull(packageManager);
-        Objects.requireNonNull(packageName);
-        Objects.requireNonNull(assetFilePath);
-        XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
-        factory.setNamespaceAware(true);
-        XmlPullParser parser = factory.newPullParser();
-        AssetManager assetManager =
-                packageManager.getResourcesForApplication(packageName).getAssets();
-        parser.setInput(new InputStreamReader(assetManager.open(assetFilePath)));
-        return parser;
     }
 
     /**

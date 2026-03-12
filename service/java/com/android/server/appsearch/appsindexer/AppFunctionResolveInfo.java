@@ -26,16 +26,20 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.content.res.TypedArray;
+import android.content.res.XmlResourceParser;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
+import com.android.appsearch.flags.Flags;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -147,6 +151,16 @@ public class AppFunctionResolveInfo {
         return null;
     }
 
+    private static Resources getResources(
+            @NonNull PackageManager packageManager, @NonNull String packageName) {
+        try {
+            return packageManager.getResourcesForApplication(packageName);
+        } catch (PackageManager.NameNotFoundException e) {
+            // Do nothing.
+        }
+        return null;
+    }
+
     /**
      * Gets the list of {@link ResolveInfo} for the app function services.
      *
@@ -158,10 +172,31 @@ public class AppFunctionResolveInfo {
     }
 
     /**
-     * Gets a list of {@link AppFunctionXmlInfo} for the app functions.
+     * Retrieves a list of {@link AppFunctionXmlInfo} metadata for all app functions defined in this
+     * package.
      *
-     * @param packageManager The {@link PackageManager}.
-     * @return A list of {@link AppFunctionXmlInfo}.
+     * <p>This method aggregates function definitions from two levels:
+     *
+     * <ul>
+     *   <li><b>Service Level:</b> App functions defined within specific service components. The
+     *       property in each service must point to a <b>single</b> XML resource or file path.
+     *   <li><b>Application Level:</b> App functions defined globally for the package (if {@link
+     *       #isAppLevelAppFunctionsEnabled()} is true). This level supports <b>multiple</b>
+     *       definitions via resource arrays or comma-separated strings.
+     * </ul>
+     *
+     * <p>Supported property formats:
+     *
+     * <ul>
+     *   <li><b>android:resource:</b> A resource ID of type {@code xml}. At the application level,
+     *       this can also be an {@code array} of XML resources.
+     *   <li><b>android:value:</b> A string representing a file path in APK assets. At the
+     *       application level, this can be a comma-separated list of paths.
+     * </ul>
+     *
+     * @param packageManager The {@link PackageManager} used to resolve properties and resources.
+     * @return A list of {@link AppFunctionXmlInfo} objects containing the resolved XML files and
+     *     schema status.
      */
     public List<AppFunctionXmlInfo> getAppFunctionXmlInfos(@NonNull PackageManager packageManager) {
         Objects.requireNonNull(packageManager);
@@ -190,6 +225,9 @@ public class AppFunctionResolveInfo {
                             new ComponentName(
                                     resolveInfo.serviceInfo.packageName,
                                     resolveInfo.serviceInfo.name));
+            if (serviceLevelXmlProperty == null) {
+                continue;
+            }
             PackageManager.Property serviceLevelSchemaProperty = null;
             try {
                 serviceLevelSchemaProperty =
@@ -204,9 +242,6 @@ public class AppFunctionResolveInfo {
             // Previously schemaProperty was only defined at the service level.
             boolean isSchemaPropertyDefined =
                     serviceLevelSchemaProperty != null || appFunctionSchemaProperty != null;
-            if (serviceLevelXmlProperty == null) {
-                continue;
-            }
 
             if (serviceLevelXmlProperty.isResourceId()) {
                 appFunctionXmlInfos.add(
@@ -236,12 +271,31 @@ public class AppFunctionResolveInfo {
         // Handle app level app functions.
         boolean isSchemaPropertyDefined = appFunctionSchemaProperty != null;
         if (mAppFunctionAppLevelXmlProperty.isResourceId()) {
-            appFunctionXmlInfos.add(
-                    new AppFunctionXmlInfo(
-                            mPackageName,
-                            new XmlFile(null, mAppFunctionAppLevelXmlProperty.getResourceId()),
-                            isSchemaPropertyDefined,
-                            AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME));
+            Resources resources = getResources(packageManager, mPackageName);
+            if (resources == null) {
+                return appFunctionXmlInfos;
+            }
+
+            String resourceType =
+                    resources.getResourceTypeName(mAppFunctionAppLevelXmlProperty.getResourceId());
+            if (Flags.enableHandlingMultipleAppFunctionXml() && resourceType.equals("array")) {
+                try (TypedArray xmlResources =
+                        resources.obtainTypedArray(
+                                mAppFunctionAppLevelXmlProperty.getResourceId())) {
+                    appFunctionXmlInfos.addAll(
+                            parseMultipleXmlResources(
+                                    mPackageName, xmlResources, isSchemaPropertyDefined));
+                }
+            } else if (resourceType.equals("xml")) {
+                appFunctionXmlInfos.add(
+                        new AppFunctionXmlInfo(
+                                mPackageName,
+                                new XmlFile(
+                                        /* xmlFilePath= */ null,
+                                        mAppFunctionAppLevelXmlProperty.getResourceId()),
+                                isSchemaPropertyDefined,
+                                AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME));
+            }
         } else if (mAppFunctionAppLevelXmlProperty.isString()) {
             String[] filePaths = mAppFunctionAppLevelXmlProperty.getString().split(",", -1);
             for (int i = 0; i < filePaths.length; i++) {
@@ -260,6 +314,24 @@ public class AppFunctionResolveInfo {
         }
 
         return appFunctionXmlInfos;
+    }
+
+    private List<AppFunctionXmlInfo> parseMultipleXmlResources(
+            String packageName, TypedArray xmlResources, boolean isSchemaPropertyDefined) {
+        List<AppFunctionXmlInfo> parsedXmlInfos = new ArrayList<>();
+        for (int i = 0; i < xmlResources.length(); i++) {
+            int resourceId = xmlResources.getResourceId(i, Resources.ID_NULL);
+            if (resourceId == Resources.ID_NULL) {
+                continue;
+            }
+            parsedXmlInfos.add(
+                    new AppFunctionXmlInfo(
+                            packageName,
+                            new XmlFile(/* xmlFilePath= */ null, resourceId),
+                            isSchemaPropertyDefined,
+                            AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME));
+        }
+        return parsedXmlInfos;
     }
 
     /** Represents an XML file containing app function definitions. */
@@ -316,52 +388,32 @@ public class AppFunctionResolveInfo {
             this.mServiceName = Objects.requireNonNull(serviceName);
         }
 
-        @Nullable
-        private static XmlPullParser createXmlParser(
-                @NonNull String packageName,
-                @Nullable XmlFile xmlFile,
-                @NonNull PackageManager packageManager) {
-            if (xmlFile == null) {
-                return null;
-            }
+        /** Executes a task using an XmlPullParser and ensures resources are closed. */
+        public void runWithXmlParser(
+                PackageManager packageManager, Consumer<XmlPullParser> action) {
             try {
-                if (xmlFile.getFileResourceId() != Resources.ID_NULL) {
-                    Resources resources = packageManager.getResourcesForApplication(packageName);
-                    return resources.getXml(xmlFile.getFileResourceId());
-                } else if (xmlFile.getXmlFilePath() != null) {
-                    return createXmlParserFromAsset(
-                            packageName, xmlFile.getXmlFilePath(), packageManager);
-                } else {
-                    return null;
-                }
-            } catch (PackageManager.NameNotFoundException e) {
-                Log.w(TAG, "Failed to parse dynamic XML for: " + packageName, e);
-                return null;
-            }
-        }
+                Resources resources = packageManager.getResourcesForApplication(mPackageName);
 
-        @Nullable
-        private static XmlPullParser createXmlParserFromAsset(
-                @NonNull String packageName,
-                @NonNull String assetPath,
-                @NonNull PackageManager packageManager) {
-            try {
-                Resources resources = packageManager.getResourcesForApplication(packageName);
-                AssetManager assetManager = resources.getAssets();
-                XmlPullParser xmlPullParser = XmlPullParserFactory.newInstance().newPullParser();
-                xmlPullParser.setInput(new InputStreamReader(assetManager.open(assetPath)));
-                return xmlPullParser;
-            } catch (PackageManager.NameNotFoundException
-                    | XmlPullParserException
-                    | IOException e) {
-                Log.w(
-                        TAG,
-                        "Failed to parse dynamic XML from asset: "
-                                + assetPath
-                                + " for: "
-                                + packageName,
-                        e);
-                return null;
+                // Compiled XML Resource
+                if (mXmlFile.getFileResourceId() != Resources.ID_NULL) {
+                    try (XmlResourceParser parser =
+                            resources.getXml(mXmlFile.getFileResourceId())) {
+                        action.accept(parser);
+                    }
+                }
+
+                // Raw Asset XML
+                else if (mXmlFile.getXmlFilePath() != null) {
+                    XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
+                    try (InputStreamReader isr =
+                            new InputStreamReader(
+                                    resources.getAssets().open(mXmlFile.getXmlFilePath()))) {
+                        parser.setInput(isr);
+                        action.accept(parser);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to process XML for: " + mPackageName, e);
             }
         }
 
@@ -400,15 +452,5 @@ public class AppFunctionResolveInfo {
             return isAppLevelAppFunctionsEnabled() || mHasSchemaProperty;
         }
 
-        /**
-         * Gets the {@link XmlPullParser} for the app function XML.
-         *
-         * @param packageManager The {@link PackageManager}.
-         * @return The {@link XmlPullParser}, or {@code null} if the XML file cannot be parsed.
-         */
-        @Nullable
-        public XmlPullParser createXmlParser(PackageManager packageManager) {
-            return createXmlParser(mPackageName, mXmlFile, packageManager);
-        }
     }
 }

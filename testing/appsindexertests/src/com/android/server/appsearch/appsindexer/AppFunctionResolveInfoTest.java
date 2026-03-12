@@ -34,6 +34,7 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.content.res.TypedArray;
 import android.content.res.XmlResourceParser;
 
 import com.android.server.appsearch.appsindexer.AppFunctionResolveInfo.AppFunctionXmlInfo;
@@ -184,12 +185,48 @@ public class AppFunctionResolveInfoTest {
     }
 
     @Test
+    public void testGetAppFunctionXmlInfos_appLevelResourceIdProperty_array() throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        assumeFlagIsEnabled(
+                com.android.appsearch.flags.Flags.FLAG_ENABLE_HANDLING_MULTIPLE_APP_FUNCTION_XML);
+
+        PackageManager.Property appLevelProperty =
+                new PackageManager.Property(
+                        "android.app.appfunctions", 54321, true, PACKAGE_NAME, null);
+
+        Resources resources = mock(Resources.class);
+        TypedArray typedArray = mock(TypedArray.class);
+        when(mPackageManager.getResourcesForApplication(PACKAGE_NAME)).thenReturn(resources);
+        when(resources.getResourceTypeName(54321)).thenReturn("array");
+        when(resources.obtainTypedArray(54321)).thenReturn(typedArray);
+        when(typedArray.length()).thenReturn(2);
+        when(typedArray.getResourceId(0, Resources.ID_NULL)).thenReturn(111);
+        when(typedArray.getResourceId(1, Resources.ID_NULL)).thenReturn(222);
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(PACKAGE_NAME, Collections.emptyList(), appLevelProperty);
+
+        List<AppFunctionXmlInfo> xmlInfos = info.getAppFunctionXmlInfos(mPackageManager);
+        assertThat(xmlInfos).hasSize(2);
+        assertThat(xmlInfos.get(0).getServiceName()).isEqualTo("@null");
+        assertThat(xmlInfos.get(0).getXmlFile().getXmlFilePath()).isNull();
+        assertThat(xmlInfos.get(0).getXmlFile().getFileResourceId()).isEqualTo(111);
+        assertThat(xmlInfos.get(1).getServiceName()).isEqualTo("@null");
+        assertThat(xmlInfos.get(1).getXmlFile().getXmlFilePath()).isNull();
+        assertThat(xmlInfos.get(1).getXmlFile().getFileResourceId()).isEqualTo(222);
+    }
+
+    @Test
     public void testGetAppFunctionXmlInfos_appLevelResourceIdProperty() throws Exception {
         assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
 
         PackageManager.Property appLevelProperty =
                 new PackageManager.Property(
                         "android.app.appfunctions", 54321, true, PACKAGE_NAME, null);
+
+        Resources resources = mock(Resources.class);
+        when(mPackageManager.getResourcesForApplication(PACKAGE_NAME)).thenReturn(resources);
+        when(resources.getResourceTypeName(54321)).thenReturn("xml");
 
         AppFunctionResolveInfo info =
                 new AppFunctionResolveInfo(PACKAGE_NAME, Collections.emptyList(), appLevelProperty);
@@ -241,7 +278,7 @@ public class AppFunctionResolveInfoTest {
     }
 
     @Test
-    public void testGetXmlParser_withResourceId() throws Exception {
+    public void testRunWithXmlParser_withResourceId() throws Exception {
         AppFunctionXmlInfo xmlInfo =
                 new AppFunctionXmlInfo(
                         PACKAGE_NAME, new XmlFile(null, 12345), false, "TestService");
@@ -251,12 +288,19 @@ public class AppFunctionResolveInfoTest {
         when(mPackageManager.getResourcesForApplication(PACKAGE_NAME)).thenReturn(resources);
         when(resources.getXml(12345)).thenReturn(parser);
 
-        XmlPullParser result = xmlInfo.createXmlParser(mPackageManager);
-        assertThat(result).isEqualTo(parser);
+        boolean[] called = new boolean[1];
+        xmlInfo.runWithXmlParser(
+                mPackageManager,
+                result -> {
+                    assertThat(result).isEqualTo(parser);
+                    called[0] = true;
+                });
+        assertThat(called[0]).isTrue();
+        Mockito.verify(parser).close();
     }
 
     @Test
-    public void testGetXmlParser_withFilePath() throws Exception {
+    public void testRunWithXmlParser_withFilePath() throws Exception {
         AppFunctionXmlInfo xmlInfo =
                 new AppFunctionXmlInfo(
                         PACKAGE_NAME,
@@ -269,15 +313,22 @@ public class AppFunctionResolveInfoTest {
         when(mPackageManager.getResourcesForApplication(PACKAGE_NAME)).thenReturn(resources);
         when(resources.getAssets()).thenReturn(assetManager);
 
-        InputStream inputStream = new ByteArrayInputStream("<test></test>".getBytes());
+        InputStream inputStream = Mockito.spy(new ByteArrayInputStream("<test></test>".getBytes()));
         when(assetManager.open("test_path.xml")).thenReturn(inputStream);
 
-        XmlPullParser result = xmlInfo.createXmlParser(mPackageManager);
-        assertThat(result).isNotNull();
+        boolean[] called = new boolean[1];
+        xmlInfo.runWithXmlParser(
+                mPackageManager,
+                result -> {
+                    assertThat(result).isNotNull();
+                    called[0] = true;
+                });
+        assertThat(called[0]).isTrue();
+        Mockito.verify(inputStream).close();
     }
 
     @Test
-    public void testGetXmlParser_nameNotFound() throws Exception {
+    public void testRunWithXmlParser_nameNotFound() throws Exception {
         AppFunctionXmlInfo xmlInfo =
                 new AppFunctionXmlInfo(
                         PACKAGE_NAME, new XmlFile(null, 12345), false, "TestService");
@@ -285,7 +336,8 @@ public class AppFunctionResolveInfoTest {
         when(mPackageManager.getResourcesForApplication(PACKAGE_NAME))
                 .thenThrow(new PackageManager.NameNotFoundException());
 
-        XmlPullParser result = xmlInfo.createXmlParser(mPackageManager);
-        assertThat(result).isNull();
+        boolean[] called = new boolean[1];
+        xmlInfo.runWithXmlParser(mPackageManager, result -> called[0] = true);
+        assertThat(called[0]).isFalse();
     }
 }
