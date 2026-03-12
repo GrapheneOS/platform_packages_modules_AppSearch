@@ -717,16 +717,6 @@ flag {
 }
 
 flag {
-    name: "enable_apps_indexer_use_first_resolve_info"
-    namespace: "appsearch"
-    description: "Uses the first resolve info per package instead of the last"
-    bug: "437400697"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_apps_indexer_locale_change_full_update"
     namespace: "appsearch"
     description: "Triggers a full update when the locale changes"

@@ -183,9 +183,8 @@ public final class AppsUtil {
         for (int i = 0; i < activities.size(); i++) {
             ResolveInfo resolveInfo = activities.get(i);
             String packageName = resolveInfo.activityInfo.packageName;
-            if (!Flags.enableAppsIndexerUseFirstResolveInfo()
-                    || !packageNameToLauncher.containsKey(packageName)) {
-                // Only put if we haven't found one previously, or flag isn't enabled
+            if (!packageNameToLauncher.containsKey(packageName)) {
+                // Only put if we haven't found one previously
                 packageNameToLauncher.put(packageName, resolveInfo);
             }
         }
@@ -410,21 +409,19 @@ public final class AppsUtil {
             }
         }
 
-        // Add labels from the ResolveInfos if the corresponding flag is enabled.
-        if (Flags.enableAppsIndexerUseFirstResolveInfo()) {
-            // A package may have multiple ResolveInfos, and these can have different labels. All of
-            // these labels should be added to alternate names if they are different from the
-            // display name to better support matching.
+        // Add labels from the ResolveInfos.
+        // A package may have multiple ResolveInfos, and these can have different labels. All of
+        // these labels should be added to alternate names if they are different from the
+        // display name to better support matching.
 
-            Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
-            launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-            launchIntent.setPackage(packageInfo.packageName);
-            List<ResolveInfo> activities = packageManager.queryIntentActivities(launchIntent, 0);
-            for (int i = 0; i < activities.size(); i++) {
-                ResolveInfo resolveInfo = activities.get(i);
-                String alternateLabel = resolveInfo.loadLabel(packageManager).toString();
-                alternateNames.add(alternateLabel);
-            }
+        Intent launchIntent = new Intent(Intent.ACTION_MAIN, null);
+        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        launchIntent.setPackage(packageInfo.packageName);
+        List<ResolveInfo> activities = packageManager.queryIntentActivities(launchIntent, 0);
+        for (int i = 0; i < activities.size(); i++) {
+            ResolveInfo resolveInfo = activities.get(i);
+            String alternateLabel = resolveInfo.loadLabel(packageManager).toString();
+            alternateNames.add(alternateLabel);
         }
 
         // Always add the application label for the default locale as a fallback. This can be
