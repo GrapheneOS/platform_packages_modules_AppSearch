@@ -409,14 +409,15 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
                                 .computeIfAbsent(currentPropertyPath, k -> new ArrayList<>())
                                 .add(parser.nextText().trim());
                     } else {
-                        // Unrecognized start tag, throw an exception.
-                        throw new IllegalStateException(
-                                "Found a start tag not defined by schema "
-                                        + schemaType
-                                        + ": "
-                                        + parser.getName()
-                                        + ". Check the corresponding schema file specified by "
-                                        + "android.app.appfunctions.schema.");
+                        if (LogUtil.DEBUG) {
+                            Log.d(
+                                    TAG,
+                                    "Unknown property: "
+                                            + parser.getName()
+                                            + " for schema: "
+                                            + schemaType);
+                        }
+                        skipTagAndItsSubTree(parser);
                     }
                     break;
 
@@ -450,6 +451,29 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
         }
 
         throw new IllegalStateException("Code should never reach here.");
+    }
+
+    /**
+     * Skips an unknown tag and its subtree until the corresponding end tag is reached.
+     *
+     * <p>When this function is called, the parser should point to the START_TAG of the unknown
+     * element, and would point to its corresponding END_TAG once this function completes.
+     */
+    private static void skipTagAndItsSubTree(@NonNull XmlPullParser parser)
+            throws XmlPullParserException, IOException {
+        int depth = 1;
+        while (depth != 0) {
+            switch (parser.next()) {
+                case XmlPullParser.END_TAG:
+                    depth--;
+                    break;
+                case XmlPullParser.START_TAG:
+                    depth++;
+                    break;
+                case XmlPullParser.END_DOCUMENT:
+                    throw new XmlPullParserException("Malformed XML: Unexpected end of document");
+            }
+        }
     }
 
     /**

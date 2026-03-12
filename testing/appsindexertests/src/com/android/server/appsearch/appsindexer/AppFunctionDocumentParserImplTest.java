@@ -229,6 +229,28 @@ public class AppFunctionDocumentParserImplTest {
     }
 
     @Test
+    public void parseIntoMapForGivenSchemas_malformedXmlUnexpectedEndDocument_returnsEmptyMap()
+            throws Exception {
+        XmlPullParser xmlPullParser =
+                getXmlPullParser(
+                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
+                                + "<appfunctions>\n"
+                                + "  <AppFunctionStaticMetadata>\n"
+                                + "    <id>com.example.utils#print</id>\n"
+                                + "    <functionId>com.example.utils#invalid</functionId>\n"
+                                + "    <unknownProperty>\n"
+                                + "     <nestedUnknownProperty>\n"
+                                + "     </nestedUnknownProperty>\n"
+                                + "  <AppFunctionStaticMetadata>\n");
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
+
+        assertThat(appFunctions).isEmpty();
+    }
+
+    @Test
     public void parseIntoMapForGivenSchemas_exceedMaxNumAppFunctions_parsesOnlyMaxNumAppFunctions()
             throws Exception {
         mParser =
@@ -494,33 +516,8 @@ public class AppFunctionDocumentParserImplTest {
     }
 
     @Test
-    public void parseIntoMapForGivenSchemas_xmlTagWithStartingOrOnlyUnderscores_noFunctionParsed()
+    public void parseIntoMapForGivenSchemas_unknownProperties_functionParsedWithKnownProperties()
             throws Exception {
-        XmlPullParser xmlPullParser =
-                getXmlPullParser(
-                        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
-                                + "<appfunctions>\n"
-                                + "  <AppFunctionStaticMetadata>\n"
-                                + "    <id>com.example.utils#print</id>\n"
-                                + "    <functionId>com.example.utils#invalid</functionId>\n"
-                                + "    <___>test</___>\n"
-                                + "    <_schema_version_>test</_schema_version_>\n"
-                                + "  </AppFunctionStaticMetadata>\n"
-                                + "  <AppFunctionStaticMetadata>\n"
-                                + "    <id>com.example.utils#print</id>\n"
-                                + "    <functionId>com.example.utils#print</functionId>\n"
-                                + "  </AppFunctionStaticMetadata>\n"
-                                + "</appfunctions>");
-
-        Map<String, AppFunctionDocument> appFunctions =
-                mParser.parseIntoMapForGivenSchemas(
-                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
-
-        assertThat(appFunctions).isEmpty();
-    }
-
-    @Test
-    public void parseIntoMapForGivenSchemas_unknownProperties_noFunctionParsed() throws Exception {
         XmlPullParser xmlPullParser =
                 getXmlPullParser(
                         "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"
@@ -536,6 +533,10 @@ public class AppFunctionDocumentParserImplTest {
                                 + "  <AppFunctionStaticMetadata>\n"
                                 + "    <id>com.example.utils#print</id>\n"
                                 + "    <functionId>com.example.utils#print</functionId>\n"
+                                + "    <___>\n"
+                                + "        <id>nestedId</id>\n"
+                                + "        <functionId>nestedFunctionId</functionId>\n"
+                                + "    </___>\n"
                                 + "  </AppFunctionStaticMetadata>\n"
                                 + "</appfunctions>");
 
@@ -543,7 +544,17 @@ public class AppFunctionDocumentParserImplTest {
                 mParser.parseIntoMapForGivenSchemas(
                         mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
 
-        assertThat(appFunctions).isEmpty();
+        assertThat(appFunctions).hasSize(2);
+        assertThat(appFunctions).containsKey("com.example.app/com.example.utils#print");
+        // Only known properties are present in the document.
+        assertThat(appFunctions.get("com.example.app/com.example.utils#print").getPropertyNames())
+                .containsExactly(
+                        "enabledByDefault",
+                        "functionId",
+                        "packageNameHash",
+                        "scope",
+                        "mobileApplicationQualifiedId",
+                        "packageName");
     }
 
     @Test
