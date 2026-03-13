@@ -16,9 +16,52 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-android_app {
-    name: "AppSearchAiSealConfig",
-    asset_dirs: ["assets"],
+java_defaults {
+    name: "AppSearchAiSealConfig_defaults",
     platform_apis: true,
     certificate: "platform",
+}
+
+android_app {
+    name: "AppSearchAiSealConfig",
+    defaults: ["AppSearchAiSealConfig_defaults"],
+    asset_dirs: [],
+    assets: [
+        ":AppSearchAiSealConfig_vm_config",
+        ":AppSearchAiSealConfig_aiseal_config",
+    ],
+}
+
+// AiSeal config for Google-signed mainline modules
+//
+// GoogleAppSearchAiSealConfig reuses assets and configuration from
+// AppSearchAiSealConfig, only changing the signatures of modules from AOSP keys
+// to Google keys. It makes any changes in AOSP configuration to be included
+// automatically to Google configuration.
+genrule {
+    name: "GoogleAppSearchAiSealConfig_vm_config",
+    srcs: [":AppSearchAiSealConfig_vm_config"],
+    out: ["vm_config.json"],
+    cmd: "cat $(in) | " +
+        // com.android.appsearch
+        "sed 's/\"dev-keys\": \"e326a8d1cf4a3b18b45c530e153bd310b9bff04949e37a8886b526dc546e2baf403c3384fef01c18341b3e5de0566c294c8373aa8f7b92e07dd9c938a96f7e35\"/\"dev-keys\": \"766837046756b15143c9fbc16087cc070f9624938b95d951e09e725dbc3bf336875116170600500e0350caa330318aedebc4eff7d3e9c17373c698fa77b5ebb3\"/' | " +
+        "sed 's/\"test-keys\": \"e326a8d1cf4a3b18b45c530e153bd310b9bff04949e37a8886b526dc546e2baf403c3384fef01c18341b3e5de0566c294c8373aa8f7b92e07dd9c938a96f7e35\"/\"test-keys\": \"766837046756b15143c9fbc16087cc070f9624938b95d951e09e725dbc3bf336875116170600500e0350caa330318aedebc4eff7d3e9c17373c698fa77b5ebb3\"/' | " +
+        "sed 's/\"release-keys\": \"e326a8d1cf4a3b18b45c530e153bd310b9bff04949e37a8886b526dc546e2baf403c3384fef01c18341b3e5de0566c294c8373aa8f7b92e07dd9c938a96f7e35\"/\"release-keys\": \"a44e216a9d8beeee1e37608e6fcd2c048f0beb7ce5b1879c51b22b84a4e82f08a8cc940ac50ad9a532b4d5c09ba25cbbba5bc9ea5e5b7b7933756744aa0bbe9d\"/' | " +
+        // com.android.i18n
+        "sed 's/\"dev-keys\": \"668ac67e4b8a00bf5863ee175db92aefa64138eccbc86a7f528d6fdabec3443e781f4f4c5c3db123994d45696e13e07aa207da25bc70709dcaba3a740b679f7b\"/\"dev-keys\": \"f52da0ce34b4df9d7bb365c7e99f8369a0f47d37e0cf005ea84e7e71e8cda43b015724efd2e61abebe039c3f955c466ddb645107b6110e511c4fa3faa2d2603f\"/' | " +
+        "sed 's/\"test-keys\": \"668ac67e4b8a00bf5863ee175db92aefa64138eccbc86a7f528d6fdabec3443e781f4f4c5c3db123994d45696e13e07aa207da25bc70709dcaba3a740b679f7b\"/\"test-keys\": \"f52da0ce34b4df9d7bb365c7e99f8369a0f47d37e0cf005ea84e7e71e8cda43b015724efd2e61abebe039c3f955c466ddb645107b6110e511c4fa3faa2d2603f\"/' | " +
+        "sed 's/\"release-keys\": \"668ac67e4b8a00bf5863ee175db92aefa64138eccbc86a7f528d6fdabec3443e781f4f4c5c3db123994d45696e13e07aa207da25bc70709dcaba3a740b679f7b\"/\"release-keys\": \"c259b3c32caad567c50dbe775a3919d3628481265e8253ac643eb233f3a5f2d77a8a66e083ce63eacb1e46dd98a79733c4cbc12035cbaf951ff2643b1e38e6c5\"/'" +
+        " > $(out)",
+}
+
+android_app {
+    name: "GoogleAppSearchAiSealConfig",
+    overrides: ["AppSearchAiSealConfig"],
+    defaults: ["AppSearchAiSealConfig_defaults"],
+    asset_dirs: [],
+    assets: [
+        ":GoogleAppSearchAiSealConfig_vm_config",
+        ":AppSearchAiSealConfig_aiseal_config",
+    ],
+    system_ext_specific: true,
 }
