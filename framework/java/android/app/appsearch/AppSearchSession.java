@@ -1365,33 +1365,23 @@ public final class AppSearchSession implements Closeable {
                         CountDownLatch getSchemaLatch = new CountDownLatch(1);
                         AtomicReference<AppSearchResult<GetSchemaResponse>> getSchemaResultRef =
                                 new AtomicReference<>();
-                        if (Flags.enableSchemaMigrationExecutorDeadLockFix()) {
-                            mService.getSchema(
-                                    new GetSchemaAidlRequest(
-                                            mCallerAttributionSource,
-                                            mCallerAttributionSource.getPackageName(),
-                                            mDatabaseName,
-                                            mUserHandle,
-                                            /* binderCallStartTimeMillis= */ SystemClock
-                                                    .elapsedRealtime(),
-                                            /* isForEnterprise= */ false),
-                                    new AppSearchResultCallback<GetSchemaResponse>() {
-                                        @Override
-                                        public void onResult(
-                                                @NonNull
-                                                        AppSearchResult<GetSchemaResponse> result) {
-                                            getSchemaResultRef.set(result);
-                                            getSchemaLatch.countDown();
-                                        }
-                                    });
-                        } else {
-                            getSchema(
-                                    callbackExecutor,
-                                    (result) -> {
+                        mService.getSchema(
+                                new GetSchemaAidlRequest(
+                                        mCallerAttributionSource,
+                                        mCallerAttributionSource.getPackageName(),
+                                        mDatabaseName,
+                                        mUserHandle,
+                                        /* binderCallStartTimeMillis= */ SystemClock
+                                                .elapsedRealtime(),
+                                        /* isForEnterprise= */ false),
+                                new AppSearchResultCallback<GetSchemaResponse>() {
+                                    @Override
+                                    public void onResult(
+                                            @NonNull AppSearchResult<GetSchemaResponse> result) {
                                         getSchemaResultRef.set(result);
                                         getSchemaLatch.countDown();
-                                    });
-                        }
+                                    }
+                                });
 
                         getSchemaLatch.await();
                         AppSearchResult<GetSchemaResponse> getSchemaResult =
