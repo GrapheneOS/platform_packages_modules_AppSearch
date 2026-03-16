@@ -791,7 +791,23 @@ public class PlatformLogger implements InternalAppSearchLogger {
                     queryStats.getAdditionalPageCount(), // 66
                     queryStats.getAdditionalPageRetrievalLatencyMillis(), // 67
                     queryStats.getUnblockedAppSearchLatencyMillis(), // 68
-                    queryStats.getNumIcingCalls()); // 69
+                    queryStats.getNumIcingCalls(), // 69
+                    parentStats == null
+                            ? 0
+                            : parentStats.getNativeNumUnquantizedEmbeddingsScored(), // 70
+                    parentStats == null
+                            ? 0
+                            : parentStats.getNativeNumQuantizedEmbeddingsScored(), // 71
+                    parentStats == null ? 0 : parentStats.getNativeNumEmbeddingShardsRead(), // 72
+                    parentStats == null ? 0L : parentStats.getNativeNumEmbeddingBytesRead(), // 73
+                    childStats == null
+                            ? 0
+                            : childStats.getNativeNumUnquantizedEmbeddingsScored(), // 74
+                    childStats == null
+                            ? 0
+                            : childStats.getNativeNumQuantizedEmbeddingsScored(), // 75
+                    childStats == null ? 0 : childStats.getNativeNumEmbeddingShardsRead(), // 76
+                    childStats == null ? 0L : childStats.getNativeNumEmbeddingBytesRead()); // 77
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
             // TODO(b/184204720) report hashing error to statsd
             //  We need to set a special value(e.g. 0xFFFFFFFF) for the hashing of the database,
