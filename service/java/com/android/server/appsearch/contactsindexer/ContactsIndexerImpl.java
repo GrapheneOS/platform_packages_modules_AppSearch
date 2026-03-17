@@ -27,6 +27,7 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
 
@@ -52,6 +53,7 @@ public final class ContactsIndexerImpl {
     static final int NUM_CONTACTS_PER_BATCH_FOR_CP2 = 100;
     static final int NUM_UPDATED_CONTACTS_PER_BATCH_FOR_APPSEARCH = 50;
     static final int NUM_DELETED_CONTACTS_PER_BATCH_FOR_APPSEARCH = 500;
+    static final String VIP_MIMETYPE  = "vnd.android.cursor.item/bestie";
     // Common columns needed for all kinds of mime types
     static final String[] COMMON_NEEDED_COLUMNS = {
         ContactsContract.Data.CONTACT_ID,
@@ -61,7 +63,11 @@ public final class ContactsIndexerImpl {
         ContactsContract.Data.PHONETIC_NAME,
         ContactsContract.Data.RAW_CONTACT_ID,
         ContactsContract.Data.STARRED,
-        ContactsContract.Data.CONTACT_LAST_UPDATED_TIMESTAMP
+        ContactsContract.Data.CONTACT_LAST_UPDATED_TIMESTAMP,
+        ContactsContract.Data.PINNED,
+        ContactsContract.Data.CUSTOM_RINGTONE,
+        ContactsContract.Data.SEND_TO_VOICEMAIL,
+        ContactsContract.Data.MIMETYPE
     };
     // The order for the results returned from CP2.
     static final String ORDER_BY =
@@ -283,7 +289,8 @@ public final class ContactsIndexerImpl {
      *     further indexing and flushes the current batch of contacts but does not return a failed
      *     future.
      */
-    private CompletableFuture<Void> indexContactsFromCursorAsync(
+    @VisibleForTesting
+    public CompletableFuture<Void> indexContactsFromCursorAsync(
             @NonNull Cursor cursor,
             @NonNull ContactsUpdateStats updateStats,
             @NonNull ContactsBatcher contactsBatcher,
@@ -298,6 +305,10 @@ public final class ContactsIndexerImpl {
                     cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME_PRIMARY);
             int starredIndex = cursor.getColumnIndex(ContactsContract.Data.STARRED);
             int phoneticNameIndex = cursor.getColumnIndex(ContactsContract.Data.PHONETIC_NAME);
+            int pinnedIndex = cursor.getColumnIndex(ContactsContract.Data.PINNED);
+            int customRingtoneIndex = cursor.getColumnIndex(ContactsContract.Data.CUSTOM_RINGTONE);
+            int sendToVoicemailIndex =
+                    cursor.getColumnIndex(ContactsContract.Data.SEND_TO_VOICEMAIL);
             long currentContactId = -1;
             Person.Builder personBuilder;
             PersonBuilderHelper personBuilderHelper = null;
@@ -345,6 +356,25 @@ public final class ContactsIndexerImpl {
                     if (phoneticName != null) {
                         personBuilder.addAdditionalName(Person.TYPE_PHONETIC_NAME, phoneticName);
                     }
+
+                    if (Flags.enableContactsIndexerExtendedProperties()) {
+                        int pinnedPosition = ContactsContract.PinnedPositions.UNPINNED;
+                        if (pinnedIndex != -1) {
+                            pinnedPosition = cursor.getInt(pinnedIndex);
+                        }
+                        personBuilder.setPinnedPosition(pinnedPosition);
+
+                        boolean hasCustomRingtone = !TextUtils.isEmpty(
+                                getStringFromCursor(cursor, customRingtoneIndex));
+                        personBuilder.setHasCustomRingtone(hasCustomRingtone);
+
+                        // if getInt is 0, this field is false
+                        boolean sendToVoicemail =
+                                sendToVoicemailIndex != -1
+                                        && cursor.getInt(sendToVoicemailIndex) != 0;
+                        personBuilder.setSendToVoicemail(sendToVoicemail);
+                    }
+
                     // Always use current system timestamp first. If that contact already exists
                     // in AppSearch, the creationTimestamp for this doc will be reset with the
                     // original value stored in AppSearch during performDiffAsync.
@@ -354,6 +384,16 @@ public final class ContactsIndexerImpl {
                 }
                 if (personBuilderHelper != null) {
                     mContactDataHandler.convertCursorToPerson(cursor, personBuilderHelper);
+
+                    if (Flags.enableContactsIndexerExtendedProperties()) {
+                        // Check if row matches VIP mimetype. This is a custom mimetype so its
+                        // existence indicates isVip should be true.
+                        int mimetypeIndex = cursor.getColumnIndex(ContactsContract.Data.MIMETYPE);
+                        String mimeType = getStringFromCursor(cursor, mimetypeIndex);
+                        if (VIP_MIMETYPE.equals(mimeType)) {
+                            personBuilderHelper.getPersonBuilder().setIsVip(true);
+                        }
+                    }
                 }
             }
 

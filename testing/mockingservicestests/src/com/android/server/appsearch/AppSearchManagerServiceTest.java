@@ -59,6 +59,7 @@ import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.app.UiAutomation;
 import android.app.admin.DevicePolicyManager;
+import android.app.appsearch.AppSearchAccount;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchEnvironmentFactory;
 import android.app.appsearch.AppSearchResult;
@@ -141,7 +142,9 @@ import com.android.modules.utils.testing.TestableDeviceConfig;
 import com.android.server.appsearch.ServiceTestUtil.MockServiceManager;
 import com.android.server.appsearch.contactsindexer.AppSearchHelper;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactRelation;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate;
 import com.android.server.appsearch.external.localstorage.stats.CallStats;
 import com.android.server.appsearch.external.localstorage.stats.QueryStats;
 import com.android.server.appsearch.external.localstorage.stats.SearchIntentStats;
@@ -166,6 +169,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.io.File;
 import java.io.FileDescriptor;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -1564,7 +1568,16 @@ public class AppSearchManagerServiceTest {
     @Test
     public void testEnterpriseGetDocumentsInSystemPackage_transformsPerson() throws Exception {
         // Set Person schema
-        List<AppSearchSchema> schemas = Arrays.asList(Person.getSchema(), ContactPoint.SCHEMA);
+        List<AppSearchSchema> schemas = new ArrayList<>();
+        schemas.add(ContactPoint.getSchema());
+        schemas.add(Person.getSchema());
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            schemas.add(SignificantDate.SCHEMA);
+            schemas.add(ContactRelation.SCHEMA);
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                schemas.add(AppSearchAccount.SCHEMA);
+            }
+        }
         InternalSetSchemaResponse internalSetSchemaResponse =
                 mUserInstance
                         .getAppSearchImpl()

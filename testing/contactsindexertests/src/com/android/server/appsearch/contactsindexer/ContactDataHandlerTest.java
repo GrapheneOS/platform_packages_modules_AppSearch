@@ -20,6 +20,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
+import android.app.appsearch.AppSearchAccount;
+import android.app.appsearch.testutil.AppSearchTestUtils;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -28,20 +30,27 @@ import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.provider.ContactsContract.CommonDataKinds;
 import android.provider.ContactsContract.Data;
+import android.provider.ContactsContract.RawContacts;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactRelation;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 public class ContactDataHandlerTest {
+    @Rule public final RuleChain mRuleChain = AppSearchTestUtils.createCommonTestRules();
     private static final String TEST_NAMESPACE = "TESTNAMESPACE";
     private static final String TEST_ID = "TESTID";
 
@@ -222,6 +231,51 @@ public class ContactDataHandlerTest {
         ).setCreationTimestampMillis(creationTimestampMillis)
                 .addEmailToPerson(label, address).buildPerson();
 
+        PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)).setCreationTimestampMillis(
+                creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        ContactPoint[] contactPoints = personTested.getContactPoints();
+        assertThat(contactPoints.length).isEqualTo(1);
+        assertThat(contactPoints[0].getLabel()).isEqualTo(label);
+        assertThat(contactPoints[0].getEmails()).asList().containsExactly(address);
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_contactPoint_isSuperPrimary() {
+        int type = 1; // Home
+        String name = "name";
+        String address = "emailAddress@google.com";
+        String label = CommonDataKinds.Email.getTypeLabel(mResources, type, /* label= */
+                null).toString(); // usually "Home"
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE);
+        values.put(Data.IS_SUPER_PRIMARY, 1);
+        values.put(CommonDataKinds.Email.ADDRESS, address);
+        values.put(CommonDataKinds.Email.TYPE, type);
+        values.put(CommonDataKinds.Email.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+        Person personExpected;
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            personExpected =
+                    new PersonBuilderHelper(
+                                    TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                            .addEmailToPerson(label, address)
+                            .setIsContactPointSuperPrimary(label, true)
+                            .setCreationTimestampMillis(creationTimestampMillis)
+                            .buildPerson();
+        } else {
+            personExpected =
+                    new PersonBuilderHelper(
+                                    TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                            .setCreationTimestampMillis(creationTimestampMillis)
+                            .addEmailToPerson(label, address)
+                            .buildPerson();
+        }
         PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
                 new Person.Builder(TEST_NAMESPACE, TEST_ID, name)).setCreationTimestampMillis(
                 creationTimestampMillis);
@@ -667,10 +721,19 @@ public class ContactDataHandlerTest {
         long creationTimestampMillis = System.currentTimeMillis();
         Cursor cursor = makeCursorFromContentValues(values);
 
-        Person personExpected = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name).setGivenName(
-                        givenName).setMiddleName(middleName).setFamilyName(familyName)
-        ).setCreationTimestampMillis(creationTimestampMillis).buildPerson();
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .setGivenName(givenName)
+                        .setMiddleName(middleName)
+                        .setFamilyName(familyName);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            // Populate rawContactId
+            expectedBuilder.addRawContactId(rawContactId);
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
 
         PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
                 new Person.Builder(TEST_NAMESPACE, TEST_ID,
@@ -773,9 +836,23 @@ public class ContactDataHandlerTest {
         long creationTimestampMillis = System.currentTimeMillis();
         Cursor cursor = makeCursorFromContentValues(values);
 
-        Person personExpected = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name).addRelation(relationName)
-        ).setCreationTimestampMillis(creationTimestampMillis).buildPerson();
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .addRelation(relationName);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addStructuredRelation(
+                    new ContactRelation.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRelationName(relationName)
+                            .setRelationLabel(
+                                    CommonDataKinds.Relation.getTypeLabel(mResources, type,
+                                            label).toString())
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
 
         PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
                 new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
@@ -800,10 +877,23 @@ public class ContactDataHandlerTest {
         long creationTimestampMillis = System.currentTimeMillis();
         Cursor cursor = makeCursorFromContentValues(values);
 
-        Person personExpected = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name).addRelation(
-                        CommonDataKinds.Relation.getTypeLabel(mResources, type, label).toString())
-        ).setCreationTimestampMillis(creationTimestampMillis).buildPerson();
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .addRelation(CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                .toString());
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addStructuredRelation(
+                    new ContactRelation.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRelationLabel(
+                                    CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                            .toString())
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
 
         PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
                 new Person.Builder(TEST_NAMESPACE, TEST_ID,
@@ -828,10 +918,23 @@ public class ContactDataHandlerTest {
         long creationTimestampMillis = System.currentTimeMillis();
         Cursor cursor = makeCursorFromContentValues(values);
 
-        Person personExpected = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name).addRelation(
-                        CommonDataKinds.Relation.getTypeLabel(mResources, type, label).toString())
-        ).setCreationTimestampMillis(creationTimestampMillis).buildPerson();
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .addRelation(CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                .toString());
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addStructuredRelation(
+                    new ContactRelation.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRelationLabel(
+                                    CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                            .toString())
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
 
         PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
                 new Person.Builder(TEST_NAMESPACE, TEST_ID,
@@ -856,13 +959,384 @@ public class ContactDataHandlerTest {
         long creationTimestampMillis = System.currentTimeMillis();
         Cursor cursor = makeCursorFromContentValues(values);
 
-        Person personExpected = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name).addRelation(label)
-        ).setCreationTimestampMillis(creationTimestampMillis).buildPerson();
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .addRelation(CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                .toString());
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addStructuredRelation(
+                    new ContactRelation.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRelationLabel(
+                                    CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                            .toString())
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
 
-        PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)).setCreationTimestampMillis(
-                creationTimestampMillis);
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_relation_predefinedType_ignoresCustomLabel() {
+        String name = "name";
+        String relationName = "relationName";
+        int type = CommonDataKinds.Relation.TYPE_BROTHER;
+        String label = "CustomLabel";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Relation.CONTENT_ITEM_TYPE);
+        values.put(CommonDataKinds.Relation.NAME, relationName);
+        values.put(CommonDataKinds.Relation.TYPE, type);
+        values.put(CommonDataKinds.Relation.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .addRelation(relationName);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addStructuredRelation(
+                    new ContactRelation.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRelationName(relationName)
+                            .setRelationLabel(
+                                    CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                            .toString())
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_relation_customTypeUsesCustomLabel() {
+        String name = "name";
+        String relationName = "relationName";
+        int type = CommonDataKinds.Relation.TYPE_CUSTOM;
+        String label = "CustomLabel";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Relation.CONTENT_ITEM_TYPE);
+        values.put(CommonDataKinds.Relation.NAME, relationName);
+        values.put(CommonDataKinds.Relation.TYPE, type);
+        values.put(CommonDataKinds.Relation.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder =
+                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
+                        .addRelation(relationName);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addStructuredRelation(
+                    new ContactRelation.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRelationName(relationName)
+                            .setRelationLabel(
+                                    CommonDataKinds.Relation.getTypeLabel(mResources, type, label)
+                                            .toString())
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_eventPredefinedType() {
+        String name = "name";
+        String startDate = "2023-01-15";
+        int type = CommonDataKinds.Event.TYPE_BIRTHDAY;
+        String label = "Birthday";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Event.CONTENT_ITEM_TYPE);
+        values.put(CommonDataKinds.Event.START_DATE, startDate);
+        values.put(CommonDataKinds.Event.TYPE, type);
+        values.put(CommonDataKinds.Event.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addSignificantDate(
+                    new SignificantDate.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRawDate(startDate)
+                            .setSignificantDateType(type)
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_eventTypeCustom_labelNotNull() {
+        String name = "name";
+        String startDate = "2023-01-15";
+        int type = CommonDataKinds.Event.TYPE_CUSTOM;
+        String label = "CustomLabel";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Event.CONTENT_ITEM_TYPE);
+        values.put(CommonDataKinds.Event.START_DATE, startDate);
+        values.put(CommonDataKinds.Event.TYPE, type);
+        values.put(CommonDataKinds.Event.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addSignificantDate(
+                    new SignificantDate.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRawDate(startDate)
+                            .setSignificantDateType(type)
+                            .setCustomLabel(label)
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_eventTypeOther_labelNotNull() {
+        String name = "name";
+        String startDate = "2023-01-15";
+        int type = CommonDataKinds.Event.TYPE_CUSTOM;
+        String label = "CustomLabel";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Event.CONTENT_ITEM_TYPE);
+        values.put(CommonDataKinds.Event.START_DATE, startDate);
+        values.put(CommonDataKinds.Event.TYPE, type);
+        values.put(CommonDataKinds.Event.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            expectedBuilder.addSignificantDate(
+                    new SignificantDate.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setRawDate(startDate)
+                            .setSignificantDateType(type)
+                            .setCustomLabel(label)
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_eventEmptyDate_noExceptionThrown() {
+        String name = "name";
+        String startDate = "";
+        int type = CommonDataKinds.Event.TYPE_BIRTHDAY;
+        String label = "Birthday";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, CommonDataKinds.Event.CONTENT_ITEM_TYPE);
+        values.put(CommonDataKinds.Event.START_DATE, startDate);
+        values.put(CommonDataKinds.Event.TYPE, type);
+        values.put(CommonDataKinds.Event.LABEL, label);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_account() {
+        String name = "name";
+        String accountName = "accountName";
+        String accountType = "accountType";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, RawContacts.CONTENT_ITEM_TYPE);
+        values.put(RawContacts.ACCOUNT_NAME, accountName);
+        values.put(RawContacts.ACCOUNT_TYPE, accountType);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        if (Flags.enableContactsIndexerExtendedProperties()
+                && Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+            expectedBuilder.addAccount(
+                    new AppSearchAccount.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setAccountName(accountName)
+                            .setAccountType(accountType)
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_account_emptyAccountName() {
+        String name = "name";
+        String accountName = "";
+        String accountType = "accountType";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, RawContacts.CONTENT_ITEM_TYPE);
+        values.put(RawContacts.ACCOUNT_NAME, accountName);
+        values.put(RawContacts.ACCOUNT_TYPE, accountType);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        if (Flags.enableContactsIndexerExtendedProperties()
+                && Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+            expectedBuilder.addAccount(
+                    new AppSearchAccount.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setAccountType(accountType)
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_account_emptyAccountType() {
+        String name = "name";
+        String accountName = "accountName";
+        String accountType = "";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, RawContacts.CONTENT_ITEM_TYPE);
+        values.put(RawContacts.ACCOUNT_NAME, accountName);
+        values.put(RawContacts.ACCOUNT_TYPE, accountType);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        if (Flags.enableContactsIndexerExtendedProperties()
+                && Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+            expectedBuilder.addAccount(
+                    new AppSearchAccount.Builder(AppSearchHelper.NAMESPACE_NAME, "")
+                            .setAccountName(accountName)
+                            .setCreationTimestampMillis(0)
+                            .build());
+        }
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
+        convertRowToPerson(cursor, helperTested);
+        Person personTested = helperTested.buildPerson();
+
+        assertThat(personTested).isEqualTo(personExpected);
+    }
+
+    @Test
+    public void testConvertCurrentRowToPerson_account_emptyAccountNameAndType_notAdded() {
+        String name = "name";
+        String accountName = "";
+        String accountType = "";
+        ContentValues values = new ContentValues();
+        values.put(Data.MIMETYPE, RawContacts.CONTENT_ITEM_TYPE);
+        values.put(RawContacts.ACCOUNT_NAME, accountName);
+        values.put(RawContacts.ACCOUNT_TYPE, accountType);
+        long creationTimestampMillis = System.currentTimeMillis();
+        Cursor cursor = makeCursorFromContentValues(values);
+
+        Person.Builder expectedBuilder = new Person.Builder(TEST_NAMESPACE, TEST_ID, name);
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, expectedBuilder)
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
+
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
         convertRowToPerson(cursor, helperTested);
         Person personTested = helperTested.buildPerson();
 
@@ -874,17 +1348,19 @@ public class ContactDataHandlerTest {
         // Change the Mimetype of StructuredName.
         String name = "name";
         long creationTimestampMillis = System.currentTimeMillis();
-        MatrixCursor cursor = new MatrixCursor(
-                new String[]{Data.MIMETYPE, CommonDataKinds.StructuredName.GIVEN_NAME});
+        MatrixCursor cursor =
+                new MatrixCursor(
+                        new String[] {Data.MIMETYPE, CommonDataKinds.StructuredName.GIVEN_NAME});
         cursor.newRow().add("testUnknownMimeType", "testGivenName");
 
-        Person personExpected = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name)
-        ).setCreationTimestampMillis(creationTimestampMillis).buildPerson();
+        Person personExpected =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis)
+                        .buildPerson();
 
-        PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
-                .setCreationTimestampMillis(creationTimestampMillis);
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(creationTimestampMillis);
         convertRowToPerson(cursor, helperTested);
         Person personTested = helperTested.buildPerson();
 
@@ -900,14 +1376,14 @@ public class ContactDataHandlerTest {
         String label = "CustomLabel";
         ContentValues values = new ContentValues();
         values.put(Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE);
-        values.put(CommonDataKinds.Email.ADDRESS, /*address=*/ (String) null);
+        values.put(CommonDataKinds.Email.ADDRESS, /* address= */ (String) null);
         values.put(CommonDataKinds.Email.TYPE, type);
         values.put(CommonDataKinds.Email.LABEL, label);
         Cursor cursor = makeCursorFromContentValues(values);
 
-        PersonBuilderHelper helperTested = new PersonBuilderHelper(TEST_ID,
-                new Person.Builder(TEST_NAMESPACE, TEST_ID,
-                        name)).setCreationTimestampMillis(0);
+        PersonBuilderHelper helperTested =
+                new PersonBuilderHelper(TEST_ID, new Person.Builder(TEST_NAMESPACE, TEST_ID, name))
+                        .setCreationTimestampMillis(0);
         convertRowToPerson(cursor, helperTested);
 
         // no NPE thrown.

@@ -19,9 +19,11 @@ package com.android.server.appsearch.contactsindexer;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
+import android.app.appsearch.AppSearchAccount;
 import android.app.appsearch.AppSearchBatchResult;
 import android.app.appsearch.AppSearchManager;
 import android.app.appsearch.AppSearchResult;
+import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.AppSearchSession;
 import android.app.appsearch.BatchResultCallback;
 import android.app.appsearch.GenericDocument;
@@ -39,9 +41,12 @@ import android.util.AndroidRuntimeException;
 import android.util.ArraySet;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactPoint;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.ContactRelation;
 import com.android.server.appsearch.contactsindexer.appsearchtypes.Person;
+import com.android.server.appsearch.contactsindexer.appsearchtypes.SignificantDate;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -212,9 +217,21 @@ public class AppSearchHelper {
         Objects.requireNonNull(session);
 
         CompletableFuture<AppSearchSession> future = new CompletableFuture<>();
+        List<AppSearchSchema> schemas = new ArrayList<>();
+        // These schemas are returned via a method call because their definitions depend on
+        // feature flags and can change based on which flags are enabled.
+        schemas.add(ContactPoint.getSchema());
+        schemas.add(Person.getSchema());
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            schemas.add(SignificantDate.SCHEMA);
+            schemas.add(ContactRelation.SCHEMA);
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                schemas.add(AppSearchAccount.SCHEMA);
+            }
+        }
         SetSchemaRequest.Builder schemaBuilder =
                 new SetSchemaRequest.Builder()
-                        .addSchemas(ContactPoint.SCHEMA, Person.getSchema())
+                        .addSchemas(schemas)
                         .addRequiredPermissionsForSchemaTypeVisibility(
                                 Person.SCHEMA_TYPE,
                                 Collections.singleton(SetSchemaRequest.READ_CONTACTS))

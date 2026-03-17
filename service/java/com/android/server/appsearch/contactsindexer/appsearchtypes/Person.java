@@ -16,9 +16,11 @@
 
 package com.android.server.appsearch.contactsindexer.appsearchtypes;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.appsearch.AppSearchAccount;
 import android.app.appsearch.AppSearchSchema;
 import android.app.appsearch.GenericDocument;
 import android.net.Uri;
@@ -72,13 +74,40 @@ public class Person extends GenericDocument {
     public static final String PERSON_PROPERTY_ADDITIONAL_NAME_TYPES = "additionalNameTypes";
     public static final String PERSON_PROPERTY_ADDITIONAL_NAMES = "additionalNames";
     public static final String PERSON_PROPERTY_IS_IMPORTANT = "isImportant";
+    public static final String PERSON_PROPERTY_IS_VIP = "isVip";
     public static final String PERSON_PROPERTY_IS_BOT = "isBot";
     public static final String PERSON_PROPERTY_IMAGE_URI = "imageUri";
     public static final String PERSON_PROPERTY_CONTACT_POINTS = "contactPoints";
     public static final String PERSON_PROPERTY_AFFILIATIONS = "affiliations";
+
+    /**
+     * Legacy relations stored as a repeated string. This stores the name of the relation as the
+     * user entered it (e.g. Dave), or the relation type's label (e.g. father) if name is not
+     * provided.
+     *
+     * <p>This field will still be populated to maintain backward compatibility with
+     * existing consumers and to provide a simplified, high-level view of the contact's
+     * connections. The new  structured relations field provides granular,
+     * searchable data (including custom labels and names) on the contact's relation.
+     */
     public static final String PERSON_PROPERTY_RELATIONS = "relations";
+
+    /**
+     * Structured relation documents. This stores both the name of the relation and the relation
+     * label.
+     *
+     * <p>For example, a relation could be with "Dave" as name and "Father" as label, used to
+     * represent that "the father of the contact is Dave".
+     */
+    public static final String PERSON_PROPERTY_STRUCTURED_RELATIONS = "structuredRelations";
     public static final String PERSON_PROPERTY_NOTES = "notes";
     public static final String PERSON_PROPERTY_FINGERPRINT = "fingerprint";
+    public static final String PERSON_PROPERTY_RAW_CONTACT_IDS = "rawContactIds";
+    public static final String PERSON_PROPERTY_PINNED_POSITION = "pinnedPosition";
+    public static final String PERSON_PROPERTY_SIGNIFICANT_DATES = "significantDates";
+    public static final String PERSON_PROPERTY_HAS_CUSTOM_RINGTONE = "hasCustomRingtone";
+    public static final String PERSON_PROPERTY_SEND_TO_VOICEMAIL = "sendToVoicemail";
+    public static final String PERSON_PROPERTY_ACCOUNTS = "accounts";
 
     private static AppSearchSchema createSchema(boolean indexFirstMiddleAndLastNames) {
         AppSearchSchema.Builder builder =
@@ -205,8 +234,7 @@ public class Person extends GenericDocument {
                 // ContactPoint
                 .addProperty(
                         new AppSearchSchema.DocumentPropertyConfig.Builder(
-                                        PERSON_PROPERTY_CONTACT_POINTS,
-                                        ContactPoint.SCHEMA.getSchemaType())
+                                        PERSON_PROPERTY_CONTACT_POINTS, ContactPoint.SCHEMA_TYPE)
                                 .setShouldIndexNestedProperties(true)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
                                 .build())
@@ -240,13 +268,85 @@ public class Person extends GenericDocument {
                 // Fingerprint for detecting significant changes
                 .addProperty(
                         new AppSearchSchema.StringPropertyConfig.Builder(
-                                        PERSON_PROPERTY_FINGERPRINT)
+                                    PERSON_PROPERTY_FINGERPRINT)
                                 .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
                                 .build());
+
+        if (Flags.enableContactsIndexerExtendedProperties()) {
+            builder
+                    // Raw contact ids from CP2
+                    .addProperty(
+                            new AppSearchSchema.StringPropertyConfig.Builder(
+                                            PERSON_PROPERTY_RAW_CONTACT_IDS)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .build())
+                    // isVip
+                    .addProperty(
+                            new AppSearchSchema.BooleanPropertyConfig.Builder(
+                                            PERSON_PROPERTY_IS_VIP)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build())
+                    // Pinned position from CP2. 0 or unpopulated if unpinned.
+                    .addProperty(
+                            new AppSearchSchema.LongPropertyConfig.Builder(
+                                            PERSON_PROPERTY_PINNED_POSITION)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build())
+                    // significantDate
+                    .addProperty(
+                            new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                            PERSON_PROPERTY_SIGNIFICANT_DATES,
+                                            SignificantDate.SCHEMA_TYPE)
+                                    .setShouldIndexNestedProperties(true)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .build())
+                    // structured relation documents
+                    .addProperty(
+                            new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                            PERSON_PROPERTY_STRUCTURED_RELATIONS,
+                                            ContactRelation.SCHEMA_TYPE)
+                                    .setShouldIndexNestedProperties(true)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                    .build())
+                    // hasCustomRingtone
+                    .addProperty(
+                            new AppSearchSchema.BooleanPropertyConfig.Builder(
+                                            PERSON_PROPERTY_HAS_CUSTOM_RINGTONE)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build())
+                    // sendToVoicemail
+                    .addProperty(
+                            new AppSearchSchema.BooleanPropertyConfig.Builder(
+                                            PERSON_PROPERTY_SEND_TO_VOICEMAIL)
+                                    .setCardinality(
+                                            AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                    .build());
+
+            if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                // AppSearchAccounts is only available with this flag
+                builder.addProperty(
+                        new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                PERSON_PROPERTY_ACCOUNTS,
+                                AppSearchAccount.SCHEMA_TYPE)
+                                .setShouldIndexNestedProperties(true)
+                                .setCardinality(
+                                        AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                .build());
+            }
+        }
         return builder.build();
     }
 
-    /** Returns Person schema based on {@link Flags#enableContactsIndexFirstMiddleAndLastNames}. */
+    /**
+     * Returns Person schema based on {@link Flags#enableContactsIndexFirstMiddleAndLastNames} and
+     * {@link Flags#enableContactsIndexerExtendedProperties}.
+     */
     public static AppSearchSchema getSchema() {
         return createSchema(Flags.enableContactsIndexFirstMiddleAndLastNames());
     }
@@ -295,8 +395,22 @@ public class Person extends GenericDocument {
         return Uri.parse(uriStr);
     }
 
+    /**
+     * Returns whether the contact is "starred" or marked as important.
+     */
     public boolean isImportant() {
         return getPropertyBoolean(PERSON_PROPERTY_IS_IMPORTANT);
+    }
+
+    /**
+     * Returns whether the contact is marked as a VIP.
+     *
+     * <p>"VIP" is a concept that some phones use to identify contacts that are more important
+     * than "favorites" or "starred" contacts.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public boolean isVip() {
+        return getPropertyBoolean(PERSON_PROPERTY_IS_VIP);
     }
 
     public boolean isBot() {
@@ -319,9 +433,40 @@ public class Person extends GenericDocument {
         return getPropertyStringArray(PERSON_PROPERTY_AFFILIATIONS);
     }
 
-    @NonNull
+    /**
+     * Returns the relations information stored as a repeated string.
+     * This is the name of the relation as the user entered it (e.g. Dave), or the relation
+     * type's label (e.g. father) if name is not provided.
+     *
+     * <p>This field will still be populated to maintain backward compatibility with
+     * existing consumers and to provide a simplified, high-level view of the contact's
+     * connections. Use {@link #getStructuredRelations} instead for more granular, searchable data
+     * (including both relation type label and name) on the contact's relation.
+     */
+    @Nullable
     public String[] getRelations() {
         return getPropertyStringArray(PERSON_PROPERTY_RELATIONS);
+    }
+
+    /**
+     * Returns structured {@link ContactRelation} associated with this {@link Person}.
+     *
+     * <p> This is an expensive operation. Access properties on the {@link GenericDocument}
+     * directly to avoid the performance overhead of object wrapping.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public ContactRelation[] getStructuredRelations() {
+        GenericDocument[] docs = getPropertyDocumentArray(PERSON_PROPERTY_STRUCTURED_RELATIONS);
+        if (docs == null) {
+            return null;
+        }
+
+        ContactRelation[] contactRelations = new ContactRelation[docs.length];
+        for (int i = 0; i < docs.length; ++i) {
+            contactRelations[i] = new ContactRelation(docs[i]);
+        }
+        return contactRelations;
     }
 
     @Nullable
@@ -340,6 +485,90 @@ public class Person extends GenericDocument {
         return contactPoints;
     }
 
+    /**
+     * Returns the IDs of the raw contacts associated with this person.
+     *
+     * <p>A raw contact presents a single account-specific set of data for a person
+     * (e.g., a local device contact, a Google account contact, or a WhatsApp contact).
+     * Multiple {@code RawContacts} are aggregated into a single unified {@link Person} based on
+     * matching names.
+     *
+     * <p>This list contains the individual source IDs that contribute to this aggregated contact.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public String[] getRawContactIds() {
+        return getPropertyStringArray(PERSON_PROPERTY_RAW_CONTACT_IDS);
+    }
+
+    /**
+     * Returns the pinned position of the contact in the favorites list.
+     *
+     * <p>Positions are 1-based, where 1 represents the top (first) position in the favorites list.
+     * Returns 0 if the contact is not pinned.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public long getPinnedPosition() {
+        return getPropertyLong(PERSON_PROPERTY_PINNED_POSITION);
+    }
+
+    /**
+     * Returns {@link SignificantDate} documents associated with this {@link Person}.
+     *
+     * <p> This is an expensive operation. Access properties on the {@link GenericDocument}
+     * directly to avoid the performance overhead of object wrapping.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public SignificantDate[] getSignificantDates() {
+        GenericDocument[] docs = getPropertyDocumentArray(PERSON_PROPERTY_SIGNIFICANT_DATES);
+        if (docs == null) {
+            return null;
+        }
+
+        SignificantDate[] dates = new SignificantDate[docs.length];
+        for (int i = 0; i < dates.length; ++i) {
+            dates[i] = new SignificantDate(docs[i]);
+        }
+        return dates;
+    }
+
+    /**
+     * Returns whether this contact has a custom ringtone assigned.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public boolean hasCustomRingtone() {
+        return getPropertyBoolean(PERSON_PROPERTY_HAS_CUSTOM_RINGTONE);
+    }
+
+    /**
+     * Returns whether calls from this contact should be sent directly to voicemail.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public boolean sendToVoicemail() {
+        return getPropertyBoolean(PERSON_PROPERTY_SEND_TO_VOICEMAIL);
+    }
+
+    /**
+     * Returns the accounts associated with this person.
+     *
+     * <p>This expensive and intended for tests only.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+    public AppSearchAccount[] getAccounts() {
+        GenericDocument[] docs = getPropertyDocumentArray(PERSON_PROPERTY_ACCOUNTS);
+        if (docs == null) {
+            return null;
+        }
+
+        AppSearchAccount[] accounts = new AppSearchAccount[docs.length];
+        for (int i = 0; i < docs.length; ++i) {
+            accounts[i] = new AppSearchAccount(docs[i]);
+        }
+        return accounts;
+    }
+
     /** Gets a byte array for the fingerprint. */
     @NonNull
     public byte[] getFingerprint() {
@@ -352,14 +581,18 @@ public class Person extends GenericDocument {
         private final List<String> mAdditionalNames = new ArrayList<>();
         private final List<String> mAffiliations = new ArrayList<>();
         private final List<String> mRelations = new ArrayList<>();
+        private final List<ContactRelation> mStructuredRelations = new ArrayList<>();
         private final List<String> mNotes = new ArrayList<>();
         private final List<ContactPoint> mContactPoints = new ArrayList<>();
+        private final List<String> mRawContactIds = new ArrayList<>();
+        private final List<SignificantDate> mSignificantDates = new ArrayList<>();
+        private final List<AppSearchAccount> mAccounts = new ArrayList<>();
 
         /**
          * Creates a new {@link ContactPoint.Builder}
          *
-         * @param namespace The namespace of the Email.
-         * @param id The ID of the Email.
+         * @param namespace The namespace of the Person document.
+         * @param id The ID of the Person document.
          * @param name The name of the {@link Person}.
          */
         public Builder(@NonNull String namespace, @NonNull String id, @NonNull String name) {
@@ -413,8 +646,36 @@ public class Person extends GenericDocument {
         }
 
         @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder setIsVip(boolean isVip) {
+            setPropertyBoolean(PERSON_PROPERTY_IS_VIP, isVip);
+            return this;
+        }
+
+        @NonNull
         public Builder setIsBot(boolean isBot) {
             setPropertyBoolean(PERSON_PROPERTY_IS_BOT, isBot);
+            return this;
+        }
+
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder setPinnedPosition(long pinnedPosition) {
+            setPropertyLong(PERSON_PROPERTY_PINNED_POSITION, pinnedPosition);
+            return this;
+        }
+
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder setHasCustomRingtone(boolean hasCustomRingtone) {
+            setPropertyBoolean(PERSON_PROPERTY_HAS_CUSTOM_RINGTONE, hasCustomRingtone);
+            return this;
+        }
+
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder setSendToVoicemail(boolean sendToVoicemail) {
+            setPropertyBoolean(PERSON_PROPERTY_SEND_TO_VOICEMAIL, sendToVoicemail);
             return this;
         }
 
@@ -442,6 +703,14 @@ public class Person extends GenericDocument {
             return this;
         }
 
+        /** Adds a structured relation document. */
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder addStructuredRelation(@NonNull ContactRelation contactRelation) {
+            mStructuredRelations.add(Objects.requireNonNull(contactRelation));
+            return this;
+        }
+
         /** Adds a note about this {@link Person}. */
         @NonNull
         public Builder addNote(@NonNull String note) {
@@ -453,6 +722,27 @@ public class Person extends GenericDocument {
         public Builder addContactPoint(@NonNull ContactPoint contactPoint) {
             Objects.requireNonNull(contactPoint);
             mContactPoints.add(contactPoint);
+            return this;
+        }
+
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder addRawContactId(@NonNull String rawContactId) {
+            mRawContactIds.add(Objects.requireNonNull(rawContactId));
+            return this;
+        }
+
+        @NonNull
+        public Builder addSignificantDate(@NonNull SignificantDate significantDate) {
+            mSignificantDates.add(Objects.requireNonNull(significantDate));
+            return this;
+        }
+
+        /** Adds an account document to this {@link Person}. */
+        @NonNull
+        @FlaggedApi(Flags.FLAG_ENABLE_CONTACTS_INDEXER_EXTENDED_PROPERTIES)
+        public Builder addAccount(@NonNull AppSearchAccount account) {
+            mAccounts.add(Objects.requireNonNull(account));
             return this;
         }
 
@@ -483,6 +773,22 @@ public class Person extends GenericDocument {
             setPropertyString(PERSON_PROPERTY_NOTES, mNotes.toArray(new String[0]));
             setPropertyDocument(
                     PERSON_PROPERTY_CONTACT_POINTS, mContactPoints.toArray(new ContactPoint[0]));
+
+            if (Flags.enableContactsIndexerExtendedProperties()) {
+                if (Flags.enableSchemasWipeoutAccountPropertyPaths()) {
+                    setPropertyDocument(
+                            PERSON_PROPERTY_ACCOUNTS, mAccounts.toArray(new AppSearchAccount[0]));
+                }
+                setPropertyString(
+                        PERSON_PROPERTY_RAW_CONTACT_IDS, mRawContactIds.toArray(new String[0]));
+                setPropertyDocument(
+                        PERSON_PROPERTY_STRUCTURED_RELATIONS,
+                        mStructuredRelations.toArray(new ContactRelation[0]));
+                setPropertyDocument(
+                        PERSON_PROPERTY_SIGNIFICANT_DATES,
+                        mSignificantDates.toArray(new SignificantDate[0]));
+            }
+
             // TODO(b/203605504) calculate score here.
             return new Person(super.build());
         }
