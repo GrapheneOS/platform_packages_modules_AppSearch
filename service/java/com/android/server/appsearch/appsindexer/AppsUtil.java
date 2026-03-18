@@ -17,6 +17,7 @@
 package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.getAppFunctionAppProperty;
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
 
 import android.Manifest;
 import android.annotation.NonNull;
@@ -148,6 +149,47 @@ public final class AppsUtil {
     }
 
     /**
+     * Queries the {@link PackageManager} for app function services.
+     *
+     * @param packageManager The {@link PackageManager} to query.
+     * @return A map where the key is the package name and the value is a list of {@link
+     *     ResolveInfo} objects for the app function services in that package.
+     */
+    @NonNull
+    private static Map<String, List<ResolveInfo>> getAppFunctionServiceInfos(
+            @NonNull PackageManager packageManager) {
+        Map<String, List<ResolveInfo>> packageNameToAppFunctionServiceInfos = new ArrayMap<>();
+        Intent appFunctionServiceIntent = new Intent(APP_FUNCTION_SERVICE_INTERFACE);
+        List<ResolveInfo> services =
+                packageManager.queryIntentServices(appFunctionServiceIntent, /* flags= */ 0);
+        for (int i = 0; i < services.size(); i++) {
+            ResolveInfo resolveInfo = services.get(i);
+            if (resolveInfo.serviceInfo == null) {
+                continue;
+            }
+
+            if (Flags.enableAppFunctionServicePermissionCheck()
+                    && !APP_FUNCTION_SERVICE_PERMISSION_STRING.equals(
+                            resolveInfo.serviceInfo.permission)) {
+                continue;
+            }
+            // Only available on API 37+.
+            if (isAppLevelAppFunctionsEnabled() && Flags.enableHandlingMultipleAppFunctionXml()) {
+                packageNameToAppFunctionServiceInfos
+                        .computeIfAbsent(
+                                resolveInfo.serviceInfo.packageName, k -> new ArrayList<>())
+                        .add(resolveInfo);
+            } else {
+                // We keep this for backward compatibility with API < 37.
+                packageNameToAppFunctionServiceInfos.put(
+                        resolveInfo.serviceInfo.packageName,
+                        Collections.singletonList(resolveInfo));
+            }
+        }
+        return packageNameToAppFunctionServiceInfos;
+    }
+
+    /**
      * Gets {@link PackageInfo}s for packages that have a launch activity or has app functions,
      * along with their corresponding {@link ResolveInfo}. This is useful for building schemas as
      * well as determining which packages to set schemas for.
@@ -188,21 +230,8 @@ public final class AppsUtil {
                 packageNameToLauncher.put(packageName, resolveInfo);
             }
         }
-        Intent appFunctionServiceIntent = new Intent(APP_FUNCTION_SERVICE_INTERFACE);
-        Map<String, ResolveInfo> packageNameToAppFunctionServiceInfo = new ArrayMap<>();
-        List<ResolveInfo> services =
-                packageManager.queryIntentServices(appFunctionServiceIntent, /* flags= */ 0);
-        for (int i = 0; i < services.size(); i++) {
-            ResolveInfo resolveInfo = services.get(i);
-            if (Flags.enableAppFunctionServicePermissionCheck()
-                    && (resolveInfo.serviceInfo == null
-                            || !APP_FUNCTION_SERVICE_PERMISSION_STRING.equals(
-                                    resolveInfo.serviceInfo.permission))) {
-                continue;
-            }
-            packageNameToAppFunctionServiceInfo.put(
-                    resolveInfo.serviceInfo.packageName, resolveInfo);
-        }
+        Map<String, List<ResolveInfo>> packageNameToAppFunctionServiceInfos =
+                getAppFunctionServiceInfos(packageManager);
 
         Map<PackageInfo, ResolveInfos> packagesToIndex = new ArrayMap<>();
         for (int i = 0; i < packageInfos.size(); i++) {
@@ -215,16 +244,13 @@ public final class AppsUtil {
                 builder.setLaunchActivityResolveInfo(launchActivityResolveInfo);
             }
 
-            ResolveInfo appFunctionServiceInfo =
-                    packageNameToAppFunctionServiceInfo.get(packageInfo.packageName);
+            List<ResolveInfo> appFunctionServiceInfos =
+                    packageNameToAppFunctionServiceInfos.getOrDefault(
+                            packageInfo.packageName, Collections.emptyList());
 
             AppFunctionResolveInfo appFunctionResolveInfo =
                     AppFunctionResolveInfo.create(
-                            packageManager,
-                            packageInfo.packageName,
-                            appFunctionServiceInfo == null
-                                    ? Collections.emptyList()
-                                    : Collections.singletonList(appFunctionServiceInfo));
+                            packageManager, packageInfo.packageName, appFunctionServiceInfos);
             if (appFunctionResolveInfo != null) {
                 builder.setAppFunctionResolveInfo(appFunctionResolveInfo);
             }
