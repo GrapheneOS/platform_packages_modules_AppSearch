@@ -22,6 +22,8 @@ import static com.android.server.appsearch.appsindexer.TestUtils.createFakePacka
 import static com.android.server.appsearch.appsindexer.TestUtils.createIndividualUsageEvent;
 import static com.android.server.appsearch.appsindexer.TestUtils.createUsageEvents;
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackageManager;
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsDisabled;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -47,6 +49,7 @@ import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 
@@ -606,5 +609,85 @@ public class AppsUtilTest {
                 packageActivityMapping.get(packageWithNullPermission);
         // Service with null permission IS filtered.
         assertThat(resolveInfosWithNullPermission.getAppFunctionResolveInfo()).isNull();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_HANDLING_MULTIPLE_APP_FUNCTION_XML)
+    public void testGetPackagesToIndex_multipleAppFunctionServices_flagEnabled() throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        PackageManager pm = Mockito.mock(PackageManager.class);
+        Context mockContext =
+                new ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm;
+                    }
+                };
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
+
+        PackageInfo packageInfo = createFakePackageInfo(0);
+        fakePackages.add(packageInfo);
+        fakeActivities.add(createFakeLaunchResolveInfo(0));
+
+        ResolveInfo service1 = createFakeAppFunctionResolveInfo(0);
+        service1.serviceInfo.name = "com.fake.package0.Service1";
+        fakeAppFunctionServices.add(service1);
+
+        ResolveInfo service2 = createFakeAppFunctionResolveInfo(0);
+        service2.serviceInfo.name = "com.fake.package0.Service2";
+        fakeAppFunctionServices.add(service2);
+
+        setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Map<PackageInfo, ResolveInfos> packageActivityMapping =
+                AppsUtil.getPackagesToIndex(mockContext, pm);
+
+        assertThat(packageActivityMapping).hasSize(1);
+        ResolveInfos resolveInfos = packageActivityMapping.get(packageInfo);
+        assertThat(resolveInfos.getAppFunctionResolveInfo().getAppFunctionServiceResolveInfos())
+                .containsExactly(service1, service2);
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_HANDLING_MULTIPLE_APP_FUNCTION_XML)
+    public void testGetPackagesToIndex_multipleAppFunctionServices_flagDisabled() throws Exception {
+        assumeFlagIsDisabled(
+                android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        PackageManager pm = Mockito.mock(PackageManager.class);
+        Context mockContext =
+                new ContextWrapper(ApplicationProvider.getApplicationContext()) {
+                    @Override
+                    public PackageManager getPackageManager() {
+                        return pm;
+                    }
+                };
+        List<PackageInfo> fakePackages = new ArrayList<>();
+        List<ResolveInfo> fakeActivities = new ArrayList<>();
+        List<ResolveInfo> fakeAppFunctionServices = new ArrayList<>();
+
+        PackageInfo packageInfo = createFakePackageInfo(0);
+        fakePackages.add(packageInfo);
+        fakeActivities.add(createFakeLaunchResolveInfo(0));
+
+        ResolveInfo service1 = createFakeAppFunctionResolveInfo(0);
+        service1.serviceInfo.name = "com.fake.package0.Service1";
+        fakeAppFunctionServices.add(service1);
+
+        ResolveInfo service2 = createFakeAppFunctionResolveInfo(0);
+        service2.serviceInfo.name = "com.fake.package0.Service2";
+        fakeAppFunctionServices.add(service2);
+
+        setupMockPackageManager(pm, fakePackages, fakeActivities, fakeAppFunctionServices);
+
+        Map<PackageInfo, ResolveInfos> packageActivityMapping =
+                AppsUtil.getPackagesToIndex(mockContext, pm);
+
+        assertThat(packageActivityMapping).hasSize(1);
+        ResolveInfos resolveInfos = packageActivityMapping.get(packageInfo);
+        // Only one of the services is kept when the flag is disabled
+        assertThat(resolveInfos.getAppFunctionResolveInfo().getAppFunctionServiceResolveInfos())
+                .hasSize(1);
     }
 }
