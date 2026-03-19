@@ -27,6 +27,7 @@ import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
 import static android.Manifest.permission.READ_GLOBAL_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_HOME_APP_SEARCH_DATA;
 import static android.Manifest.permission.READ_SMS;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.permission.PermissionManager.PERMISSION_GRANTED;
 
 import android.annotation.NonNull;
@@ -290,6 +291,18 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
      */
     private boolean isSchemaVisibleToPackages(
             @NonNull SchemaVisibilityConfig visibilityConfig, int callerUid) {
+        // If the caller is a PCC process, its defining app's UID is the one that should be checked
+        // against the package's UID.
+        int effectiveCallerUid = callerUid;
+        if (enablePccFrameworkSupport() && isPrivateComputeCoreUid(callerUid)) {
+            effectiveCallerUid =
+                    PackageUtil.getAppUidForPrivateComputeCoreUid(mUserContext, callerUid);
+            if (effectiveCallerUid < 0) {
+                // Fallback to original UID if mapping fails.
+                effectiveCallerUid = callerUid;
+            }
+        }
+
         List<PackageIdentifier> visibleToPackages = visibilityConfig.getAllowedPackages();
         for (int i = 0; i < visibleToPackages.size(); i++) {
             PackageIdentifier visibleToPackage = visibleToPackages.get(i);
@@ -302,7 +315,7 @@ public class VisibilityCheckerImpl implements VisibilityChecker {
             // the callerUid since clients can createContextAsUser with some other user, and then
             // make calls to us. So just check if the appId portion of the uid is the same. This is
             // essentially UserHandle.isSameApp, but that's not a system API for us to use.
-            int callerAppId = UserHandle.getAppId(callerUid);
+            int callerAppId = UserHandle.getAppId(effectiveCallerUid);
             int packageUid =
                     PackageUtil.getPackageUid(mUserContext, visibleToPackage.getPackageName());
             int userAppId = UserHandle.getAppId(packageUid);
