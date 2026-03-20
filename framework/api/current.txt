@@ -1,6 +1,5 @@
 // Signature format: 6.0
 // - style=java
-// - flagged-api-inheritance=none
 // - normalize-final-modifier=no
 // - overloaded-method-order=source
 // - strip-java-lang-prefix=legacy
@@ -16,7 +15,7 @@ package android.app.appsearch {
     field public static final String SCHEMA_TYPE = "builtin:Account";
   }
 
-  public static final class AppSearchAccount.Builder extends android.app.appsearch.GenericDocument.Builder<android.app.appsearch.AppSearchAccount.Builder> {
+  @FlaggedApi("com.android.appsearch.flags.enable_schemas_wipeout_account_property_paths") public static final class AppSearchAccount.Builder extends android.app.appsearch.GenericDocument.Builder<android.app.appsearch.AppSearchAccount.Builder> {
     ctor public AppSearchAccount.Builder(@NonNull String, @NonNull String);
     method @NonNull public android.app.appsearch.AppSearchAccount build();
     method @NonNull public android.app.appsearch.AppSearchAccount.Builder setAccountId(@NonNull String);
@@ -827,7 +826,7 @@ package android.app.appsearch {
     method @NonNull public java.util.Map<java.lang.String,java.util.Set<android.app.appsearch.SchemaVisibilityConfig>> getNamespacesVisibleToConfigs();
   }
 
-  public static final class SetBlobVisibilityRequest.Builder {
+  @FlaggedApi("com.android.appsearch.flags.enable_blob_store") public static final class SetBlobVisibilityRequest.Builder {
     ctor public SetBlobVisibilityRequest.Builder();
     method @NonNull public android.app.appsearch.SetBlobVisibilityRequest.Builder addNamespaceVisibleToConfig(@NonNull String, @NonNull android.app.appsearch.SchemaVisibilityConfig);
     method @NonNull public android.app.appsearch.SetBlobVisibilityRequest build();
