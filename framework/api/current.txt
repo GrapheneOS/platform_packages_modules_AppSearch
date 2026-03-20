@@ -1,6 +1,5 @@
 // Signature format: 6.0
 // - style=java
-// - overloaded-method-order=source
 // - strip-java-lang-prefix=legacy
 // - type-argument-spacing=legacy
 package android.app.appsearch {
@@ -120,8 +119,8 @@ package android.app.appsearch {
   }
 
   public static final class AppSearchSchema.Builder {
-    ctor public AppSearchSchema.Builder(@NonNull String);
     ctor @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") public AppSearchSchema.Builder(@NonNull android.app.appsearch.AppSearchSchema);
+    ctor public AppSearchSchema.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.Builder addParentType(@NonNull String);
     method @NonNull public android.app.appsearch.AppSearchSchema.Builder addProperty(@NonNull android.app.appsearch.AppSearchSchema.PropertyConfig);
     method @NonNull public android.app.appsearch.AppSearchSchema build();
@@ -322,8 +321,8 @@ package android.app.appsearch {
   }
 
   public static class GenericDocument.Builder<BuilderType extends android.app.appsearch.GenericDocument.Builder> {
-    ctor public GenericDocument.Builder(@NonNull String, @NonNull String, @NonNull String);
     ctor @FlaggedApi("com.android.appsearch.flags.enable_generic_document_copy_constructor") public GenericDocument.Builder(@NonNull android.app.appsearch.GenericDocument);
+    ctor public GenericDocument.Builder(@NonNull String, @NonNull String, @NonNull String);
     method @NonNull public android.app.appsearch.GenericDocument build();
     method @FlaggedApi("com.android.appsearch.flags.enable_generic_document_builder_hidden_methods") @NonNull public BuilderType clearProperty(@NonNull String);
     method @NonNull public BuilderType setCreationTimestampMillis(long);
@@ -426,8 +425,8 @@ package android.app.appsearch {
   }
 
   public static final class JoinSpec.Builder {
-    ctor public JoinSpec.Builder(@NonNull String);
     ctor @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") public JoinSpec.Builder(@NonNull android.app.appsearch.JoinSpec);
+    ctor public JoinSpec.Builder(@NonNull String);
     method @NonNull public android.app.appsearch.JoinSpec build();
     method @NonNull public android.app.appsearch.JoinSpec.Builder setAggregationScoringStrategy(int);
     method @FlaggedApi("com.android.appsearch.flags.enable_additional_builder_copy_constructors") @NonNull public android.app.appsearch.JoinSpec.Builder setChildPropertyExpression(@NonNull String);
@@ -467,16 +466,16 @@ package android.app.appsearch {
   }
 
   public class PropertyPath implements java.lang.Iterable<android.app.appsearch.PropertyPath.PathSegment> {
-    ctor public PropertyPath(@NonNull java.util.List<android.app.appsearch.PropertyPath.PathSegment>);
     ctor public PropertyPath(@NonNull String);
+    ctor public PropertyPath(@NonNull java.util.List<android.app.appsearch.PropertyPath.PathSegment>);
     method @NonNull public android.app.appsearch.PropertyPath.PathSegment get(int);
     method @NonNull public java.util.Iterator<android.app.appsearch.PropertyPath.PathSegment> iterator();
     method public int size();
   }
 
   public static class PropertyPath.PathSegment {
-    method @NonNull public static android.app.appsearch.PropertyPath.PathSegment create(@NonNull String, int);
     method @NonNull public static android.app.appsearch.PropertyPath.PathSegment create(@NonNull String);
+    method @NonNull public static android.app.appsearch.PropertyPath.PathSegment create(@NonNull String, int);
     method public int getPropertyIndex();
     method @NonNull public String getPropertyName();
     field public static final int NON_REPEATED_CARDINALITY = -1; // 0xffffffff
@@ -955,8 +954,8 @@ package android.app.appsearch.ast {
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class TextNode implements android.app.appsearch.ast.Node {
-    ctor public TextNode(@NonNull String);
     ctor public TextNode(@NonNull android.app.appsearch.ast.TextNode);
+    ctor public TextNode(@NonNull String);
     method @NonNull public String getValue();
     method public boolean isPrefix();
     method public boolean isVerbatim();
@@ -970,8 +969,8 @@ package android.app.appsearch.ast {
 package android.app.appsearch.ast.operators {
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class AndNode implements android.app.appsearch.ast.Node {
-    ctor public AndNode(@NonNull java.util.List<android.app.appsearch.ast.Node>);
     ctor public AndNode(@NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node...);
+    ctor public AndNode(@NonNull java.util.List<android.app.appsearch.ast.Node>);
     method public void addChild(@NonNull android.app.appsearch.ast.Node);
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
     method public int getIndexOfChild(@NonNull android.app.appsearch.ast.Node);
@@ -996,8 +995,8 @@ package android.app.appsearch.ast.operators {
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class OrNode implements android.app.appsearch.ast.Node {
-    ctor public OrNode(@NonNull java.util.List<android.app.appsearch.ast.Node>);
     ctor public OrNode(@NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node, @NonNull android.app.appsearch.ast.Node...);
+    ctor public OrNode(@NonNull java.util.List<android.app.appsearch.ast.Node>);
     method public void addChild(@NonNull android.app.appsearch.ast.Node);
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
     method public int getIndexOfChild(@NonNull android.app.appsearch.ast.Node);
@@ -1041,8 +1040,8 @@ package android.app.appsearch.ast.query {
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class SearchNode implements android.app.appsearch.ast.FunctionNode {
-    ctor public SearchNode(@NonNull android.app.appsearch.ast.Node, @NonNull java.util.List<android.app.appsearch.PropertyPath>);
     ctor public SearchNode(@NonNull android.app.appsearch.ast.Node);
+    ctor public SearchNode(@NonNull android.app.appsearch.ast.Node, @NonNull java.util.List<android.app.appsearch.PropertyPath>);
     method public void addPropertyPath(@NonNull android.app.appsearch.PropertyPath);
     method @NonNull public android.app.appsearch.ast.Node getChild();
     method @NonNull public java.util.List<android.app.appsearch.ast.Node> getChildren();
@@ -1053,10 +1052,10 @@ package android.app.appsearch.ast.query {
   }
 
   @FlaggedApi("com.android.appsearch.flags.enable_abstract_syntax_trees") public final class SemanticSearchNode implements android.app.appsearch.ast.FunctionNode {
-    ctor public SemanticSearchNode(int, float, float, int);
-    ctor public SemanticSearchNode(int, float, float);
-    ctor public SemanticSearchNode(int, float);
     ctor public SemanticSearchNode(int);
+    ctor public SemanticSearchNode(int, float);
+    ctor public SemanticSearchNode(int, float, float);
+    ctor public SemanticSearchNode(int, float, float, int);
     method public int getDistanceMetric();
     method @NonNull public String getFunctionName();
     method public float getLowerBound();
