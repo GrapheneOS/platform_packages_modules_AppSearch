@@ -32,6 +32,7 @@ import android.os.Build;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
@@ -116,6 +117,11 @@ public class AppFunctionsIndexerUtil {
     public static boolean isAppLevelAppFunctionsEnabled() {
         return android.app.appfunctions.flags.Flags.enableDynamicAppFunctions()
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN;
+    }
+
+    /** Returns whether app can declare multiple app functions XML files. */
+    public static boolean isHandlingMultipleAppFunctionXmlEnabled() {
+        return isAppLevelAppFunctionsEnabled() && Flags.enableHandlingMultipleAppFunctionXml();
     }
 
     /**

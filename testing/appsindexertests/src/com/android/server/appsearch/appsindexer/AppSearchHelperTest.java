@@ -66,6 +66,7 @@ import android.util.ArraySet;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionServiceState;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionPackageMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
@@ -130,7 +131,7 @@ public class AppSearchHelperTest {
         PackageIdentifier expected =
                 new PackageIdentifier("com.fake.package0", FAKE_SIGNATURE.toByteArray());
         assertThat(response.getPubliclyVisibleSchemas().keySet())
-                .containsExactly(MobileApplication.SCHEMA_TYPE + "-" + FAKE_PACKAGE_PREFIX + "0");
+                .contains(MobileApplication.SCHEMA_TYPE + "-" + FAKE_PACKAGE_PREFIX + "0");
         PackageIdentifier actual =
                 response.getPubliclyVisibleSchemas().values().toArray(new PackageIdentifier[0])[0];
         assertThat(actual.getSha256Certificate()).isEqualTo(expected.getSha256Certificate());
@@ -756,12 +757,13 @@ public class AppSearchHelperTest {
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         GetSchemaResponse response = session.getSchemaAsync().get();
         assertThat(response.getSchemas())
-                .containsExactly(
+                .containsAtLeast(
                         MobileApplication.createMobileApplicationSchemaForPackage(
                                 app.getPackageName()),
                         AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
                         AppFunctionPackageMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
                         dynamicSchema);
+        assertThat(response.getSchemas()).contains(AppFunctionServiceState.SCHEMA);
     }
 
     @Test
@@ -796,8 +798,7 @@ public class AppSearchHelperTest {
     public void
             setSchemaForPackages_setsDefaultsToHardcodedAppFunctionSchemas_dynamicSchemasIsMissing_withPackageMetadataSchema()
                     throws Exception {
-        assumeFlagIsEnabled(
-                android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         assumeTrue(AppFunctionStaticMetadata.shouldSetParentType());
         MobileApplication app = createFakeMobileApplication(0);
         List<PackageIdentifier> pkgIdentifiers =
@@ -812,13 +813,14 @@ public class AppSearchHelperTest {
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         GetSchemaResponse response = session.getSchemaAsync().get();
         assertThat(response.getSchemas())
-                .containsExactly(
+                .containsAtLeast(
                         MobileApplication.createMobileApplicationSchemaForPackage(
                                 app.getPackageName()),
                         AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
                         AppFunctionPackageMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
                         AppFunctionStaticMetadata.createAppFunctionSchemaForPackage(
                                 app.getPackageName()));
+        assertThat(response.getSchemas()).contains(AppFunctionServiceState.SCHEMA);
     }
 
     @Test
@@ -914,7 +916,7 @@ public class AppSearchHelperTest {
                 createFakeAppIndexerSession(mContext, mSingleThreadedExecutor);
         GetSchemaResponse response = session.getSchemaAsync().get();
         assertThat(response.getSchemas())
-                .containsExactly(
+                .containsAtLeast(
                         MobileApplication.createMobileApplicationSchemaForPackage(
                                 app.getPackageName()),
                         MobileApplication.createMobileApplicationSchemaForPackage(
@@ -922,5 +924,6 @@ public class AppSearchHelperTest {
                         AppFunctionStaticMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
                         AppFunctionPackageMetadata.PARENT_TYPE_APPSEARCH_SCHEMA,
                         dynamicSchema);
+        assertThat(response.getSchemas()).contains(AppFunctionServiceState.SCHEMA);
     }
 }
