@@ -20,6 +20,7 @@ import static android.app.appsearch.AppSearchResult.RESULT_INVALID_ARGUMENT;
 import static android.app.appsearch.AppSearchResult.RESULT_IO_ERROR;
 
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isHandlingMultipleAppFunctionXmlEnabled;
 
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
@@ -48,6 +49,7 @@ import android.util.Log;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionPackageMetadata;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionServiceState;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
@@ -354,6 +356,10 @@ public class AppSearchHelper implements Closeable {
     private static void populateMobileApplicationSchemas(
             @NonNull SetSchemaRequest.Builder schemaBuilder,
             @NonNull List<PackageIdentifier> mobileAppPkgs) {
+        if (isHandlingMultipleAppFunctionXmlEnabled()) {
+            // Nested schema for MobileApplication.
+            schemaBuilder.addSchemas(AppFunctionServiceState.SCHEMA);
+        }
         for (int i = 0; i < mobileAppPkgs.size(); i++) {
             PackageIdentifier pkg = mobileAppPkgs.get(i);
             // As all apps are in the same db, we have to make sure that even if it's getting
@@ -619,7 +625,8 @@ public class AppSearchHelper implements Closeable {
                                 List.of(
                                         MobileApplication.APP_PROPERTY_UPDATED_TIMESTAMP,
                                         MobileApplication
-                                                .APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED))
+                                                .APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED,
+                                        MobileApplication.APP_PROPERTY_APP_FUNCTION_SERVICE_STATES))
                         .addFilterPackageNames(mContext.getPackageName())
                         .setResultCountPerPage(GET_APP_IDS_PAGE_SIZE)
                         .build();

@@ -24,6 +24,7 @@ import static com.android.server.appsearch.appsindexer.TestUtils.createUsageEven
 import static com.android.server.appsearch.appsindexer.TestUtils.setupMockPackageManager;
 import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
 import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsDisabled;
+import static android.app.appsearch.testutil.FrameworkFlagUtils.isFlagEnabled;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -56,6 +57,7 @@ import android.util.ArrayMap;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.appsearch.flags.Flags;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionServiceState;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
 
@@ -404,6 +406,28 @@ public class AppsUtilTest {
         assertThat(app.getAlternateNames()).asList().containsExactly(frenchName, spanishName);
     }
 
+    private void assertAppFunctionServiceStatus(MobileApplication app, boolean expectedStatus) {
+        if (isFlagEnabled(Flags.FLAG_ENABLE_HANDLING_MULTIPLE_APP_FUNCTION_XML)
+                && isFlagEnabled(
+                        android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)) {
+            AppFunctionServiceState[] serviceStates = app.getAppFunctionServiceStates();
+            assertThat(serviceStates).hasLength(1);
+            assertThat(serviceStates[0].isEnabled()).isEqualTo(expectedStatus);
+        } else {
+            assertThat(app.isAppFunctionServiceEnabled()).isEqualTo(expectedStatus);
+        }
+    }
+
+    private void assertNoAppFunctionService(MobileApplication app) {
+        if (isFlagEnabled(Flags.FLAG_ENABLE_HANDLING_MULTIPLE_APP_FUNCTION_XML)
+                && isFlagEnabled(
+                        android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS)) {
+            assertThat(app.getAppFunctionServiceStates()).isNull();
+        } else {
+            assertThat(app.isAppFunctionServiceEnabled()).isFalse();
+        }
+    }
+
     @Test
     public void testBuildApps_appFunctionServiceComponentEnabled_setsEnabledStatusTrue()
             throws Exception {
@@ -422,7 +446,7 @@ public class AppsUtilTest {
                 AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
 
         assertThat(resultApps).hasSize(1);
-        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isTrue();
+        assertAppFunctionServiceStatus(resultApps.get(0), true);
     }
 
     @Test
@@ -443,7 +467,7 @@ public class AppsUtilTest {
                 AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
 
         assertThat(resultApps).hasSize(1);
-        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
+        assertAppFunctionServiceStatus(resultApps.get(0), false);
     }
 
     @Test
@@ -465,7 +489,7 @@ public class AppsUtilTest {
                 AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
 
         assertThat(resultApps).hasSize(1);
-        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isTrue();
+        assertAppFunctionServiceStatus(resultApps.get(0), true);
     }
 
     @Test
@@ -487,7 +511,46 @@ public class AppsUtilTest {
                 AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
 
         assertThat(resultApps).hasSize(1);
-        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
+        assertAppFunctionServiceStatus(resultApps.get(0), false);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_HANDLING_MULTIPLE_APP_FUNCTION_XML)
+    public void testBuildApps_multipleAppFunctionServices_storesMultipleServiceStates()
+            throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        ResolveInfo service1 = createFakeAppFunctionResolveInfo(0);
+        service1.serviceInfo.name = "com.fake.package0.Service1";
+        service1.serviceInfo.enabled = true;
+
+        ResolveInfo service2 = createFakeAppFunctionResolveInfo(0);
+        service2.serviceInfo.name = "com.fake.package0.Service2";
+        service2.serviceInfo.enabled = false;
+
+        ResolveInfos resolveInfos =
+                new ResolveInfos(
+                        mLaunchResolveInfo,
+                        new AppFunctionResolveInfo(
+                                mPackageInfo.packageName,
+                                ImmutableList.of(service1, service2),
+                                /* appFunctionAppLevelXmlProperty= */ null));
+        mPackageMapping.put(mPackageInfo, resolveInfos);
+
+        when(mMockPackageManager.getComponentEnabledSetting(any(ComponentName.class)))
+                .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DEFAULT);
+
+        List<MobileApplication> resultApps =
+                AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
+
+        assertThat(resultApps).hasSize(1);
+        MobileApplication app = resultApps.get(0);
+        AppFunctionServiceState[] serviceStates = app.getAppFunctionServiceStates();
+        assertThat(serviceStates).hasLength(2);
+        assertThat(serviceStates[0].getId()).isEqualTo("com.fake.package0.Service1");
+        assertThat(serviceStates[0].isEnabled()).isTrue();
+        assertThat(serviceStates[1].getId()).isEqualTo("com.fake.package0.Service2");
+        assertThat(serviceStates[1].isEnabled()).isFalse();
     }
 
     @Test
@@ -505,8 +568,7 @@ public class AppsUtilTest {
                 AppsUtil.buildAppsFromPackageInfos(mContext, mMockPackageManager, mPackageMapping);
 
         assertThat(resultApps).hasSize(1);
-        // The builder's default for a boolean is false, which is the expected value.
-        assertThat(resultApps.get(0).isAppFunctionServiceEnabled()).isFalse();
+        assertNoAppFunctionService(resultApps.get(0));
     }
 
     @Test
