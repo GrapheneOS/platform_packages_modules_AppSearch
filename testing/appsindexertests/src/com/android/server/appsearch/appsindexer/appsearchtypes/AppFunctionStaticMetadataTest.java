@@ -151,6 +151,30 @@ public class AppFunctionStaticMetadataTest {
     }
 
     @Test
+    public void testEnabledByDefault_appLevel_isFalse() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        AppFunctionStaticMetadata appFunction =
+                new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
+                        .setScope(AppFunctionStaticMetadata.SCOPE_ACTIVITY)
+                        .setServiceName(AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME)
+                        .build();
+
+        assertThat(appFunction.getEnabledByDefault()).isFalse();
+    }
+
+    @Test
+    public void testEnabledByDefault_appLevel_cannotBeSetToTrue() {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+        AppFunctionStaticMetadata.Builder builder =
+                new AppFunctionStaticMetadata.Builder("pkg", "id", "android")
+                        .setScope(AppFunctionStaticMetadata.SCOPE_ACTIVITY)
+                        .setServiceName(AppFunctionStaticMetadata.APPLICATION_LEVEL_SERVICE_NAME)
+                        .setEnabledByDefault(true);
+
+        assertThrows(IllegalStateException.class, builder::build);
+    }
+
+    @Test
     public void testPackageNameHash_isSet() {
         assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
         AppFunctionStaticMetadata appFunction =
