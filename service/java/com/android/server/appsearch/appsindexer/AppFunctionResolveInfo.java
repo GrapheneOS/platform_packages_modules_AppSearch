@@ -61,6 +61,9 @@ public class AppFunctionResolveInfo {
     private final List<ResolveInfo> mAppFunctionServiceResolveInfos;
     private final PackageManager.Property mAppFunctionAppLevelXmlProperty;
 
+    /** Lazily initialized app function schema property. */
+    @Nullable private PackageManager.Property mAppFunctionSchemaProperty = null;
+
     /**
      * Creates an instance of {@link AppFunctionResolveInfo}.
      *
@@ -162,6 +165,89 @@ public class AppFunctionResolveInfo {
     }
 
     /**
+     * Gets the app function schema property for the package.
+     *
+     * <p>If app level app functions are enabled, first try to get the schema property from the
+     * application level property. If not found, it checks the service-level properties.
+     *
+     * <p>If multiple conflicting schema properties are found at the service level, returns {@code
+     * null} signaling the use of the platform schema.
+     *
+     * @param packageManager The {@link PackageManager} used to resolve properties.
+     * @return The {@link PackageManager.Property} for the app function schema, or {@code null} if
+     *     not found.
+     */
+    public PackageManager.Property getAppFunctionSchemaProperty(PackageManager packageManager) {
+        if (mAppFunctionSchemaProperty != null) {
+            return mAppFunctionSchemaProperty;
+        }
+
+        PackageManager.Property appFunctionSchemaProperty = null;
+
+        // If app level app functions are enabled, first try to get the schema property from the
+        // application level property.
+        if (isAppLevelAppFunctionsEnabled()) {
+            try {
+                appFunctionSchemaProperty =
+                        packageManager.getProperty(
+                                APP_FUNCTION_SCHEMA_XML_PROPERTY_NAME, mPackageName);
+                if (LogUtil.DEBUG) {
+                    Log.d(
+                            TAG,
+                            "Using schema property from application: "
+                                    + mPackageName
+                                    + ". Schema properties from services are ignored.");
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                if (LogUtil.DEBUG) {
+                    Log.d(TAG, "Failed to get app level schema property for: " + mPackageName, e);
+                }
+            }
+        }
+
+        if (appFunctionSchemaProperty != null) {
+            mAppFunctionSchemaProperty = appFunctionSchemaProperty;
+            return appFunctionSchemaProperty;
+        }
+
+        // If not found at the application level, fall back to the first service-level property.
+        for (int i = 0; i < mAppFunctionServiceResolveInfos.size(); i++) {
+            ResolveInfo resolveInfo = mAppFunctionServiceResolveInfos.get(i);
+            try {
+                PackageManager.Property serviceLevelAppFunctionSchemaProperty =
+                        packageManager.getProperty(
+                                APP_FUNCTION_SCHEMA_XML_PROPERTY_NAME,
+                                new ComponentName(
+                                        resolveInfo.serviceInfo.packageName,
+                                        resolveInfo.serviceInfo.name));
+
+                if (serviceLevelAppFunctionSchemaProperty == null) {
+                    continue;
+                }
+
+                if (appFunctionSchemaProperty == null) {
+                    appFunctionSchemaProperty = serviceLevelAppFunctionSchemaProperty;
+                } else if (!Objects.equals(
+                        appFunctionSchemaProperty.getString(),
+                        serviceLevelAppFunctionSchemaProperty.getString())) {
+                    Log.w(
+                            TAG,
+                            "Multiple conflicting schema properties found for package: "
+                                    + mPackageName
+                                    + ". Defaulting to platform schema.");
+                    appFunctionSchemaProperty = null;
+                    break;
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                // Do nothing.
+            }
+        }
+
+        mAppFunctionSchemaProperty = appFunctionSchemaProperty;
+        return appFunctionSchemaProperty;
+    }
+
+    /**
      * Gets the list of {@link ResolveInfo} for the app function services.
      *
      * @return The list of app function service resolve infos.
@@ -202,19 +288,8 @@ public class AppFunctionResolveInfo {
         Objects.requireNonNull(packageManager);
         List<AppFunctionXmlInfo> appFunctionXmlInfos = new ArrayList<>();
 
-        PackageManager.Property appFunctionSchemaProperty = null;
-
-        if (isAppLevelAppFunctionsEnabled()) {
-            try {
-                appFunctionSchemaProperty =
-                        packageManager.getProperty(
-                                APP_FUNCTION_SCHEMA_XML_PROPERTY_NAME, mPackageName);
-            } catch (PackageManager.NameNotFoundException e) {
-                if (LogUtil.DEBUG) {
-                    Log.d(TAG, "Failed to get app level schema property for: " + mPackageName, e);
-                }
-            }
-        }
+        PackageManager.Property appFunctionSchemaProperty =
+                getAppFunctionSchemaProperty(packageManager);
 
         // Handle service level app functions.
         for (int i = 0; i < mAppFunctionServiceResolveInfos.size(); i++) {
@@ -228,20 +303,9 @@ public class AppFunctionResolveInfo {
             if (serviceLevelXmlProperty == null) {
                 continue;
             }
-            PackageManager.Property serviceLevelSchemaProperty = null;
-            try {
-                serviceLevelSchemaProperty =
-                        packageManager.getProperty(
-                                APP_FUNCTION_SCHEMA_XML_PROPERTY_NAME,
-                                new ComponentName(
-                                        resolveInfo.serviceInfo.packageName,
-                                        resolveInfo.serviceInfo.name));
-            } catch (PackageManager.NameNotFoundException e) {
-                // Do nothing.
-            }
+
             // Previously schemaProperty was only defined at the service level.
-            boolean isSchemaPropertyDefined =
-                    serviceLevelSchemaProperty != null || appFunctionSchemaProperty != null;
+            boolean isSchemaPropertyDefined = appFunctionSchemaProperty != null;
 
             if (serviceLevelXmlProperty.isResourceId()) {
                 appFunctionXmlInfos.add(
@@ -451,6 +515,5 @@ public class AppFunctionResolveInfo {
             // schema properties.
             return isAppLevelAppFunctionsEnabled() || mHasSchemaProperty;
         }
-
     }
 }
