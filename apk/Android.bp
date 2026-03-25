@@ -44,7 +44,6 @@ java_defaults {
     // jni_libs: ["libicing_anywhere"],
     optimize: {
         // TODO: more aggressive proguarding?
-        // proguard_compatibility: false,
         // proguard_flags_files: ["proguard.flags"],
 
         enabled: true,
