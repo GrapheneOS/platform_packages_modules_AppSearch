@@ -415,10 +415,14 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
         public Builder setServiceName(@NonNull String serviceName) {
             Objects.requireNonNull(serviceName);
 
-            // Service level functions were launched in A16, hence we default to global scope for
-            // them, however functions defined at the application level (to be launched in next
-            // version) need to explicitly specify the scope.
-            if (!APPLICATION_LEVEL_SERVICE_NAME.equals(serviceName)) {
+            if (APPLICATION_LEVEL_SERVICE_NAME.equals(serviceName)) {
+                // Application level functions should always be disabled by default. They are only
+                // enabled when registered in runtime. Override the constructor set default value.
+                setPropertyBoolean(PROPERTY_ENABLED_BY_DEFAULT, false);
+            } else {
+                // Service level functions were launched in A16, hence we default to global scope
+                // for them, however functions defined at the application level (to be launched in
+                // next version) need to explicitly specify the scope.
                 setScope(SCOPE_GLOBAL);
             }
 
@@ -496,7 +500,25 @@ public class AppFunctionStaticMetadata extends AppFunctionDocument {
                 throw new IllegalStateException(
                         "Invalid scope: " + appFunctionStaticMetadata.getScope());
             }
+            // Ensure XML doesn't override the value in an invalid way.
+            if (isAppLevelAppFunctionsEnabled()
+                    && !isEnabledByDefaultValid(appFunctionStaticMetadata)) {
+                throw new IllegalStateException(
+                        "App level app functions must be disabled by default.");
+            }
             return appFunctionStaticMetadata;
+        }
+
+        /**
+         * Checks if the enabled by default property is valid.
+         *
+         * <p>The enabled by default property must be false for application level functions.
+         */
+        private static boolean isEnabledByDefaultValid(
+                @NonNull AppFunctionStaticMetadata appFunctionStaticMetadata) {
+            return !APPLICATION_LEVEL_SERVICE_NAME.equals(
+                            appFunctionStaticMetadata.getServiceName())
+                    || !appFunctionStaticMetadata.getEnabledByDefault();
         }
 
         /**
