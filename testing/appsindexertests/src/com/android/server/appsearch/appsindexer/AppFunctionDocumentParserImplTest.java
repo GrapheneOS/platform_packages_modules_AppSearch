@@ -29,12 +29,17 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.os.Build;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
+import com.android.appsearch.flags.Flags;
 import androidx.annotation.NonNull;
 
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -99,6 +104,9 @@ public class AppFunctionDocumentParserImplTest {
                     + "  </AppFunctionStaticMetadata>\n"
                     + "</appfunctions>";
 
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     @Mock private PackageManager mPackageManager;
     @Mock private Resources mResources;
     @Mock private AssetManager mAssetManager;
@@ -118,6 +126,32 @@ public class AppFunctionDocumentParserImplTest {
     private void setXmlInput(String xml) throws IOException {
         InputStream inputStream = new ByteArrayInputStream(xml.getBytes());
         when(mAssetManager.open(TEST_XML_ASSET_FILE_PATH)).thenReturn(inputStream);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ALWAYS_SET_ENABLED_BY_DEFAULT_TO_TRUE)
+    public void parseIntoMapForGivenSchemas_missingEnabledByDefault_defaultsToTrue()
+            throws Exception {
+        String xml =
+                """
+                <?xml version="1.0" encoding="utf-8" standalone="yes"?>
+                <appfunctions>
+                  <AppFunctionStaticMetadata>
+                    <id>com.example.utils#print</id>
+                    <functionId>com.example.utils#print</functionId>
+                    <schemaVersion>10</schemaVersion>
+                  </AppFunctionStaticMetadata>
+                </appfunctions>""";
+        XmlPullParser xmlPullParser = getXmlPullParser(xml);
+
+        Map<String, AppFunctionDocument> appFunctions =
+                mParser.parseIntoMapForGivenSchemas(
+                        mPackageManager, TEST_PACKAGE_NAME, xmlPullParser, TEST_SCHEMAS, "");
+
+        assertThat(appFunctions).hasSize(1);
+        GenericDocument actualAppFunction =
+                appFunctions.get("com.example.app/com.example.utils#print");
+        assertThat(actualAppFunction.getPropertyBoolean("enabledByDefault")).isEqualTo(true);
     }
 
     @Test

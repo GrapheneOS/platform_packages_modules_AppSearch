@@ -28,6 +28,7 @@ import android.content.res.AssetManager;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionStaticMetadata;
 
@@ -296,21 +297,21 @@ public class AppFunctionDocumentParserImpl implements AppFunctionDocumentParser 
     @NonNull
     private AppFunctionDocument.Builder<?> getAppFnDocBuilder(
             @NonNull String packageName, @NonNull String schemaType, @NonNull String serviceName) {
-        AppFunctionDocument.Builder<?> appFnDocBuilder;
-        if (isAppLevelAppFunctionsEnabled()
-                && schemaType.equals(AppFunctionStaticMetadata.SCHEMA_TYPE)) {
-            AppFunctionStaticMetadata.Builder staticMetadataBuilder =
+        // isAppLevelAppFunctionsEnabled is false on platforms below Android 17, hence to backport
+        // this feature to older platforms, we added a new flag.
+        if (schemaType.equals(AppFunctionStaticMetadata.SCHEMA_TYPE)
+                && (isAppLevelAppFunctionsEnabled() || Flags.alwaysSetEnabledByDefaultToTrue())) {
+            AppFunctionStaticMetadata.Builder builder =
                     new AppFunctionStaticMetadata.Builder(
                             packageName, /* functionId= */ "", mIndexerPackageName);
-            staticMetadataBuilder.setServiceName(serviceName);
-            appFnDocBuilder = staticMetadataBuilder;
-        } else {
-            // Instantiate the generic builder for other document types.
-            appFnDocBuilder =
-                    new AppFunctionDocument.Builder<>(
-                            packageName, /* documentId= */ "", mIndexerPackageName, schemaType);
+            if (isAppLevelAppFunctionsEnabled()) {
+                builder.setServiceName(serviceName);
+            }
+            return builder;
         }
-        return appFnDocBuilder;
+
+        return new AppFunctionDocument.Builder<>(
+                packageName, /* documentId= */ "", mIndexerPackageName, schemaType);
     }
 
     /**
