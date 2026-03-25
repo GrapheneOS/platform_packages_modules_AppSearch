@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isHandlingMultipleAppFunctionXmlEnabled;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
@@ -38,6 +40,7 @@ import com.android.appsearch.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionDocument;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionServiceState;
 
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -142,12 +145,9 @@ public final class AppsIndexerImpl implements Closeable {
 
             long storedAppUpdateTime = -1;
 
-            boolean storedIsAppFunctionServiceEnabled = false;
-
             MobileApplication appDetails = previouslyIndexedAppDetails.get(packageInfo.packageName);
             if (appDetails != null) {
                 storedAppUpdateTime = appDetails.getUpdatedTimestamp();
-                storedIsAppFunctionServiceEnabled = appDetails.isAppFunctionServiceEnabled();
             }
 
             if (storedAppUpdateTime == -1) {
@@ -160,7 +160,7 @@ public final class AppsIndexerImpl implements Closeable {
                             packageInfo,
                             storedAppUpdateTime,
                             appFunctionResolveInfo,
-                            storedIsAppFunctionServiceEnabled)
+                            appDetails)
                     || isFullUpdateRequired) {
                 // Package last update timestamp discrepancy between AppSearch and PackageManager
                 // or app indexer code was updated. Add this to the list of updated
@@ -372,25 +372,92 @@ public final class AppsIndexerImpl implements Closeable {
     }
 
     /**
-     * Returns true if the package update time is not equal to stored app update time or if
-     * AppFunctionService enabled state is not the same as the stored one.
+     * Returns true if the package update time is not equal to stored app update time or if any of
+     * the app function services are updated within the package.
      *
      * @param packageManager PackageManager instance.
      * @param packageInfo Current information of the package with last update time.
      * @param storedAppUpdateTime The update time stored for the package in appsearch.
      * @param appFunctionServiceResolveInfo Current resolve info for the AppFunctionService in the
      *     package.
-     * @param storedIsAppFunctionServiceEnabled Stored enabled state for the AppFunctionService in
-     *     apppsearch.
+     * @param application Application info for the package currently stored in appsearch.
      */
     private static boolean isPackageUpdatedOrChanged(
             PackageManager packageManager,
             @NonNull PackageInfo packageInfo,
             long storedAppUpdateTime,
             @Nullable AppFunctionResolveInfo appFunctionResolveInfo,
-            boolean storedIsAppFunctionServiceEnabled) {
+            @Nullable MobileApplication application) {
         if (packageInfo.lastUpdateTime != storedAppUpdateTime) {
             return true;
+        }
+
+        if (isHandlingMultipleAppFunctionXmlEnabled()) {
+            return isAnyAppFunctionServiceUpdated(
+                    packageManager, appFunctionResolveInfo, application);
+        }
+
+        return isSingleAppFunctionServiceUpdated(
+                packageManager, appFunctionResolveInfo, application);
+    }
+
+    private static boolean isAnyAppFunctionServiceUpdated(
+            PackageManager packageManager,
+            @Nullable AppFunctionResolveInfo appFunctionResolveInfo,
+            @Nullable MobileApplication application) {
+
+        AppFunctionServiceState[] appFunctionServiceStates =
+                application == null ? null : application.getAppFunctionServiceStates();
+        int numAppFunctionServiceStates =
+                appFunctionServiceStates == null ? 0 : appFunctionServiceStates.length;
+
+        List<ResolveInfo> currentResolveInfos =
+                appFunctionResolveInfo == null
+                        ? null
+                        : appFunctionResolveInfo.getAppFunctionServiceResolveInfos();
+        int numCurrentResolveInfos =
+                currentResolveInfos == null ? 0 : currentResolveInfos.size();
+
+        // If the count differs, something has definitely changed (added or removed services).
+        if (numCurrentResolveInfos != numAppFunctionServiceStates) {
+            return true;
+        }
+
+        if (numCurrentResolveInfos == 0) {
+            return false;
+        }
+
+        Map<String, AppFunctionServiceState> storedStateMap = new ArrayMap<>();
+        for (int i = 0; i < numAppFunctionServiceStates; i++) {
+            storedStateMap.put(appFunctionServiceStates[i].getId(), appFunctionServiceStates[i]);
+        }
+
+        for (int i = 0; i < numCurrentResolveInfos; i++) {
+            String serviceName = currentResolveInfos.get(i).serviceInfo.name;
+            boolean isNowEnabled =
+                    AppsUtil.isAppFunctionServiceEnabled(
+                            packageManager, currentResolveInfos.get(i));
+
+            AppFunctionServiceState storedState = storedStateMap.get(serviceName);
+
+            // If the service wasn't in our stored states, or the enabled status changed, it's
+            // updated.
+            if (storedState == null || isNowEnabled != storedState.isEnabled()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isSingleAppFunctionServiceUpdated(
+            PackageManager packageManager,
+            @Nullable AppFunctionResolveInfo appFunctionResolveInfo,
+            @Nullable MobileApplication application) {
+        boolean storedIsAppFunctionServiceEnabled = false;
+
+        if (application != null) {
+            storedIsAppFunctionServiceEnabled = application.isAppFunctionServiceEnabled();
         }
 
         if (appFunctionResolveInfo == null
@@ -400,7 +467,6 @@ public final class AppsIndexerImpl implements Closeable {
             return storedIsAppFunctionServiceEnabled;
         }
 
-        // TODO: b/468288106 - Support multiple services per package.
         boolean isAppFunctionServiceEnabled =
                 AppsUtil.isAppFunctionServiceEnabled(
                         packageManager,

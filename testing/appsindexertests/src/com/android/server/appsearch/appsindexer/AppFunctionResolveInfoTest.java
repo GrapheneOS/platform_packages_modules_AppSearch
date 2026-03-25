@@ -16,6 +16,7 @@
 
 package com.android.server.appsearch.appsindexer;
 
+import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsDisabled;
 import static android.app.appsearch.testutil.FrameworkFlagUtils.assumeFlagIsEnabled;
 import static android.app.appsearch.testutil.FrameworkFlagUtils.isFlagEnabled;
 
@@ -107,6 +108,224 @@ public class AppFunctionResolveInfoTest {
         } else {
             assertThat(info).isNull();
         }
+    }
+
+    @Test
+    public void testGetAppFunctionSchemaProperty_appLevelEnabled_appLevelPropertyFound()
+            throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        PackageManager.Property schemaProperty =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "app_schema_file.xml",
+                        PACKAGE_NAME,
+                        null);
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(PACKAGE_NAME)))
+                .thenReturn(schemaProperty);
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(PACKAGE_NAME, Collections.emptyList(), null);
+
+        PackageManager.Property result = info.getAppFunctionSchemaProperty(mPackageManager);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getString()).isEqualTo("app_schema_file.xml");
+
+        // Verify it's cached on the second call
+        Mockito.reset(mPackageManager);
+        assertThat(info.getAppFunctionSchemaProperty(mPackageManager)).isEqualTo(result);
+        Mockito.verifyNoInteractions(mPackageManager);
+    }
+
+    @Test
+    public void
+            testGetSchemaProperty_appLevelNotFound_multiServicesWithIdenticalSchemas_returnsSchema()
+                    throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        ResolveInfo resolveInfo1 = new ResolveInfo();
+        resolveInfo1.serviceInfo = new ServiceInfo();
+        resolveInfo1.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo1.serviceInfo.name = "TestService1";
+        ComponentName componentName1 = new ComponentName(PACKAGE_NAME, "TestService1");
+
+        ResolveInfo resolveInfo2 = new ResolveInfo();
+        resolveInfo2.serviceInfo = new ServiceInfo();
+        resolveInfo2.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo2.serviceInfo.name = "TestService2";
+        ComponentName componentName2 = new ComponentName(PACKAGE_NAME, "TestService2");
+
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(PACKAGE_NAME)))
+                .thenThrow(new PackageManager.NameNotFoundException());
+
+        PackageManager.Property schemaProperty1 =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "service_schema_file.xml",
+                        PACKAGE_NAME,
+                        "TestService1");
+        PackageManager.Property schemaProperty2 =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "service_schema_file.xml",
+                        PACKAGE_NAME,
+                        "TestService2");
+
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName1)))
+                .thenReturn(schemaProperty1);
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName2)))
+                .thenReturn(schemaProperty2);
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(
+                        PACKAGE_NAME, Arrays.asList(resolveInfo1, resolveInfo2), null);
+
+        PackageManager.Property result = info.getAppFunctionSchemaProperty(mPackageManager);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getString()).isEqualTo("service_schema_file.xml");
+    }
+
+    @Test
+    public void
+            testGetSchemaProperty_appLevelNotFound_multiServices_conflictingSchemas_returnsNull()
+                    throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        ResolveInfo resolveInfo1 = new ResolveInfo();
+        resolveInfo1.serviceInfo = new ServiceInfo();
+        resolveInfo1.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo1.serviceInfo.name = "TestService1";
+        ComponentName componentName1 = new ComponentName(PACKAGE_NAME, "TestService1");
+
+        ResolveInfo resolveInfo2 = new ResolveInfo();
+        resolveInfo2.serviceInfo = new ServiceInfo();
+        resolveInfo2.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo2.serviceInfo.name = "TestService2";
+        ComponentName componentName2 = new ComponentName(PACKAGE_NAME, "TestService2");
+
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(PACKAGE_NAME)))
+                .thenThrow(new PackageManager.NameNotFoundException());
+
+        PackageManager.Property schemaProperty1 =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "service_schema_file1.xml",
+                        PACKAGE_NAME,
+                        "TestService1");
+        PackageManager.Property schemaProperty2 =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "service_schema_file2.xml",
+                        PACKAGE_NAME,
+                        "TestService2");
+
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName1)))
+                .thenReturn(schemaProperty1);
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName2)))
+                .thenReturn(schemaProperty2);
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(
+                        PACKAGE_NAME, Arrays.asList(resolveInfo1, resolveInfo2), null);
+
+        PackageManager.Property result = info.getAppFunctionSchemaProperty(mPackageManager);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    public void
+            testGetAppFunctionSchemaProperty_appLevelEnabled_appLevelNotFound_serviceLevelFound()
+                    throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.serviceInfo = new ServiceInfo();
+        resolveInfo.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo.serviceInfo.name = "TestService";
+        ComponentName componentName = new ComponentName(PACKAGE_NAME, "TestService");
+
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(PACKAGE_NAME)))
+                .thenThrow(new PackageManager.NameNotFoundException());
+
+        PackageManager.Property schemaProperty =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "service_schema_file.xml",
+                        PACKAGE_NAME,
+                        "TestService");
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName)))
+                .thenReturn(schemaProperty);
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(
+                        PACKAGE_NAME, Collections.singletonList(resolveInfo), null);
+
+        PackageManager.Property result = info.getAppFunctionSchemaProperty(mPackageManager);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getString()).isEqualTo("service_schema_file.xml");
+    }
+
+    @Test
+    public void testGetAppFunctionSchemaProperty_appLevelEnabled_notFound() throws Exception {
+        assumeFlagIsEnabled(android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.serviceInfo = new ServiceInfo();
+        resolveInfo.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo.serviceInfo.name = "TestService";
+        ComponentName componentName = new ComponentName(PACKAGE_NAME, "TestService");
+
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(PACKAGE_NAME)))
+                .thenThrow(new PackageManager.NameNotFoundException());
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName)))
+                .thenThrow(new PackageManager.NameNotFoundException());
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(
+                        PACKAGE_NAME, Collections.singletonList(resolveInfo), null);
+
+        PackageManager.Property result = info.getAppFunctionSchemaProperty(mPackageManager);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    public void testGetAppFunctionSchemaProperty_appLevelDisabled_serviceLevelFound()
+            throws Exception {
+        assumeFlagIsDisabled(
+                android.app.appfunctions.flags.Flags.FLAG_ENABLE_DYNAMIC_APP_FUNCTIONS);
+
+        ResolveInfo resolveInfo = new ResolveInfo();
+        resolveInfo.serviceInfo = new ServiceInfo();
+        resolveInfo.serviceInfo.packageName = PACKAGE_NAME;
+        resolveInfo.serviceInfo.name = "TestService";
+        ComponentName componentName = new ComponentName(PACKAGE_NAME, "TestService");
+
+        PackageManager.Property schemaProperty =
+                new PackageManager.Property(
+                        "android.app.appfunctions.schema",
+                        "service_schema_file.xml",
+                        PACKAGE_NAME,
+                        "TestService");
+        when(mPackageManager.getProperty(eq("android.app.appfunctions.schema"), eq(componentName)))
+                .thenReturn(schemaProperty);
+
+        AppFunctionResolveInfo info =
+                new AppFunctionResolveInfo(
+                        PACKAGE_NAME, Collections.singletonList(resolveInfo), null);
+
+        PackageManager.Property result = info.getAppFunctionSchemaProperty(mPackageManager);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getString()).isEqualTo("service_schema_file.xml");
+
+        // Verify it didn't try to get app-level property
+        Mockito.verify(mPackageManager, Mockito.never())
+                .getProperty(eq("android.app.appfunctions.schema"), eq(PACKAGE_NAME));
     }
 
     @Test

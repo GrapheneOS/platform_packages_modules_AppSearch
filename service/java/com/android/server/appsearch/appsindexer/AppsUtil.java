@@ -18,6 +18,7 @@ package com.android.server.appsearch.appsindexer;
 
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.getAppFunctionAppProperty;
 import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isAppLevelAppFunctionsEnabled;
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isHandlingMultipleAppFunctionXmlEnabled;
 
 import android.Manifest;
 import android.annotation.NonNull;
@@ -50,6 +51,7 @@ import android.util.Log;
 import com.android.appsearch.flags.Flags;
 import com.android.server.appsearch.appsindexer.appsearchtypes.AppOpenEvent;
 import com.android.server.appsearch.appsindexer.appsearchtypes.MobileApplication;
+import com.android.server.appsearch.appsindexer.appsearchtypes.AppFunctionServiceState;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -174,7 +176,7 @@ public final class AppsUtil {
                 continue;
             }
             // Only available on API 37+.
-            if (isAppLevelAppFunctionsEnabled() && Flags.enableHandlingMultipleAppFunctionXml()) {
+            if (isHandlingMultipleAppFunctionXmlEnabled()) {
                 packageNameToAppFunctionServiceInfos
                         .computeIfAbsent(
                                 resolveInfo.serviceInfo.packageName, k -> new ArrayList<>())
@@ -398,10 +400,31 @@ public final class AppsUtil {
         AppFunctionResolveInfo appFunctionResolveInfo = resolveInfos.getAppFunctionResolveInfo();
         if (appFunctionResolveInfo != null
                 && !appFunctionResolveInfo.getAppFunctionServiceResolveInfos().isEmpty()) {
-            builder.setIsAppFunctionServiceEnabled(
-                    isAppFunctionServiceEnabled(
-                            packageManager,
-                            appFunctionResolveInfo.getAppFunctionServiceResolveInfos().get(0)));
+
+            if (isHandlingMultipleAppFunctionXmlEnabled()) {
+                List<ResolveInfo> appFunctionServiceResolveInfos =
+                        appFunctionResolveInfo.getAppFunctionServiceResolveInfos();
+                int numAppFunctionServiceResolveInfos = appFunctionServiceResolveInfos.size();
+                AppFunctionServiceState[] appFunctionServiceStates =
+                        new AppFunctionServiceState[numAppFunctionServiceResolveInfos];
+                for (int i = 0; i < numAppFunctionServiceResolveInfos; i++) {
+                    ResolveInfo appFunctionServiceResolveInfo =
+                            appFunctionServiceResolveInfos.get(i);
+                    appFunctionServiceStates[i] =
+                            new AppFunctionServiceState.Builder(
+                                            appFunctionServiceResolveInfo.serviceInfo.name)
+                                    .setEnabled(
+                                            isAppFunctionServiceEnabled(
+                                                    packageManager, appFunctionServiceResolveInfo))
+                                    .build();
+                }
+                builder.setAppFunctionServiceStates(appFunctionServiceStates);
+            } else {
+                builder.setIsAppFunctionServiceEnabled(
+                        isAppFunctionServiceEnabled(
+                                packageManager,
+                                appFunctionResolveInfo.getAppFunctionServiceResolveInfos().get(0)));
+            }
         }
 
         ResolveInfo launchActivityResolveInfo = resolveInfos.getLaunchActivityResolveInfo();

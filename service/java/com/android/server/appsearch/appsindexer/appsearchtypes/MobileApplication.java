@@ -16,6 +16,8 @@
 
 package com.android.server.appsearch.appsindexer.appsearchtypes;
 
+import static com.android.server.appsearch.appsindexer.AppFunctionsIndexerUtil.isHandlingMultipleAppFunctionXmlEnabled;
+
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -47,6 +49,18 @@ public class MobileApplication extends GenericDocument {
     public static final String APP_PROPERTY_UPDATED_TIMESTAMP = "updatedTimestamp";
     public static final String APP_PROPERTY_CLASS_NAME = "className";
 
+    /**
+     * Store the service state for each app function service in the app as {@link
+     * AppFunctionServiceState}.
+     */
+    public static final String APP_PROPERTY_APP_FUNCTION_SERVICE_STATES =
+            "appFunctionServiceStates";
+
+    /**
+     * @deprecated Use {@link APP_PROPERTY_APP_FUNCTION_SERVICE_STATES} instead. On devices running
+     *     {@link android.os.Build.VERSION_CODES#CINNAMON_BUN} and higher, this property will not be
+     *     set.
+     */
     public static final String APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED =
             "isAppFunctionServiceEnabled";
 
@@ -72,61 +86,90 @@ public class MobileApplication extends GenericDocument {
     public static AppSearchSchema createMobileApplicationSchemaForPackage(
             @NonNull String packageName) {
         Objects.requireNonNull(packageName);
-        return new AppSearchSchema.Builder(getSchemaNameForPackage(packageName))
-                // It's possible the user knows the package name, or wants to search for all apps
-                // from a certain developer. They could search for "com.developer.*".
-                .addProperty(
-                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_PACKAGE_NAME)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .setIndexingType(
-                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                                .setTokenizerType(
-                                        AppSearchSchema.StringPropertyConfig
-                                                .TOKENIZER_TYPE_VERBATIM)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_DISPLAY_NAME)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .setIndexingType(
-                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                                .setTokenizerType(
-                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.StringPropertyConfig.Builder(
-                                        APP_PROPERTY_ALTERNATE_NAMES)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
-                                .setIndexingType(
-                                        AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                                .setTokenizerType(
-                                        AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_ICON_URI)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.BytesPropertyConfig.Builder(
-                                        APP_PROPERTY_SHA256_CERTIFICATE)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.LongPropertyConfig.Builder(
-                                        APP_PROPERTY_UPDATED_TIMESTAMP)
-                                .setIndexingType(
-                                        AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.StringPropertyConfig.Builder(APP_PROPERTY_CLASS_NAME)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .build())
-                .addProperty(
-                        new AppSearchSchema.BooleanPropertyConfig.Builder(
-                                        APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED)
-                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                                .build())
-                .build();
+        AppSearchSchema.Builder schemaBuilder =
+                new AppSearchSchema.Builder(getSchemaNameForPackage(packageName))
+                        // It's possible the user knows the package name, or wants to search for all
+                        // apps from a certain developer. They could search for "com.developer.*".
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                APP_PROPERTY_PACKAGE_NAME)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_VERBATIM)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                APP_PROPERTY_DISPLAY_NAME)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                APP_PROPERTY_ALTERNATE_NAMES)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                                        .setIndexingType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .INDEXING_TYPE_PREFIXES)
+                                        .setTokenizerType(
+                                                AppSearchSchema.StringPropertyConfig
+                                                        .TOKENIZER_TYPE_PLAIN)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                APP_PROPERTY_ICON_URI)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.BytesPropertyConfig.Builder(
+                                                APP_PROPERTY_SHA256_CERTIFICATE)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.LongPropertyConfig.Builder(
+                                                APP_PROPERTY_UPDATED_TIMESTAMP)
+                                        .setIndexingType(
+                                                AppSearchSchema.LongPropertyConfig
+                                                        .INDEXING_TYPE_RANGE)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.StringPropertyConfig.Builder(
+                                                APP_PROPERTY_CLASS_NAME)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build())
+                        .addProperty(
+                                new AppSearchSchema.BooleanPropertyConfig.Builder(
+                                                APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED)
+                                        .setCardinality(
+                                                AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                        .build());
+
+        if (isHandlingMultipleAppFunctionXmlEnabled()) {
+            schemaBuilder.addProperty(
+                    new AppSearchSchema.DocumentPropertyConfig.Builder(
+                                    APP_PROPERTY_APP_FUNCTION_SERVICE_STATES,
+                                    AppFunctionServiceState.SCHEMA_TYPE)
+                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED)
+                            .build());
+        }
+
+        return schemaBuilder.build();
     }
 
     /** Constructs a {@link MobileApplication}. */
@@ -218,6 +261,22 @@ public class MobileApplication extends GenericDocument {
         return getPropertyBoolean(APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED);
     }
 
+    /** Returns the AppFunctionServiceStates for the app. */
+    @Nullable
+    public AppFunctionServiceState[] getAppFunctionServiceStates() {
+        GenericDocument[] documents =
+                getPropertyDocumentArray(APP_PROPERTY_APP_FUNCTION_SERVICE_STATES);
+        if (documents == null) {
+            return null;
+        }
+        AppFunctionServiceState[] appFunctionServiceStates =
+                new AppFunctionServiceState[documents.length];
+        for (int i = 0; i < documents.length; i++) {
+            appFunctionServiceStates[i] = new AppFunctionServiceState(documents[i]);
+        }
+        return appFunctionServiceStates;
+    }
+
     /** Builder for {@link MobileApplication}. */
     public static final class Builder extends GenericDocument.Builder<Builder> {
         public Builder(@NonNull String packageName, @NonNull byte[] sha256Certificate) {
@@ -275,6 +334,14 @@ public class MobileApplication extends GenericDocument {
         public Builder setIsAppFunctionServiceEnabled(boolean isAppFunctionServiceEnabled) {
             setPropertyBoolean(
                     APP_PROPERTY_IS_APP_FUNCTION_SERVICE_ENABLED, isAppFunctionServiceEnabled);
+            return this;
+        }
+
+        /** Sets the {@link AppFunctionServiceState}s for the app function services in the app. */
+        @NonNull
+        public Builder setAppFunctionServiceStates(
+                @NonNull AppFunctionServiceState... appFunctionServiceStates) {
+            setPropertyDocument(APP_PROPERTY_APP_FUNCTION_SERVICE_STATES, appFunctionServiceStates);
             return this;
         }
 
