@@ -624,16 +624,6 @@ flag {
 }
 
 flag {
-    name: "enable_close_appsearch_on_creation_failure"
-    namespace: "appsearch"
-    description: "Enable closing the instance of AppSearchImpl if we manage to create it, but we fail to fully create the user instance."
-    bug: "418422820"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_indexer_force_update"
     namespace: "appsearch"
     description: "Enable a forced update for appsearch indexers"

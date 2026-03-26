@@ -568,7 +568,7 @@ public final class AppSearchUserInstanceManager {
             AppSearchResult<Void> failedResult = throwableToFailedResult(e);
             statusCode = failedResult.getResultCode();
             LogUtil.criticalError(TAG, "Failed to create AppSearch instance", e);
-            if (Flags.enableCloseAppsearchOnCreationFailure() && appSearchImpl != null) {
+            if (appSearchImpl != null) {
                 // If we've created the instance, but encountered some issue.
                 // Close this instance so that we clean up it's resources.
                 appSearchImpl.close();
@@ -576,7 +576,7 @@ public final class AppSearchUserInstanceManager {
             throw e;
         } catch (Exception e) {
             LogUtil.criticalError(TAG, "Failed to create AppSearch instance", e);
-            if (Flags.enableCloseAppsearchOnCreationFailure() && appSearchImpl != null) {
+            if (appSearchImpl != null) {
                 // If we've created the instance, but encountered some issue.
                 // Close this instance so that we clean up it's resources.
                 appSearchImpl.close();
