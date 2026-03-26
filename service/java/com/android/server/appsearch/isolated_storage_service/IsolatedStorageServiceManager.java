@@ -105,6 +105,7 @@ public class IsolatedStorageServiceManager {
     private static final int PAYLOAD_WAIT_TIMEOUT_SECONDS = 61;
     private static final int MAX_VM_START_RETRIES = 3;
     private static final int MAX_REINITIALIZATION_RETRIES = 9;
+    private static final int AISEAL_RESTART_WAIT_SECONDS = 10;
     private static final int MAX_ICING_INITIALIZATION_RETRIES = 3;
     private static final long VM_STATUS_CHECK_INITIAL_DELAY_SECONDS = 120; // 2 minutes
     private static final long VM_STATUS_CHECK_INTERVAL_SECONDS = 60; // 1 minute
@@ -519,6 +520,16 @@ public class IsolatedStorageServiceManager {
         // Wait for VM payload to be ready if using isolated storage service instead of AiSeal.
         if (mIsolatedStorageService != null) {
             waitForVmPayloadReadyLocked(forceVmRestart, numRetriesForVmStart, statsBuilder);
+        } else if (mAiSealManager != null && isReconnecting()) {
+            // AiSealManager doesn't have a way for us to wait for the payload to be ready directly.
+            // So instead, we wait.
+            // TODO(b/496652946): Wait on AiSeal to notify us when is payload ready to connect
+            Log.i(TAG, "Waiting for AiSeal VM to restart");
+            try {
+                Thread.sleep(AISEAL_RESTART_WAIT_SECONDS * 1000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "failed to sleep", e);
+            }
         }
         connectToVmBinderWithRetryLocked(numRetriesForVmConnect);
         Log.i(TAG, "Successfully connected to vm");
