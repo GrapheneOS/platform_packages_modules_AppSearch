@@ -521,8 +521,9 @@ public class IsolatedStorageServiceManager {
         if (mIsolatedStorageService != null) {
             waitForVmPayloadReadyLocked(forceVmRestart, numRetriesForVmStart, statsBuilder);
         } else if (mAiSealManager != null && isReconnecting()) {
-            // AiSealManager doesn't have a way for us to wait for the payload to be ready directly.
-            // So instead, we wait.
+            // When we reconnect to the AiSeal VM after payload is dead, we need to wait for it to
+            // restart before trying to connect to the payload, because AiSeal will throw an
+            // exception when we try to connect to the payload during VM shutdown.
             // TODO(b/496652946): Wait on AiSeal to notify us when is payload ready to connect
             Log.i(TAG, "Waiting for AiSeal VM to restart");
             try {
