@@ -163,7 +163,8 @@ public final class AppsIndexerManagerService extends SystemService {
          * Return true if the entire package was changed, or if the AppFunction Component was
          * changed, false otherwise.
          */
-        private boolean shouldRunIndexerOnPackageChange(@NonNull Intent intent) {
+        private boolean shouldRunIndexerOnPackageChange(
+                @NonNull Intent intent, @NonNull UserHandle userHandle) {
             Objects.requireNonNull(intent);
             String[] changedComponents =
                     intent.getStringArrayExtra(Intent.EXTRA_CHANGED_COMPONENT_NAME_LIST);
@@ -194,7 +195,8 @@ public final class AppsIndexerManagerService extends SystemService {
                 // disabling AppFunctionService, the component may already be disabled and would
                 // otherwise be skipped
                 List<ResolveInfo> services =
-                        mContext.getPackageManager()
+                        mContext.createContextAsUser(userHandle, /* flags= */ 0)
+                                .getPackageManager()
                                 .queryIntentServices(
                                         appFunctionServiceIntent,
                                         /* flags= */ PackageManager.MATCH_DISABLED_COMPONENTS);
@@ -211,17 +213,23 @@ public final class AppsIndexerManagerService extends SystemService {
         /** Handles intents related to package changes. */
         @Override
         public void onReceive(@NonNull Context context, @NonNull Intent intent) {
+            int uid = intent.getIntExtra(Intent.EXTRA_UID, INVALID_UID);
+            if (uid == INVALID_UID) {
+                Log.w(TAG, "uid is missing in the intent: " + intent);
+                return;
+            }
+            UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
             try {
                 Objects.requireNonNull(context);
                 Objects.requireNonNull(intent);
 
                 switch (intent.getAction()) {
                     case Intent.ACTION_PACKAGE_CHANGED:
-                        if (!shouldRunIndexerOnPackageChange(intent)) {
+                        if (!shouldRunIndexerOnPackageChange(intent, userHandle)) {
                             // If it was just a component change, do not run the indexer
                             return;
                         }
-                        // fall through
+                    // fall through
                     case Intent.ACTION_PACKAGE_ADDED:
                     case Intent.ACTION_PACKAGE_REPLACED:
                     case Intent.ACTION_PACKAGE_FULLY_REMOVED:
@@ -235,14 +243,9 @@ public final class AppsIndexerManagerService extends SystemService {
                         // TODO(b/275592563): handle more efficiently based on package event type
                         // TODO(b/275592563): determine if batching is necessary in the case of
                         //  rapid updates
-
-                        int uid = intent.getIntExtra(Intent.EXTRA_UID, INVALID_UID);
-                        if (uid == INVALID_UID) {
-                            Log.w(TAG, "uid is missing in the intent: " + intent);
-                            return;
+                        if (LogUtil.DEBUG) {
+                            Log.d(TAG, "userid in package receiver: " + uid);
                         }
-                        Log.d(TAG, "userid in package receiver: " + uid);
-                        UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
                         mLocalService.doUpdateForUser(userHandle, /* unused= */ null);
                         break;
                     default:
